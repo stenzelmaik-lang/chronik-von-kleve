@@ -9,6 +9,10 @@ const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
 
 const { d1, r2 } = hostingConfig;
 
+// Workers Builds deploys to our Cloudflare account; Sites and local previews
+// retain their existing placeholder bindings.
+const cloudflareBuild = process.env.WORKERS_CI === "1";
+
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const managedLinux = readExecutionProfile() === "managed-linux";
@@ -20,8 +24,10 @@ const localBindingConfig = {
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: cloudflareBuild ? "chronik-von-kleve-db" : "site-creator-d1",
+          database_id: cloudflareBuild
+            ? "a4bc79e6-3f33-4b03-b240-9c341bd1d4d7"
+            : SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
         },
       ]
     : [],
@@ -29,7 +35,7 @@ const localBindingConfig = {
     ? [
         {
           binding: r2,
-          bucket_name: "site-creator-r2",
+          bucket_name: cloudflareBuild ? "chronik-von-kleve-r2" : "site-creator-r2",
         },
       ]
     : [],
