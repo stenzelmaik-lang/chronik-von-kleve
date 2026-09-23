@@ -1,0 +1,121 @@
+{
+  "documentId": "1RM5AUUwZDqEAPIILURCu3EI_E_m_PN2dWhTufLEDUvA",
+  "title": "LEGACY-DB – Orte vollständig – 2026-07-05",
+  "revisionId": "ANLCKQm0_2-PQg-eaYUI1v0Woo5r8EJ24dO7hr3xIj6Ahi6eN5mqLfdfmgiq_RN-86yMm0SvYiiHbf1N_OeKWHPcDfzziGo2-PTBjrDloxs",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "DB-FUND: ORTE-MASTERDATEN (11 Einträge aus panoram_vampireabend.json, Tabelle \"places\")",
+      "startIndex": 1,
+      "endIndex": 88,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Stand 05.07.2026. Dies ist die aktuellste Orts-Datenbank der Website (nicht die frühe \"Orte\"-Textdatei aus dem April-2025-Planungsdokument, die nur 10 sehr generische Vorschlags-Orte enthielt).",
+      "startIndex": 89,
+      "endIndex": 282,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "1. HOCHSCHULE RHEIN-WAAL — \"Zwischen Wissen, Blut und Code\". Offiziell Land NRW, inoffiziell subventioniert durch Stiftung Umbra Artis. Verdeckter Einfluss von Elara Bosch UND Syntax. Serverraum im Keller (Gebäude \"Kommunikation & Umwelt\") offiziell für Archivierung, tatsächlich mysteriös aktiv ohne Stromzufuhr. Tags: Umbra Artis, Syntax, MX-G-17.",
+      "startIndex": 284,
+      "endIndex": 633,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "2. BAHNHOF KLEVE (NORD) — Transitpunkt B-01. Neutral, Camarilla-Kontrollzone ohne feste Präsenz. Tags inkl. \"Dornenrose\". Unbekannter gesichtsloser Bote nimmt nie denselben Zug.",
+      "startIndex": 635,
+      "endIndex": 812,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "3. KLOSTER DER PROPSTEI — \"Das steinerne Herz\". Eigentümer: Heiliger Stuhl / Congregatio Umbrae (!). Vatikan/Camarilla-Klausel. NSCs: Schwester Agnes, Pater Merten (Archivar der Congregatio Umbrae, erinnert sich an nichts außerhalb der Bibliothek), Bruder Lucien, Schwester Mirielle, Vater Aurelius (wirft keinen Schatten, erscheint nur bei Kerzenlicht — starker Hinweis auf einen Kainiten/Ältesten im Klerus!). Gerücht: ein Buch trägt Johannas Handschrift, riecht nach frischem Blut. Maskerade: KRITISCH.",
+      "startIndex": 814,
+      "endIndex": 1319,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "4. ELECTRIC TABERNA — \"Neon & Schatten\". Eigentümer: Avi (bestätigt Tremere). Elysium/Camarilla. NSCs u.a. Ilya (Barkeeper), Vesper (DJ), O2/Krill (Sprayer/Informant). Gerücht: eine Stiftung aus der Kunstszene unterstützte den Umbau diskret (Umbra Artis?). Maskerade: SEHR HEIKEL.",
+      "startIndex": 1321,
+      "endIndex": 1601,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "5. FRIEDHOF MATERBORN — \"Die schiefen Grüfte\". Inoffiziell von Elara Bosch über eine kirchliche Stiftung kontrolliert. Tags: Dornenrose, Volkov, Ultio, Bannkreis. St.-Anna-Kapelle zentral für den Dornen-Pfand-Mechanismus (siehe Status-Quo-Dokument).",
+      "startIndex": 1603,
+      "endIndex": 1852,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "6. GALERIE FREIRAUM — Elten (Emmerich am Rhein). Kulturstiftung Freiraum, Camarilla-gefördert. Kuratorin Elise Brandt ist ein Ghul. Verschwundener Nachtwächter, zugemauerter Raum ohne Tür im Untergeschoss.",
+      "startIndex": 1854,
+      "endIndex": 2059,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "7. KASERNE SCHWARZHOLZ — \"Ultio\". Offiziell Land NRW (stillgelegt), inoffiziell unbekannte Sicherheitsverwaltung. Geheim. NSCs: Silas Vance, Herr Schäfer, Elara Bosch, Rhino, Syntax, Konstantin. Gerücht: eine vierte unterirdische Ebene ohne bekannte Treppe.",
+      "startIndex": 2061,
+      "endIndex": 2318,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "8. SCHWANENBURG — Sitz des Prinzen. Land NRW (tagsüber Justiz) / Konstantin (nachts). Camarilla-Kernterritorium. Vollständige Hofstaat-Liste: Karl-Heinz \"Kalle\" Mertens (Leibghul-Fahrer), Anna-Lena Vogt (Hofsekretärin, Ghul Toreador), \"Herr Becker\" (Sicherheitschef Nachtwache). Danger Level 7 — höchster Wert aller Orte.",
+      "startIndex": 2320,
+      "endIndex": 2641,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "9. PARKHAUS OBERSTADT — \"Rückwärtsblutung\". Ort des Blutfund-Rituals (\"Engel aus Blut\", ohne Leiche) — Grundlage des Rechtsmedizinischen Gutachtens.",
+      "startIndex": 2643,
+      "endIndex": 2791,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "10. STENTEN BESTATTUNGEN — Kleve-Kellen. Familie Stenten, \"schnelle diskrete Überführungen\". NSCs u.a. \"Projektleiter Volkov (Kontakt, extern)\" — DIREKTE BESTÄTIGUNG, dass Volkov Kontakt zu diesem Bestattungsunternehmen unterhält —, Monsignore Attilio Rinaldi. Gerücht: jährlicher Transporter aus den Niederlanden ohne Kennzeichen.",
+      "startIndex": 2793,
+      "endIndex": 3124,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "11. WOHNUNG VON HANNAH RICHTER — Innenstadt. Tags: Umbra Artis, Lukas Weber, Schattenpolitik. Zeichnet Dornenlinien, wird beobachtet.",
+      "startIndex": 3126,
+      "endIndex": 3259,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "QUERVERBINDUNG: Die Congregatio Umbrae (Propstei) UND die Stiftung Umbra Artis (Hochschule/Sigma-Ridge) teilen den Namensbestandteil \"Umbra\" — vermutlich kein Zufall, aber nicht explizit als Verbindung bestätigt. Offene Frage für Maik.",
+      "startIndex": 3261,
+      "endIndex": 3496,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1RM5AUUwZDqEAPIILURCu3EI_E_m_PN2dWhTufLEDUvA"
+}

@@ -1,0 +1,156 @@
+import type {
+  Actor,
+  Entity,
+  EntityType,
+  CanonStatus,
+  Visibility,
+  JsonObject,
+} from "@/domain/types";
+import type { LegacyRecordRow } from "@/domain/legacy";
+
+export type EntityRow = {
+  id: string;
+  campaign_id: string;
+  type: EntityType;
+  canon_status: CanonStatus;
+  legacy_record_id: string | null;
+  owner_id: string;
+  visibility: Visibility;
+  title: string;
+  content: string;
+  gm_body: string;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+export type GrantRow = {
+  entity_id: string;
+  audience: "group" | "player";
+  subject_id: string;
+  state: string;
+};
+export function parseObject(raw: string): JsonObject {
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === "object" && !Array.isArray(v)
+      ? (v as JsonObject)
+      : {};
+  } catch {
+    return {};
+  }
+}
+export function resolveEntity(
+  row: EntityRow,
+  legacy?: LegacyRecordRow,
+): Entity {
+  return {
+    id: row.id,
+    campaignId: row.campaign_id,
+    type: row.type,
+    canonStatus: row.canon_status,
+    legacyRecordId: row.legacy_record_id,
+    ownerId: legacy?.owner_id ?? row.owner_id,
+    visibility: legacy?.visibility ?? row.visibility,
+    title: legacy?.title ?? row.title,
+    content: parseObject(legacy?.body ?? row.content),
+    gmBody: legacy?.gm_body ?? row.gm_body,
+    version: legacy?.version ?? row.version,
+    createdAt: legacy?.created_at ?? row.created_at,
+    updatedAt: legacy?.updated_at ?? row.updated_at,
+  };
+}
+// The only player projection: secret values never enter a client response.
+export function playerContent(value: JsonObject): JsonObject {
+  const clean: JsonObject = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (/^(gm_?body|gm_?secret|sl_?text|sl_?secret|secret|secrets)$/i.test(key))
+      continue;
+    if (
+      (key === "rules" && value.rules_unlocked === false) ||
+      (key === "encounters" && value.encounters_unlocked === false)
+    )
+      continue;
+    const sanitize = (v: typeof item): typeof item | undefined => {
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        if (v.canonStatus === "GM_SECRET" || v.canon_status === "GM_SECRET")
+          return undefined;
+        return playerContent(v);
+      }
+      if (Array.isArray(v))
+        return v
+          .map(sanitize)
+          .filter((x): x is NonNullable<typeof x> | null => x !== undefined);
+      return v;
+    };
+    const result = sanitize(item);
+    if (result !== undefined) clean[key] = result;
+  }
+  return clean;
+}
+export function projectEntity(
+  a: Actor,
+  e: Entity,
+  grants: GrantRow[],
+): Entity | null {
+  if (a.status !== "active" || a.campaignId !== e.campaignId) return null;
+  if (a.gm) return e;
+  if (e.content.recoveryOnly === true || e.canonStatus === "GM_SECRET" || e.content.canonStatus === "GM_SECRET" || e.content.canon_status === "GM_SECRET") return null;
+  const granted = grants.some(
+    (g) =>
+      g.entity_id === e.id &&
+      g.state !== "UNKNOWN" &&
+      ((g.audience === "group" && g.subject_id === a.campaignId) ||
+        (g.audience === "player" && g.subject_id === a.id)),
+  );
+  // Existing shared records keep their visibility, except explicitly locked bodies.
+  const legacyShared =
+    !!e.legacyRecordId &&
+    e.visibility === "group" &&
+    e.content.discovered !== false &&
+    e.content.content_unlocked !== false;
+  const owner = e.ownerId === a.id;
+  if (!granted && !legacyShared && !owner) return null;
+  const { gmBody: _secret, ...safe } = e;
+  void _secret;
+  const content=playerContent(e.content);
+  // A permitted reader must also be able to open the existing map view.
+  // These are response flags only; the canonical legacy body remains untouched.
+  if(granted){if(content.discovered===false)content.discovered=true;if(content.content_unlocked===false)content.content_unlocked=true;}
+  return { ...safe, content };
+}
+export async function loadEntities(
+  db: D1Database,
+  campaignId: string,
+  id?: string,
+) {
+  const [entities, records] = await db.batch([
+    db
+      .prepare(
+        "SELECT * FROM entities WHERE campaign_id=?" + (id ? " AND id=?" : ""),
+      )
+      .bind(...(id ? [campaignId, id] : [campaignId])),
+    db
+      .prepare(
+        "SELECT * FROM records WHERE campaign_id=?" + (id ? " AND id=?" : ""),
+      )
+      .bind(...(id ? [campaignId, id] : [campaignId])),
+  ]);
+  const legacy = new Map(
+    (records.results as LegacyRecordRow[]).map((r) => [r.id, r]),
+  );
+  return (entities.results as EntityRow[]).map((r) =>
+    resolveEntity(
+      r,
+      r.legacy_record_id ? legacy.get(r.legacy_record_id) : undefined,
+    ),
+  );
+}
+export async function grantsFor(db: D1Database, a: Actor): Promise<GrantRow[]> {
+  const result = await db
+    .prepare(
+      "SELECT entity_id,audience,subject_id,state FROM knowledge WHERE campaign_id=? AND ((audience=? AND subject_id=?) OR (audience=? AND subject_id=?))",
+    )
+    .bind(a.campaignId, "group", a.campaignId, "player", a.id)
+    .all<GrantRow>();
+  return result.results;
+}

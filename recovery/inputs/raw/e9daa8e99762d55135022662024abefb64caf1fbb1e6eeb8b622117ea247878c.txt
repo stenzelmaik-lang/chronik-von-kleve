@@ -1,0 +1,49 @@
+{
+  "news": [
+    {
+      "id": "news-004",
+      "title": "🌑 Chronik des 7. November 2025: Unter Druck und im Zwielicht 🦇gung",
+      "date": "2025-11-08",
+      "author": "Spielleitung",
+      "category": "Welt",
+      "priority": "normal",
+      "status": "published",
+      "content": "<p>Der Abend des 7. November begann für die Coterie zunächst unspektakulär mit einer Zusammenkunft in der <strong>Kaserne</strong>. Trotz unterschwelliger <strong>interner Spannungen</strong> lösten sich diese im Sande auf und blieben ohne unmittelbare Konsequenzen für die Einheit der Gruppe.</p><h3>🏛️ Die Vorladung in den Richterhof</h3><p>Die Ruhe währte jedoch nicht lange. Eine <strong>kurzfristige Vorladung</strong> zum <strong>Richterhof</strong>, einem offiziellen Haus der Domäne, riss die Gruppe aus ihren Routinen. Auffallend war die <strong>stark erhöhte Sicherheitsvorkehrung</strong> im Gebäude. Ein Mitglied der Coterie wurde <em>allein</em> zur Anhörung gerufen, während der Rest im Sicherheitsvorraum verharren musste – ein potenziell demütigender Akt der Macht. Die Situation blieb jedoch gespannt, aber ruhig. Die Coterie reiste im Anschluss <strong>geschlossen</strong> und ohne Zwischenfall ab.</p><h3>🍻 Unruhe im Elysium</h3><p>Als Nächstes suchte die Coterie das <strong>Elysium</strong> in Form einer überfüllten Taverne/Bar auf. <strong>Laute Musik und eine große Gästeschar</strong> füllten den Ort. Hier kam es zu einer <strong>unangenehmen Begegnung mit einem Unbekannten</strong>. Die Gruppe zeigte jedoch bemerkenswerte Disziplin: Sie entschieden sich bewusst gegen eine Konfrontation und verließen das belebte Lokal <strong>geordnet</strong>.</p><h3>⚰️ Mysterien am Friedhof</h3><p>Zum Abschluss des ereignisreichen Abends unternahm die Gruppe eine kurze Ortsbegehung am städtischen <strong>Friedhof</strong> bei der Kapelle. Hier stießen die Charaktere auf <strong>ungewöhnliche Phänomene</strong>. Ersten Einschätzungen zufolge deuteten die Feststellungen auf <strong>alte Schutz- oder Sicherungsmechanismen</strong> hin, die hier möglicherweise wirken.</p><p>Eine detaillierte Untersuchung dieses mysteriösen Ortes wurde für eine kommende Runde angesetzt. Die Coterie zog sich danach in die Kaserne zurück.</p>",
+      "excerpt": "Das klingt nach einer spannenden Chronik eines Abends in der Welt von Vampire: Die Maskerade! Ich schreibe es dir gerne in einem stimmigeren, erzähler",
+      "image": "assets/img/news/news-2025-11-07-thumb-800x450.jpg",
+      "attachments": [],
+      "tags": [
+        "Recap",
+        "Session",
+        "Spoilerfrei",
+        "Elysium",
+        "Friedhof",
+        "Richterhof"
+      ],
+      "pinned": false
+    },
+    {
+      "id": "news-001",
+      "title": "Neue Schatten �ber Kleve",
+      "date": "2025-10-23",
+      "author": "Spielleitung",
+      "category": "Welt",
+      "priority": "normal",
+      "status": "published",
+      "content": "<p><strong><u>Ein erster Blick hinter die Maskerade</u></strong></p><p><em>Die Tore zur Chronik von Kleve �ffnen sich langsam.</em></p><p>Noch sind viele Bereiche von Nebel verh�llt, noch flackern die Codes der Seite wie schwache Laternen im Regen  doch das Fundament steht.</p><p>Die Dom�ne nimmt Gestalt an:</p><p>Die Stimmen von Elara Bosch, Vance, Sofia und den anderen beginnen zu fl�stern; Orte wie die Schwanenburg, der Richterhof und das verlassene Kasernengel�nde f�gen sich zu einem lebenden Mosaik.</p><p>Was du hier siehst, ist erst der Anfang.</p><p>Ein Werk im Werden. Ein digitales Grimoire �ber Macht, Schuld und das Spiel im Schatten.</p><p>Bleib wachsam.</p><p>Mit jedem Update verdichten sich die Linien zwischen Spiel, Geschichte und Wahrheit.</p>",
+      "excerpt": "Willkommen in der offiziellen Chronik der Dom�ne Kleve",
+      "image": "assets/img/news/news-001-compressed.jpg",
+      "attachments": [],
+      "tags": [
+        "Chronik",
+        "Ank�ndigung",
+        "Kleve"
+      ],
+      "pinned": true
+    }
+  ],
+  "meta": {
+    "lastUpdate": "2025-11-08",
+    "nextId": "news-005"
+  }
+}

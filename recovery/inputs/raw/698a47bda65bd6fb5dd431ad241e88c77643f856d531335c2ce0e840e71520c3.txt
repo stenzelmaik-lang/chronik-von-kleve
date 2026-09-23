@@ -1,0 +1,19 @@
+{
+  "id": "a003",
+  "type": "audio",
+  "title": "Audio: 'Kanal-Aufnahme'",
+  "date": "2025-10-15",
+  "visibility": { "role": "player" },
+  "tags": ["Ger\u00fccht", "Propstei"],
+  "abstract": "Eine verrauschte Aufnahme von einem Diktiergeraet nahe des Spoykanals.",
+  "body_md": "Die Aufnahme enthaelt Schritte auf Kies und eine verzerrte Stimme, die fluestert: '...sie kommen nicht aus dem Wasser... sie sind schon drin... im Fundament...'. Nach 18 Sekunden stoppt das Geraeusch plockernd, als wuerde das Geraet unter Wasser gezogen.\n\n*Hinweis:* Die Frequenzanalyse deckt sich mit Thaumaturgie-Resonanzen aus der Propstei.",
+  "thumb": "assets/img/orte/placeholder.png",
+  "source": "spielleiter",
+  "attachments": [
+    {
+      "type": "audio",
+      "href": "audio/beispiel.mp3",
+      "title": "Kanal-Aufnahme"
+    }
+  ]
+}

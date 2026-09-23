@@ -1,0 +1,18 @@
+{
+  "id": "presse_wachdienst",
+  "type": "presse",
+  "title": "Klever Wachdienst verstärkt nächtliche Streifen",
+  "date": "2025-09-20",
+  "visibility": { "role": "public" },
+  "tags": ["presse", "stadt"],
+  "abstract": "Die Lokalzeitung berichtet über eine neue Nachtwachen-Offensive in der Innenstadt.",
+  "body_md": "Die Redaktion des *Klever Tagesspiegels* schreibt:\\n\\n> Der Wachdienst reagiert auf vermehrte Meldungen über Personen in Maskerade. Einsatzleiter [[NSC:marek_keller]] bestätigt, dass die Streifen in Richtung [[Ort:bahnhof_nord]] verdichtet werden.\\n\\nBürgerinnen und Bürger werden gebeten, Auffälligkeiten über die zentrale Meldestelle zu berichten. {{probe: Manipulation + Überzeugen, 5}} um einen Offizier in ein informelles Gespräch zu verwickeln.",
+  "thumb": "assets/img/orte/placeholder.png",
+  "attachments": [],
+  "source": "Klever Tagesspiegel",
+  "related": {
+    "places": ["bahnhof_nord"],
+    "npcs": ["marek_keller"],
+    "chronik": []
+  }
+}

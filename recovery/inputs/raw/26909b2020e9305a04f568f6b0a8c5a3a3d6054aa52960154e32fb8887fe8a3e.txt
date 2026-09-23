@@ -1,0 +1,1 @@
+{"h1":"NSCs","intro":"Schlüsselakteure der Domäne.","content_html":"<p>Filtere nach Clan und Ebene oder suche direkt nach Namen, um relevante NSCs schnell zu finden. Ein Klick öffnet die Detailansicht mit Werten und Notizen.</p>","admin_block":"<p>Admin: NSC-Datensatzpflege hier.</p>"}

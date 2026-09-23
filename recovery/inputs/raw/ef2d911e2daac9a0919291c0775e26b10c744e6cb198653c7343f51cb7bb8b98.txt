@@ -1,0 +1,29 @@
+{
+	"archive_hero": {
+		"title": "Archiv der Chronik",
+		"subtitle": "Recherche, Dossiers und Protokolle gebuendelt.",
+		"body_html": "<p>Das Archiv dient als Wissenshub fuer Spielleitung und Spielende. Kombiniere Suche und Filter, um passende Eintraege zu finden.</p><ul><li><strong>Schneller Zugriff:</strong> Nutze Tags wie \"ratsnacht\" oder \"propstei\".</li><li><strong>Rollenbasierter Blick:</strong> Sichtbarkeit filtert Inhalte je nach Freigabe.</li><li><strong>Kuratiert:</strong> Die Spotlight-Sektion enthaelt empfohlene Dossiers.</li></ul>"
+	},
+	"archive_search": {
+		"label": "Archiv durchsuchen",
+		"placeholder": "Suche nach Titeln, Tags, Quellen...",
+		"reset_aria": "Suche zuruecksetzen",
+		"help_html": "<strong>Tipp:</strong> Die Suche deckt Titel, Abstract, Quelle und Tags ab. Mit Enter bestaetigen oder einfach tippen."
+	},
+	"archive_filters": {
+		"title": "Filter",
+		"reset_label": "Filter zuruecksetzen",
+		"hint_html": "<p>Kombiniere Typ, Jahr und Tags fuer praezise Treffer. Mehrere Filter addieren sich; erneut klicken entfernt eine Auswahl.</p>"
+	},
+	"archive_copy": {
+		"more_label": "Mehr laden",
+		"results_empty": "<p><strong>Keine passenden Eintraege.</strong> Loese einzelne Filter oder erweitere die Suche.</p>",
+		"preview_empty": "<p>Waehle einen Eintrag aus der Liste, um eine Vorschau mit Kurzinfos zu sehen.</p>",
+		"modal_close": "Artikel schliessen"
+	},
+	"archive_spotlight": {
+		"title": "Empfohlene Sammlungen",
+		"intro": "Kurze Spruenge zu oft gebrauchten Dossiers und Funden.",
+		"body_html": "<div class=\"spotlight-grid\"><article class=\"spotlight-card\"><h3>Ratsnacht-Dossier</h3><p>Alle gesammelten Aussagen, Zeitachsen und verschluesselten Hinweise zum Hoehepunkt der Ratsnacht.</p><a class=\"chip\" href=\"#akte_ratsnacht\">Akte oeffnen</a></article><article class=\"spotlight-card\"><h3>Propstei-Fund</h3><p>Dokumentation der Reliquienkapsel inklusive Artefakt-Analyse und Sicherheitsnotizen.</p><a class=\"chip\" href=\"#fund_propstei\">Fund ansehen</a></article><article class=\"spotlight-card\"><h3>Pressespiegel Maskerade</h3><p>Lokale Pressemeldungen mit Bezug zur Maskerade, ideal fuer Stimmungen und Einstiege.</p><a class=\"chip\" href=\"#presse_wachdienst\">Artikel lesen</a></article></div>"
+	}
+}

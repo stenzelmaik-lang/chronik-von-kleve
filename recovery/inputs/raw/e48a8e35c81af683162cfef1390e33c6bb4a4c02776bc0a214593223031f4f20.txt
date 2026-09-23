@@ -1,0 +1,25 @@
+{
+  "events": [
+    {
+      "id": "event-1761234383130",
+      "title": "Spielabend 04",
+      "date": "2025-11-07",
+      "time": "17:00",
+      "location": "Vorort und Online",
+      "description": "Denkt an eure unterlagen",
+      "type": "session",
+      "status": "upcoming",
+      "participants": [
+        "Xogar",
+        "Doro",
+        "Saskia",
+        "Franzi"
+      ],
+      "notes": ""
+    }
+  ],
+  "meta": {
+    "lastUpdate": "2025-10-23",
+    "nextEventId": "event-001"
+  }
+}

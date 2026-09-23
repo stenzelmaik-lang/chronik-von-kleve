@@ -1,0 +1,201 @@
+{
+  "documentId": "1kmR002bqNX2rFHRinpP2eoRO6p0u9Tm4LXIvOr6cjB4",
+  "title": "LEGACY-DB – Übersicht & Kontradiktionen – 2026-07-05",
+  "revisionId": "ANLCKQmT7Hp306yz-7O-TcX7FKxA1vlbEafioUeK94mNViLm9tTOZXAFF2XNPRvjSu90f5BnRejTOhqSRPvtxnYtloMN3rASYi7OJEJ9l_4",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "GROSSER FUND: LIVE-WEBSITE-DATENBANK (panoram_vampireabend.json, phpMyAdmin-Export)",
+      "startIndex": 1,
+      "endIndex": 84,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Stand 05.07.2026. Von Maik hochgeladen nach FTP-Download der reaktivierten Seite cklevampire.de.",
+      "startIndex": 85,
+      "endIndex": 181,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "STATUS: Das ist mit hoher Wahrscheinlichkeit die AUTORITATIVSTE Quelle im ganzen Projekt — es ist die tatsächliche, aktiv genutzte Datenbank der Web-App (nicht nur ein Planungsdokument). Tabellen-Zeitstempel reichen bis 14.04.2026, also weit über das Kampagnenende (21.01.2026) hinaus — vermutlich technische Migration/Reimport, nicht zwingend inhaltliche Weiterarbeit.",
+      "startIndex": 182,
+      "endIndex": 551,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "ENTHALTENE TABELLEN (Auszug, alle 29 Einträge gesichtet): places (11), nscs (14), characters (7, davon 4 aktive SC + 3 Test-Charaktere), character_profiles (4), sl_plots (4 — darunter der vollständige Status-Quo-Text UND der vollständige Sitzung-05-Leitfaden), sl_notes (2), inventory_items (41), rule_documents/rule_entries (14/31), messages (25), login_history (192) u.a.",
+      "startIndex": 553,
+      "endIndex": 926,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "============================================================",
+      "startIndex": 928,
+      "endIndex": 988,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "!!! WICHTIGSTER PUNKT — OFFENER WIDERSPRUCH, NICHT GEGLÄTTET !!!",
+      "startIndex": 989,
+      "endIndex": 1053,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "============================================================",
+      "startIndex": 1054,
+      "endIndex": 1114,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Die Datenbank widerspricht Buch 1 in den SC-Grunddaten:",
+      "startIndex": 1115,
+      "endIndex": 1170,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- HELENA MICHANOVER (gespielt von Saskia): Laut DB Malkavian, Generation 12, Erzeugerin/Sire \"Gregor Mendel\", geboren 11.03.1962 in Berlin (deutsch-ukrainische Familie), gestorben/umarmt 12.02.1994, Beruf: Gerichtsmedizinerin (bestätigt die Vermutung aus dem Dezember-Obduktionsgutachten!). Konzept: \"Gerichtsmedizinerin, die durch Tote die Stimme Kains hört\". Derangement (Pflicht-Wahnstörung) noch nicht im Datensatz spezifiziert.",
+      "startIndex": 1172,
+      "endIndex": 1604,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "  → Buch 1 (Kapitel 1) beschreibt \"Saskia\" dagegen als BRUJAH mit Ahn \"Markus Stahl\" aus Hamburg, diszipliniert, kein Bezug zu Gerichtsmedizin oder Berlin.",
+      "startIndex": 1605,
+      "endIndex": 1760,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- CORVINA ASHFORD (gespielt von Franzi): Laut DB Toreador, Generation 12, Erzeugerin \"Selene Everwyn\" — Primogenin LONDONS (nicht Berlin!), vor ~10 Jahren ermordet (\"Das Verstummen der Königin\", ungeklärter Mordfall, zentraler persönlicher Plot-Faden). Corvinas Reaktion auf Sigma-Ridge/Volkov-Nähe (kalter Smaragdring, siehe Akt-II-Fund) hängt vermutlich mit dieser Erzeugerin zusammen.",
+      "startIndex": 1762,
+      "endIndex": 2149,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "  → Buch 1 beschreibt \"Franzi\" dagegen als Toreador mit Ahnin \"Vivienne Moreau\", Primogenin BERLINS.",
+      "startIndex": 2150,
+      "endIndex": 2250,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- CAT / CAT ROUX (gespielt von Doro): Laut DB Gangrel, Generation 12, Konzept \"Tierflüsterer\". Kein Sire im Datensatz eingetragen (leeres Feld).",
+      "startIndex": 2252,
+      "endIndex": 2396,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "  → Das deckt sich GROB mit Buch 1 (Gangrel, Ahn Alaric, Schwarzwald) — hier kein harter Widerspruch, nur fehlende Sire-Bestätigung in der DB.",
+      "startIndex": 2397,
+      "endIndex": 2539,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- LEOPOLD VON HOHENFELS (gespielt von Xogar): Laut DB Ventrue, Generation 13, Erzeugerin \"Dr. Andreas Falkenberg\", geboren 1936 Dresden (Familie beim Bombenangriff 1945 ausgelöscht), gestorben/umarmt 31.12.1977 (Alter ~41), Ziel: \"Die Spitze der Camarilla erreichen\". Bestätigt Ventrue-Zugehörigkeit aus dem Akt-II-Fund.",
+      "startIndex": 2541,
+      "endIndex": 2861,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "  → Keine widersprechende Buch-Quelle bekannt (Leopold kommt in Buch 1 nicht vor, da nur 3 Protagonistinnen).",
+      "startIndex": 2862,
+      "endIndex": 2971,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "EINORDNUNG: Das sieht nach einer bewussten ODER unbewussten Weiterentwicklung zwischen Roman-Frühfassung (Buch 1, ca. April 2025 spielend) und der tatsächlichen Tisch-Kampagne aus. Zwei Erklärungen sind möglich: (a) Die Bücher sind eine eigenständige literarische Fiktionalisierung mit anderen Namen/Hintergründen für dieselben Spielerinnen, bewusst verändert für die Veröffentlichung; (b) die Charakterkonzepte wurden im Laufe der Entwicklung schlicht neu geschrieben/verworfen und die Bücher sind dadurch veraltet. NICHT GLÄTTEN — Maik muss entscheiden, welche Fassung als Kanon gilt (oder ob beide parallel als \"Roman-Kanon\" und \"Spiel-Kanon\" koexistieren).",
+      "startIndex": 2973,
+      "endIndex": 3633,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "============================================================",
+      "startIndex": 3635,
+      "endIndex": 3695,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "ÜBERSICHT DER WEITEREN FUNDE (Details in separaten Dokumenten)",
+      "startIndex": 3696,
+      "endIndex": 3758,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "============================================================",
+      "startIndex": 3759,
+      "endIndex": 3819,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- 11 Orte mit vollständigen Statblocks (Besitzer, Fraktion, NSCs, Gerüchte, Maskerade-Risiko) — siehe DB_Fund_Orte_Vollstaendig",
+      "startIndex": 3820,
+      "endIndex": 3947,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- 14 NSCs mit vollständigen Charakterbögen (Attribute, Disziplinen, Geheimnisse, SL-Hinweise) — siehe DB_Fund_NSCs_Vollstaendig",
+      "startIndex": 3948,
+      "endIndex": 4075,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- Der VOLLSTÄNDIGE Text von \"Status quo vor Sitzung 05 (12.12.2025)\" — viel detaillierter als die bisher bekannte Zusammenfassung — siehe DB_Fund_StatusQuo_und_Sitzung05_Vollstaendig",
+      "startIndex": 4076,
+      "endIndex": 4258,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- Der VOLLSTÄNDIGE Sitzung-05-Spielleiter-Leitfaden (\"S3: Stein · Seele · Stille\") — nie gespielt, aber komplett fertig ausgearbeitet — selbes Dokument",
+      "startIndex": 4259,
+      "endIndex": 4410,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1kmR002bqNX2rFHRinpP2eoRO6p0u9Tm4LXIvOr6cjB4"
+}

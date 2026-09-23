@@ -1,0 +1,15 @@
+{
+  "id": "amj0xtvsu3w9bv",
+  "type": "text",
+  "title": "Termin 3 Notizen",
+  "category": "wissen",
+  "tags": [],
+  "visibility": "player",
+  "abstract": "",
+  "body_md": "Aufgaben\n- Wer ist Volkof (Gärtner)???\n\t- Für Lukas zuständig\n\t- Mord im Parkhaus klären\n\n\t- Leopold hat Helen in seinen Kopf gelassen: Vision von seiner Vergangenheit\n\t- \"Ordo\" (Orden) auf Rosen Kreuz vom Schreibtisch von sein Vater\n\nParkhaus\n\t- Wächter auf ein Block Rosenranken gemalt\n\t- Deck 3 Kameras tot\n\t- Um Blutlache Sternenförmige Kratzer\n\t\t○ Ritual\n\t- Test Objekt 3B -> Vision durch Blutlache, Russischer Mann steht über das Opfer? Volkov?\n\n\t- Buch im Wartungsraum signiert mit U.A. Stempel Rose\n\t\t○ Umbra Artis\n\t- An den Gerten steht Siegmar Rik\n\t- Ambrose Firma offiziell der Besitzer, Privatgelände\n\nBibliothek\n\t- Hikson Draconis Buch hat kalte Auroa\n\t\t○ Lilith -> Magie dunkle Kaine raserei hat ihr Blut getrunken für Macht; Lilith Garten hat Rosen, sie hat sich dort umgebracht\n\t\t○ Orden Mitglieder von Lilith\n\t\t○ Tod für jeden den orden nicht ist\n\t- Ingisation Voliente\n\t- Sabbath & Camarilla\n\t- Dekultus Malifikarium\n\n\t- Zettel\n\t\t○ Johanna, Ketzerin, Bei Sarg unter Kirche der Rose im Vatikan\n\t\t○ Ordo Rosea Spinau\n\t- Litanei der Dornenrose (im Buch \"Index Hariten\")\n\t\t\tOh, Mutter der Finsternis, erhöre uns.\n\t\t\tKönigin der Nacht, deren Zorn ewig ist, blicke auf uns herab.\n\t\t\tWir hüten die Rose, die schlafende Blume in ihrem bleiernen Grab.\n\t\t\tEs schläft dein Apostel, Heiliger Dorn im Schatten Roms.\n\t\t\tDoch die Zeit der Wacht endet.\n\t\t\tEs wird kommen der Erwecker, der Träger der Schwarzen Dämmerung.\n\t\t\tEr wird die Siegel und die Ketten brechen.\n\t\t\tUnd die Welt wird vor Ihr erzittern.\n\t\t\tDas zerbrechliche Reich Kains wird zu Asche zerfallen.\n\t\t\tUnd die Welt wird in Blut und Feuer erneuert werden.\n\t\t\tDurch den Primus Fomes, das Herz des Unlichts.\n\t\t\tWir sind die Wächter. Diener des Endes.\n\t\t\tTreu bis in den Tod und darüber hinaus.\n\t\t\tFür den Ruhm der Rose und der ewigen Mutter.\n\t\t\tAmen.\n\t- Fragment Nod Testika Buch\n\t\t○ Johanna nicht Kin sondern Waffe\n\t- \"Magdatrix\" unten im Regal geschrieben\n\t\t○ Bezeichnung für Kriegerin\n\t- Brief des letzten Chronisten: https://docs.google.com/document/d/1ONfAYdLS0sMxvZYoIEhPeDkp4g0ssMfg05T5yE6192c/edit?tab=t.0\n\n\t- Helena hat das Blut untersucht (Ergebnis noch offen)\nCat hat Halsband bekommen ",
+  "date": "2025-12-11",
+  "source": "player",
+  "thumb": "assets/img/orte/placeholder.png",
+  "modified": "2025-12-11T04:28:16.063Z",
+  "attachments": []
+}

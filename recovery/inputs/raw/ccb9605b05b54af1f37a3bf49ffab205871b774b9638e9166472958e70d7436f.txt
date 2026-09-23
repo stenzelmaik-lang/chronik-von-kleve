@@ -1,0 +1,12 @@
+{
+  "id": "a001",
+  "type": "text",
+  "title": "Zeitungsartikel: 'Leichenfund im Forstgarten'",
+  "date": "2025-10-20",
+  "visibility": { "role": "public" },
+  "tags": ["Forstgarten", "Maskeradebruch", "Zeitungsartikel"],
+  "abstract": "Ein Artikel aus der 'Rheinischen Post' ueber einen angeblichen Tierangriff.",
+  "body_md": "Die lokale Polizei fand heute Morgen eine 'grausam zugerichtete' Leiche im Klever Forstgarten. Ein Sprecher bat die Bevoelkerung um Ruhe und verwies auf Spuren, die auf einen 'grossen, wildernden Hund oder Wolf' hindeuten.\n\nAnwohner berichten jedoch von seltsamen Geraeuschen in der Nacht. Der Bereich um den grossen Teich wurde weitraeumig abgesperrt.\n\n*(Anm. d. Red.: Dies ist der zweite Vorfall dieser Art in diesem Monat.)*",
+  "thumb": "assets/img/orte/placeholder.png",
+  "source": "spielleiter"
+}

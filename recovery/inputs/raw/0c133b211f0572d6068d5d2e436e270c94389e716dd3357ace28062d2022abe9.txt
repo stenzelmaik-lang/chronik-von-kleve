@@ -1,0 +1,32 @@
+[
+  {
+    "id": "helena",
+    "name": "Helena de Valombre",
+    "species": "vampire",
+    "armor": "none",
+    "attrs": { "geschick": 3, "staerke": 2, "widerstand": 2, "dex": 3, "wits": 3 },
+    "skills": { "feuerwaffen": 2, "nahkampf": 2 },
+    "fortitude": 1,
+    "potence": 0
+  },
+  {
+    "id": "cat_roux",
+    "name": "Cat Roux",
+    "species": "vampire",
+    "armor": "none",
+    "attrs": { "geschick": 3, "staerke": 2, "widerstand": 2, "dex": 3, "wits": 3 },
+    "skills": { "feuerwaffen": 2, "nahkampf": 2 },
+    "fortitude": 0,
+    "potence": 0
+  },
+  {
+    "id": "wachmann",
+    "name": "Wachmann",
+    "species": "mortal",
+    "armor": "kevlar_vest",
+    "attrs": { "geschick": 2, "staerke": 2, "widerstand": 3, "dex": 2, "wits": 2 },
+    "skills": { "feuerwaffen": 3, "nahkampf": 1 },
+    "fortitude": 0,
+    "potence": 0
+  }
+]

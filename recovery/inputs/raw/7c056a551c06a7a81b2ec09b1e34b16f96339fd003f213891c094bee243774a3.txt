@@ -1,0 +1,544 @@
+[
+  {
+    "id": "knife_combat",
+    "name": "Kampfmesser",
+    "category": "melee",
+    "damage_dice": 1,
+    "damage_type": "lethal",
+    "reach": "short",
+    "base_diff": 6,
+    "traits": [
+      "concealable_jacket"
+    ]
+  },
+  {
+    "id": "machete",
+    "name": "Machete",
+    "category": "melee",
+    "damage_dice": 3,
+    "damage_type": "lethal",
+    "reach": "short",
+    "base_diff": 5,
+    "traits": [
+      "to_hit_bonus_-1"
+    ]
+  },
+  {
+    "id": "tomahawk",
+    "name": "Tomahawk",
+    "category": "melee",
+    "damage_dice": 3,
+    "damage_type": "lethal",
+    "reach": "short",
+    "base_diff": 6,
+    "traits": [
+      "throwable"
+    ]
+  },
+  {
+    "id": "katana",
+    "name": "Katana",
+    "category": "melee",
+    "damage_dice": 3,
+    "damage_type": "lethal",
+    "reach": "medium",
+    "base_diff": 6,
+    "traits": [
+      "requires_specialty_melee"
+    ]
+  },
+  {
+    "id": "broadsword",
+    "name": "Breitschwert",
+    "category": "melee",
+    "damage_dice": 4,
+    "damage_type": "lethal",
+    "reach": "medium",
+    "base_diff": 7,
+    "traits": [
+      "two_handed",
+      "min_str_3"
+    ]
+  },
+  {
+    "id": "monoblade",
+    "name": "Monoklinge (Prototyp)",
+    "category": "melee",
+    "damage_dice": 3,
+    "damage_type": "lethal",
+    "reach": "short",
+    "base_diff": 6,
+    "traits": [
+      "armor_pierce_2",
+      "powered_blade"
+    ]
+  },
+  {
+    "id": "baton_steel",
+    "name": "Schlagstock (Stahl)",
+    "category": "melee",
+    "damage_dice": 2,
+    "damage_type": "bashing",
+    "reach": "short",
+    "base_diff": 6,
+    "traits": [
+      "concealable_mantel"
+    ]
+  },
+  {
+    "id": "bat_baseball",
+    "name": "Baseballschläger",
+    "category": "melee",
+    "damage_dice": 3,
+    "damage_type": "bashing",
+    "reach": "medium",
+    "base_diff": 6
+  },
+  {
+    "id": "sledgehammer",
+    "name": "Vorschlaghammer",
+    "category": "melee",
+    "damage_dice": 5,
+    "damage_type": "bashing",
+    "reach": "medium",
+    "base_diff": 7,
+    "traits": [
+      "destroys_cover"
+    ]
+  },
+  {
+    "id": "morgenstern",
+    "name": "Morgenstern",
+    "category": "melee",
+    "damage_dice": 4,
+    "damage_type": "lethal",
+    "reach": "medium",
+    "base_diff": 6,
+    "traits": [
+      "bypasses_shield_partial"
+    ]
+  },
+  {
+    "id": "glock17",
+    "name": "Glock 17 (9mm)",
+    "category": "ranged",
+    "damage_dice": 4,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 20,
+      "medium": 40,
+      "long": 60
+    },
+    "rof": 1,
+    "mag": 17,
+    "base_diff": 6,
+    "traits": [
+      "concealable_jacket",
+      "reliable"
+    ]
+  },
+  {
+    "id": "p226",
+    "name": "SIG Sauer P226",
+    "category": "ranged",
+    "damage_dice": 4,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 20,
+      "medium": 40,
+      "long": 60
+    },
+    "rof": 1,
+    "mag": 15,
+    "base_diff": 5,
+    "traits": [
+      "accurate"
+    ]
+  },
+  {
+    "id": "colt_python_357",
+    "name": "Colt Python (.357)",
+    "category": "ranged",
+    "damage_dice": 6,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 25,
+      "medium": 50,
+      "long": 70
+    },
+    "rof": 1,
+    "mag": 6,
+    "base_diff": 6,
+    "traits": [
+      "revolver",
+      "no_casings"
+    ]
+  },
+  {
+    "id": "desert_eagle_50",
+    "name": "Desert Eagle (.50)",
+    "category": "ranged",
+    "damage_dice": 7,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 25,
+      "medium": 50,
+      "long": 70
+    },
+    "rof": 1,
+    "mag": 7,
+    "base_diff": 7,
+    "traits": [
+      "loud",
+      "min_str_3"
+    ]
+  },
+  {
+    "id": "uzi_9mm",
+    "name": "Uzi (9mm)",
+    "category": "ranged",
+    "damage_dice": 4,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 20,
+      "medium": 50,
+      "long": 70
+    },
+    "rof": 3,
+    "mag": 32,
+    "base_diff": 6,
+    "traits": [
+      "auto",
+      "burst"
+    ]
+  },
+  {
+    "id": "mp5",
+    "name": "Heckler & Koch MP5",
+    "category": "ranged",
+    "damage_dice": 4,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 25,
+      "medium": 60,
+      "long": 90
+    },
+    "rof": 3,
+    "mag": 30,
+    "base_diff": 5,
+    "traits": [
+      "accurate",
+      "auto",
+      "burst"
+    ]
+  },
+  {
+    "id": "p90",
+    "name": "FN P90",
+    "category": "ranged",
+    "damage_dice": 5,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 30,
+      "medium": 80,
+      "long": 120
+    },
+    "rof": 3,
+    "mag": 50,
+    "base_diff": 6,
+    "traits": [
+      "armor_piercing_light",
+      "auto",
+      "burst"
+    ]
+  },
+  {
+    "id": "mossberg500",
+    "name": "Mossberg 500",
+    "category": "ranged",
+    "damage_dice": 8,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 10,
+      "medium": 30,
+      "long": 50
+    },
+    "rof": 1,
+    "mag": 5,
+    "base_diff": 7,
+    "traits": [
+      "reliable"
+    ]
+  },
+  {
+    "id": "rem870_sawed",
+    "name": "Remington 870 (kurz)",
+    "category": "ranged",
+    "damage_dice": 8,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 8,
+      "medium": 25,
+      "long": 40
+    },
+    "rof": 1,
+    "mag": 4,
+    "base_diff": 7,
+    "traits": [
+      "sawed_off",
+      "concealable_mantel"
+    ]
+  },
+  {
+    "id": "spas12",
+    "name": "SPAS-12",
+    "category": "ranged",
+    "damage_dice": 8,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 10,
+      "medium": 30,
+      "long": 50
+    },
+    "rof": 2,
+    "mag": 8,
+    "base_diff": 7,
+    "traits": [
+      "semi_auto"
+    ]
+  },
+  {
+    "id": "ak47",
+    "name": "AK-47 (7.62mm)",
+    "category": "ranged",
+    "damage_dice": 7,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 50,
+      "medium": 150,
+      "long": 300
+    },
+    "rof": 3,
+    "mag": 30,
+    "base_diff": 7,
+    "traits": [
+      "durable",
+      "auto",
+      "burst",
+      "inaccurate_full_auto"
+    ]
+  },
+  {
+    "id": "m16",
+    "name": "M16 / AR-15",
+    "category": "ranged",
+    "damage_dice": 7,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 60,
+      "medium": 180,
+      "long": 350
+    },
+    "rof": 3,
+    "mag": 30,
+    "base_diff": 6,
+    "traits": [
+      "accurate",
+      "auto",
+      "burst",
+      "jam_prone"
+    ]
+  },
+  {
+    "id": "g36",
+    "name": "G36",
+    "category": "ranged",
+    "damage_dice": 7,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 60,
+      "medium": 180,
+      "long": 350
+    },
+    "rof": 3,
+    "mag": 30,
+    "base_diff": 6,
+    "traits": [
+      "modern",
+      "auto",
+      "burst"
+    ]
+  },
+  {
+    "id": "rem700",
+    "name": "Remington 700",
+    "category": "ranged",
+    "damage_dice": 7,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 100,
+      "medium": 300,
+      "long": 600
+    },
+    "rof": 1,
+    "mag": 5,
+    "base_diff": 7,
+    "traits": [
+      "scope"
+    ]
+  },
+  {
+    "id": "svd_dragunov",
+    "name": "Dragunov SVD",
+    "category": "ranged",
+    "damage_dice": 8,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 120,
+      "medium": 350,
+      "long": 700
+    },
+    "rof": 2,
+    "mag": 10,
+    "base_diff": 7,
+    "traits": [
+      "semi_auto",
+      "scope"
+    ]
+  },
+  {
+    "id": "barrett_m82",
+    "name": "Barrett M82 (.50)",
+    "category": "ranged",
+    "damage_dice": 10,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 200,
+      "medium": 600,
+      "long": 1200
+    },
+    "rof": 1,
+    "mag": 10,
+    "base_diff": 8,
+    "traits": [
+      "anti_materiel",
+      "scope",
+      "loud",
+      "heavy"
+    ]
+  },
+  {
+    "id": "mg3",
+    "name": "Maschinengewehr (MG3)",
+    "category": "ranged",
+    "damage_dice": 8,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 60,
+      "medium": 200,
+      "long": 400
+    },
+    "rof": 3,
+    "mag": 100,
+    "base_diff": 7,
+    "traits": [
+      "belt_fed",
+      "auto",
+      "suppressive_fire"
+    ]
+  },
+  {
+    "id": "flamethrower",
+    "name": "Flammenwerfer",
+    "category": "ranged",
+    "damage_dice": 3,
+    "damage_type": "aggravated",
+    "range_m": {
+      "short": 10,
+      "medium": 20,
+      "long": 30
+    },
+    "rof": 2,
+    "mag": 20,
+    "base_diff": 6,
+    "traits": [
+      "fire",
+      "rotschreck_trigger"
+    ]
+  },
+  {
+    "id": "rpg7",
+    "name": "Panzerfaust (RPG-7)",
+    "category": "ranged",
+    "damage_dice": 15,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 50,
+      "medium": 150,
+      "long": 300
+    },
+    "rof": 1,
+    "mag": 1,
+    "base_diff": 8,
+    "traits": [
+      "explosive",
+      "destroys_cover"
+    ]
+  },
+  {
+    "id": "frag_grenade",
+    "name": "Handgranate (Splitter)",
+    "category": "ranged",
+    "damage_dice": 10,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 10,
+      "medium": 20,
+      "long": 30
+    },
+    "rof": 1,
+    "mag": 1,
+    "base_diff": 6,
+    "traits": [
+      "explosive",
+      "blast_radius_10m"
+    ]
+  },
+  {
+    "id": "flashbang",
+    "name": "Blendgranate",
+    "category": "ranged",
+    "damage_dice": 0,
+    "damage_type": "bashing",
+    "range_m": {
+      "short": 10,
+      "medium": 20,
+      "long": 30
+    },
+    "rof": 1,
+    "mag": 1,
+    "base_diff": 6,
+    "traits": [
+      "stun",
+      "concussive"
+    ]
+  },
+  {
+    "id": "c4_block",
+    "name": "C4 Plastiksprengstoff (1kg)",
+    "category": "ranged",
+    "damage_dice": 12,
+    "damage_type": "lethal",
+    "range_m": {
+      "short": 0,
+      "medium": 0,
+      "long": 0
+    },
+    "rof": 0,
+    "mag": 1,
+    "base_diff": 6,
+    "traits": [
+      "placed_charge"
+    ]
+  }
+]

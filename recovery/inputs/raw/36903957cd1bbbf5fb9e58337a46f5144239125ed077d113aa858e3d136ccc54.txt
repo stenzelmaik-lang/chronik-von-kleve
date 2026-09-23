@@ -1,0 +1,17 @@
+{
+  "id": "amhgq3y04ufbph",
+  "type": "text",
+  "title": "Auspex",
+  "category": "wissen",
+  "tags": [
+    "Auspex"
+  ],
+  "visibility": "public",
+  "abstract": "**Auspex** verleiht dem Vampir außergewöhnliche Sinnesfähigkeiten. Sie beginnt mit der Fähigkeit, ihre natürlichen Sinne erheblich zu schärfen, doch mit wachsender Macht kann sie psychische Auren wahrnehmen und die Gedanken eines anderen Wesens lesen.",
+  "body_md": "# Auspex\n\n**Auspex** verleiht dem Vampir außergewöhnliche Sinnesfähigkeiten. Sie beginnt mit der Fähigkeit, ihre natürlichen Sinne erheblich zu schärfen, doch mit wachsender Macht kann sie psychische Auren wahrnehmen und die Gedanken eines anderen Wesens lesen. **Auspex** kann außerdem mentale Illusionen durchdringen, wie jene, die durch **Obfuscate** erschaffen werden — siehe die Seitenleiste „Das Ungesehene sehen“ auf S. 142 für mehr.\n\nEin Vampir mit **Auspex** muss jedoch vorsichtig sein. Ihre gesteigerte sensorische Empfindlichkeit kann dazu führen, dass sie von schönen Dingen in den Bann gezogen wird oder von lauten Geräuschen oder beißenden Gerüchen benommen wird. Plötzliche oder dynamische Ereignisse können einen **Auspex** verwendenden Charakter desorientieren, es sei denn, ihr Spieler macht einen **Willenskraftwurf**, um sie auszublenden (**Schwierigkeit** von mindestens **4**; je stärker die Quelle der Ablenkung, desto höher die Schwierigkeit). **Misslingt der Wurf**, überwältigen die Eindrücke die Sinne des Charakters und lassen sie ihre Umgebung für ein oder zwei Runden nicht mehr wahrnehmen.\n\nWährend **Malkavianer** und **Toreador** eher zu solchen Ablenkungen neigen, sind **Tremere** und **Tzimisce** nicht immun. **Punkte in Wahrnehmung** sind beim Einsatz von **Auspex**-Kräften sehr nützlich, da mehr Erfolge der Figur helfen, mehr Sinnesinformationen zu gewinnen.\n",
+  "date": "2025-11-01",
+  "source": "admin",
+  "thumb": "assets/img/orte/placeholder.png",
+  "modified": "2025-11-01T20:17:02.693Z",
+  "attachments": []
+}

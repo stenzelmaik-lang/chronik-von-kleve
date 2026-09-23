@@ -1,0 +1,138 @@
+{
+  "comment": "Deutsche Frontend-Labels für VTM NSC-System",
+  "version": "1.0.0",
+  "updated": "2025-11-10",
+  
+  "fields": {
+    "nature": "Wesenskern",
+    "demeanor": "Auftreten",
+    "clan": "Clan",
+    "sect": "Sekte",
+    "generation": "Generation",
+    "role": "Rolle",
+    "status": "Status",
+    "loyalty": "Loyalität",
+    "attitude": "Haltung",
+    "manipulability": "Beeinflussbarkeit",
+    "threat_level": "Bedrohungslevel",
+    "is_hidden_threat": "Versteckte Bedrohung",
+    "legende": "Legende",
+    "aussehen": "Aussehen",
+    "rumors": "Gerüchte",
+    "tier": "Typ",
+    "kategorie": "Kategorie"
+  },
+  
+  "tier": {
+    "hauptcharakter": "Hauptcharakter",
+    "nebencharakter": "Nebencharakter"
+  },
+  
+  "kategorie": {
+    "polizei": "Polizei",
+    "ghul": "Ghul",
+    "zivilist": "Zivilist",
+    "kriminell": "Krimineller",
+    "medien": "Medien",
+    "politik": "Politik"
+  },
+  
+  "nature": {
+    "architect": "Architekt",
+    "autocrat": "Autokrat",
+    "bon_vivant": "Lebemann",
+    "bravo": "Draufgänger",
+    "caregiver": "Fürsorglicher",
+    "celebrant": "Feiernder",
+    "competitor": "Wetteiferer",
+    "conformist": "Konformist",
+    "conniver": "Intrigant",
+    "curmudgeon": "Griesgram",
+    "deviant": "Abweichler",
+    "director": "Direktor",
+    "fanatic": "Fanatiker",
+    "gallant": "Kavalier",
+    "judge": "Richter",
+    "loner": "Einzelgänger",
+    "martyr": "Märtyrer",
+    "masochist": "Masochist",
+    "monster": "Monster",
+    "pedagogue": "Pädagoge",
+    "penitent": "Büßer",
+    "perfectionist": "Perfektionist",
+    "rebel": "Rebell",
+    "survivor": "Überlebenskünstler",
+    "thrill_seeker": "Nervenkitzel-Sucher",
+    "traditionalist": "Traditionalist",
+    "trickster": "Schelm",
+    "visionary": "Visionär"
+  },
+  
+  "attitude": {
+    "ally": "Verbündeter",
+    "neutral": "Neutral",
+    "suspicious": "Misstrauisch",
+    "hostile": "Feindselig",
+    "unknown": "Unbekannt"
+  },
+  
+  "sect": {
+    "camarilla": "Camarilla",
+    "sabbat": "Sabbat",
+    "anarchen": "Anarchen",
+    "independent": "Unabhängig",
+    "autarkis": "Autarkis"
+  },
+  
+  "loyalty": {
+    "camarilla": "Camarilla",
+    "sabbat": "Sabbat",
+    "anarchen": "Anarchen",
+    "clan": "Clan",
+    "sich_selbst": "Sich Selbst",
+    "prinz": "Prinz",
+    "domäne": "Domäne",
+    "unbekannt": "Unbekannt"
+  },
+  
+  "manipulability_labels": {
+    "1": "Unbeeinflussbar",
+    "2": "Schwer beeinflussbar",
+    "3": "Normal beeinflussbar",
+    "4": "Leicht beeinflussbar",
+    "5": "Sehr leicht beeinflussbar"
+  },
+  
+  "threat_level_labels": {
+    "0": "Harmlos",
+    "1": "Vernachlässigbar",
+    "2": "Gering",
+    "3": "Mäßig",
+    "4": "Beachtlich",
+    "5": "Gefährlich",
+    "6": "Sehr gefährlich",
+    "7": "Tödlich",
+    "8": "Extrem tödlich",
+    "9": "Katastrophal",
+    "10": "Apokalyptisch"
+  },
+  
+  "visibility": {
+    "show_clan": "Clan anzeigen",
+    "show_generation": "Generation anzeigen",
+    "show_sect": "Sekte anzeigen",
+    "is_public": "Öffentlich sichtbar"
+  },
+  
+  "ui": {
+    "main_character": "Hauptcharakter",
+    "minor_character": "Nebencharakter",
+    "hidden_threat_icon": "💀",
+    "filter_by_tier": "Nach Typ filtern",
+    "filter_by_attitude": "Nach Haltung filtern",
+    "filter_by_loyalty": "Nach Loyalität filtern",
+    "sl_only": "Nur SL",
+    "player_visible": "Spieler-sichtbar",
+    "reveal_trigger": "Enthüllungs-Bedingung"
+  }
+}

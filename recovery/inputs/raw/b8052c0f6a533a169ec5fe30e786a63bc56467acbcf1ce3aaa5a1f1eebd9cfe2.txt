@@ -1,0 +1,17 @@
+{
+  "id": "a005",
+  "type": "text",
+  "title": "[ADMIN] Sabbat-Aktivitaet (Intern)",
+  "date": "2025-10-22",
+  "visibility": { "role": "admin" },
+  "tags": ["Sabbat", "Maskeradebruch"],
+  "abstract": "Bericht ueber bestaetigte Sabbat-Spaeher im Reichswald.",
+  "body_md": "Bestaetigte Sichtungen von zwei Sabbat-Spaehern im Reichswald, Koordinaten liegen dem Sheriff vor. Ein Kurzgefecht fuehrte zu einem finalen Tod, der zweite Gegner entkam Richtung Westen.\n\n==Weitergabe an Spieler strikt untersagt.==\n\n**Lagebild**\n- Spurensicherung fand Asche mit geringen Vitae-Rueckstaenden.\n- Augenzeugen (Jaegerverein) berichteten von verzerrten Silhouetten, keine Schussabgaben.\n- Okkulte Analyse der Harpyie weist auf Rudelfuehrer mit Blutbandstufe 2 hin.\n\n**Massnahmen**\n1. Sheriff synchronisiert Patrouillenplaene mit Ultio-Trupps; Fokus auf Waldwege A-17 bis A-22.\n2. Seneschall prueft Havens innerhalb eines 5-km-Radius rund um den Reichswald auf unautorisierte Gaeste.\n3. Harpyie streut gezielt Geruechte ueber Wolfsrudel, um Sterbliche von Nachtgaengen abzuhalten.\n\n**Naechste Schritte**\n- Ultio stellt bis 24.10. ein Einsatzteam mit Obfuscate-Unterstuetzung.\n- Tremere-Labor prueft die Asche auf Signaturen fuer spaetere Ritualverfolgung.\n- Bericht an den Prinzen jeden zweiten Abend 22:00 via verschluesseltem Kanal.\n\nKontakt: [[NSC:sheriff]] / Verschluesselungsphrase \"Eiserner Zaun\".",
+  "thumb": "assets/img/orte/placeholder.png",
+  "source": "spielleiter",
+  "related": {
+    "places": ["reichswald"],
+  "npcs": ["sheriff"],
+    "chronik": []
+  }
+}

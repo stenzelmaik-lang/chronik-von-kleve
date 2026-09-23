@@ -1,0 +1,5 @@
+[
+  { "id": "single", "label": "Einzelschuss", "to_hit": 0, "extra_damage": 0, "ammo": 1 },
+  { "id": "burst",  "label": "Feuerstoß (3)", "to_hit": 1, "extra_damage": 2, "ammo": 3, "requires_rof": 2 },
+  { "id": "full",   "label": "Dauerfeuer",    "to_hit": 2, "extra_damage": 3, "ammo": 6, "requires_rof": 3 }
+]

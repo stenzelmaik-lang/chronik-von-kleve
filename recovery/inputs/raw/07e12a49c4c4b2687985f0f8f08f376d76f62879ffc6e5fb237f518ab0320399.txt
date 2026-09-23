@@ -1,0 +1,23 @@
+﻿[
+  {
+    "id": "vampire",
+    "label": "Vampir",
+    "can_soak": { "bashing": true, "lethal": false, "aggravated": false },
+    "fortitude_adds_to_soak": { "bashing": true, "lethal": true, "aggravated": true },
+    "bashing_halved": true,
+    "notes": "V20: Vampire können tödlichen/agg-Schaden nur mit Zähigkeit (Fortitude) abfangen."
+  },
+  {
+    "id": "mortal",
+    "label": "Sterblicher",
+    "can_soak": { "bashing": true, "lethal": true, "aggravated": false },
+    "fortitude_adds_to_soak": { "bashing": false, "lethal": false, "aggravated": false },
+    "notes": "Sterbliche soak’en kein aggravated."
+  },
+  {
+    "id": "ghoul",
+    "label": "Ghoul",
+    "can_soak": { "bashing": true, "lethal": true, "aggravated": false },
+    "fortitude_adds_to_soak": { "bashing": true, "lethal": true, "aggravated": false }
+  }
+]

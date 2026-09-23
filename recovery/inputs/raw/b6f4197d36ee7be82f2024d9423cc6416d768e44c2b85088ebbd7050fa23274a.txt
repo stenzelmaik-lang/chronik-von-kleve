@@ -1,0 +1,75 @@
+﻿[
+  {
+    "label": "Start",
+    "href": "index.html",
+    "slug": "index"
+  },
+  {
+    "label": "Archiv",
+    "href": "archiv.html",
+    "slug": "archiv"
+  },
+  {
+    "label": "Chronik",
+    "href": "chronik.html",
+    "slug": "chronik"
+  },
+  {
+    "label": "Schauplätze",
+    "href": "schauplaetze.html",
+    "slug": "schauplaetze"
+  },
+  {
+    "label": "NSCs",
+    "href": "nscs.html",
+    "slug": "nscs"
+  },
+  {
+    "label": "Charakterbögen",
+    "href": "charakterboegen.html",
+    "slug": "charakterboegen"
+  },
+  {
+    "label": "Gefahren",
+    "href": "gefahren.html",
+    "slug": "gefahren"
+  },
+  {
+    "label": "Gefallen",
+    "href": "gefallen.html",
+    "slug": "gefallen"
+  },
+  {
+    "label": "Händler",
+    "href": "haendler.html",
+    "slug": "haendler"
+  },
+  {
+    "label": "Codex Noctis",
+    "href": "regelwerk.html",
+    "slug": "regelwerk"
+  },
+  {
+    "label": "Mechaniken",
+    "href": "mechaniken.html",
+    "slug": "mechaniken"
+  },
+  {
+    "label": "Würfel",
+    "href": "wuerfel.html",
+    "slug": "wuerfel"
+  },
+  {
+    "label": "Admin",
+    "href": "admin.html",
+    "slug": "admin",
+    "roles": [
+      "admin"
+    ]
+  },
+  {
+    "label": "Login",
+    "href": "login.html",
+    "slug": "login"
+  }
+]

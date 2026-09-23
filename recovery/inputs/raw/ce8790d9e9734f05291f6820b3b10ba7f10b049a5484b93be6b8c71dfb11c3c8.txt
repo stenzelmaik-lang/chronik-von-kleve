@@ -1,0 +1,24 @@
+{
+  "id": "fund_propstei",
+  "type": "fund",
+  "title": "Fund: Reliquienkapsel aus der Propstei",
+  "date": "2025-09-12",
+  "visibility": { "role": "player" },
+  "tags": ["propstei", "artefakt"],
+  "abstract": "Eine silberne Kapsel mit eingravierten Symbolen, geborgen aus dem abgeriegelten Archivflügel der Propstei.",
+  "body_md": "Die Kapsel weist mehrere Runen auf, die [[NSC:elara_bosch]] als vormals templarische Verschlüsselung identifiziert. Beim Öffnen entfaltete sich ein schwacher Geruch nach Ozon.\\n\\n==Analyse==\\n\\n{{probe: Okkultismus + Wits, 6}} um die Glyphen nachzuvollziehen. Bei Erfolg erkennt die Figur Ankerpunkte eines teleportativen Rituals.\\n\\nBegleitend lagen drei Folianten mit Zitaten zur *Regula Invicta*.",
+  "thumb": "assets/img/orte/placeholder.png",
+  "attachments": [
+    {
+      "type": "image",
+      "href": "assets/img/orte/placeholder.png",
+      "title": "Detailaufnahme der Reliquienkapsel"
+    }
+  ],
+  "source": "Sicherheitsprotokoll Propstei",
+  "related": {
+    "places": ["propstei"],
+    "npcs": ["elara_bosch"],
+    "chronik": []
+  }
+}

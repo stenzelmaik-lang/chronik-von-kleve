@@ -1,0 +1,18 @@
+{
+    "h1": "Orte",
+    "intro": "Brennpunkte der Domäne.",
+    "content_html": "<p>Nutze Suche und Filter, um passende Schauplätze zu finden. Die Liste zeigt Karten mit Kurzinfos; wähle einen Eintrag für Details und SL-Notizen.</p>",
+    "admin_block": "<p class='muted'>Admin-Hinweis: Orte werden aus <code>assets/data/places.json</code> geladen. Änderungen im CMS exportieren.</p>",
+    "panel_left_icon": "🏛️",
+    "panel_left_title": "Elysium",
+    "panel_left_desc": "Neutrale Orte unter Schutz",
+    "panel_left_count": "— Besondere Orte —",
+    "panel_center_icon": "🌃",
+    "panel_center_title": "Jagdgründe",
+    "panel_center_desc": "Umkämpfte Territorien",
+    "panel_center_count": "— Besondere Orte —",
+    "panel_right_icon": "🔒",
+    "panel_right_title": "Verstecke",
+    "panel_right_desc": "Geheime Zufluchtsorte",
+    "panel_right_count": "— Besondere Orte —"
+}

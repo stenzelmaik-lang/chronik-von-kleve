@@ -1,0 +1,46 @@
+[
+  {
+    "id": "none",
+    "name": "Keine Rüstung",
+    "soak_bonus": {
+      "bashing": 0,
+      "lethal": 0,
+      "aggravated": 0
+    },
+    "penalty_dice": 0,
+    "notes": ""
+  },
+  {
+    "id": "kevlar_light",
+    "name": "Kevlarweste (leicht)",
+    "soak_bonus": {
+      "bashing": 2,
+      "lethal": 2,
+      "aggravated": 0
+    },
+    "penalty_dice": 0,
+    "notes": "Schützt nicht gegen Feuer/Sonnenlicht."
+  },
+  {
+    "id": "tactical_vest",
+    "name": "Taktische Einsatzweste",
+    "soak_bonus": {
+      "bashing": 3,
+      "lethal": 3,
+      "aggravated": 0
+    },
+    "penalty_dice": -1,
+    "notes": "Leichte Behinderung."
+  },
+  {
+    "id": "ceramic_plates",
+    "name": "Keramik-Panzerplatten",
+    "soak_bonus": {
+      "bashing": 4,
+      "lethal": 4,
+      "aggravated": 0
+    },
+    "penalty_dice": -1,
+    "notes": "Schwer; -1 Geschick laut Ledger."
+  }
+]

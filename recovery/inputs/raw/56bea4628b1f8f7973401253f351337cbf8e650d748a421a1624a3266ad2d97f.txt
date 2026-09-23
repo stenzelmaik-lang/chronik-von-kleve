@@ -1,0 +1,19 @@
+{
+  "id": "a002",
+  "type": "image",
+  "title": "Foto: 'Symbol an der Propstei'",
+  "date": "2025-10-18",
+  "visibility": { "role": "public" },
+  "tags": ["Propstei", "R\u00e4tsel"],
+  "abstract": "Ein Foto, das 'Cat' nachts an der Hintertuer der Propstei aufgenommen hat.",
+  "body_md": "Das Symbol war frisch mit Kreide aufgemalt. Es sieht aus wie eine Schlange, die sich selbst in den Schwanz beisst, doch das Auge bleibt geoeffnet. Die Position deutet auf eine bewusste Markierung fuer Eingeweihte hin.\n\nCat vermerkte ausserdem einen schwachen Ozongeruch in der Luft, als waere kuerzlich Thaumaturgie gewirkt worden.",
+  "thumb": "https://placehold.co/600x400/0f1725/cda66b?text=Geheimes+Symbol",
+  "source": "spieler",
+  "attachments": [
+    {
+      "type": "image",
+      "href": "https://placehold.co/600x400/0f1725/cda66b?text=Geheimes+Symbol",
+      "title": "Symbol an der Hintertuer"
+    }
+  ]
+}

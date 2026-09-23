@@ -1,0 +1,1364 @@
+[
+  {
+    "schema_version": 2,
+    "_comment": "Bahnhof Nord. Dialog/Ermittlung. Gleis 6, Fächer, Kältepfad.",
+    "id": "bahnhof-kleve-nord-gleis-der-toten-echos",
+    "title": "Bahnhof Kleve (Nord) – „Gleis der toten Echos“",
+    "subtitle": "Leerer Transitort mit falscher Stille",
+    "teaser": "Beton, Glas, Neonflimmern. Ozon in der Luft.",
+    "district": "Nordstadt",
+    "address": "Nordflügel, Bahnsteige 4–6, Schließfächer",
+    "owner": "Deutsche Bahn",
+    "faction": "Neutral",
+    "status": "Öffentlich",
+    "opening_hours": "24/7, Shops variabel",
+    "tags": [
+      "Standort B-01",
+      "Maskerade: Instabil",
+      "Kameras",
+      "Schließfächer",
+      "Dornenrose"
+    ],
+    "thumb": "assets/img/orte/bahnhof_kleve.jpg",
+    "banner": "assets/img/orte/bahnhof_kleve.jpg",
+    "media": {
+      "hero": "assets/img/orte/bahnhof_kleve.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/bahnhof_kleve.jpg",
+          "caption": "Bahnsteige bei Nacht"
+        }
+      ]
+    },
+    "danger_level": 2,
+    "danger": "Mittel",
+    "overview": {
+      "history": "Die Nacht hatte den Bahnhof von Kleve verschluckt und wieder ausgespien. Ein Skelett aus kaltem Beton, Glas und dem schwachen, kränklichen Leuchten von Neonröhren. Die Luft roch nach Ozon, altem Regen und einer seltsamen, metallischen Kälte, als würde der Frost nicht von außen, sondern von innen aus den Wänden kriechen. Die große digitale Anzeigetafel über ihnen flackerte. Für einen Augenblick waren die Abfahrtszeiten verschwunden und wurden durch ein flimmerndes Mosaik aus Dornenrosen ersetzt, bevor die Zahlen wieder zurückkehrten. Es war still. Unnatürlich still. Die Spielercharaktere betraten den fast menschenleeren Nordflügel des Bahnhofs. Ihre Aufgabe war es, die unheimliche und falsche Atmosphäre des Ortes zu etablieren.",
+      "today": "Spät nachts fast leer. Kiosk „Schwarzbrot“ hält Restbetrieb.",
+      "rumors": [
+        "Durchsage zählt rückwärts.",
+        "Kältepfad führt von Halle zu den Fächern.",
+        "Anzeigen blitzen Dornenmuster."
+      ],
+      "nscs": [
+        "Heike „Schwarzbrot“ (Kiosk)",
+        "Jens (Bahnsicherheit)"
+      ],
+      "cameras": [
+        "Bahnsteige",
+        "Nordhalle",
+        "Kiosk"
+      ],
+      "access": [
+        "Seiteneingang Ost 00:30–04:30",
+        "Wartungstür hinter Gleis 6"
+      ],
+      "patrol": [
+        "Bahnsicherheit sporadisch"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "access_unlocked": false,
+      "patrol_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Instabil",
+        "site": "B-01",
+        "breachTriggers": [
+          "Auffällige Disziplinen im Sichtfeld der Kameras",
+          "Konflikte am Bahnsteig bei Publikum"
+        ],
+        "consequences": [
+          "Stufe 1: zusätzliche Streife",
+          "Stufe 2: Kameras schwenken auf SC",
+          "Stufe 3: Kontrolle durch Bahnpolizei, Akteneintrag"
+        ]
+      },
+      "security": {
+        "level": "B-01",
+        "keys": "Fächer über Code. Wartungstür Servicetoken.",
+        "access": [
+          "ÖPNV-Bereiche frei",
+          "Technikräume nur Service"
+        ],
+        "cameras": [
+          "ÖPNV-Standard"
+        ],
+        "patrol": [
+          "Sporadisch, zivil wie uniformiert"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Unsichtbare tote Zonen der Akustik",
+          "Rückwärts-Durchsage im Kopf"
+        ],
+        "relief": [
+          "Kurzer Wechsel in hellen Kioskbereich",
+          "Gruppe sammeln, Ritual der Routine"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Ein Transitort, der nachts wie ein Bühnenbild wirkt. Kälte und Stille verhalten sich falsch. Hinweise liegen entlang eines „Pfads der Stille“ zu Schließfächern und Gleis 6. Öffentlichkeit ist gering, Kameradichte moderat, aber fokussiert.</p><ul><li><strong>Soft Entry:</strong> unauffällig beobachten, Muster prüfen.</li><li><strong>Kontakt:</strong> Kiosk „Schwarzbrot“ für Gerüchte.</li><li><strong>Risiko:</strong> Livestreams, Bahnpolizei.</li></ul></section>",
+    "gm_notes_html": "<h3>Phasen</h3><h4>1) Ankunft</h4><p>Atmosphäre: Beton, Neon, Ozon; flackernde Tafel. Tote Zonen schlucken Echo. <em>Wahrnehmung+Aufmerksamkeit SG7</em> für Kältepfad.</p><h4>2) Begegnung: Mephisto am Gleis 6</h4><p>Er bietet drei schwarze „Fahrkarten“ (einmalige Effekte mit Preisen). Höflich, geschäftlich, nicht aufdringlich.</p><ul><li><strong>Fahrkarte „Sekunde des Zweifels“:</strong> 1 Wurf wiederholen; Preis: 1 temporäre WK + Geheimnis.</li><li><strong>„Spiegel aus Frost“:</strong> −2 SG auf Okkult an kalten Orten; Preis: 1 Blutpunkt.</li><li><strong>„Fährte des Schattens“:</strong> einmaliger Eingriff in Technik (Kamera/Tür/Akte); Preis: Aura-Signatur bis Sonnenaufgang (+2 SG vs. Autoritäten bei Lügen).</li></ul><h4>3) Erkundung</h4><p>Fächer mit Kondenswasser; Klebebandriss zeigt Dornenrose. <em>Geschick+Heimlichkeit SG6</em> zum leisen Öffnen.</p><h4>4) Abgang & Konsequenzen</h4><p>Maskerade-Zähler wie oben. Optionaler Jeton (+2 Würfel Wahrnehmung im Bahnhof; offener Gefallen).</p>",
+    "encounters": [
+      {
+        "type": "ereignis",
+        "title": "Rückwärts-Durchsage",
+        "text": "„Achtung an Gleis Sechs…“ in den Köpfen der SC.",
+        "sg": 0
+      },
+      {
+        "type": "hinweis",
+        "title": "Frost an Fach 23",
+        "text": "Dornenmuster im Eis.",
+        "sg": 7
+      },
+      {
+        "type": "begegnung",
+        "title": "Mephisto",
+        "text": "Anbieter der drei Fahrkarten.",
+        "sg": 0
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7885,
+      "lon": 6.1306,
+      "zoom": 16
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "24/7, Shops variabel",
+    "discovered": false,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Kirchliche Bibliothek. Recherche-Ort mit Druckzähler.",
+    "id": "bibliothek-der-propstei-das-steinerne-herz",
+    "title": "Bibliothek der Propstei – „Das steinerne Herz“",
+    "subtitle": "Heiliger Wissensspeicher mit Giftschrank",
+    "teaser": "Romanische Gewölbe. Bleiglas. Das Pendel schlägt gegen die Physik.",
+    "district": "Elten",
+    "address": "Kreuzgangflügel",
+    "owner": "Propstamt",
+    "faction": "Kirche / Camarilla-Klausel",
+    "status": "Gehütet",
+    "opening_hours": "Archiv nur mit Termin",
+    "tags": [
+      "Standort P-02",
+      "Maskerade: Heikel",
+      "Archiv",
+      "Giftschrank"
+    ],
+    "thumb": "assets/img/orte/propstei_bibliothek.png",
+    "banner": "assets/img/orte/propstei_bibliothek.png",
+    "media": {
+      "hero": "assets/img/orte/propstei_bibliothek.png",
+      "gallery": [
+        {
+          "src": "assets/img/orte/propstei_bibliothek.png",
+          "caption": "Kreuzgang & Lesesaal"
+        }
+      ]
+    },
+    "danger_level": 2,
+    "danger": "Heikel",
+    "overview": {
+      "history": "Seit 12. Jh.; Bestände ausgelagert und versiegelt.",
+      "today": "Lesesaal, Depot, Giftschrank. Wachsam geführte Ruhe.",
+      "rumors": [
+        "Tote Zonen im Hall unter zwei Gewölben.",
+        "Dornenrosen in Bleiglas."
+      ],
+      "nscs": [
+        "Schwester Agnes (Pforte)",
+        "Pater Merten (Archivar)"
+      ],
+      "cameras": [
+        "Eingang",
+        "Lesesaal",
+        "Depot"
+      ],
+      "patrol": [
+        "Küster/Kaplan in Runden"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "patrol_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Heikel",
+        "site": "P-02",
+        "breachTriggers": [
+          "Lärm im Lesesaal",
+          "Unbefugter Giftschrank-Zutritt"
+        ],
+        "consequences": [
+          "Druck-Zähler 1: Agnes misstrauischer",
+          "2: Merten prüft Kataloge",
+          "3: Hausverbot + Meldung Ordinariat"
+        ]
+      },
+      "security": {
+        "level": "P-02",
+        "keys": "Schwere Schlüsselbunde. Giftschrank zusätzlich.",
+        "access": [
+          "Termin, Stifterstatus",
+          "Seitliche Pforte bei Nacht"
+        ],
+        "cameras": [
+          "Low-res Altanlagen"
+        ],
+        "patrol": [
+          "Personal-Runden"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Sakrale Akustik kippt, Pendelticken im Kopf"
+        ],
+        "relief": [
+          "Frische Luft im Kreuzgang",
+          "Gebetsroutine imitieren"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Rolle „Forscher“/„Stifter“. Diskret bewegen. Okkulte Ikonografie in Fenstern und im Echo. Giftschrank enthält brisante Werke.</p><ul><li><strong>Einlass:</strong> Etikette oder Tarnung.</li><li><strong>Funde:</strong> Spendenbuch-Kürzel, Ex-Libris, Chronisten-Notiz, Friedhofs-Verweis.</li></ul></section>",
+    "gm_notes_html": "<h3>Führung</h3><h4>1) Pforte</h4><p>Schwester Agnes prüft Cover. <em>Charisma+Etikette SG6</em> (Stifter), <em>Manip+Ausflüchte SG7</em> (Notlüge), <em>Heimlichkeit SG7</em> (Schleichpfad).</p><h4>2) Lesesaal</h4><p>Totes Echo & Dornenmotive. <em>Wahrn+Aufmerksamkeit SG7</em>, <em>Wahrn+Okkult SG7</em> für +1 Okkult in Szene.</p><h4>3) Nische/Truhe</h4><p>Siegelbruch, alte Liegenschaften: Vermerk „Schiefe Grüfte“; Verweis auf Materborn.</p><h4>4) Giftschrank</h4><ul><li><em>De Cultibus Maleficarum</em> (Lilith-Kulte)</li><li><em>Index Haereticorum</em> (Ordo-Eintrag geschwärzt)</li><li><em>Fragmenta Noddistica Apocrypha</em> (Hinweis auf „Johanna“)</li></ul><p>Druck-Zähler wie bei Regeln.</p>",
+    "encounters": [
+      {
+        "type": "begegnung",
+        "title": "Schwester Agnes",
+        "text": "Wachsam, prinzipientreu.",
+        "sg": 0
+      },
+      {
+        "type": "hinweis",
+        "title": "Dornenlitanei",
+        "text": "Muster in Glas + Hall geben +1 Okkult-Probe am Ort.",
+        "sg": 7
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.8401,
+      "lon": 6.1502,
+      "zoom": 16
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "Archiv nur mit Termin",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Club. Social-Heat, Livestream-Risiko, Retortenkind-Angriff.",
+    "id": "electric-taberna-neon-schatten",
+    "title": "Electric Taberna – „Neon & Schatten“",
+    "subtitle": "Club, Deals und verdrehte Projektionen",
+    "teaser": "Rotes Neon. Tiefer Bass. Smartphones überall.",
+    "district": "Innenstadt",
+    "address": "Unterstadtpassage",
+    "owner": "Privat",
+    "faction": "Club / Schwarzer Markt",
+    "status": "Betrieb",
+    "opening_hours": "22–6 Uhr",
+    "tags": [
+      "Standort A-02",
+      "Maskerade: Sehr heikel",
+      "Livestream",
+      "Avi"
+    ],
+    "thumb": "assets/img/orte/electric_taberna.jpg",
+    "banner": "assets/img/orte/electric_taberna.jpg",
+    "media": {
+      "hero": "assets/img/orte/electric_taberna.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/electric_taberna.jpg",
+          "caption": "Dancefloor & Projektionen"
+        }
+      ]
+    },
+    "danger_level": 2,
+    "danger": "Heikel",
+    "overview": {
+      "history": "Werkhalle → Club. Szene-Magnet.",
+      "today": "Voll. Security strikt. Projektionen verzerren Wahrnehmung.",
+      "rumors": [
+        "Gäste ohne Schatten",
+        "MX-G-17 fällt als Code"
+      ],
+      "nscs": [
+        "Avi Nieminen (Bar)",
+        "O2/Krill (Sprayer)",
+        "DJ Vesper"
+      ],
+      "cameras": [
+        "Kasse",
+        "Eingang",
+        "DJ-Pult, Gäste filmen"
+      ],
+      "patrol": [
+        "Türsteher 4–6, mobile Runden"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "patrol_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Sehr heikel",
+        "site": "A-02",
+        "breachTriggers": [
+          "Disziplinen on-cam",
+          "Blut auf Tanzfläche"
+        ],
+        "consequences": [
+          "Clips kursieren",
+          "Hausrecht, Rauswurf, Polizei"
+        ]
+      },
+      "security": {
+        "level": "A-02",
+        "keys": "Backstage, Notausgang zur Gasse",
+        "access": [
+          "Bändchen, Backstage durch Avi"
+        ],
+        "cameras": [
+          "Viele Smartphones, wenige feste Cams"
+        ],
+        "patrol": [
+          "Türsteher + Runner"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Audio/Visual-Overload",
+          "Retortenkind-Angriff"
+        ],
+        "relief": [
+          "Frische Luft in Gasse",
+          "Noise-Off-Zone Backstage"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Heat hoch. Beste Taktiken: Hausrecht nutzen, Sichtachsen zu Kameras kontrollieren, Infos über Drinks/DJs handeln.</p><ul><li><strong>Kontakt:</strong> Avi für Codes und Lieferwege.</li><li><strong>Spur:</strong> Krill nennt MX-G-17 und „unter dem Spiegel“.</li></ul></section>",
+    "gm_notes_html": "<h3>Schlüsselszenen</h3><h4>Bar: Avi</h4><p>Höflicher Tausch (<em>Manip+Ausdruck SG5</em>): Code „MX-17“ + Schattenhinweis. Druck (<em>Einschüchtern SG6</em>) zieht Aufmerksamkeit.</p><h4>Schattenhafte Gäste</h4><p>Falsche Schatten; glatte Gesichter. Spur zur Gasse, Krill-Tag am Kiosk.</p><h4>Krill</h4><p>Codewort „Neon schlägt Neon“ → <em>Manip+Empathie SG6</em> für Zusatz: MX-G-17 = Adresse, „unter dem Spiegel“.</p><h4>Angriff</h4><p>Retortenkind stört Musik/Projektion. Optionaler USB-Stick mit Fraktal-Video, Koordinaten blitzen.</p>",
+    "encounters": [
+      {
+        "type": "begegnung",
+        "title": "Avi",
+        "text": "Dealbarer Barkontakt. Halbseiden.",
+        "sg": 0
+      },
+      {
+        "type": "hinweis",
+        "title": "MX-G-17",
+        "text": "Adresse. „Unter dem Spiegel“",
+        "sg": 0
+      },
+      {
+        "type": "kampf",
+        "title": "Retortenkind",
+        "text": "Programmierter Angriff in der Menge.",
+        "sg": 0
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7881,
+      "lon": 6.1368,
+      "zoom": 17
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "22–6 Uhr",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Parkhaus Oberstadt. Testfeld, Kamera-Blindflecken.",
+    "id": "parkhaus-oberstadt-rueckwaertsblutung",
+    "title": "Parkhaus Oberstadt – „Rückwärtsblutung“",
+    "subtitle": "Experimentelles Tatfeld",
+    "teaser": "Betonspirale. Kaltes Echo. Starre Kameras.",
+    "district": "Oberstadt",
+    "address": "Einfahrt Oberstadt",
+    "owner": "Stadtwerke",
+    "faction": "Neutral",
+    "status": "Nachts leer",
+    "opening_hours": "6–24 Uhr",
+    "tags": [
+      "Standort P-01",
+      "Maskerade: Bedenkzone",
+      "Kameras",
+      "Tatort"
+    ],
+    "thumb": "assets/img/orte/parkhaus_oberstadt.jpg",
+    "banner": "assets/img/orte/parkhaus_oberstadt.jpg",
+    "media": {
+      "hero": "assets/img/orte/parkhaus_oberstadt.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/parkhaus_oberstadt.jpg",
+          "caption": "Rampen & Deck 3"
+        }
+      ]
+    },
+    "danger_level": 2,
+    "danger": "Heikel",
+    "overview": {
+      "history": "70er-Jahre-Bau, lärmanfällig.",
+      "today": "Deck 3 zeigt Spuren. Wachkabuff veraltet.",
+      "rumors": [
+        "Blut läuft bergauf",
+        "Synchroner Kameraausfall"
+      ],
+      "nscs": [
+        "Nachtwächter (wechselnd)"
+      ],
+      "cameras": [
+        "Einfahrt",
+        "Rampen",
+        "Kassenautomat"
+      ],
+      "patrol": [
+        "Streife 1×/h"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "patrol_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Bedenkzone",
+        "site": "P-01",
+        "breachTriggers": [
+          "Lauter Kampf",
+          "Blutspuren sichtbar"
+        ],
+        "consequences": [
+          "Polizei prüft Aufnahmen",
+          "Sperrung des Decks"
+        ]
+      },
+      "security": {
+        "level": "P-01",
+        "keys": "Kabuffschlüssel, Wartungsschacht",
+        "access": [
+          "Zaun zum Wartungsschacht",
+          "Schließanlage alt"
+        ],
+        "cameras": [
+          "Starr, low-fps"
+        ],
+        "patrol": [
+          "Unmotiviert, Logbuch"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Rückwärtsblutung-Visionen",
+          "kalte Symmetrie"
+        ],
+        "relief": [
+          "Licht & Lärm erhöhen",
+          "Gruppe stabilisieren"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Tote Winkel nutzen. Mikrofone am Automaten beachten. Deck 3 konserviert Artefakte eines Tests.</p></section>",
+    "gm_notes_html": "<h3>Bereiche</h3><h4>Deck 3</h4><ul><li><em>Wahrn+Med/Invest SG7</em>: Blutreste artificial.</li><li><em>Wahrn+Aufm SG8</em>: Bohrlöcher/Klammern an Säulen.</li><li><em>Auspex2 SG8</em>: Aura panischer Angst.</li></ul><h4>Wachbüro</h4><ul><li><em>Diebeskunst SG6</em>: Lautlos auf.</li><li><em>Int+Computer SG8</em>: Externer Zugriff „Umbra Artis“.</li><li>Logbuch: Kritzelei Dornenrose.</li></ul>",
+    "encounters": [
+      {
+        "type": "hinweis",
+        "title": "Blutspur bergauf",
+        "text": "Nur unter Neon sichtbar.",
+        "sg": 7
+      },
+      {
+        "type": "kampf",
+        "title": "Schlägertrupp",
+        "text": "2–4, gelangweilt, leicht zu eskalieren.",
+        "sg": 6
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7908,
+      "lon": 6.1315,
+      "zoom": 17
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "6–24 Uhr",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Journalistin. Wohnung als Infoknoten.",
+    "id": "wohnung-hannah-richter-das-redaktionsbuero-des-wahnsinns",
+    "title": "Wohnung Hannah Richter – „Das Redaktionsbüro des Wahnsinns“",
+    "subtitle": "Zivile Schwachstelle & Beweislager",
+    "teaser": "Wände voller Notizzettel. Kaffee-Sediment. Zwei Zusatzriegel.",
+    "district": "Innenstadt",
+    "address": "Altbau, 3. OG",
+    "owner": "Hannah Richter",
+    "faction": "Journalistin / Freigeist",
+    "status": "Bewohnt",
+    "opening_hours": "",
+    "tags": [
+      "Standort H-01",
+      "Maskerade: Bedenkzone",
+      "Wohnung",
+      "Beweise"
+    ],
+    "thumb": "assets/img/orte/wohnung_hannah.jpg",
+    "banner": "assets/img/orte/wohnung_hannah.jpg",
+    "media": {
+      "hero": "assets/img/orte/wohnung_hannah.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/wohnung_hannah.jpg",
+          "caption": "Recherche-Wand & Dunkelkammer"
+        }
+      ]
+    },
+    "danger_level": 1,
+    "danger": "Bedenkzone",
+    "overview": {
+      "history": "Ex-Studentin, vernetzt, besessen von Mustern.",
+      "today": "Schläft im Wohnzimmer. Paranoid. Schlüsselbund mit „BB“ und „GF“.",
+      "rumors": [
+        "Zeichnet Dornenlinien",
+        "Beobachtet von Gegenüber"
+      ],
+      "nscs": [
+        "Hannah Richter"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Bedenkzone",
+        "site": "H-01",
+        "breachTriggers": [
+          "Gewalt im Altbau",
+          "Nachbarschafts-Alarm"
+        ],
+        "consequences": [
+          "Polizei, Vermieter, Presse-Spin"
+        ]
+      },
+      "security": {
+        "level": "H-01",
+        "keys": "Zusatzriegel, kleiner Wandsafe",
+        "access": [
+          "Treppenhauskamera",
+          "Dunkelkammer privat"
+        ],
+        "cameras": [
+          "Gegenüber evtl. Beobachtung"
+        ],
+        "patrol": []
+      },
+      "stress": {
+        "triggers": [
+          "Überfall der Handlanger",
+          "Hannahs Panik"
+        ],
+        "relief": [
+          "Beweise sichern",
+          "Rückzug planvoll"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Leises Vorgehen. Ziel: Journal, SD-Karte, Wandsafe. Option: Hannah schützen → wertvolle Verbündete.</p></section>",
+    "gm_notes_html": "<h3>Schlüsselbereiche</h3><h4>A) Recherche-Zentrum</h4><p>Boards „Umbra Artis“, „MX-G-17“, „Volkov“, „Krill“. <em>Int+Invest SG7</em> Knoten erkennen. Journal finden <em>Wahrn+Aufm SG6</em>.</p><h4>B) Dunkelkammer</h4><p>Wandsafe <em>Wahrn+Invest SG8</em>, Knacken <em>Diebeskunst SG8</em>: SD-Karte + Röhrchen MX-G-17.</p><h4>C) Väterliches Erbe</h4><p>Stadtkarte, Tonbandgerät, Tunnelhinweis „Spiegelwohnung“/Unterstadt.</p><h4>Event</h4><p>Tür wird eingetreten: 2 Maskierte wollen SD-Karte/Journal. Entscheidung: Schutz vs. Flucht.</p>",
+    "encounters": [
+      {
+        "type": "hinweis",
+        "title": "Korkwand-Knoten",
+        "text": "Umbra Artis ↔ Finanzen ↔ MX-G-17.",
+        "sg": 7
+      },
+      {
+        "type": "ereignis",
+        "title": "Überfall",
+        "text": "Zwei Handlanger suchen Beweise.",
+        "sg": 0
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7889,
+      "lon": 6.1402,
+      "zoom": 18
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "HSRW-Archiv. Mikrofilm, Alttrakt, versteckte Zahlungen.",
+    "id": "archiv-hochschule-rhein-waal",
+    "title": "Archiv Hochschule Rhein-Waal",
+    "subtitle": "Datengrab mit alten Trakten",
+    "teaser": "Im Archiv der Hochschule Rhein-Waal ist die Zeit konserviert. Jeder der unzähligen Kartons in den endlosen Regalreihen ist ein Portal zu einer vergangenen Entscheidung, einem abgeschlossenen Projekt, einem Stück Geschichte. Hier ruht die Grundlage dessen, was die Hochschule heute ist.",
+    "district": "Campus",
+    "address": "Archivtrakt, UG",
+    "owner": "HSRW",
+    "faction": "Institution / Daten",
+    "status": "Überwacht",
+    "opening_hours": "Bürozeiten, nach Anmeldung",
+    "tags": [
+      "Standort Gebäudekomplex K-01",
+      "Maskerade: Neutral/Beobachtet"
+    ],
+    "thumb": "assets/img/orte/hsrw_archiv.jpg",
+    "banner": "assets/img/orte/hsrw_archiv.jpg",
+    "media": {
+      "hero": "assets/img/orte/hsrw_archiv.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/hsrw_archiv.jpg",
+          "caption": "Magazin & Mikrofilm"
+        }
+      ]
+    },
+    "danger_level": 1,
+    "danger": "Neutral/Beobachtet",
+    "overview": {
+      "history": "Der Kern des heutigen Archivs ist ein alter Ziegelkeller, ein Relikt aus einer Zeit vor der digitalen Ordnung, geschaffen um Geheimnisse zu begraben, nicht nur zu lagern. Vor einigen Jahren nutzte der Kunstkritiker Prof. Dr. Alistair Finch diesen Ort für seine Recherchen im Auftrag der Stiftung \"Umbra Artis\", was zu seinem psychischen Verfall und letztendlichem Tod führte. Seitdem ruhen die Akten, doch die Lügen gären weiter.",
+      "today": "Die Förderakten der Stiftung „Umbra Artis“ sind absichtlich falsch einsortiert und lagern in feuchten, modrigen Kartons. Das Archiv wird von einem pedantischen, aber erpressbaren Archivar verwaltet, der als Torwächter für die hier verborgenen Geheimnisse dient. Der gesamte Bereich steht unter verdeckter Überwachung, die Spuren jeder Untersuchung an unbekannte Dritte weiterleitet.",
+      "nscs": [
+        "- Dr. Mertens / Admin Claudia (Offizielle Archivarin, tagsüber anwesend)",
+        "- Herr Volkov (Externer Kontakt, Name taucht in Finanzunterlagen auf)",
+        "- Prof. Dr. Alistair Finch (Verstorbener Kunstkritiker, Autor des Tagebuchs)"
+      ],
+      "cameras": [
+        "- Eingang",
+        "- Gänge",
+        "- Serverraum"
+      ],
+      "access": [
+        "Badge-Seiteneingang",
+        "Laderampe"
+      ],
+      "patrol": [
+        "Sicherheitsdienst 2×/Nacht"
+      ],
+      "narration": "Im Kellergeschoss des modernen Glasbaus, ein Friedhof der Bürokratie. Kaltes Neonlicht , das Summen von Luftentfeuchtern und der saure Geruch von Chemikalien  erfüllen die Stille.",
+      "rumors": [
+        "- Ein Professor soll hier unten vor Jahren den Verstand verloren haben, als er alte Kunst-Akten sortierte.",
+        "- Angeblich gab es mal einen schweren Wasserschaden, bei dem wichtige Unterlagen \"verloren\" gingen. Merkwürdig, dass es nur die Kartons einer bestimmten Stiftung getroffen hat.",
+        "- Man sagt, die Hochschule bekommt seltsame Fördergelder von einer Kunststiftung, die niemand kennt.",
+        "- Nachts soll der Sicherheitsdienst manchmal Geräusche aus dem alten Trakt hören, aber die Tür ist immer verschlossen."
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "access_unlocked": false,
+      "patrol_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Heikel",
+        "site": "K-01",
+        "breachTriggers": [
+          "Log-Alarme",
+          "Zugriff ausgelöst"
+        ],
+        "consequences": [
+          "Incident-Ticket",
+          "Datenabgleich Polizei"
+        ]
+      },
+      "security": {
+        "level": "K-01",
+        "keys": "Badge, Schlüsselkarten",
+        "access": [
+          "Magazin, Mikrofilm, Alttrakt"
+        ],
+        "cameras": [
+          "Standard HD"
+        ],
+        "patrol": [
+          "2× Nacht"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Akustisch tote Flure",
+          "Archiv-Friedhofsgefühl"
+        ],
+        "relief": [
+          "Pausenlicht, Wasser, Teamwechsel"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'>\n    <p>Das Archiv der Hochschule Rhein-Waal ist ein Ort, an dem Wissen stirbt.  Im Kellergeschoss des modernen Glasbaus riecht es nicht nach alten Büchern, sondern nach dem sauren Geruch von Mikrofilm-Chemikalien und dem trockenen, leblosen Staub von Akten, die nie wieder das Tageslicht sehen werden. Das Summen der Luftentfeuchter ist das einzige Geräusch, ein mechanischer Puls in der Stille. [cite: 7] Das Licht der Neonröhren ist kalt und unbarmherzig. </p>\n    <p>Dies ist kein Ort der Entdeckungen, sondern ein Friedhof der Bürokratie, und ihr seid hier, um die Leichen zu schänden.  Euer Ziel: Informationen über die Stiftung \"Umbra Artis\" und das Projekt \"MX-G-17\" zu finden. [cite: 20, 28]</p>\n</section>",
+    "gm_notes_html": "<h3>Schlüsselbereiche</h3>\n<h4>A) Förderakten „Umbra Artis“</h4>\n<p>Falsch abgelegt unter \"Städtische Bauprojekte 80/90\". [cite: 14] Die Kartons sind feucht und modrig. <em>Int+Nachf SG7:</em> Fund des Antrags „MX-G-17“.  <em>Int+Finanzen SG8:</em> Zahlungen an „Sigma Ridge Solutions“ & „Herrn Volkov“.  <em>Wahrn+Aufm SG8:</em> Notiz „Der Gärtner verlangt mehr Erde.“ </p>\n<h4>B) Mikrofilm</h4>\n<p>Ein alter Mikrofilm-Leser in einer Nische. [cite: 22] <em>Wahrn+Nachf SG7:</em> Rolle „Kommission Ethik & Sonderprojekte“ mit Code „MX-G-17“.  <em>Int+Invest SG8:</em> Randnotiz mit Koordinaten & Wort „Rückwärtsblutung“.  <em>Geschick+Technik SG6:</em> Gerät kann drucken. </p>\n<h4>C) Alttrakt</h4>\n<p>Schwere Eisentür führt in Ziegelkeller. [cite: 30, 32] <em>Wahrn+Invest SG8:</em> Loser Ziegel verbirgt Tagebuch von Prof. Finch.  <em>Int+Technik SG7:</em> Phonograph sagt „Der Spiegel ist der Weg…“.  <em>Wahrn+Aufm SG9:</em> Schlüssel „GF“ (Galerie Freiraum) unter Registerkarte. </p>",
+    "encounters": [
+      {
+        "type": "hinweis",
+        "title": "Finanzspur",
+        "text": "Du entdeckst wiederkehrende Zahlungen an \"Sigma Ridge Solutions\" und \"Herrn Volkov\".",
+        "sg": 8,
+        "tags": [
+          "umbra",
+          "finanzen"
+        ],
+        "trigger": "",
+        "reward": ""
+      },
+      {
+        "type": "hinweis",
+        "title": "Phonograph",
+        "text": "Eine alte Stimme sagt: \"Der Spiegel ist der Weg – unter ihm beginnt der Rücken der Stadt…",
+        "sg": 7,
+        "tags": [
+          "rätsel",
+          "alttrakt"
+        ],
+        "trigger": "",
+        "reward": ""
+      },
+      {
+        "type": "hinweis",
+        "title": "Gärtner-Notiz",
+        "text": "Auf einem Kontoauszug steht: \"Der Gärtner verlangt mehr Erde.\"",
+        "sg": 8,
+        "tags": [
+          "umbra",
+          "rätsel"
+        ],
+        "trigger": "",
+        "reward": ""
+      },
+      {
+        "type": "hinweis",
+        "title": "Mikrofilm-Notiz",
+        "text": "Am Rand eines Protokolls stehen Koordinaten und das Wort \"Rückwärtsblutung\".",
+        "sg": 8,
+        "tags": [
+          "mxg17",
+          "sigm"
+        ],
+        "trigger": "",
+        "reward": ""
+      },
+      {
+        "type": "hinweis",
+        "title": "Tagebuch-Fund",
+        "text": "Hinter einem losen Ziegelstein liegt ein in Ölzeug gewickeltes Tagebuch",
+        "sg": 8,
+        "tags": [
+          "finch",
+          "alttrakt"
+        ],
+        "trigger": "",
+        "reward": ""
+      },
+      {
+        "type": "hinweis",
+        "title": "GF-Schlüssel",
+        "text": "Unter einer alten Registerkarte klemmt ein kleiner Schlüssel mit der Prägung \"GF\".",
+        "sg": 9,
+        "tags": [
+          "rätsel",
+          "galerie"
+        ],
+        "trigger": "",
+        "reward": ""
+      }
+    ],
+    "player_actions": [
+      {
+        "title": "H-1: Die Stimme Kains",
+        "target_players": [
+          "Helena"
+        ],
+        "text": "Als du die Aufnahme des Professors hörst, überlagert eine andere, vertraute Stimme seine Worte – die Stimme Kains, die nur du hörst. ",
+        "requirements": [
+          "Phonograph abspielen"
+        ],
+        "effects": [
+          "Erfolg (Willenskraft SG7): Die Stimme fügt hinzu: \"...wo die Wahrheit sich selbst betrachtet.\" // Patzer: 1 Punkt Stress."
+        ],
+        "gm_only": true
+      },
+      {
+        "title": "H-2: Muster des Wahnsinns",
+        "target_players": [
+          "Helena"
+        ],
+        "text": "Das Tagebuch des Professors beschreibt Visionen, die deinen unheimlich ähneln.",
+        "requirements": [
+          "Tagebuch-Fund"
+        ],
+        "effects": [
+          "Erfolg (Int+Okkultismus SG7): Du erkennst, dass der Professor als \"Resonator\" benutzt wurde.  // Erfolg (Int+Computer SG6): Todesursache des Professors: \"Selbst zugefügte Wunden\"."
+        ],
+        "gm_only": true
+      },
+      {
+        "title": "C-1: Geruch der Bestie",
+        "target_players": [
+          "Cat"
+        ],
+        "text": "Im alten Archivtrakt liegt ein schwacher, animalischer Geruch in der Luft. Vertraut, aber fremd.",
+        "requirements": [
+          "Alttrakt betreten"
+        ],
+        "effects": [
+          "Erfolg (Wahrnehmung+Überleben SG7): Der Geruch führt zu einem Lüftungsschacht. Es ist der Geruch eines anderen Werwolfs/Gangrels"
+        ],
+        "gm_only": true
+      }
+    ],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7875,
+      "lon": 6.1389,
+      "zoom": 16
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "Bürozeiten, nach Anmeldung",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Kaserne. Hochrisiko, Bunker, Weißer Raum, Vance.",
+    "id": "kaserne-schwarzholz-ultio",
+    "title": "Kaserne Schwarzholz – „Ultio“",
+    "subtitle": "Operative Bedrohungen & Potenziale",
+    "teaser": "Zäune, Flutlicht, Beton. Wald frisst die Ränder.",
+    "district": "Reichswald",
+    "address": "Militärgelände",
+    "owner": "Bund",
+    "faction": "Militär / Geheim",
+    "status": "Gesichert",
+    "opening_hours": "",
+    "tags": [
+      "Standort S-01",
+      "Maskerade: Sehr heikel",
+      "Militär",
+      "Vance"
+    ],
+    "thumb": "assets/img/orte/kaserne_schwarzholz.jpg",
+    "banner": "assets/img/orte/kaserne_schwarzholz.jpg",
+    "media": {
+      "hero": "assets/img/orte/kaserne_schwarzholz.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/kaserne_schwarzholz.jpg",
+          "caption": "Zaunlinie & Bunker"
+        }
+      ]
+    },
+    "danger_level": 3,
+    "danger": "Hoch",
+    "overview": {
+      "history": "Teilgenutzt, teils stillgelegt. Ultio-Erbe.",
+      "today": "Übungen, Sperrbereiche. Programmierte Räume.",
+      "nscs": [
+        "Hptm. Adler",
+        "Hausmeister Schäfer",
+        "Richter Silas Vance"
+      ],
+      "access": [
+        "Zaunlücke Nord",
+        "Wartungstor West",
+        "Geheimer Kommandobunker"
+      ],
+      "cameras": [
+        "Tor, Zufahrten, Flure"
+      ],
+      "patrol": [
+        "Wachposten, Hunde, Routenplan"
+      ],
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "access_unlocked": false,
+      "patrol_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Sehr heikel",
+        "site": "S-01",
+        "breachTriggers": [
+          "Uniformierte Zeugen",
+          "Waffengebrauch"
+        ],
+        "consequences": [
+          "Festsetzung",
+          "Bundesmeldungen, großer Fallout"
+        ]
+      },
+      "security": {
+        "level": "S-01",
+        "keys": "Bunkerschlüssel/Code bei Schäfer",
+        "access": [
+          "Terminalraum",
+          "Krankenstation",
+          "Weißer Raum"
+        ],
+        "cameras": [
+          "Dichte Abdeckung, blinde Winkel selten"
+        ],
+        "patrol": [
+          "Regelmäßig, Hunde"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Weißer Raum",
+          "Ultio-Plakate ‚bewegen‘ sich"
+        ],
+        "relief": [
+          "Kurze Frischluft am Zaun",
+          "Rückzug in blinden Fleck"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Kein Ort für offene Aktionen. Zielräume: Kommandobunker (Terminal/Brief), Krankenstation (Kristalle, Proben), Weißer Raum (Zwang). Vance als moralische Klinge.</p></section>",
+    "gm_notes_html": "<h3>Orte</h3><h4>A) Kommandobunker</h4><p>Terminal: Probanden reaktiv… H. Spind: Brief des Chronisten. <em>Int+Technik SG9</em> Hack; Alarm bei Patzer.</p><h4>B) Krankenstation</h4><p>Schrank <em>Diebeskunst SG7</em>; Kristalle <em>Int+Med/Okkult SG8</em>; Rekrut Tariq befragen <em>Manip+Empathie SG7</em>.</p><h4>C) Weißer Raum</h4><p>Sensory-Deprivation, Stuhl mit Riemen; Bodennotiz „Rose hat Dornen im Kopf“. <em>Wahrn+Aufm SG7</em>.</p><h4>D) Vances Raum</h4><p>Khopesh-Fokus. Auspex-Vision über Urteile.</p>",
+    "encounters": [
+      {
+        "type": "hinweis",
+        "title": "Funk-Echo",
+        "text": "Bio-telemetrischer Schlag; „Garten/Wurzel/Saat“ in Vision.",
+        "sg": 9
+      },
+      {
+        "type": "kampf",
+        "title": "Wachpatrouille",
+        "text": "2 Soldaten + Hund.",
+        "sg": 7
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7681,
+      "lon": 6.1222,
+      "zoom": 15
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Alter Teil Materborn. Ruhezone, okkulte Muster.",
+    "id": "friedhof-materborn-schiefe-gruefte",
+    "title": "Friedhof Materborn – „Schiefe Grüfte“",
+    "subtitle": "Alte Krypta, versiegelt",
+    "teaser": "Feuchte Erde, schiefe Platten. Kälte aus dem alten Teil.",
+    "district": "Materborn",
+    "address": "Alter Abschnitt & Kapelle",
+    "owner": "Stadt Kleve",
+    "faction": "Neutral / Ruhezone",
+    "status": "Nachts geschlossen",
+    "opening_hours": "Tagsüber offen",
+    "tags": [
+      "Standort F-01",
+      "Maskerade: Heikel",
+      "Ruhezone",
+      "Krypta"
+    ],
+    "thumb": "assets/img/orte/friedhof.png",
+    "banner": "assets/img/orte/friedhof.png",
+    "media": {
+      "hero": "assets/img/orte/friedhof.png",
+      "gallery": [
+        {
+          "src": "assets/img/orte/friedhof.png",
+          "caption": "Alter Teil & Kapelle"
+        }
+      ]
+    },
+    "danger_level": 2,
+    "danger": "Heikel",
+    "overview": {
+      "history": "Seit 19. Jh.; Bombennächte kippten Grüfte. Nonnenkrypta versiegelt.",
+      "today": "Nur Tor-Kamera. Wärter routiniert.",
+      "rumors": [
+        "Grab atmet im Winter",
+        "Engel weint Rost",
+        "Dornen im Efeu"
+      ],
+      "nscs": [
+        "Wärter Lindemann"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Heikel",
+        "site": "F-01",
+        "breachTriggers": [
+          "Nächtliches Aufbrechen",
+          "Ritual sichtbar"
+        ],
+        "consequences": [
+          "Polizei, Kirche eingeschaltet"
+        ]
+      },
+      "security": {
+        "level": "F-01",
+        "keys": "Kapellenschlüssel beim Wärter",
+        "access": [
+          "Zaun schwach im Norden"
+        ],
+        "cameras": [
+          "Tor"
+        ],
+        "patrol": [
+          "Lindemann spät abends"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Krypta-Enge",
+          "Rostwasser-Muster"
+        ],
+        "relief": [
+          "Rückzug zur Kapelle",
+          "Lichtquellen"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Ruhiger Ort für Ermittlung/Rituale. Versiegelte Krypta verbindet zu Propstei-Akte.</p></section>",
+    "gm_notes_html": "<h3>Hinweise</h3><ul><li>Rosttränen bilden Muster (Dornen).</li><li>Alte Karte aus Propstei verweist auf Überführungen.</li></ul><h3>Begegnungen</h3><p>Grabräuber oder Schreckgestalt im alten Teil je nach Druck.</p>",
+    "encounters": [
+      {
+        "type": "hinweis",
+        "title": "Engel weint Rost",
+        "text": "Fraktale Rinnsale, lesbar als Spur.",
+        "sg": 6
+      },
+      {
+        "type": "kampf",
+        "title": "Störung im alten Teil",
+        "text": "Grabräuber / Schreckgestalt.",
+        "sg": 7
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.77,
+      "lon": 6.16,
+      "zoom": 16
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "Tagsüber offen",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Galerie Freiraum. Kulturfront, Ritual-Layout, Schmugglertunnel.",
+    "id": "galerie-freiraum-elten-dornen-im-beton",
+    "title": "Galerie Freiraum (Elten) – „Dornen im Beton“",
+    "subtitle": "White Cube mit doppeltem Buch",
+    "teaser": "Lösungsmittelduft. Große Fenster. Spiralförmige Hängung.",
+    "district": "Elten",
+    "address": "Industriestraße",
+    "owner": "Privat",
+    "faction": "Galerie / Szene",
+    "status": "Vernissagen, Events",
+    "opening_hours": "Mi–So 12–20 Uhr; Events",
+    "tags": [
+      "Standort G-01",
+      "Maskerade: Fragil",
+      "Kunst",
+      "Tunnel"
+    ],
+    "thumb": "assets/img/orte/galerie_freiraum.jpg",
+    "banner": "assets/img/orte/galerie_freiraum.jpg",
+    "media": {
+      "hero": "assets/img/orte/galerie_freiraum.jpg",
+      "gallery": [
+        {
+          "src": "assets/img/orte/galerie_freiraum.jpg",
+          "caption": "Foyer & Ausstellungsraum"
+        }
+      ]
+    },
+    "danger_level": 1,
+    "danger": "Fragil",
+    "overview": {
+      "history": "Lagerhalle → White Cube.",
+      "today": "Ausstellung „Dornen im Beton“. Elise Brandt führt.",
+      "rumors": [
+        "Skulptur „weint“ Lösungsmittel",
+        "Gästebuch-Symbole"
+      ],
+      "nscs": [
+        "Elise Brandt (Kuratorin, Ghul)",
+        "Rex (Sicherheit)"
+      ],
+      "cameras": [
+        "Foyer",
+        "Lager"
+      ],
+      "access": [
+        "Büro, Nebenzimmer",
+        "Luke → Tunnel"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true,
+      "cameras_unlocked": false,
+      "access_unlocked": false
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Fragil",
+        "site": "G-01",
+        "breachTriggers": [
+          "Öffentliche Performance",
+          "Ritual entdeckt"
+        ],
+        "consequences": [
+          "Pressesturm, Polizei"
+        ]
+      },
+      "security": {
+        "level": "G-01",
+        "keys": "Büro/Depot bei Elise",
+        "access": [
+          "Lager → Luke → Tunnelgabel"
+        ],
+        "cameras": [
+          "Minimal, Personal auf Zack"
+        ],
+        "patrol": [
+          "Rex, Rundgang"
+        ]
+      },
+      "stress": {
+        "triggers": [
+          "Ritual-Geometrie",
+          "Tunnel-Enge"
+        ],
+        "relief": [
+          "Gartenhof, Frischluft",
+          "Rückzug in Publikum"
+        ]
+      }
+    },
+    "content_html": "<section class='text-base'><p>Viele Augen. Besser als Gönner auftreten. Büro liefert Belege. Tunnel ist logistische Ader.</p></section>",
+    "gm_notes_html": "<h3>A) Ausstellungsraum</h3><p>Spiralige Hängung = Litanei-Fragmente (<em>Wahrn+Okkult SG8</em>). Gespräch Elise (<em>Manip+Emp/Etik SG7</em>) deckt „alte Gönner“.</p><h3>B) Büro</h3><p>Tablet (<em>Int+Computer SG8</em>): Berichte an „Umbra Artis“ + Tremere-Notizen. Päckchen: Rosenblätter+Blut (Ritual).</p><h3>C) Tunnel</h3><p>Luke → Gabelung, Nosferatu-Zeichen: instabiler Bereich. Spuren schwerer Kisten.</p>",
+    "encounters": [
+      {
+        "type": "begegnung",
+        "title": "Elise Brandt",
+        "text": "Kühl, doppelte Loyalität.",
+        "sg": 7
+      },
+      {
+        "type": "hinweis",
+        "title": "Gästebuch-Zeichen",
+        "text": "Dornen neben Namen, u. a. A. von Straeten.",
+        "sg": 6
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.8551,
+      "lon": 6.1622,
+      "zoom": 16
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "Mi–So 12–20 Uhr; Events",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  },
+  {
+    "schema_version": 2,
+    "_comment": "Bestatter. Logistik & Vertuschung. KLÜ-Druck.",
+    "id": "stenten-bestattungen-die-stille-die-luegt",
+    "title": "Stenten Bestattungen – „Die Stille, die lügt“",
+    "subtitle": "Logistische Drehscheibe & Vertuschungsapparat",
+    "teaser": "Ein Bestattungsinstitut, das bei Tag Seriosität ausstrahlt. Doch die Nacht offenbart einen Ort, dessen sterile Stille darauf spezialisiert ist, die dunkelsten Geheimnisse zu begraben.",
+    "district": "Innenstadt",
+    "address": "Nähe Königsgarten",
+    "owner": "Familie Stenten (unter Druck)",
+    "faction": "Neutral / Dienstleister",
+    "status": "Diskret",
+    "opening_hours": "9–17 Uhr; Rufbereitschaft",
+    "tags": [
+      "Standort S-01",
+      "Maskerade: Fragil",
+      "Dienstleister",
+      "KLÜ"
+    ],
+    "thumb": "assets/img/orte/stenten.png",
+    "banner": "assets/img/orte/stenten.png",
+    "media": {
+      "hero": "assets/img/orte/stenten.png",
+      "gallery": [
+        {
+          "src": "assets/img/orte/stenten.png",
+          "caption": "Büro, Vorbereitungsraum, Kühlkammer"
+        }
+      ]
+    },
+    "danger_level": 2,
+    "danger": "Fragil",
+    "overview": {
+      "history": "Dritte Generation; alte Register im Keller.",
+      "today": "Abwicklung „Unbekannte“; inoffizielle Lieferwege.",
+      "rumors": [
+        "Leichenwagen rollt nachts allein",
+        "„medizinisches Material“"
+      ],
+      "nscs": [
+        "Ernst Stenten",
+        "Mara Stenten",
+        "Projektleiter Volkov (Kontakt, extern)"
+      ],
+      "rumors_unlocked": true,
+      "nscs_unlocked": true
+    },
+    "rules": {
+      "masquerade": {
+        "risk": "Fragil",
+        "site": "S-01",
+        "breachTriggers": [
+          "Konfrontation vor Trauernden",
+          "Sichtbare Befreiung einer ‚Lieferung‘"
+        ],
+        "consequences": [
+          "Stiller Alarm an KLÜ",
+          "Stenten zum Schweigen gebracht",
+          "Sicherheitsniveau steigt"
+        ]
+      },
+      "security": {
+        "level": "S-01",
+        "keys": "Schlüsselbunde bei E. Stenten (inkl. Kühlkammer)",
+        "access": [
+          "Hauptzugang tags",
+          "Hintereingang nachts",
+          "Kühlkammer separat"
+        ],
+        "cameras": [
+          "Keine sichtbaren außen; evtl. Sensoren an Kühlkammer"
+        ],
+        "patrol": []
+      },
+      "stress": {
+        "triggers": [
+          "Lebende im Leichensack",
+          "Echte und falsche Papiere nebeneinander"
+        ],
+        "relief": []
+      }
+    },
+    "content_html": "<section class='text-base'><p>Seriöse Fassade, darunter Logistik für Vertuschung. Diskret agieren, Gespräche in Nebenräumen halten.</p></section>",
+    "gm_notes_html": "<h3>Bereiche & Proben</h3><h4>📂 A-01 Büro</h4><ul><li>Mit Stenten sprechen <em>Manip+Empathie SG7</em>: „Vertrag“ mit KLÜ; patzt → wirft raus.</li><li>Akten „KLÜ“ <em>Geschick+Heiml SG8</em>: gefälschte Todesurkunden, Lieferscheine → Galerie Freiraum.</li><li>PC <em>Int+Computer SG7</em>: Mails Volkov zu „Lieferungen“.</li></ul><h4>🔬 B-02 Vorbereitungsraum</h4><ul><li>Werkzeuge/Flüssigkeiten <em>Int+Med SG7</em>: starkes Sedativum; Verankerungen für Fesseln.</li><li>Abfluss <em>Wahrn+Aufm SG8</em>: Spuren von Sedativa, Adrenalinspitzen.</li></ul><h4>🧊 C-03 Kühlkammer</h4><ul><li>Leichensäcke öffnen <em>Mut SG6</em>: eine Person lebt; Patzer: +1 Stress.</li><li>Tags prüfen <em>Wahrn+Nachf SG7</em>: Codes ↔ Urkunden.</li></ul>",
+    "encounters": [
+      {
+        "type": "begegnung",
+        "title": "Ernst Stenten",
+        "text": "Korrekt, zitternde Hände; will Familie schützen.",
+        "sg": 7
+      },
+      {
+        "type": "hinweis",
+        "title": "Kälte atmet",
+        "text": "Hauch aus einem Sack ohne Anhänger.",
+        "sg": 8
+      },
+      {
+        "type": "ereignis",
+        "title": "Lieferung trifft ein",
+        "text": "Transporter der KLÜ erzeugt Zeitdruck.",
+        "sg": 0
+      }
+    ],
+    "player_actions": [],
+    "custom_sections": [],
+    "geo": {
+      "lat": 51.7916,
+      "lon": 6.1459,
+      "zoom": 17
+    },
+    "tile": {
+      "source": "narration",
+      "custom": ""
+    },
+    "hours": "9–17 Uhr; Rufbereitschaft",
+    "discovered": true,
+    "rules_unlocked": false,
+    "content_unlocked": true,
+    "encounters_unlocked": false
+  }
+]

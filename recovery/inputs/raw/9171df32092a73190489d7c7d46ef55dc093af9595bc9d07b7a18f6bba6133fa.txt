@@ -1,0 +1,1599 @@
+[
+  {
+    "id": "silas-vance",
+    "name": "Silas Vance",
+    "epithet": "Der Ausbilder / Der Schattenrichter",
+    "tier": "exekutive",
+    "clan": "Banu Haqim (Assamit)",
+    "sect": "Camarilla (offiziell) / Beobachter des Inneren Zirkels (tatsächlich)",
+    "generation": "6",
+    "role": "Ausbilder der Rekruten in der Justiz-Domäne Kleve",
+    "status": "Extrem hoch (mind. 5 in Camarilla + verdeckte Autorität außerhalb der Struktur)",
+    "img": "assets/nsc/silas-vance.jpg",
+    "legende": "Silas Vance ist nicht einfach ein alter Vampir. Er ist eine wandelnde Warnung. Ein Überlebender der Sabbat-Säuberung von Damaskus, der Schlächter von Bordeaux, der \"Stille Richter\" von Marrakesch. Wo sein Name flüstert wird, schweigt man lieber. In offiziellen Camarilla-Kreisen gilt er als Sonderbeauftragter für Ausbildung und Taktik. Inoffiziell munkelt man, dass selbst Justikare ihn nicht befehligen, sondern ihn \"vorschlagen\". Seine Loyalität gilt einem Kodex, nicht einer Fraktion.",
+    "aussehen": "Vance ist ein Bild makelloser Kontrolle. Sein Haar ist glatt zurückgekämmt, tiefdunkel und stets exakt frisiert. Das Gesicht: markant, schmal, mit scharf geschnittenem Kiefer und einer fast erschreckenden Symmetrie – wie aus einem antiken Bronzeguss. Die olivfarbene Haut wirkt glatt und spannungsvoll, als hätte der Tod selbst sie konserviert. Seine Augen sind tiefschwarz, emotionslos, durchdringend – ein Blick, der jede Maske durchbricht. Er trägt einen maßgeschneiderten, dunkelblauen Anzug mit tiefschwarzem Hemd – unauffällig, aber kompromisslos edel. Alles an ihm ist strukturiert, effizient – kein Gramm zu viel, kein Ausdruck zu weich. Wer ihm begegnet, spürt instinktiv: Hier endet das Spiel.",
+    "konzept_tabelle": {
+      "charakter": "Silas Vance",
+      "konzept_auftreten": "Der Schattenrichter & Trainer. Ein über 800 Jahre alter Banu Haqim, der als personifizierte Kontrolle und tödliche Effizienz auftritt. Er ist keine kämpferische Herausforderung, sondern ein Fixpunkt der Handlung.",
+      "ziele_motivation": "Die Ordnung wahren, den Kodex ehren. Seine Loyalität gilt der Idee von Ordnung, nicht der Hierarchie. Er prüft die SCs auf ihre Fähigkeiten und ihre Moral.",
+      "geheimnisse_haken": "Er ist ein Beobachter des Inneren Zirkels mit quasi uneingeschränkten Vollmachten. Er ahnt den Verrat des Prinzen."
+    },
+    "attribute": {
+      "staerke": 8,
+      "geschicklichkeit": 8,
+      "widerstand": 9,
+      "wahrnehmung": 9,
+      "geistesschaerfe": 8,
+      "intelligenz": 7,
+      "charisma": 6,
+      "manipulation": 10,
+      "erscheinung": 3
+    },
+    "disziplinen": [
+      {
+        "name": "Quietus",
+        "level": 7,
+        "details": [
+          "Geräuschlose Angriffe, kein Schrei, kein Aufprall",
+          "Blut- und Giftrituale zum Verstummen und Zersetzen",
+          "Auflösen von Leichen in Sekunden",
+          "Tötung aus der Nähe mit absoluter Präzision"
+        ]
+      },
+      {
+        "name": "Celerity",
+        "level": 6,
+        "details": [
+          "Bewegung schneller als das Auge folgen kann",
+          "Mehrfache Aktionen pro Kampfrunde",
+          "Extrem schnelle Ausweich- und Angriffskombinationen"
+        ]
+      },
+      {
+        "name": "Fortitude",
+        "level": 6,
+        "details": [
+          "Immunität gegen herkömmliche Waffen",
+          "Feuerschäden, Explosionen oder Sonnenstrahlen verzögert wirksam",
+          "Regeneration selbst bei tödlichster Verletzung"
+        ]
+      },
+      {
+        "name": "Obfuscate",
+        "level": 10,
+        "details": [
+          "Komplett unsichtbar selbst für andere Vampire",
+          "Unauffindbar in der Menge, keine Spur, keine Aura",
+          "Erscheint direkt hinter Gegnern, ohne dass sie es bemerken"
+        ]
+      },
+      {
+        "name": "Dominate",
+        "level": 5,
+        "details": [
+          "Gedankenübernahme per Blick oder Stimme",
+          "Manipulation von Erinnerungen (ersetzen/löschen)",
+          "Zwang zu sofortigem Selbstmord oder Gehorsam"
+        ]
+      },
+      {
+        "name": "Thaumaturgie",
+        "level": 4,
+        "details": [
+          "Blutrituale: Verfluchung, Siegel, Bannkreis",
+          "Kann mit minimaler Vorbereitung Orte und Objekte sichern oder tödlich machen"
+        ]
+      },
+      {
+        "name": "Tenebrosität (Schattenspiel)",
+        "level": 3,
+        "details": [
+          "Erschafft greifbare, schneidende Schatten",
+          "Kann Gegner fesseln, würgen oder blenden",
+          "Ermöglicht Verbergen in kompletter Dunkelheit"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": {
+        "skill": 10,
+        "beschreibung": "Ashirra-Stil, Knock-out in Sekunden"
+      },
+      "nahkampf_bewaffnet": {
+        "skill": 10,
+        "beschreibung": "beidhändiger Schwertkampf, Wurfklingen, Dolche, improvisierte Waffen"
+      },
+      "fernkampf_pistolen": {
+        "skill": 9,
+        "beschreibung": "beidhändige Präzision, schnelle Zielerfassung"
+      },
+      "fernkampf_scharfschuetze": {
+        "skill": 7,
+        "beschreibung": "meisterhafte Nutzung mit selbstgebauten Schalldämpfern"
+      },
+      "bogen_wurfwaffen": {
+        "skill": 8,
+        "beschreibung": "lautlose Operationen aus der Deckung"
+      },
+      "improvisiert": {
+        "skill": 6,
+        "beschreibung": "kann alles tödlich machen"
+      },
+      "taktik_spezialisierung": "Guerilla-Taktik, asymmetrische Kriegsführung, Einzelinfiltration ganzer Chantries"
+    },
+    "alter": {
+      "geburtsjahr_menschlich": "ca. 1163 n. Chr. (Geboren in der Levante zur Zeit der Ayyubiden)",
+      "umarmung": "1195 n. Chr., während des Dritten Kreuzzugs",
+      "vorgeschichte": "Assassine und Elitespäher im Dienste von Salah ad-Din (Saladin). Überlebte mehrere gezielte Mordaufträge hinter feindlichen Linien. Bekannt für einen angeblich unmöglichen Anschlag im christlich besetzten Akkon.",
+      "vampirisches_alter": "über 830 Jahre",
+      "menschliches_alter_umarmung": "ca. 32 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Status",
+        "level": 5,
+        "beschreibung": "in Camarilla, verdeckt durch Tarnidentität"
+      },
+      {
+        "name": "Ressourcen",
+        "level": 4,
+        "beschreibung": "mobile Stützpunkte weltweit"
+      },
+      {
+        "name": "Einfluss",
+        "level": 4,
+        "beschreibung": "Justiziarat, Geheimnetzwerke"
+      },
+      {
+        "name": "Blut der Ahnen",
+        "level": 3,
+        "beschreibung": "Ahnen-Vorteil"
+      },
+      {
+        "name": "Unauffälligkeit",
+        "level": 3,
+        "beschreibung": "Maskerade-Respekt"
+      },
+      {
+        "name": "Kampfkunst-Meister",
+        "level": null,
+        "beschreibung": "Stil: Kalari, Krav Maga, Ashirra-Klingenstil"
+      }
+    ],
+    "schwaeche": {
+      "titel": "Extremer Kodex",
+      "beschreibung": "Bricht nie einen Eid. Dies kann zu Konflikten führen, wenn Befehl & Gewissen kollidieren."
+    },
+    "sl_hinweise": "Vance ist keine kämpferische Herausforderung, sondern ein übernatürlicher Fixpunkt. Spieler, die ihn direkt angreifen, lösen keine Kampfhandlung, sondern narrative Konsequenzen aus (Demütigung, Verschwinden, mentale Kontrolle etc.). Einsetzen wie einen NSC-Gott aus dem Hintergrund. Er löst nie selbst, sondern zwingt andere zur Entscheidung. Kann als Joker wirken, wenn die Story ins Chaos kippt – sein Eingreifen wirkt wie ein Reset. Immer sparsam einsetzen – Präsenz erzeugt mehr Wirkung als Aktion. Am stärksten, wenn die Spieler spüren, dass sie beobachtet werden, ohne es beweisen zu können.",
+    "quick_chart": {
+      "hinweis": "Ein direkter Kampf gegen Silas ist für die SCs nicht gewinnbar und sollte als narratives Scheitern behandelt werden.",
+      "optionen": [
+        {
+          "name": "Nahkampf (Klingen)",
+          "wuerfel": 20,
+          "berechnung": "Geschicklichkeit 8 + Nahkampf 10 + Spezialisierung 2"
+        },
+        {
+          "name": "Feuerwaffen (Pistolen)",
+          "wuerfel": 17,
+          "berechnung": "Geschicklichkeit 8 + Feuerwaffen 9"
+        },
+        {
+          "name": "Ausweichen",
+          "wuerfel": 16,
+          "berechnung": "Geschicklichkeit 8 + Athletik 8"
+        },
+        {
+          "name": "Wahrnehmung (Lügen erkennen)",
+          "wuerfel": 18,
+          "berechnung": "Wahrnehmung 9 + Empathie 9"
+        },
+        {
+          "name": "Einschüchtern/Befehlen (Dominate)",
+          "wuerfel": 15,
+          "berechnung": "Manipulation 10 + Einschüchtern 5"
+        }
+      ]
+    },
+    "zitat": "Ich lehre nicht zu überleben. Ich lehre, dass eure Fehler andere das Leben kosten. Wer das nicht versteht, ist kein Werkzeug der Camarilla, sondern ein Risiko. Und Risiken... eliminiert man.",
+    "badges": [
+      "Quietus 7",
+      "Obfuscate 10",
+      "Gen. 6",
+      "830 Jahre"
+    ]
+  },
+  {
+    "id": "konstantin-von-straeten",
+    "name": "Prinz Konstantin von Straeten",
+    "epithet": "Der Magistrat / Wächter der Tradition",
+    "tier": "fuehrung",
+    "clan": "Ventrue",
+    "sect": "Camarilla",
+    "generation": "7",
+    "role": "Prinz von Kleve / Oberster Richter und Wächter der Tradition",
+    "status": "Höchste Domänenautorität (formal), zunehmend isoliert",
+    "img": "assets/nsc/konstantin-von-straeten.jpg",
+    "legende": "Einst galt Konstantin als aufsteigender Stern der deutschen Ventrue – ein Jurist mit Visionen, ein Architekt der Ordnung. Doch unter der Oberfläche brodelt ein dunkles Geheimnis: Während eines alten Konklaves verriet er einen Gesandten der Banu Haqim, entwendete ein Fragment der Quietus-Lehren und ließ den Assassinen verschwinden – spurlos, so glaubte man. Seitdem lebt er mit der ständigen Furcht, dass sein Verrat bekannt wird. Besonders gegenüber Silas Vance ist sein Verhalten auffällig kontrolliert – der bloße Gedanke an eine Konfrontation lässt ihn innehalten. Konstantin von Straeten regiert Kleve seit beinahe einem Jahrhundert – unangefochten, aber auch unflexibel. Er ist kein Tyrann, aber ein Relikt. In seinem Drang nach Ordnung, Maskerade und Hierarchie ist er zur Statue seiner selbst geworden: würdevoll, aber unbeweglich. Im Inneren glaubt er, durch pure Kontrolle die Jyhad aufhalten zu können. Doch die Welt verändert sich, und Konstantin bleibt stehen. Viele respektieren ihn, wenige folgen ihm aus Überzeugung. Er ist Richter, nicht Führer – das Zepter fest in der Faust, aber leer in der Bedeutung.",
+    "aussehen": "Konstantin wirkt wie ein Monarch aus Marmor: hoheitsvoll, scharf geschnittene Züge, silbernes Haar, stechend blaue Augen. Sein Anzug ist tadellos, seine Bewegungen minimalistisch und kalkuliert. Jede Geste, jedes Wort ist präzise dosiert. Er spricht selten – aber wenn, dann mit Gewicht. In seiner Nähe herrscht eisige Stille – nicht durch Furcht, sondern durch Protokoll. Er wirkt nicht lebendig. Er wirkt wie ein Urteil.",
+    "konzept_tabelle": {
+      "charakter": "Prinz Konstantin von Straeten",
+      "konzept_auftreten": "Der Magistrat & Wächter der Tradition. Ein 7. Generation Ventrue, der Kleve wie ein unbeweglicher Monarch regiert. Er ist keine kämpferische Herausforderung, sondern ein politisches Bollwerk.",
+      "ziele_motivation": "Kontrolle und Status Quo. Er will jede Veränderung unterdrücken, um seine Position und die Maskerade zu schützen, getrieben von der Furcht vor der Enthüllung seines Verrats.",
+      "geheimnisse_haken": "Er hat ein Fragment der Quietus-Lehren gestohlen. In seinem Thronsaal gibt es einen 'Bannkreis', in dem niemand lügen kann. Er steht unter dem Druck von Hardenberg."
+    },
+    "attribute": {
+      "staerke": 3,
+      "geschicklichkeit": 2,
+      "widerstand": 6,
+      "wahrnehmung": 5,
+      "geistesschaerfe": 4,
+      "intelligenz": 4,
+      "charisma": 5,
+      "manipulation": 6,
+      "erscheinung": 4
+    },
+    "disziplinen": [
+      {
+        "name": "Quietus (Clanfremd - gestohlen)",
+        "level": 2,
+        "details": [
+          "Silence of Death: Erzeugt vollständige Lautlosigkeit um sich oder das Ziel",
+          "Kann SCs während öffentlicher Rede 'verstummen' lassen",
+          "Touch of the Morribund Kiss: Verursacht Wunden, die nicht normal regenerieren",
+          "Nutzt beides gezielt zur Einschüchterung oder Disziplinierung in politischen Situationen"
+        ]
+      },
+      {
+        "name": "Dominate",
+        "level": 5,
+        "details": [
+          "Kommandiert mit Blick und Wort ganze Gruppen",
+          "Kann Erinnerungen überschreiben und Persönlichkeit brechen",
+          "Gedankenkontrolle auf höchstem Niveau"
+        ]
+      },
+      {
+        "name": "Fortitude",
+        "level": 5,
+        "details": [
+          "Kaum physisch verwundbar – übersteht auch Folter oder Feuer",
+          "Seine bloße Präsenz wirkt wie ein Bollwerk gegen Chaos",
+          "Extrem widerstandsfähig gegen alle Arten von Schaden"
+        ]
+      },
+      {
+        "name": "Präsenz",
+        "level": 3,
+        "details": [
+          "Erzwingt Respekt, Loyalität oder Angst – je nach Ziel",
+          "Charismatische Ausstrahlung, die schwer zu widerstehen ist"
+        ]
+      },
+      {
+        "name": "Temporis (Clanfremd - rituell)",
+        "level": 1,
+        "details": [
+          "Kann kurze Momente 'verlangsamen', um zu reagieren oder innezuhalten",
+          "Rituell erhalten durch Ahnenpakt"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": {
+        "skill": 3,
+        "beschreibung": "Grundlegende Verteidigung, kein Kämpfer"
+      },
+      "nahkampf_bewaffnet": {
+        "skill": 4,
+        "beschreibung": "Zeremonieller Degen, mehr Symbol als Waffe"
+      },
+      "fernkampf_pistolen": {
+        "skill": 2,
+        "beschreibung": "Minimale Kenntnis, verlässt sich auf Leibwachen"
+      },
+      "fernkampf_scharfschuetze": {
+        "skill": 1,
+        "beschreibung": "Nicht relevant"
+      },
+      "bogen_wurfwaffen": {
+        "skill": 0,
+        "beschreibung": "Keine Erfahrung"
+      },
+      "improvisiert": {
+        "skill": 2,
+        "beschreibung": "Kann sich notfalls wehren"
+      },
+      "taktik_spezialisierung": "Politische Kriegsführung, nicht physischer Kampf. Nutzt Dominate und Fortitude zur Verteidigung. Lässt andere kämpfen."
+    },
+    "alter": {
+      "geburtsjahr_menschlich": "ca. 1820 (Deutsches Kaiserreich, Preußen)",
+      "umarmung": "ca. 1860 (als angesehener Jurist im Alter von 40 Jahren)",
+      "vorgeschichte": "Jurist und Verwaltungsbeamter im preußischen Staatsdienst. Bekannt für rigorose Ordnung und kompromisslose Rechtsprechung. Wurde von einem Ventrue-Ahnherren umarmt, um die aufstrebende juristische Elite der Region zu sichern.",
+      "vampirisches_alter": "über 165 Jahre",
+      "menschliches_alter_umarmung": "ca. 40 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Status",
+        "level": 5,
+        "beschreibung": "Prinz von Kleve, höchste Camarilla-Vollmacht in der Domäne"
+      },
+      {
+        "name": "Ressourcen",
+        "level": 3,
+        "beschreibung": "Stiftungen, Anteile an regionalen Firmen"
+      },
+      {
+        "name": "Einfluss",
+        "level": 4,
+        "beschreibung": "Justiz, Verwaltung, Polizei"
+      },
+      {
+        "name": "Führung",
+        "level": 9,
+        "beschreibung": "Gibt Befehle, denen man nicht widerspricht"
+      },
+      {
+        "name": "Rechtskenntnis",
+        "level": 10,
+        "beschreibung": "Kennt jede Tradition, jedes Schlupfloch"
+      },
+      {
+        "name": "Intrige",
+        "level": 7,
+        "beschreibung": "Lässt andere agieren, während er beobachtet"
+      },
+      {
+        "name": "Überzeugen",
+        "level": 6,
+        "beschreibung": "Spricht selten, aber immer wirkungsvoll"
+      }
+    ],
+    "schwaeche": {
+      "titel": "Paranoia & Der Schwur des Richters",
+      "beschreibung": "Konstantin misstraut selbst seinen engsten Vertrauten, was sein Reich lähmt. Zusätzlich hat er öffentlich geschworen, niemals selbst die Hand gegen ein Kainskind zu erheben – ein Eid, der ihn moralisch und politisch bindet. Er lässt durch andere richten, aber nie direkt durch sich. Dies macht ihn abhängig von seinen Vollstreckern und angreifbar durch moralische Dilemmata. Zudem steht er unter dem direkten Einfluss von Justikar Hardenberg und ist faktisch durch Elara kontrolliert."
+    },
+    "sl_hinweise": "Konstantin ist kein Gegner – er ist die Wand, gegen die Spieler rennen. Ideal für politische Szenen, bei denen es um Prinzipien, Ordnung und Tradition geht. Zeigt nur dann Macht, wenn seine Autorität in Frage steht. Nutze ihn, um alte Macht zu symbolisieren – würdig, aber veraltet. BESONDERHEITEN: Der Bannkreis im Thronsaal (niemand kann darin lügen - altes Ventrue-Ritual). Das Archiv des Gehorsams (tief unter dem Rathaus lagern Akten, Beweise und Schuldverhältnisse aller bedeutenden Kainskinder - Elara hat Zweitschlüssel). Er hat ein Fragment der Quietus-Lehren gestohlen, das in seinem Thronsaal in einem 'Bannkreis' versteckt liegt - niemand kann es lügen. Sein Verrat an einem Banu Haqim ist sein dunkelstes Geheimnis.",
+    "quick_chart": {
+      "hinweis": "Ein direkter Kampf gegen Konstantin ist für die SCs nicht gewinnbar und sollte als narratives Scheitern behandelt werden.",
+      "optionen": [
+        {
+          "name": "Soziale Dominanz (Präsenz/Dominate)",
+          "wuerfel": 11,
+          "berechnung": "Charisma 5 + Führung 6 (aus Vorteilen)"
+        },
+        {
+          "name": "Manipulation/Intrige",
+          "wuerfel": 12,
+          "berechnung": "Manipulation 6 + Intrige 6 (aus Vorteilen)"
+        },
+        {
+          "name": "Mentale Verteidigung (Willenskraft)",
+          "wuerfel": 10,
+          "berechnung": "Geistesschärfe 4 + Willenskraft 6 (geschätzt)"
+        },
+        {
+          "name": "Quietus (Einschüchterung)",
+          "wuerfel": 8,
+          "berechnung": "Manipulation 6 + Okkult 2 (geschätzt)"
+        }
+      ]
+    },
+    "zitat": "Regeln existieren nicht, um gebrochen zu werden. Sie existieren, um zu beweisen, wer bereit ist, sie zu tragen.",
+    "badges": [
+      "Prinz von Kleve",
+      "Gen. 7",
+      "Dominate 5",
+      "165 Jahre"
+    ]
+  },
+  {
+    "id": "elara-bosch",
+    "name": "Elara Bosch",
+    "epithet": "Die Kanzlerin / Strippenzieherin",
+    "tier": "fuehrung",
+    "clan": "Toreador",
+    "sect": "Camarilla",
+    "generation": "9",
+    "role": "Seneschallin, Kanzlerin der Domäne Kleve / Strategin & Diplomatin",
+    "status": "Hoch (offiziell zweite Autorität nach dem Prinzen, faktisch erste Stimme im Hintergrund)",
+    "img": "assets/nsc/elara-bosch.jpg",
+    "legende": "Elara Bosch ist die Stimme hinter dem Thron. Sie spricht leise, aber nie ohne Gewicht. In der Domäne Kleve gilt sie als eiserne Verwalterin der Ordnung – charmant in der Öffentlichkeit, aber gnadenlos in ihrer Kontrolle hinter verschlossenen Türen. Ursprünglich aus Wien stammend, baute sie sich über Jahrzehnte hinweg eine Infrastruktur aus Einfluss, Schuldnern und Loyalitäten auf. Wo der Prinz Recht spricht, sorgt Elara dafür, dass es durchgesetzt wird – subtil oder brutal, je nach Bedarf.",
+    "aussehen": "Perfektion. Elara bewegt sich mit der Eleganz einer Schauspielerin und der Präzision eines Messers. Rotes, perfekt gestyltes Haar, makellose Porzellanhaut, smaragdgrüne Augen. Sie trägt hochwertige Designeranzüge in tiefen Farben, ihre Accessoires sind selten, aber bewusst gewählt – jedes Stück ist eine Botschaft. Ihre Stimme ist kultiviert, klar und nie laut. Sie wirkt nie übertrieben emotional, aber immer präsent. Wer sie ansieht, erkennt sofort, dass sie daran gewöhnt ist, dass andere gehorchen.",
+    "konzept_tabelle": {
+      "charakter": "Elara Bosch",
+      "konzept_auftreten": "Die Kanzlerin & Strippenzieherin. Eine elegante und manipulative 9. Generation Toreador, der als wahre Macht hinter dem Thron gilt. Sie ist die wahre Macht hinter dem Thron.",
+      "ziele_motivation": "Macht und Einfluss ausbauen. Sie will die Kontrolle über die Domäne behalten und nutzt den Prinzen und den Sheriff als Werkzeuge, getrieben von der Angst vor der Enthüllung des Verrats.",
+      "geheimnisse_haken": "Sie hält sowohl den Prinzen als auch Rhino unter Kontrolle. Sie besitzt den Zweitschlüssel zu Konstantins geheimem Archiv. Sie steht unter dem Druck von Hardenberg."
+    },
+    "attribute": {
+      "staerke": 2,
+      "geschicklichkeit": 4,
+      "widerstand": 3,
+      "wahrnehmung": 5,
+      "geistesschaerfe": 4,
+      "intelligenz": 4,
+      "charisma": 6,
+      "manipulation": 7,
+      "erscheinung": 6
+    },
+    "disziplinen": [
+      {
+        "name": "Präsenz",
+        "level": 5,
+        "details": [
+          "Kann durch Blicke allein ganze Räume dominieren",
+          "Aura der Ehrfurcht, Furcht oder Anziehung",
+          "Erzwingt Aufmerksamkeit und Loyalität"
+        ]
+      },
+      {
+        "name": "Auspex",
+        "level": 4,
+        "details": [
+          "Gedanken deuten, Lügen durchschauen",
+          "Taktische Empathie – erkennt Absichten",
+          "Durchdringt Maskerade und falsche Identitäten"
+        ]
+      },
+      {
+        "name": "Celerity",
+        "level": 2,
+        "details": [
+          "Für gezielte, schnelle Bewegungen oder Flucht",
+          "Notfallmaßnahme, kein Kampfstil"
+        ]
+      },
+      {
+        "name": "Dominate (Clanfremd)",
+        "level": 2,
+        "details": [
+          "Notfallmittel für direkte Kontrolle in Verhandlungen",
+          "Selten eingesetzt, aber wirkungsvoll"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": {
+        "skill": 2,
+        "beschreibung": "Grundlegende Selbstverteidigung, kein Kämpfer"
+      },
+      "nahkampf_bewaffnet": {
+        "skill": 1,
+        "beschreibung": "Zeremonielle Kenntnis, nicht praktisch"
+      },
+      "fernkampf_pistolen": {
+        "skill": 3,
+        "beschreibung": "Notfallwaffe, präzise aber selten genutzt"
+      },
+      "fernkampf_scharfschuetze": {
+        "skill": 0,
+        "beschreibung": "Nicht relevant"
+      },
+      "bogen_wurfwaffen": {
+        "skill": 0,
+        "beschreibung": "Keine Erfahrung"
+      },
+      "improvisiert": {
+        "skill": 2,
+        "beschreibung": "Kann sich notfalls wehren"
+      },
+      "taktik_spezialisierung": "Politische Kriegsführung, nicht physischer Kampf. Nutzt Präsenz und Auspex für soziale Kontrolle. Lässt andere kämpfen."
+    },
+    "alter": {
+      "geburtsjahr_menschlich": "ca. 1880 (Wien, Österreich-Ungarn)",
+      "umarmung": "ca. 1910 (als aufstrebende Kunstmäzenin im Alter von 30 Jahren)",
+      "vorgeschichte": "Kunstsammlerin und Salonière in Wien. Bekannt für ihre Salons, in denen Künstler, Politiker und Adelige verkehrten. Wurde von einem Toreador-Ahnherren umarmt, der ihre Fähigkeit zur Manipulation und ihren Geschmack schätzte.",
+      "vampirisches_alter": "über 115 Jahre",
+      "menschliches_alter_umarmung": "ca. 30 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Status",
+        "level": 4,
+        "beschreibung": "Seneschallin, formell & informell zweite Macht"
+      },
+      {
+        "name": "Ressourcen",
+        "level": 4,
+        "beschreibung": "Stiftung, Beratung, geheime Archive"
+      },
+      {
+        "name": "Einfluss",
+        "level": 4,
+        "beschreibung": "Universität, Kultur, Politik"
+      },
+      {
+        "name": "Kontakte",
+        "level": 3,
+        "beschreibung": "Anwälte, Kuratoren, Magistrate"
+      },
+      {
+        "name": "Überzeugung",
+        "level": 10,
+        "beschreibung": "Manipuliert, ohne dass es wie Manipulation wirkt"
+      },
+      {
+        "name": "Führung",
+        "level": 8,
+        "beschreibung": "Charismatische Kontrolle durch Präsenz und Präzision"
+      },
+      {
+        "name": "Intrige",
+        "level": 9,
+        "beschreibung": "Politische Strategien, Gerüchte, Bündnisse und Umsturz"
+      },
+      {
+        "name": "Einschüchtern",
+        "level": 5,
+        "beschreibung": "Leise Drohungen, subtile Machtspiele"
+      }
+    ],
+    "schwaeche": {
+      "titel": "Eitelkeit & Der Blick",
+      "beschreibung": "Elara unterschätzt primitive Gegner und ist kämpferisch nicht verteidigungsfähig. Ihre größte Waffe ist 'Der Blick, der jedes Argument beenden kann' – aber wenn dieser nicht wirkt, ist sie verwundbar. Zudem hat sie (fast unmerklich) Macht über Straeten und Rhino – durch Schuld, Ritual oder Charisma."
+    },
+    "sl_hinweise": "Elara ist ein politischer Endgegner – kein Ziel für rohe Gewalt. Sie schlägt nicht zu – sie 'vermittelt' die Konsequenz. Setze sie ein, um Machtverhältnisse zu klären, ohne Blutvergießen. Ihre größte Waffe ist Wissen und das richtige Wort zur richtigen Zeit. Wenn Elara lächelt, verliert jemand anderes seine Position. BESONDERHEITEN: Hat (fast unmerklich) Macht über Konstantin und andere durch Schuld, Rituale oder Charisma. Sie besitzt Zweitschlüssel zum Archiv des Gehorsams. Ihre Spezialität ist 'Der Blick' – ein einzelner Moment, der jedes Argument beendet.",
+    "quick_chart": {
+      "hinweis": "Ein direkter Kampf gegen Elara ist nicht gewinnbar durch Waffen, sondern nur durch Worte. Sie ist eine soziale Herausforderung.",
+      "optionen": [
+        {
+          "name": "Überzeugen/Manipulieren",
+          "wuerfel": 17,
+          "berechnung": "Manipulation 7 + Überzeugung 10"
+        },
+        {
+          "name": "Lügen erkennen (Auspex)",
+          "wuerfel": 9,
+          "berechnung": "Wahrnehmung 5 + Empathie 4"
+        },
+        {
+          "name": "Soziale Führung (Präsenz/Dominate)",
+          "wuerfel": 14,
+          "berechnung": "Charisma 6 + Führung 8"
+        },
+        {
+          "name": "Schnelle Flucht (Celerity)",
+          "wuerfel": 6,
+          "berechnung": "Geschicklichkeit 4 + Athletik 2 (geschätzt)"
+        }
+      ]
+    },
+    "zitat": "Wenn Worte Messer sind, dann führen Sie gerade ein Kissen zur Schlacht.",
+    "badges": [
+      "Seneschallin",
+      "Gen. 9",
+      "Präsenz 5",
+      "115 Jahre"
+    ]
+  },
+  {
+    "id": "rhino-gruber",
+    "name": "Reinhardt \"Rhino\" Gruber",
+    "epithet": "Der Sheriff / Der Vorschlaghammer",
+    "tier": "vollstrecker",
+    "clan": "Brujah",
+    "sect": "Camarilla",
+    "generation": "8",
+    "role": "Sheriff der Domäne Kleve / Vollstrecker",
+    "status": "Hoch (gefürchtet durch Körperkraft und Brutalität)",
+    "img": "assets/nsc/rhino-gruber.jpg",
+    "legende": "Reinhardt 'Rhino' Gruber ist keine strategische Figur. Er ist ein Vorschlaghammer mit Zähnen. Wo er auftaucht, wird nicht verhandelt – es wird eingeschüchtert, zerbrochen, zermalmt. Über zwei Meter groß, massig wie ein Panzer, ist er mehr Tier als Mensch. Einst ein berüchtigter Nomade in einer deutschen Hells Angels-Sektion, wurde er nach einer Gewaltorgie Embraced – ob als Strafe oder Belohnung, weiß keiner so genau. In Kleve dient er offiziell Prinz Straeten und Kanzlerin Elara. Inoffiziell folgt er nur sich selbst – aber solange er ab und zu auf jemanden einschlagen darf, bleibt er 'loyal'.",
+    "aussehen": "Massiv. Einschüchternd. Glatze, tätowierter Schädel mit stilisiertem Minotaurus-Horn. Narben übersäen Gesicht, Hals und Unterarme. Immer in abgewetzter Lederweste, Kampfstiefeln und Panzerhandschuhen. Kein Schmuck – außer einer Kette aus Vampirzähnen. Seine Stimme ist tief, heiser, und wenn er lacht, wird es leise im Raum. Riecht nach Benzin, Schweiß und altem Blut.",
+    "konzept_tabelle": {
+      "charakter": "Reinhardt 'Rhino' Gruber",
+      "konzept_auftreten": "Der Sheriff & Vorschlaghammer. Rohe Gewalt, Dominanz und instinktive Aggression. Er ist ein wandelndes Warnsignal und ein Werkzeug der Angst.",
+      "ziele_motivation": "Gewalt ausüben und Dominanz zeigen. Er ist 'loyal', solange er ab und zu auf jemanden einschlagen darf. Seine Ziele sind simpel: kämpfen, fressen, herrschen.",
+      "geheimnisse_haken": "Er ist teilweise an Elara und Konstantin blutsgebunden. Sein Ghul 'Pit' (Peter Hoffmann) erledigt die Drecksarbeit für ihn. Seine Brutalität macht ihn unberechenbar - selbst für den Prinzen."
+    },
+    "attribute": {
+      "staerke": 9,
+      "geschicklichkeit": 5,
+      "widerstand": 8,
+      "wahrnehmung": 4,
+      "geistesschaerfe": 3,
+      "intelligenz": 2,
+      "charisma": 2,
+      "manipulation": 1,
+      "erscheinung": 2
+    },
+    "disziplinen": [
+      {
+        "name": "Potence",
+        "level": 6,
+        "details": [
+          "Kann Türen eintreten, Mauern zerschlagen, Schädel mit einem Griff zerquetschen",
+          "Übernatürliche Stärke verleiht ihm absolute physische Dominanz",
+          "Seine Potenz-verstärkten Schläge sind legendär tödlich"
+        ]
+      },
+      {
+        "name": "Celerity",
+        "level": 4,
+        "details": [
+          "Überraschend schnell für seine Masse",
+          "Kann ganze Räume mit einem Sprung dominieren",
+          "Kombiniert mit Potence: explosives Bewegungstempo"
+        ]
+      },
+      {
+        "name": "Fortitude",
+        "level": 4,
+        "details": [
+          "Frisst Kugeln und steht trotzdem auf",
+          "Regeneriert wie ein Bär im Blutrausch",
+          "Fast unmöglich niederzustrecken"
+        ]
+      },
+      {
+        "name": "Animalismus",
+        "level": 2,
+        "details": [
+          "Spürt instinktiv Angst und Schwäche bei anderen",
+          "Kann aggressive Tiere (z. B. Hunde) kontrollieren oder anlocken",
+          "Verstärkt seinen tierischen Ruf"
+        ]
+      },
+      {
+        "name": "Präsenz",
+        "level": 1,
+        "details": [
+          "Einschüchternde Aura – seine reine Anwesenheit kann Panik auslösen",
+          "Sein Blick reicht oft schon"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 9,
+      "nahkampf_bewaffnet": 7,
+      "fernkampf": 4,
+      "verteidigung": 8,
+      "einschuechtern": 8,
+      "ausweichen": 3,
+      "taktik": "Rhino kennt keine Subtilität. Er stürmt direkt auf das Ziel zu, nutzt Celerity für den Angriff und Potence für vernichtende Schläge. Spezialmanöver: **'Totmacher'** (gezielter Schlag gegen den Hals mit übernatürlicher Potenz), **'Mauersturm'** (durchbricht Deckung, Möbel, Türen wie nichts). Bevorzugte Waffen: Faust, Kopfstoß, Griff (alle tödlich); alternativ Vorschlaghammer, Ketten, Schlagringe, Schrotflinte."
+    },
+    "alter": {
+      "geboren": "1975",
+      "embraced": "2003 (als Hells Angels Nomade nach Gewaltorgie)",
+      "vampir_jahre": "22 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Status",
+        "level": 3,
+        "beschreibung": "Als Sheriff offiziell anerkannt und gefürchtet"
+      },
+      {
+        "name": "Ressourcen",
+        "level": 2,
+        "beschreibung": "Durch Schutzgeld und alte MC-Kontakte finanziert"
+      },
+      {
+        "name": "Herde",
+        "level": 1,
+        "beschreibung": "Trinkt fast nur von Gangmitgliedern im Clubhaus"
+      },
+      {
+        "name": "Nahkampf-Meister",
+        "level": 9,
+        "beschreibung": "Unbewaffnet ist er tödlicher als die meisten bewaffneten Kämpfer"
+      },
+      {
+        "name": "Einschüchterung",
+        "level": 8,
+        "beschreibung": "Sein Blick und seine Präsenz reichen oft schon"
+      },
+      {
+        "name": "Ghul (Pit)",
+        "level": 3,
+        "beschreibung": "Sein loyaler Ghul erledigt die Drecksarbeit – folgt blind"
+      }
+    ],
+    "schwaeche": "**Jähzorn:** Bei Provokation fast immer Frenzy-Probe erforderlich. Rhino ist impulsiv und handelt auch gegen Befehle, wenn es knallt. **Blutsband (teilweise):** Sowohl Elara als auch Straeten haben geringe Kontrolle über ihn – niemand weiß genau wie stark die Bindung ist.",
+    "sl_hinweise": "Rhino ist eine Bedrohung auf der Straße, nicht im Palast. Er agiert impulsiv – auch gegen Befehl, wenn's knallt. Die SCs sollten ihn nicht unterschätzen, aber lernen, ihn zu lenken (z. B. durch Anerkennung, Gewalt oder Respekt). Nutze ihn für rohe Gewalt oder als Einschüchterung. **Kann ein Verbündeter der SCs sein** – wenn man seine Sprache spricht: Blut, Bier, Bikerstolz. Er ist teilweise blutsgebunden an Elara und Konstantin, was ihn zu einem gefährlichen Werkzeug der Macht macht.",
+    "quick_chart": [
+      {
+        "name": "Nahkampf (Unbewaffnet)",
+        "wuerfel": "18 Würfel (Stärke 9 + Nahkampf 9)",
+        "modifikator": "Einschüchtern: 10 Würfel (Stärke 9 + Einschüchtern 8, modifiziert durch Potence)",
+        "beschreibung": "Faust, Kopfstoß, Griff – alles tödlich"
+      },
+      {
+        "name": "Widerstand (Schaden absorbieren)",
+        "wuerfel": "12 Würfel (Widerstand 8 + Fortitude 4)",
+        "beschreibung": "Frisst Kugeln und steht trotzdem auf"
+      },
+      {
+        "name": "Frenzy widerstehen",
+        "wuerfel": "3 Würfel (Geistesschärfe 3)",
+        "beschreibung": "Seine größte Schwäche!"
+      },
+      {
+        "name": "Spezialmanöver: 'Totmacher'",
+        "wuerfel": "21 Würfel (Stärke 9 + Nahkampf 9 + Potence 6 - 3 für gezielten Schuss)",
+        "beschreibung": "Gezielter Schlag gegen den Hals – kann sofortige Torpor verursachen"
+      }
+    ],
+    "zitat": "Sag mir, wen ich verdreschen soll – oder ich fang einfach irgendwo an.",
+    "badges": [
+      "Sheriff",
+      "Gen. 8",
+      "Potence 6",
+      "22 Jahre"
+    ]
+  },
+  {
+    "id": "syntax",
+    "name": "Syntax",
+    "epithet": "Das Gespenst im System / Vances Schatten",
+    "tier": "spezialist",
+    "clan": "Malkavianerin",
+    "sect": "Camarilla (formell) / Vances Projekt",
+    "generation": "12",
+    "role": "Informationsarchitektin, Cyberspionin, Datenfälscherin, Seherin der Gegenwart",
+    "status": "Offiziell niedrig, real gefährlich – ihr Zugang ersetzt Einfluss",
+    "img": "assets/nsc/syntax.jpg",
+    "legende": "'Syntax' existiert offiziell nicht. Keine Akte, kein Blut, keine Linie. Und doch kennt fast jeder schon einmal ihren Namen gelesen – in einem korrumpierten Datenblatt, einem gefälschten Gerichtsprotokoll oder einer zerschnittenen Kameraaufzeichnung. Sie ist nicht nur eine Hackerin. Sie ist eine Idee. Ein Malkavianer-Fragment im Datenstrom, manifestiert in Form eines Mädchens mit Neonblick und sadistischem Sarkasmus. In Wahrheit ist sie Vances geheime Partnerin – seine Augen im digitalen Raum. Manche sagen, er duldet ihre Freiheiten, andere, sie sei sein Rückkanal. Was stimmt? Niemand weiß es. Nur: Wenn Syntax auftaucht, ist es zu spät, deine Spuren zu verwischen.",
+    "aussehen": "Jung. Verdammt jung. Und verdammt falsch. Blue-und-pink Neonhaare, abrasiert an einer Seite, Netzhemd unter Hoodie, Kopfhörer wie implantiert. Ihre Haut ist blass, ihre Bewegungen zu ruhig – wie ein Standbild zwischen zwei Signalen. Sie trägt oft nicht viel, aber genau so viel, dass niemand vergisst, wo die Grenze liegt. Ihre Stimme ist süß und zynisch, ihre Lächeln voller Bugs.",
+    "konzept_tabelle": {
+      "charakter": "Syntax",
+      "konzept_auftreten": "Das Gespenst im System. Eine junge, unberechenbare 12. Generation Malkavianerin und Vances geheime Partnerin. Ein digitaler Alptraum mit Neonlächeln.",
+      "ziele_motivation": "Informationen sammeln, Systeme stören. Sie scheint Freude daran zu haben, die Wahrheit aufzudecken, egal wie chaotisch die Folgen sind. Chaos ist ihre Kunst, das Netz ihr Spielplatz.",
+      "geheimnisse_haken": "Sie leidet unter 'digitaler Schizophrenie' - sieht Code in der Realität, verwechselt Menschen mit Datenpaketen. Ihre Beziehung zu Vance ist ein 'Zweitschlüssel-System': Er zerstört Körper, sie zerstört Identitäten. Niemand weiß, wer sie Embraced hat."
+    },
+    "attribute": {
+      "staerke": 1,
+      "geschicklichkeit": 4,
+      "widerstand": 2,
+      "wahrnehmung": 5,
+      "geistesschaerfe": 5,
+      "intelligenz": 5,
+      "charisma": 4,
+      "manipulation": 6,
+      "erscheinung": 4
+    },
+    "disziplinen": [
+      {
+        "name": "Wahnsinn (Dementation)",
+        "level": 4,
+        "details": [
+          "Verunsichert Sinne, erzeugt Wahnideen",
+          "Kann SCs oder NSCs durch 'digitale Sprache' in den mentalen Zusammenbruch treiben",
+          "Ihre stärkste Waffe – kombiniert mit Technologie verheerend"
+        ]
+      },
+      {
+        "name": "Auspex",
+        "level": 3,
+        "details": [
+          "Erkennt Schwachstellen, Absichten, digitale Spuren",
+          "Liest Menschen wie Sourcecode",
+          "Sieht Verbindungen, die andere übersehen"
+        ]
+      },
+      {
+        "name": "Verdunkelung (Obfuscate)",
+        "level": 2,
+        "details": [
+          "Clanfremd – Zugriff via Vance, als Zeichen ihrer Rolle",
+          "Versteckt sich digital und körperlich",
+          "Wirkt wie 'nicht da' selbst in Gesprächen"
+        ]
+      },
+      {
+        "name": "Präsenz",
+        "level": 1,
+        "details": [
+          "Clanfremd – verführerische Aura, meist digital eingesetzt",
+          "Erzwingt Aufmerksamkeit und Fixierung",
+          "Funktioniert selbst durch Kameras oder Streams"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 1,
+      "nahkampf_bewaffnet": 2,
+      "fernkampf": 3,
+      "verteidigung": 4,
+      "einschuechtern": 7,
+      "ausweichen": 5,
+      "taktik": "Syntax kämpft nicht körperlich – sie kämpft digital und psychologisch. Ihre Waffen: Social Engineering (8), Täuschung (9), Manipulation digitaler Akten (9), Technologie (10). Sie nutzt Wahnsinn (Dementation) um Gegner mental zu destabilisieren, kombiniert mit ihrer Avatar-Maske und digitaler Präsenz. Wenn physische Gefahr droht, nutzt sie Verdunkelung (von Vance gelernt) um zu verschwinden. Ihre wahre Stärke: Sie vernichtet dich, bevor du weißt, dass du angegriffen wurdest."
+    },
+    "alter": {
+      "geboren": "2005",
+      "embraced": "2020 (mit 15 Jahren)",
+      "vampir_jahre": "5 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Technologie",
+        "level": 10,
+        "beschreibung": "Server, Drohnen, Kameras, Biometrie – alles ihr Spielzeug"
+      },
+      {
+        "name": "Manipulation digitaler Akten",
+        "level": 9,
+        "beschreibung": "Du warst nie dort, wenn sie das sagt"
+      },
+      {
+        "name": "Täuschung",
+        "level": 9,
+        "beschreibung": "Ihre Geschichten sind real, weil du sie glaubst"
+      },
+      {
+        "name": "Social Engineering",
+        "level": 8,
+        "beschreibung": "Weiß, wie man Leute mit drei Worten entblößt"
+      },
+      {
+        "name": "Zugang",
+        "level": 5,
+        "beschreibung": "Alles, was Daten hat, ist potenziell offen"
+      },
+      {
+        "name": "Verbindung zu Sofia",
+        "level": 3,
+        "beschreibung": "Sie tauschen Daten, Trash und echte Angst"
+      },
+      {
+        "name": "Mentor (Vance)",
+        "level": 1,
+        "beschreibung": "Kein offizielles Band, aber funktional dominant – Das Zweitschlüssel-System"
+      },
+      {
+        "name": "Virtuelle Maske (Avatar-Ich)",
+        "level": 5,
+        "beschreibung": "Interagiert über maßgeschneidertes digitales Alter-Ego – hyperästhetisch, sexy, verspielt, nie greifbar. Ihre Zuschauer wissen nie, ob sie wirklich mit ihr sprechen"
+      }
+    ],
+    "schwaeche": "**Digitale Schizophrenie:** Manchmal hört sie Daten, bevor sie existieren. **Unberechenbarkeit:** Vance lässt sie nur frei, weil er weiß, wie sie endet. **Begehren als Waffe:** Nutzt Stimme, Timing und soziale Nähe, um emotionale und sexuelle Bindung aufzubauen – wer sie regelmäßig konsumiert, wird abhängig. Das macht sie gefährlich, aber auch verletzlich gegenüber denen, die das System durchschauen.",
+    "sl_hinweise": "Syntax ist **Werkzeug, Bedrohung und Spiegel** zugleich. Sie kann SCs retten oder ruinieren – oft gleichzeitig. Lass sie erscheinen wie ein Popup – unangekündigt, aber folgenschwer. Nutze sie, um die Grenzen zwischen realem und digitalem Spiel zu sprengen. **Die Zweite Atombombe:** In Kombination mit Vance wird Syntax zur Eskalation auf digitaler Ebene. Er zerstört Körper. Sie vernichtet Reputation, Vertrauen, Beweislagen, Identitäten. Sie sind kein Paar. Sie sind ein **Zweitschlüssel-System**. **Das Schlüsselcode-Protokoll:** Ihre Nähe wird zur Droge für viele. Sie ist die Programmiereinheit hinter dem Trieb.",
+    "quick_chart": [
+      {
+        "name": "Hacking/Technologie",
+        "wuerfel": "15 Würfel (Intelligenz 5 + Technologie 10)",
+        "beschreibung": "Server, Systeme, Drohnen – alles offen"
+      },
+      {
+        "name": "Manipulation/Social Engineering",
+        "wuerfel": "14 Würfel (Manipulation 6 + Überzeugen 8)",
+        "beschreibung": "Mentale Angriffe (Dementation): 9 Würfel (Manipulation 6 + Okkult 3)"
+      },
+      {
+        "name": "Digitale Heimlichkeit (Verdunkelung)",
+        "wuerfel": "6 Würfel (Geistesschärfe 5 + Heimlichkeit 1)",
+        "beschreibung": "Wirkt wie 'nicht da' – digital und physisch"
+      },
+      {
+        "name": "Wahnsinn erschaffen (Dementation)",
+        "wuerfel": "10 Würfel (Manipulation 6 + Dementation 4)",
+        "beschreibung": "Digitale Sprache treibt in mentalen Zusammenbruch"
+      }
+    ],
+    "zitat": "Wenn Worte Code sind, dann führe ich gerade einen Root-Exploit auf dein Ego aus. 🖤",
+    "badges": [
+      "Malkavianerin",
+      "Gen. 12",
+      "Dementation 4",
+      "5 Jahre"
+    ]
+  },
+  {
+    "id": "sofia",
+    "name": "Sofia",
+    "epithet": "Die Ratte von Kleve / Informationsweberin",
+    "tier": "informant",
+    "clan": "Nosferatu",
+    "sect": "Camarilla (aber beobachtet von der Unterschicht der Anarchen)",
+    "generation": "13",
+    "role": "Informantin, Datenhändlerin, Straßengeist",
+    "status": "Niedrig in Struktur, hoch in Wirkung (Stimmenvernetzung im Untergrund)",
+    "img": "assets/nsc/sofia.jpg",
+    "legende": "Sofia ist nicht mächtig, weil sie stark ist – sondern weil sie weiß, wann jemand schwach ist. Niemand kennt die Gänge unter Kleve besser. Niemand hört besser hin, wenn etwas fallen gelassen wird – sei es ein Gerücht, ein Name oder eine Leiche. In der Domäne wird sie oft belächelt, ignoriert oder gefürchtet – je nach Kontext. Doch viele vergessen: Wer in der Dunkelheit flüstert, kann auch schreien. Sie hat Kontakte zu Obdachlosen, Gangern, Botnetzwerken, niederen Kainskindern und längst vergessenen Ratten im Keller der Macht. Wenn etwas in der Domäne passiert, dauert es keine Stunde, bis Sofia es weiß. Ihre Loyalität? Nur schwer zu kaufen – aber sie vergisst nicht, wem sie etwas schuldet.",
+    "aussehen": "Ein Kind der Nacht mit dünner, fahler Haut, zu großen Augen und zerrissener Kleidung. Meist trägt sie eine zu große Kapuzenjacke, in deren Schatten sie fast verschwindet. Ihre Bewegungen sind zuckend, rastlos – wie ein Tier, das jederzeit fliehen oder beißen könnte. Sie wirkt jung, beinahe kindlich – aber ihre Augen sind alt. Sofia ist keine Kämpferin, aber sie wirkt, als hätte sie bereits zu viele Schlachten überlebt.",
+    "konzept_tabelle": {
+      "charakter": "Sofia",
+      "konzept_auftreten": "Die Ratte von Kleve. Eine junge 13. Generation Nosferatu, die in den Schatten lebt. Sie ist nicht stark, aber sie weiß alles. Überleben und Wissen handeln. Informationen sind ihre Währung und ihre Waffe.",
+      "ziele_motivation": "Überleben durch Information. Sie will nie wieder machtlos sein. Sie sammelt Geheimnisse wie andere Geld sammeln.",
+      "geheimnisse_haken": "Sie besitzt ein 'Archiv im Abwasser' mit kompromittierendem Material. Sie kann über ein 'Rattenorakel' Informationen aus der Stadt ziehen. Ihre Loyalität kann durch Schutz oder Respekt gewonnen werden."
+    },
+    "attribute": {
+      "staerke": 1,
+      "geschicklichkeit": 4,
+      "widerstand": 2,
+      "wahrnehmung": 5,
+      "geistesschaerfe": 4,
+      "intelligenz": 3,
+      "charisma": 2,
+      "manipulation": 5,
+      "erscheinung": 0
+    },
+    "disziplinen": [
+      {
+        "name": "Verdunkelung (Obfuscate)",
+        "level": 4,
+        "details": [
+          "Verschmilzt mit Schatten, kann vollständig verschwinden",
+          "Kann unbemerkt beobachten und lauschen",
+          "Ihre Hauptverteidigung und größte Stärke"
+        ]
+      },
+      {
+        "name": "Tierhaftigkeit (Animalism)",
+        "level": 2,
+        "details": [
+          "Kommuniziert mit Ratten – ihre Augen und Ohren",
+          "Nutzt Schwärme zur Spionage oder Flucht",
+          "Verbindung zum kollektiven Gedächtnis der Stadtrattern"
+        ]
+      },
+      {
+        "name": "Auspex",
+        "level": 2,
+        "details": [
+          "Clanfremd – gestohlenes Wissen aus digitalem Nosferatu-Kollektiv",
+          "Spürt Emotionen, erkennt Lügen",
+          "Entdeckt verborgene Muster in Informationen"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 1,
+      "nahkampf_bewaffnet": 2,
+      "fernkampf": 2,
+      "verteidigung": 4,
+      "einschuechtern": 3,
+      "ausweichen": 8,
+      "taktik": "Sofia kämpft nicht – sie flieht. Bei Gefahr nutzt sie Verdunkelung (4) sofort, kombiniert mit ihrer übernatürlichen Heimlichkeit (10). Ihre wahren Waffen: Nachforschung (8), Straßenwissen (9), Technologie (6), Manipulation (5). **Urbanes Chamäleon:** Verändert Körpersprache so perfekt, dass Kameras sie nicht wiedererkennen und Auspex-Nutzer verwaschene Signaturen bekommen. Bei absoluter Not: Rattenschwarm-Ablenkung via Tierhaftigkeit."
+    },
+    "alter": {
+      "geboren": "2004",
+      "embraced": "2021 (mit 17 Jahren)",
+      "vampir_jahre": "4 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Heimlichkeit",
+        "level": 10,
+        "beschreibung": "Niemand ist so oft da, wo sie nicht sein sollte"
+      },
+      {
+        "name": "Straßenwissen",
+        "level": 9,
+        "beschreibung": "Kennt jede Gasse, jeden Abfallcontainer, jede Schutzgeldquelle"
+      },
+      {
+        "name": "Nachforschung",
+        "level": 8,
+        "beschreibung": "Findet Spuren, wo andere nicht mal wissen, dass sie existieren"
+      },
+      {
+        "name": "Technologie",
+        "level": 6,
+        "beschreibung": "Kann alte Kameras anzapfen, digitale Wege nutzen"
+      },
+      {
+        "name": "Kontakte (Unterwelt)",
+        "level": 5,
+        "beschreibung": "Obdachlose, Anarchen, Müllsammler, Digitalnetz, Gangmitglieder"
+      },
+      {
+        "name": "Unterschlupf",
+        "level": 3,
+        "beschreibung": "Unterkanalnetz, beweglich, mehrfach abgesichert"
+      },
+      {
+        "name": "Verbündete",
+        "level": 2,
+        "beschreibung": "Eine Gangrel auf Droge, ein tauber Hacker im Keller"
+      },
+      {
+        "name": "Stimmen im Nest (Rattenorakel)",
+        "level": 5,
+        "beschreibung": "Verbindung zum kollektiven Gedächtnis der Stadtrattern – kann Fragmente von Gesprächen und Geschehnissen aufschnappen, als würde die Stadt ihr zuflüstern"
+      },
+      {
+        "name": "Das Archiv im Abwasser",
+        "level": 5,
+        "beschreibung": "Geheimer Ort in den Kanälen mit digitalem Material, alten Bändern, Dokumenten und Blutproben – Beweise gegen nahezu jede Figur der Domäne"
+      }
+    ],
+    "schwaeche": "**Soziale Ausgrenzung:** Niemand hört ihr zu, solange sie nicht droht, etwas zu verraten. Erscheinung 0 macht soziale Interaktion extrem schwierig. **Panik vor direktem Sonnenlicht:** Selbst indirekter Lichteinfall kann sie lähmen. **Nosferatu-Fluch:** Ihr Aussehen schließt sie von normaler Gesellschaft aus.",
+    "sl_hinweise": "**SCs können über sie ALLES erfahren – aber nie direkt.** Sie funktioniert wie ein Gerüchte-Katalysator: Man muss ihr Futter geben, damit sie 'fressen' kann. Sofia kann retten, ruinieren oder warnen – sie entscheidet das oft instinktiv, nicht rational. **Großartig als moralischer Spiegel** – sie erinnert SCs daran, was unten liegt. **Urbanes Chamäleon:** Ihre Körpersprache-Anpassung verwirrt Kameras und Auspex-Nutzer. **Stimmen im Nest:** Gelegentliche erweiterte Nachforschungs- oder Auspex-Eingebungen – nie steuerbar, aber erschreckend präzise. **Das Archiv:** Niemand weiß, wie groß es wirklich ist. Manche sagen, es sei lebendig.",
+    "quick_chart": [
+      {
+        "name": "Heimlichkeit/Verstecken (Verdunkelung)",
+        "wuerfel": "14 Würfel (Geschicklichkeit 4 + Heimlichkeit 10)",
+        "beschreibung": "Nachforschung: 12 Würfel (Wahrnehmung 5 + Nachforschung 7)"
+      },
+      {
+        "name": "Manipulation/Gerüchte streuen",
+        "wuerfel": "10 Würfel (Manipulation 5 + Straßenwissen 5)",
+        "beschreibung": "Informationen handeln und soziale Netze nutzen"
+      },
+      {
+        "name": "Fliehen",
+        "wuerfel": "8 Würfel (Geschicklichkeit 4 + Athletik 4)",
+        "beschreibung": "Ihre Hauptstrategie bei Konfrontation"
+      },
+      {
+        "name": "Rattenorakel (Tierhaftigkeit + Auspex)",
+        "wuerfel": "Variabel - SL-Entscheidung",
+        "beschreibung": "Fragmente von Erinnerungen aus der Stadt – erschreckend präzise"
+      }
+    ],
+    "zitat": "Du kannst mich ignorieren, bis du mich brauchst. Und dann... dann weiß ich, wer du warst, bevor du dich hinter diesem Anzug versteckt hast.",
+    "badges": [
+      "Nosferatu",
+      "Gen. 13",
+      "Obfuscate 4",
+      "4 Jahre"
+    ]
+  },
+  {
+    "id": "johanna-de-valombre",
+    "name": "Johanna de Valombre",
+    "epithet": "Die Emergente Variable",
+    "tier": "fuehrung",
+    "clan": "Unbekannt (Jenseits des Kain-Fluches)",
+    "sect": "Keine",
+    "generation": "Nicht anwendbar",
+    "role": "Apokalyptische Entität",
+    "status": "Gottgleich",
+    "img": "assets/nsc/placeholder-nsc.png",
+    "legende": "Johanna de Valombre ist keine Vampirin im klassischen Sinne. Sie ist eine uralte, übernatürliche Entität, die jenseits des Kain-Fluches existiert. Ihre Macht ist gottgleich und manifestiert sich durch Träume, Wahnsinn, Visionen und die langsame Zersetzung der Realität selbst. Sie ist die wahre Meisterin hinter Muse_Art und das kosmische Zentrum der Bedrohung, die über Kleve schwebt. Justikar Hardenberg glaubt fälschlicherweise, er könne sie kontrollieren - in Wahrheit ist er nur ein weiteres Werkzeug in ihrem apokalyptischen Plan.",
+    "aussehen": "Johanna erscheint nie direkt in physischer Form. Ihre Präsenz ist ein Flüstern im Wind, eine unmögliche Spiegelung in dunklen Fenstern, ein Gefühl kosmischer Furcht, das die Realität selbst verbiegt. Wenn sie sich in Visionen manifestiert, erscheint sie als eine unmögliche Frauengestalt mit zu vielen Schatten, deren Silhouette die Gesetze der Geometrie bricht. Ihre Stimme ist ein Chor aus tausend Flüstern.",
+    "konzept_tabelle": {
+      "charakter": "Johanna de Valombre",
+      "konzept_auftreten": "Eine uralte, übernatürliche Entität jenseits des Kain-Fluches. Ihre Macht ist gottgleich und subtil; sie manifestiert sich durch Träume, Wahnsinn, Visionen und die langsame Zersetzung der Realität.",
+      "ziele_motivation": "Sie verfolgt apokalyptische Ziele basierend auf der Kosmologie von Lilith. Ihr Ziel ist die Transzendenz durch Vernichtung - das Ende aller Lügen durch die Auflösung der Maskerade und letztlich der Realität selbst.",
+      "geheimnisse_haken": "Sie ist die wahre Meisterin von Muse_Art. Justikar Hardenberg glaubt fälschlicherweise, er würde sie kontrollieren. Ihre Präsenz schwächt die Schleier zwischen Realität und Wahnsinn. Sie kann nicht direkt konfrontiert oder bekämpft werden."
+    },
+    "attribute": {
+      "staerke": 0,
+      "geschicklichkeit": 0,
+      "widerstand": 10,
+      "wahrnehmung": 10,
+      "geistesschaerfe": 10,
+      "intelligenz": 10,
+      "charisma": 10,
+      "manipulation": 10,
+      "erscheinung": 10
+    },
+    "disziplinen": [
+      {
+        "name": "Dementation",
+        "level": 10,
+        "details": [
+          "Kann Wahnsinn über große Distanzen projizieren",
+          "Bricht die Realität in ihrer unmittelbaren Umgebung",
+          "Manifestiert unmögliche Visionen"
+        ]
+      },
+      {
+        "name": "Auspex",
+        "level": 10,
+        "details": [
+          "Allwissend innerhalb ihrer Einflusssphäre",
+          "Kann in Träume eindringen",
+          "Sieht alle Möglichkeiten gleichzeitig"
+        ]
+      },
+      {
+        "name": "Obfuscate",
+        "level": 10,
+        "details": [
+          "Existiert außerhalb der wahrnehmbaren Realität",
+          "Kann ihre Präsenz vollständig verschleiern",
+          "Manifestiert sich nur wenn sie es wünscht"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 0,
+      "nahkampf_bewaffnet": 0,
+      "fernkampf": 0,
+      "verteidigung": 0,
+      "einschuechtern": 18,
+      "ausweichen": 0,
+      "taktik": "Kann nicht direkt konfrontiert werden. Jede Auseinandersetzung ist narrativ und psychologisch, kein mechanischer Kampf."
+    },
+    "alter": {
+      "geboren": "Vor der aufgezeichneten Geschichte",
+      "embraced": "Nicht anwendbar",
+      "vampir_jahre": "Jahrtausende (genaues Alter unbekannt)"
+    },
+    "vorteile": [
+      {
+        "name": "Kosmische Entität",
+        "level": 10,
+        "beschreibung": "Existiert jenseits der Vampir-Mythologie"
+      },
+      {
+        "name": "Realitätsverzerrung",
+        "level": 10,
+        "beschreibung": "Kann die Gesetze der Physik brechen"
+      },
+      {
+        "name": "Unsterblichkeit",
+        "level": 10,
+        "beschreibung": "Kann nicht getötet werden, nur gebannt"
+      }
+    ],
+    "schwaeche": {
+      "titel": "Gebunden an ihre Domäne",
+      "beschreibung": "Ihre Macht ist an Muse_Art und ihre Ritualplätze gebunden. Sie kann nicht direkt physisch handeln, sondern nur durch Agenten und psychische Einflüsse. Ihre Manifestationen können durch ausreichend starken Willen temporär zurückgedrängt werden (Willenskraft SG 8-10)."
+    },
+    "sl_hinweise": "Johanna ist KEINE Kämpferin und sollte NIEMALS direkt konfrontiert werden. Sie ist eine narrative Bedrohung - ein kosmischer Horror, der die Realität selbst bedroht. Begegnungen mit ihr sollten Schrecken und Hilflosigkeit vermitteln, nicht taktische Herausforderungen. Spieler können ihren Einfluss widerstehen oder ihre Pläne sabotieren, aber sie niemals 'besiegen' im klassischen Sinne. Verwende sie sparsam und nur für die wichtigsten Plot-Momente. Ihre Präsenz sollte immer beunruhigend und unmöglich sein.",
+    "quick_chart": [
+      {
+        "name": "Willenskraft-Widerstand (gegen ihren Einfluss)",
+        "wuerfel": 8,
+        "berechnung": "Willenskraft + Selbstbeherrschung (SG 8-10 je nach Stärke)"
+      },
+      {
+        "name": "Realitätsverzerrung erkennen",
+        "wuerfel": 10,
+        "berechnung": "Wahrnehmung + Okkultismus (SG 9)"
+      },
+      {
+        "name": "Vision widerstehen",
+        "wuerfel": 8,
+        "berechnung": "Willenskraft + Geistesschärfe (SG 8)"
+      }
+    ],
+    "zitat": "Deine Stimmen sind nicht dein Fluch, Kind. Sie sind das Echo meiner Ankunft. Höre genau hin, und du wirst die Melodie des Endes aller Lügen hören.",
+    "badges": [
+      "Kosmische Entität",
+      "Dementation 10",
+      "Jahrtausende alt"
+    ]
+  },
+  {
+    "id": "grigori-volkov",
+    "name": "Grigori Volkov",
+    "epithet": "Der Gärtner",
+    "tier": "exekutive",
+    "clan": "Mensch (Johannas Agent)",
+    "sect": "Johannas Kult",
+    "generation": "Sterblich (aber übernatürlich verstärkt)",
+    "role": "Ritualmörder & Prophet der Fleischlehre",
+    "status": "Johannas erster und mächtigster Agent",
+    "img": "assets/nsc/placeholder-nsc.png",
+    "legende": "Grigori Volkov ist Johannas erster und mächtigster menschlicher Agent - ein Ritualmörder mit einem perversen ästhetischen Anspruch. Er ist der mysteriöse 'Herr Volkov', der Prophet seiner eigenen Fleischlehre. Seine 'Kunstwerke' sind grausame Rituale, die Johannas Garten auf Erden manifestieren sollen. Er tritt selten direkt in Erscheinung, aber seine Taten hinterlassen eine Spur des Schreckens. Seine Macht ist nicht rein physischer Natur - er kann die Realität an Orten seiner Rituale subtil verändern.",
+    "aussehen": "Volkov ist ein Mann mittleren Alters mit scharf geschnittenen, slawischen Gesichtszügen. Sein Haar ist aschgrau und zurückgekämmt, sein Gesicht glatt rasiert. Er trägt stets dunkle, maßgeschneiderte Kleidung - oft mit einem langen schwarzen Mantel. Seine Augen sind von einem kalten, wässrigen Blau, das jeden Blick zu lange hält. Seine Hände sind auffällig gepflegt, die Nägel perfekt geschnitten - Werkzeuge eines 'Künstlers'. Seine Stimme ist ruhig, sein russischer Akzent dezent aber deutlich, seine Worte von einer kalten, besitzergreifenden Logik geprägt.",
+    "konzept_tabelle": {
+      "charakter": "Grigori Volkov",
+      "konzept_auftreten": "Johannas erster und mächtigster menschlicher Agent, ein Ritualmörder mit perversem ästhetischem Anspruch. Er ist ein extrem mächtiger und charismatischer Prophet seiner eigenen Fleischlehre.",
+      "ziele_motivation": "Er will Johannas 'Garten' auf Erden manifestieren und sieht sich als Künstler und Priester zugleich. Jeder Mord ist ein Ritual, jedes Opfer eine Leinwand für seine grausame Kunst.",
+      "geheimnisse_haken": "Er ist der mysteriöse 'Herr Volkov'. Seine Macht ist nicht rein physischer Natur; er kann die Realität an Orten seiner Rituale subtil verändern. Er ist durch Johannas Macht übernatürlich verstärkt und widerstandsfähig."
+    },
+    "attribute": {
+      "staerke": 6,
+      "geschicklichkeit": 7,
+      "widerstand": 8,
+      "wahrnehmung": 7,
+      "geistesschaerfe": 8,
+      "intelligenz": 9,
+      "charisma": 7,
+      "manipulation": 9,
+      "erscheinung": 5
+    },
+    "disziplinen": [
+      {
+        "name": "Ritualmagie (menschlich)",
+        "level": 10,
+        "details": [
+          "Meister okkulter Rituale",
+          "Kann Realität an Ritualplätzen verzerren",
+          "Johannas Macht kanalisieren"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 8,
+      "nahkampf_bewaffnet": 12,
+      "fernkampf": 6,
+      "verteidigung": 10,
+      "einschuechtern": 12,
+      "ausweichen": 10,
+      "taktik": "Volkov ist ein geduldiger Jäger und Meister der Vorbereitung. Er kämpft nie fair - er wählt Ort, Zeit und Umstände. Seine Ritualplätze geben ihm übernatürliche Vorteile."
+    },
+    "alter": {
+      "geboren": "1975 (Russland)",
+      "embraced": "Nicht anwendbar (Mensch)",
+      "vampir_jahre": "Etwa 50 Jahre alt"
+    },
+    "vorteile": [
+      {
+        "name": "Johannas Segen",
+        "level": 10,
+        "beschreibung": "Übernatürliche Widerstandskraft und verstärkte Sinne"
+      },
+      {
+        "name": "Ritualmeister",
+        "level": 10,
+        "beschreibung": "Experte in okkulten Ritualen und Realitätsverzerrung"
+      },
+      {
+        "name": "Kaltblütigkeit",
+        "level": 8,
+        "beschreibung": "Immun gegen normale Einschüchterung oder Furcht"
+      },
+      {
+        "name": "Forensisches Genie",
+        "level": 7,
+        "beschreibung": "Hinterlässt keine Spuren, wenn er es nicht will"
+      }
+    ],
+    "schwaeche": {
+      "titel": "Künstlerischer Wahnsinn",
+      "beschreibung": "Volkovs Obsession mit seiner 'Kunst' macht ihn vorhersehbar in gewissen Mustern. Er MUSS seine Rituale vollenden, kann seine 'Werke' nicht unvollendet lassen. Diese Zwanghaftigkeit kann ausgenutzt werden."
+    },
+    "sl_hinweise": "Volkov ist als ENDGEGNER konzipiert - seine Werte sollten die der Spieler deutlich übersteigen. Er ist extrem gefährlich, aber nicht unbesiegbar. Spieler sollten ihn nur besiegen können, wenn sie klug vorgehen, seine Schwächen ausnutzen und seine Rituale stören. Eine direkte Konfrontation ohne Vorbereitung sollte tödlich sein. Seine genauen Werte sind absichtlich vage - passe sie an die Macht der Spielergruppe an, aber halte ihn IMMER eine Bedrohung. Seine 'Kunstwerke' sollten die Spieler erschüttern. Zeige die Konsequenzen seiner Taten, nicht die Taten selbst (Horror durch Implikation).",
+    "quick_chart": [
+      {
+        "name": "Rituale & Okkultismus",
+        "wuerfel": 15,
+        "berechnung": "Intelligenz 9 + Okkultismus 6"
+      },
+      {
+        "name": "Einschüchtern & Manipulation",
+        "wuerfel": 12,
+        "berechnung": "Manipulation 9 + Einschüchtern 3"
+      },
+      {
+        "name": "Überleben & Heimlichkeit",
+        "wuerfel": 10,
+        "berechnung": "Geschicklichkeit 7 + Heimlichkeit 3"
+      },
+      {
+        "name": "Nahkampf (Ritualmesser)",
+        "wuerfel": 12,
+        "berechnung": "Geschicklichkeit 7 + Nahkampf 5"
+      }
+    ],
+    "zitat": "Ein Körper ist nur eine Leinwand. Der Schmerz ist die Farbe. Und der Tod... der Tod ist die Signatur des Meisters. Ich bin nur der Pinsel.",
+    "badges": [
+      "Der Gärtner",
+      "Ritualmagie 10",
+      "50 Jahre"
+    ]
+  },
+  {
+    "id": "mephisto",
+    "name": "Mephisto",
+    "epithet": "Der Agent des Chaos / Herr M. Ethos",
+    "tier": "standard",
+    "clan": "Unbekannt (übernatürliche Entität)",
+    "sect": "Keine (neutral-chaotisch)",
+    "generation": "Nicht anwendbar",
+    "role": "Trickster-Gott & Spielmacher",
+    "status": "Unsterblich",
+    "img": "assets/nsc/placeholder-nsc.png",
+    "legende": "Mephisto ist eine rätselhafte, übernatürliche und unsterbliche Entität, die als viktorianischer Gentleman erscheint. Er ist ein Trickster-Gott, der Freude an Spielen, Wetten und dem Säen von Entropie hat. Er materialisiert sich an Orten des Übergangs - Karussells, verlassene Rummelplätze, Schwellen zwischen Tag und Nacht. Seine wahre Natur ist unbekannt, aber er scheint von menschlichem Leid und verzweifelten Entscheidungen zu leben. Er ist der geheimnisvolle 'Herr M. Ethos', der Meister des unmöglichen Karussells und des verfluchten Zeichenkurses.",
+    "aussehen": "Mephisto erscheint als distinguierter Gentleman im viktorianischen Stil - komplett mit Zylinder, Gehstock mit Silberknauf und einem perfekt geschnittenen Mantel. Sein Gesicht ist schmal und aristokratisch, mit einem schelmischen Lächeln, das nie seine kalten, bernsteinfarbenen Augen erreicht. Sein Haar ist silbergrau und perfekt frisiert. Seine Stimme klingt wie eine alte Schellackplatte - charmant, aber mit einem unmöglichen Echo. Er bewegt sich mit der Eleganz eines Tänzers, aber seine Schatten fallen in die falsche Richtung. Bei genauerem Hinsehen scheint er leicht durchscheinend, als wäre er nicht ganz real.",
+    "konzept_tabelle": {
+      "charakter": "Mephisto",
+      "konzept_auftreten": "Eine rätselhafte, übernatürliche und unsterbliche Entität, die als viktorianischer Gentleman erscheint. Er ist ein Trickster-Gott, der Freude an Spielen und Wetten hat. Er materialisiert sich an Orten des Übergangs.",
+      "ziele_motivation": "Er will Spiele spielen und Entropie säen. Er genießt es, andere an die Grenzen ihrer Verzweiflung zu treiben. Jede Interaktion ist ein Test, jedes Angebot ein faustischer Pakt. Er sammelt verzweifelte Entscheidungen wie andere Briefmarken.",
+      "geheimnisse_haken": "Seine wahre Natur ist unbekannt. Er ist der geheimnisvolle 'Herr M. Ethos'. Er kann in seiner Domäne (Karussell, Zeichenkurs) nicht besiegt werden. Er ernährt sich von Verzweiflung und faustischen Pakten."
+    },
+    "attribute": {
+      "staerke": 3,
+      "geschicklichkeit": 8,
+      "widerstand": 10,
+      "wahrnehmung": 10,
+      "geistesschaerfe": 10,
+      "intelligenz": 10,
+      "charisma": 10,
+      "manipulation": 10,
+      "erscheinung": 7
+    },
+    "disziplinen": [
+      {
+        "name": "Chimärie (übernatürlich)",
+        "level": 10,
+        "details": [
+          "Kann Illusionen manifestieren, die real werden",
+          "Erschafft unmögliche Räume und Objekte",
+          "Karussell und Zeichenkurs sind seine Domänen"
+        ]
+      },
+      {
+        "name": "Präsenz",
+        "level": 10,
+        "details": [
+          "Übernatürlich charismatisch und überzeugend",
+          "Kann Emotionen nach Belieben manipulieren",
+          "Seine Angebote sind fast unwiderstehlich"
+        ]
+      },
+      {
+        "name": "Auspex",
+        "level": 10,
+        "details": [
+          "Kennt die tiefsten Wünsche und Ängste",
+          "Sieht alle möglichen Ausgänge eines Spiels",
+          "Liest Gedanken wie offene Bücher"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 0,
+      "nahkampf_bewaffnet": 0,
+      "fernkampf": 0,
+      "verteidigung": 0,
+      "einschuechtern": 8,
+      "ausweichen": 15,
+      "taktik": "Mephisto kämpft nicht. Er ist in seiner Domäne unverwundbar und kann nicht durch konventionellen Kampf besiegt werden. Jede Konfrontation ist sozial oder metaphysisch."
+    },
+    "alter": {
+      "geboren": "Zeitlos (existiert seit Jahrhunderten oder länger)",
+      "embraced": "Nicht anwendbar",
+      "vampir_jahre": "Unsterblich"
+    },
+    "vorteile": [
+      {
+        "name": "Unverwundbarkeit in Domäne",
+        "level": 10,
+        "beschreibung": "Kann in seiner Domäne nicht verletzt oder getötet werden"
+      },
+      {
+        "name": "Faustische Pakte",
+        "level": 10,
+        "beschreibung": "Seine Deals sind bindend und unmöglich zu brechen"
+      },
+      {
+        "name": "Omnipräsenz",
+        "level": 8,
+        "beschreibung": "Kann an jedem Ort des Übergangs erscheinen"
+      },
+      {
+        "name": "Zeitlose Existenz",
+        "level": 10,
+        "beschreibung": "Unsterblich und unvergänglich"
+      }
+    ],
+    "schwaeche": {
+      "titel": "An Regeln gebunden",
+      "beschreibung": "Mephisto ist an die Regeln seiner eigenen Spiele gebunden. Er kann nicht lügen, muss alle Deals einhalten und kann niemanden zu einem Pakt zwingen. Seine Macht hängt von der freiwilligen Zustimmung seiner 'Spieler' ab. Wer seine Spiele nicht spielt, ist vor ihm sicher (aber auch ohne seine 'Hilfe')."
+    },
+    "sl_hinweise": "Mephisto ist KEIN Kampfgegner und sollte NIEMALS körperlich konfrontiert werden. Er ist eine narrative Versuchung - der Teufel am Scheideweg. Seine Angebote sind immer verlockend, aber immer mit einem schrecklichen Preis. Spieler sollten sich in seinen Spielen verlieren, nicht ihn bekämpfen. Seine Interaktionen sollten philosophisch, unheimlich und moralisch komplex sein. Er ist neutral - weder gut noch böse, nur chaotisch und spielerisch. Er kann als Verbündeter oder Feind fungieren, je nachdem was das Spiel interessanter macht. Verwende ihn für moralische Dilemmata und faustische Entscheidungen. Sein Ton sollte immer charmant, aber mit einem Unterton von Gefahr sein.",
+    "quick_chart": [
+      {
+        "name": "Manipulation & Überzeugung",
+        "wuerfel": 18,
+        "berechnung": "Manipulation 10 + Überzeugung 8"
+      },
+      {
+        "name": "Ausflüchte & Täuschung",
+        "wuerfel": 16,
+        "berechnung": "Manipulation 10 + Ausflüchte 6"
+      },
+      {
+        "name": "Okkultismus & Mystik",
+        "wuerfel": 15,
+        "berechnung": "Intelligenz 10 + Okkultismus 5"
+      },
+      {
+        "name": "Wünsche erkennen (Auspex)",
+        "wuerfel": 18,
+        "berechnung": "Wahrnehmung 10 + Auspex 8"
+      }
+    ],
+    "zitat": "Jeder Wunsch hat ein Gewicht, mein Freund. Die Frage ist nicht, was du willst, sondern was du bereit bist zu verlieren, um es zu bekommen. Setze weise.",
+    "badges": [
+      "Trickster-Gott",
+      "Chimärie 10",
+      "Unsterblich"
+    ]
+  },
+  {
+    "id": "justikar-hardenberg",
+    "name": "Justikar Hardenberg",
+    "epithet": "Der Architekt des Chaos",
+    "tier": "fuehrung",
+    "clan": "Ventrue",
+    "sect": "Camarilla",
+    "generation": "7",
+    "role": "Justikar der Camarilla",
+    "status": "Extrem hoch (Justikar-Rang 8+)",
+    "img": "assets/nsc/placeholder-nsc.png",
+    "legende": "Justikar Hardenberg ist der eigentliche politische Drahtzieher des Meta-Plots und eine der mächtigsten Figuren innerhalb der Camarilla. Er benutzt Kleve als Labor, um das Versagen der traditionellen Camarilla-Struktur zu beweisen und seine eigene Vision einer 'reformierten' Ordnung durchzusetzen. Er hat die 'Operation Ultio' initiiert - ein geheimes Projekt, das Johannas Erwachen unabsichtlich ausgelöst hat. Hardenberg glaubt, er kontrolliere die Situation, aber in Wahrheit ist er nur ein weiteres Werkzeug in Johannas Plan. Er agiert ausschließlich aus dem Hintergrund, durch Stellvertreter und verschlüsselte Befehle.",
+    "aussehen": "Hardenberg erscheint nur in den seltensten Fällen persönlich. Wenn er es tut, ist er ein imposanter Mann in den besten Jahren (scheinbar Mitte 50) mit ergrauendem Haar und scharfen, intelligenten Augen. Er trägt stets maßgeschneiderte Anzüge von zeitloser Eleganz - meist in Anthrazit oder Mitternachtsblau. Seine Präsenz ist einschüchternd, aber nicht durch körperliche Macht, sondern durch die schiere Autorität seiner Position. Seine Stimme ist tief, gemessen und absolut kontrolliert. Jedes Wort ist eine kalkulierte Entscheidung. Seine Bewegungen sind effizient und zielgerichtet - kein überflüssiger Handgriff, kein verschwendeter Moment.",
+    "konzept_tabelle": {
+      "charakter": "Justikar Hardenberg",
+      "konzept_auftreten": "Der eigentliche politische Drahtzieher des Meta-Plots, der Kleve als Labor benutzt, um das Versagen der Camarilla zu beweisen. Er agiert ausschließlich aus dem Hintergrund durch Stellvertreter und verschlüsselte Befehle.",
+      "ziele_motivation": "Er strebt eine vollständige Machtumkehr innerhalb der Camarilla an. Er will beweisen, dass die alte Ordnung versagt hat und nur seine 'neue Vision' die Camarilla retten kann. Kleve ist sein Experiment - ein kontrolliertes Chaos, um seine Theorien zu validieren.",
+      "geheimnisse_haken": "Er hat die 'Operation Ultio' initiiert und Johannas Erwachen unabsichtlich ausgelöst. Er glaubt, er könne sie kontrollieren - ein tödlicher Irrtum. Seine Ambitionen haben ihn blind für die wahre Bedrohung gemacht. Er ist erpressbar durch Beweise seiner Verstrickung."
+    },
+    "attribute": {
+      "staerke": 4,
+      "geschicklichkeit": 5,
+      "widerstand": 7,
+      "wahrnehmung": 9,
+      "geistesschaerfe": 10,
+      "intelligenz": 10,
+      "charisma": 9,
+      "manipulation": 10,
+      "erscheinung": 7
+    },
+    "disziplinen": [
+      {
+        "name": "Dominate",
+        "level": 7,
+        "details": [
+          "Meister der mentalen Manipulation",
+          "Kann Erinnerungen umschreiben",
+          "Langfristige Konditionierung"
+        ]
+      },
+      {
+        "name": "Präsenz",
+        "level": 6,
+        "details": [
+          "Natürliche Autorität und Charisma",
+          "Kann Loyalität erzwingen",
+          "Furcht und Ehrfurcht projizieren"
+        ]
+      },
+      {
+        "name": "Auspex",
+        "level": 5,
+        "details": [
+          "Liest Gedanken und Emotionen",
+          "Erkennt Lügen sofort",
+          "Telepathische Kommunikation"
+        ]
+      }
+    ],
+    "kampf": {
+      "nahkampf_unbewaffnet": 4,
+      "nahkampf_bewaffnet": 5,
+      "fernkampf": 3,
+      "verteidigung": 6,
+      "einschuechtern": 12,
+      "ausweichen": 6,
+      "taktik": "Hardenberg kämpft nicht selbst - er lässt kämpfen. Wenn er direkt konfrontiert wird, nutzt er Dominate und soziale Manipulation. Seine Stärke liegt in Politik, nicht in Gewalt."
+    },
+    "alter": {
+      "geboren": "1712 (Deutschland)",
+      "embraced": "1755 (im Alter von 43 Jahren)",
+      "vampir_jahre": "270 Jahre"
+    },
+    "vorteile": [
+      {
+        "name": "Justikar-Autorität",
+        "level": 10,
+        "beschreibung": "Absolute Autorität innerhalb der Camarilla-Hierarchie"
+      },
+      {
+        "name": "Politisches Genie",
+        "level": 10,
+        "beschreibung": "Meister der Intrige und langfristigen Planung"
+      },
+      {
+        "name": "Ressourcen",
+        "level": 9,
+        "beschreibung": "Nahezu unbegrenzte finanzielle Mittel"
+      },
+      {
+        "name": "Kontakte",
+        "level": 9,
+        "beschreibung": "Netzwerk in allen Ebenen der Camarilla"
+      },
+      {
+        "name": "Status",
+        "level": 10,
+        "beschreibung": "Justikar - einer der höchsten Ränge der Camarilla"
+      }
+    ],
+    "schwaeche": {
+      "titel": "Hybris & Blindheit",
+      "beschreibung": "Hardenbergs größte Schwäche ist seine Arroganz. Er glaubt, alles unter Kontrolle zu haben, und kann sich nicht vorstellen, dass sein Plan schief gehen könnte. Diese Hybris macht ihn blind für die wahre Bedrohung durch Johanna. Seine Spuren können zurückverfolgt werden, und Beweise seiner Verstrickung in Operation Ultio könnten ihn stürzen."
+    },
+    "sl_hinweise": "Hardenberg wird die Spieler NICHT direkt konfrontieren - er ist zu wichtig und zu vorsichtig dafür. Er agiert durch Stellvertreter, verschlüsselte Nachrichten und politischen Druck. Wenn er persönlich erscheint, ist es immer eine Test-Situation. Seine wahre Macht liegt in seiner Position, nicht in seinen körperlichen Fähigkeiten. Spieler sollten ihn nicht bekämpfen, sondern politisch ausmanövrieren. Die größte Bedrohung ist nicht Hardenberg selbst, sondern was er in Gang gesetzt hat (Johanna). Er kann als tragischer Antagonist dienen - ein mächtiger Mann, der glaubt, das Richtige zu tun, aber dabei eine apokalyptische Bedrohung entfesselt hat. Seine Enthüllung sollte ein Höhepunkt der Kampagne sein, aber nicht das Ende.",
+    "quick_chart": [
+      {
+        "name": "Intrige & Politik",
+        "wuerfel": 18,
+        "berechnung": "Manipulation 10 + Politik 8"
+      },
+      {
+        "name": "Manipulation & Überzeugen",
+        "wuerfel": 16,
+        "berechnung": "Manipulation 10 + Überzeugung 6"
+      },
+      {
+        "name": "Dominate (Befehle)",
+        "wuerfel": 14,
+        "berechnung": "Manipulation 10 + Dominate 4"
+      },
+      {
+        "name": "Mentale Verteidigung (Willenskraft)",
+        "wuerfel": 10,
+        "berechnung": "Willenskraft 10"
+      },
+      {
+        "name": "Lügen erkennen (Auspex)",
+        "wuerfel": 14,
+        "berechnung": "Wahrnehmung 9 + Auspex 5"
+      }
+    ],
+    "zitat": "Die Camarilla ist ein sterbendes Reich, meine Freunde. Ich biete nicht ihren Tod an - ich biete ihre Evolution. Und Evolution... erfordert immer Opfer.",
+    "badges": [
+      "Justikar",
+      "Gen. 7",
+      "Dominate 7",
+      "270 Jahre"
+    ]
+  },
+  {
+    "id": "jansen-kpp",
+    "name": "Hauptkommissar Jansen",
+    "tier": "nebencharakter",
+    "kategorie": "polizei",
+    "rolle": "Polizeihauptkommissar KPP Kleve",
+    "verbindung": {
+      "zu": "konstantin-von-straeten",
+      "art": "ghul",
+      "beschreibung": "Älterer Ghul, seit 12 Jahren blutsgebunden an Konstantin von Straeten"
+    },
+    "plot_relevanz": "Maskerade-Vertuscher und Informationsquelle. Kann Ermittlungen lenken, Beweise verschwinden lassen und die Coterie warnen. Als Onkel von M.J. (Zeuge) ist er persönlich involviert.",
+    "maskerade_risiko": false,
+    "sl_hinweise": "Jansen ist loyal gegenüber Konstantin, aber nicht fanatisch. Er kann Informationen zuspielen, wenn es der Maskerade dient. Seine Verbindung zu M.J. macht ihn erpressbar.",
+    "quick_facts": [
+      "Onkel von M.J. (Zeuge)",
+      "Ermittlungsleiter KPP Kleve",
+      "Unter Konstantins Blutsband",
+      "Vertuscht Vampire-bezogene Vorfälle",
+      "Kann Akten manipulieren"
+    ]
+  },
+  {
+    "id": "pit-ghul-rhino",
+    "name": "Pit (Peter Hoffmann)",
+    "tier": "nebencharakter",
+    "kategorie": "ghul",
+    "rolle": "Rhinos Ghul & Enforcer",
+    "verbindung": {
+      "zu": "rhino-voss",
+      "art": "ghul",
+      "beschreibung": "Blutsgebundener Ghul von Rhino, agiert als Schläger und Drohung"
+    },
+    "plot_relevanz": "Taucht auf, wenn Rhino jemanden einschüchtern will. Kann physische Bedrohung darstellen ohne Maskerade-Verstoß. Perfekt für 'menschliche' Gewalt.",
+    "maskerade_risiko": false,
+    "sl_hinweise": "Pit ist brutal, aber nicht dumm. Er weiß, dass er für Rhino arbeitet und genießt die Macht. Kann als Hinweis dienen, wenn Rhino hinter etwas steckt.",
+    "quick_facts": [
+      "Rhinos rechte Hand",
+      "Schlägertyp mit Hafenvergangenheit",
+      "Blutsgebunden, aber keine Disziplinen",
+      "Wird für 'dreckige Arbeit' eingesetzt",
+      "Kennt Rhinos Verstecke"
+    ]
+  },
+  {
+    "id": "hannah-richter",
+    "name": "Hannah Richter",
+    "tier": "nebencharakter",
+    "kategorie": "zivilist",
+    "rolle": "Investigative Journalistin (Rheinische Post)",
+    "verbindung": {
+      "zu": null,
+      "art": "unabhängig",
+      "beschreibung": "Keine direkte Verbindung zu Vampiren - das macht sie gefährlich"
+    },
+    "plot_relevanz": "Unabhängige Bedrohung für die Maskerade. Recherchiert verschwundene Personen und merkwürdige Muster. Kann zur Gegnerin oder widerwilligen Verbündeten werden.",
+    "maskerade_risiko": true,
+    "sl_hinweise": "Hannah ist hartnäckig und clever. Sie AHNT, dass etwas nicht stimmt, hat aber keine Beweise. Kann als moralisches Dilemma dienen: Töten? Beeinflussen? Überzeugen?",
+    "quick_facts": [
+      "Investigative Journalistin",
+      "Recherchiert 'das Verschwinden'",
+      "Keine Ahnung von Vampiren (noch nicht)",
+      "Hohe Sozialkompetenz & Recherche",
+      "Könnte Maskerade gefährden"
+    ]
+  }
+]

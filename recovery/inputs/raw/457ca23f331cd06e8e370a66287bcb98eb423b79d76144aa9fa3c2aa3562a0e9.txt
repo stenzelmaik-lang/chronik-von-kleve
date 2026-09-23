@@ -1,0 +1,152 @@
+{
+  "format": "cvk-recovery-source-registry",
+  "version": 1,
+  "generated_at": "2026-09-14",
+  "campaign_id": "chronik-von-kleve",
+  "rule": "ZERO_LOSS",
+  "sources": [
+    {
+      "source_id": "legacy-static-places-2025-11-06",
+      "name": "places.json",
+      "original_drive_id": "1SP-6V8eaOr_cYM0LJwSI729lieybh08A",
+      "project_copy_drive_id": "11srx73PkF-AY3Z9QENJVjlMct7_c1Zc4",
+      "type": "json",
+      "record_count": 10,
+      "size_bytes": 303753,
+      "role": "place master snapshot",
+      "default_recovery_status": "GM_REVIEW",
+      "sha256": "e2c9ac783ddb390642140db1f9662dfcee63f87dd99f290dae8adea9186d5770"
+    },
+    {
+      "source_id": "legacy-chronik-diary-2025-11-06",
+      "name": "chronik.diary.json",
+      "original_drive_id": "1Uu_RUfR56DSlty51wrlB7GLW9VtuTIKJ",
+      "project_copy_drive_id": "14Ngvgk0sFH_-htUM1KBLekrzWhl9WY5S",
+      "type": "json",
+      "record_count": 22,
+      "size_bytes": 21010,
+      "role": "legacy timeline / mixed history and planning",
+      "default_recovery_status": "GM_REVIEW",
+      "sha256": "f07f1de1296ed3e2bb9d6e7ab44ea828eaa560e7b6d4c648f0d619daff0641fd"
+    },
+    {
+      "source_id": "legacy-encounters-2025-11-06",
+      "name": "encounters.json",
+      "original_drive_id": "1tamHIAxjyaV0QSyhgXkg5ZprrYPbQoy6",
+      "project_copy_drive_id": "1RpP8KholcTrlP7KLSxWbI_JueTmGqMz2",
+      "type": "json",
+      "record_count": 23,
+      "secondary_count": 22,
+      "size_bytes": 13767,
+      "role": "encounter templates and location references",
+      "default_recovery_status": "RECOVERY_FUNDUS",
+      "sha256": "bdbc378a0e4cd858903674f3992d0b388399d3ed851d0b263e70158c9de22b8e"
+    },
+    {
+      "source_id": "legacy-archive-2025-11-06",
+      "name": "archive.json",
+      "original_drive_id": "1VAmIwtOb_N2kf5z-kTHb56yPG1KKgnB0",
+      "project_copy_drive_id": "1aiodJGteCvUQAAYFSRZNAmucKQcgLz0u",
+      "type": "json",
+      "record_count": 4,
+      "size_bytes": 2628,
+      "role": "archive/handout prototype",
+      "default_recovery_status": "GM_REVIEW",
+      "sha256": "123186f72130ed24178da22653c268d5c924b58f986f6d135c52a1d7e036d1a1"
+    },
+    {
+      "source_id": "legacy-archive-index-2025-11-06",
+      "name": "assets/data/archive/index.json",
+      "original_drive_id": "1YpJMQGIvBfhfJ4co3yf5W46VbiNURa7V",
+      "project_copy_drive_id": "1TAhCP8Ol6Ir2ZKDYsmnUrNZsQ4OjRW2m",
+      "type": "json",
+      "record_count": 7,
+      "size_bytes": 3756,
+      "role": "archive index with visibility/media metadata",
+      "default_recovery_status": "GM_REVIEW",
+      "sha256": "9946cbf1be2813062628860fcd2ae9c7b86737052361aa11636fa0a881d6d6bb"
+    },
+    {
+      "source_id": "legacy-news-2025-11-08",
+      "name": "news.json",
+      "original_drive_id": "1fl4uu4T1tC5WsYOwKmw0BCzZNQsonEun",
+      "project_copy_drive_id": "18J_ukIBr0cx7k_46ii5xhRvsFA6SrPmu",
+      "type": "json",
+      "record_count": 2,
+      "size_bytes": 4121,
+      "role": "news/session recap",
+      "known_issue": "duplicate legacy id news-001",
+      "default_recovery_status": "GM_REVIEW",
+      "sha256": "d39b5c5f61e2c8607ab61496c9c4ffbc8c5d49f76e5995224f6982cbdeefa2b6"
+    },
+    {
+      "source_id": "legacy-events-2025-11-06",
+      "name": "events.json",
+      "original_drive_id": "1sQwhQtcS6Jvy59R2J9btu_BICroVmUmi",
+      "project_copy_drive_id": "1oVcZH3e5xhjJI3nrG1b214ePETDf4MCJ",
+      "type": "json",
+      "record_count": 1,
+      "size_bytes": 491,
+      "role": "session/event schedule",
+      "known_issue": "historical stale status upcoming",
+      "default_recovery_status": "HISTORICAL_TECHNICAL",
+      "sha256": "e48a8e35c81af683162cfef1390e33c6bb4a4c02776bc0a214593223031f4f20"
+    },
+    {
+      "source_id": "legacy-merchants-2025-11-10",
+      "name": "merchants.json",
+      "original_drive_id": "1FcT2MRccdTbeEzxtrdlKGnZ5k-VzD-rR",
+      "project_copy_drive_id": "1GnigBEfRVUCmMetvRGvYKljyW6r3DCdB",
+      "type": "json",
+      "record_count": 68,
+      "size_bytes": 12611,
+      "role": "merchant/item catalog",
+      "default_recovery_status": "RECOVERY_MECHANICS",
+      "sha256": "8feb5803051d6e5d4950ab2dd68f6c40a45d5b3c1fcce464f06b4ac03fc78955"
+    },
+    {
+      "source_id": "legacy-place-schema-2025-11-06",
+      "name": "places.schema.json",
+      "original_drive_id": "1lJEs4jQxUDL9Jn5yisYx3my-4IRRL0st",
+      "project_copy_drive_id": "15CpJzkkDD6YvRBmOVAgW48HcFgOtbGY2",
+      "type": "json-schema",
+      "record_count": 1,
+      "size_bytes": 1738,
+      "role": "legacy place schema",
+      "default_recovery_status": "TECHNICAL_ONLY"
+    },
+    {
+      "source_id": "legacy-db-schema",
+      "name": "database/schema.sql",
+      "original_drive_id": "1TClvup77HvSUP1XcybP1mKJvhUoIyOAO",
+      "project_copy_drive_id": "1nMpAezbZvlKRGHs_mVUbGxECp--FtX5M",
+      "type": "sql",
+      "record_count": 8,
+      "role": "initial MariaDB schema tables",
+      "default_recovery_status": "TECHNICAL_ONLY",
+      "sha256": "68e884395f2ff9c933b52f3bac87dfbc9d99c506580cb547be78859ffe5fde8e"
+    },
+    {
+      "source_id": "legacy-phpmyadmin-recovery-2026-07-05",
+      "name": "panoram_vampireabend.json (raw dump not currently found)",
+      "type": "phpmyadmin-json",
+      "raw_available": false,
+      "derived_documents_available": true,
+      "documented_counts": {
+        "places": 11,
+        "nscs": 14,
+        "characters": 7,
+        "character_profiles": 4,
+        "sl_plots": 4,
+        "sl_notes": 2,
+        "inventory_items": 41,
+        "rule_documents": 14,
+        "rule_entries": 31,
+        "messages": 25,
+        "login_history": 192
+      },
+      "role": "later live database state",
+      "default_recovery_status": "GM_REVIEW"
+    }
+  ]
+}

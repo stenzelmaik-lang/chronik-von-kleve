@@ -1,0 +1,1 @@
+{"h1":"Admin","intro":"Redaktion & Pflege.","content_html":"<div id='admin-root'></div>","admin_block":"<p>Nur Admin: Orte importieren, Seiten editieren.</p>"}

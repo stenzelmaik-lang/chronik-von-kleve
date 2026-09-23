@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Places schema (project: Vampire Chronik Kleve)",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id","title"],
+    "properties": {
+      "schema_version": {"type":"integer"},
+      "_comment": {"type":"string"},
+      "id": {"type":"string"},
+      "title": {"type":"string"},
+      "subtitle": {"type":"string"},
+      "teaser": {"type":"string"},
+      "district": {"type":"string"},
+      "address": {"type":"string"},
+      "owner": {"type":"string"},
+      "faction": {"type":"string"},
+      "status": {"type":"string"},
+      "opening_hours": {"type":"string"},
+      "tags": {"type":"array","items":{"type":"string"}},
+      "thumb": {"type":"string"},
+      "banner": {"type":"string"},
+      "media": {
+        "type":"object",
+        "properties": {
+          "hero": {"type":"string"},
+          "gallery": {"type":"array","items":{"type":"object","properties":{"src":{"type":"string"},"caption":{"type":"string"}},"required":["src"]}}
+        }
+      },
+      "danger_level": {"type":"integer"},
+      "danger": {"type":"string"},
+      "overview": {"type":"object"},
+      "rules": {"type":"object"},
+      "content_html": {"type":"string"},
+      "gm_notes_html": {"type":"string"},
+      "encounters": {"type":"array"},
+      "player_actions": {"type":"array"},
+      "custom_sections": {"type":"array"},
+      "geo": {
+        "type":"object",
+        "properties": {
+          "lat": {"type":"number"},
+          "lon": {"type":"number"},
+          "zoom": {"type":"integer"}
+        }
+      },
+      "tile": {"type":"object"}
+    },
+    "additionalProperties": true
+  }
+}

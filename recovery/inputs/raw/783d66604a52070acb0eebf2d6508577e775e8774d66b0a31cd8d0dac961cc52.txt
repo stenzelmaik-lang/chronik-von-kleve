@@ -1,0 +1,36 @@
+﻿[
+  {
+    "id": "none",
+    "label": "Kein gezielter Schuss",
+    "diff_mod": 0,
+    "damage_mod": 0,
+    "special": []
+  },
+  {
+    "id": "head",
+    "label": "Kopf",
+    "diff_mod": 2,
+    "damage_mod": 2,
+    "special": ["stunning_on_bashing"],
+    "notes": "SG-Erhoehung und erhoehter Schaden. Werte je nach Buchauflage pruefen."
+  },
+  {
+    "id": "limb",
+    "label": "Gliedmasse",
+    "diff_mod": 1,
+    "damage_mod": 0,
+    "special": ["impair_on_success"]
+  },
+  {
+    "id": "heart_stake",
+    "label": "Herz (Pfählung)",
+    "diff_mod": 3,
+    "damage_mod": 0,
+    "special": ["stake_heart"],
+    "stake_threshold": 3,
+    "notes": "Holzpfahl; SG hoeher. Immobilisierung bei genug Nettoerfolgen gemaess Storyteller-Entscheid."
+  }
+]
+
+
+

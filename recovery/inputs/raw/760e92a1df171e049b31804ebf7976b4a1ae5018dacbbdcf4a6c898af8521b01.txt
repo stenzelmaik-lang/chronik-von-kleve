@@ -1,0 +1,63 @@
+{
+  "hero": {
+    "kicker": "Domäne Kleve",
+    "h1": "Abendliche Leitstelle",
+    "subtitle": "Aktuelle Hinweise, Beschlüsse und Hilfsmittel für euren Vampir-Abend.",
+    "last_update_label": "Letztes Update",
+    "last_update_value": "20. Oktober 2025",
+    "contact_label": "Ansprechpartnerin",
+    "contact_value": "Prinzessin Alessa"
+  },
+  "search": {
+    "kicker": "Schnellsuche",
+    "placeholder": "Namen, Orte oder Regeln…",
+    "submit_label": "Suchen",
+    "clear_label": "Leeren",
+    "note": "Durchsucht Karteninhalte, Community-Module und Navigation."
+  },
+  "next": {
+    "kicker": "Nächster Termin",
+    "title": "Sitzung 014",
+    "date_label": "Datum",
+    "date_value": "Freitag, 07. November 2025",
+    "time_label": "Zeit",
+    "time_value": "19:30 Uhr",
+    "place_label": "Ort",
+    "place_value": "Online (Discord & Foundry)",
+    "note": "Bitte Charakterbögen vorher aktualisieren und Ultio-Reports mitbringen.",
+    "cta_label": "Zum Kalender hinzufügen",
+    "ics_href": "#"
+  },
+  "announcements": {
+    "kicker": "Spielleiter",
+    "title": "Ankündigungen",
+    "items": [
+      {
+        "date": "20.10.2025",
+        "title": "Willkommen zur neuen Index-Seite",
+        "summary": "Die Dashboard-Ansicht wurde überarbeitet und zeigt jetzt automatisch die neuesten Einträge aus Chronik und Archiv.",
+        "priority": "info"
+      }
+    ]
+  },
+  "teasers": {
+    "chronik": {
+      "kicker": "Chronik",
+      "title": "Neue Einträge",
+      "link_label": "Zur Chronik",
+      "limit": 5
+    },
+    "archiv": {
+      "kicker": "Archiv",
+      "title": "Neu abgelegt",
+      "link_label": "Zum Archiv",
+      "limit": 5
+    },
+    "ledger": {
+      "kicker": "Ledger",
+      "title": "Aktuelle Vorgänge",
+      "link_label": "Zum Ledger",
+      "limit": 5
+    }
+  }
+}

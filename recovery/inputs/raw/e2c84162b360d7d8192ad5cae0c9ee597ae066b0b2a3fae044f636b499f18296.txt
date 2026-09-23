@@ -1,0 +1,43 @@
+{
+    "events": [
+        {
+            "id": "event-1761234383130",
+            "title": "Spielabend 04",
+            "date": "2025-11-07",
+            "time": "17:00",
+            "location": "Vorort und Online",
+            "description": "Denkt an eure unterlagen",
+            "type": "session",
+            "status": "completed",
+            "participants": [
+                "Xogar",
+                "Doro",
+                "Saskia",
+                "Franzi"
+            ],
+            "notes": ""
+        },
+        {
+            "id": "event-1762637188975",
+            "title": "Sitzung 05",
+            "date": "2025-12-12",
+            "time": "17:30",
+            "location": "Discord & vor Ort",
+            "image": "https://cklevampire.de/assets/img/events/f0c2d861-8a15-452c-bd8d-2bb4f4169d75.png",
+            "description": "Wir treffen uns am Freitag, 12.12.2025, um 17:30 Uhr. Nach einem kurzen Technik-/Ankommen-Slot (ca. 15 Min.) starten wir in die nächste Spielsitzung. Inhaltlich knüpfen wir an die letzte Nacht an, ohne dass Vorkenntnisse neuer Gäste nötig sind.\nGeplanter Ablauf:\n– 17:30–17:45 Ankommen & Tech-Check\n– 17:45–18:00 kurzes Recap \n– 18:00–ca. 00:00 Spiel (mit kurzer Pause)\n– 00:00–00:30 EP & Orga\n\nBitte Charakterbogen, Stifte, 10×W10 (oder Dice-App) bereithalten. Teilnahme ist kostenlos; die Website dient nur als Hilfsmittel für unsere Chronik.",
+            "type": "session",
+            "status": "upcoming",
+            "participants": [
+                "Saskia",
+                "Doro",
+                "Franzi",
+                "Xogar"
+            ],
+            "notes": ""
+        }
+    ],
+    "meta": {
+        "lastUpdate": "2025-11-09",
+        "nextEventId": "event-001"
+    }
+}

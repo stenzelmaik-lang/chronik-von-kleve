@@ -1,0 +1,86 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { sections } from "./navigation";
+type ModelContext = {
+  registerTool: (
+    tool: {
+      name: string;
+      title: string;
+      description: string;
+      inputSchema: unknown;
+      annotations: unknown;
+      execute: (input: unknown) => unknown;
+    },
+    options: { signal: AbortSignal },
+  ) => unknown;
+};
+export function useNavigation(
+  gm: boolean,
+  initialSection: string,
+  onNavigate: () => void,
+) {
+  const canOpen = useCallback(
+    (id: string) => {
+      const item = sections.find((s) => s.id === id);
+      return (!!item && (!item.gmOnly || gm)) || (id === "verwaltung" && gm);
+    },
+    [gm],
+  );
+  const [section, setSection] = useState(() =>
+    canOpen(initialSection) ? initialSection : "charaktere",
+  );
+  const navigate = useCallback(
+    (id: string) => {
+      if (!canOpen(id)) return;
+      setSection(id);
+      onNavigate();
+      history.replaceState(null, "", "/spielbereich?bereich=" + id);
+    },
+    [canOpen, onNavigate],
+  );
+  useEffect(() => {
+    const context = (document as Document & { modelContext?: ModelContext })
+      .modelContext;
+    if (!context?.registerTool) return;
+    const lifecycle = new AbortController();
+    try {
+      Promise.resolve(
+        context.registerTool(
+          {
+            name: "open_cvk_section",
+            title: "Bereich der Chronik öffnen",
+            description:
+              "Öffnet einen vorhandenen Bereich. Speichert keine Daten.",
+            inputSchema: {
+              type: "object",
+              properties: {
+                section: {
+                  type: "string",
+                  enum: sections
+                    .filter((s) => !s.gmOnly || gm)
+                    .map((s) => s.id),
+                },
+              },
+              required: ["section"],
+              additionalProperties: false,
+            },
+            annotations: { readOnlyHint: true, untrustedContentHint: false },
+            execute(input: unknown) {
+              const id =
+                input && typeof input === "object" && "section" in input
+                  ? input.section
+                  : undefined;
+              if (typeof id !== "string" || !canOpen(id))
+                throw new Error("Unbekannter Bereich");
+              navigate(id);
+              return { section: id, opened: true };
+            },
+          },
+          { signal: lifecycle.signal },
+        ),
+      ).catch(() => {});
+    } catch {}
+    return () => lifecycle.abort();
+  }, [navigate, canOpen, gm]);
+  return { section, navigate };
+}

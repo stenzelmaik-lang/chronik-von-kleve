@@ -1,0 +1,137 @@
+{
+  "documentId": "1V0j6khNQoCWHBrwQevaQdgUMCkRPXuHX23jp1-RfFxo",
+  "title": "LEGACY-DB – NSCs vollständig – 2026-07-05",
+  "revisionId": "ANLCKQkF3fJdYW_VeGLf1Cqd-XOvgAUqmxSzljtYO40YWZEcz39CP37ZFK9hiF3-YJpMn17fLeszZ0ziuZbO4bZoWmyQ0r5tt5THUDEMvUo",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "DB-FUND: NSC-MASTERDATEN (14 Einträge aus panoram_vampireabend.json, Tabelle \"nscs\")",
+      "startIndex": 1,
+      "endIndex": 85,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Stand 05.07.2026. Dies ist die dichteste, mechanisch vollständigste NSC-Quelle im Projekt (volle Attribute, Disziplinen, Geheimnisse, SL-Hinweise). Sollte gegenüber älteren Google-Docs-Dossiers (NSC & Meta-Plot Dossier etc.) als aktuellerer Stand gelten, sofern kein Widerspruch zu klären ist.",
+      "startIndex": 86,
+      "endIndex": 379,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "ELARA BOSCH — \"Die Kanzlerin/Strippenzieherin\". Toreador, Gen. 9, Camarilla. Geboren ca. 1880 Wien, umarmt ca. 1910 (als aufstrebende Kunstmäzenin, 30 J.). Seneschallin & Kanzlerin Kleve, faktisch erste Machtstimme hinter dem Prinzen. Präsenz 5, Auspex 4, Celerity 2, Dominate 2 (clanfremd). Schwäche: Eitelkeit — unterschätzt primitive/brutale Lösungen, kämpferisch schwach. Geheimnis: hat \"fast unmerkliche\" Macht über Konstantin UND Rhino (Schuld/Ritual/Charisma), besitzt Zweitschlüssel zu Konstantins geheimem Archiv, steht selbst unter Hardenbergs Druck. SL-Einstufung: politischer Endgegner, nie durch Gewalt zu besiegen, nur durch Dokumente/Enthüllungen.",
+      "startIndex": 381,
+      "endIndex": 1043,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "GRIGORI VOLKOV — \"Der Gärtner\". WICHTIG: laut DB explizit MENSCH (sterblich), kein Vampir — \"Johannas Agent\", übernatürlich verstärkt durch sie. Geboren 1975 Russland. Ritualmörder, Prophet seiner \"Fleischlehre\", sieht Morde als Kunst. Ritualmagie 10 (Meisterhaft), kann Realität an Ritualorten verzerren. Schwäche: zwanghafter künstlerischer Perfektionismus — muss Rituale vollenden, dadurch vorhersehbar. SL: als Endgegner konzipiert, Werte sollen SC deutlich übersteigen, Horror durch Implikation zeigen statt explizite Taten.",
+      "startIndex": 1045,
+      "endIndex": 1574,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "HANNAH RICHTER — Nebencharakter, Zivilistin, investigative Journalistin (Rheinische Post). Keine direkte Vampirverbindung — das macht sie gefährlich für die Maskerade. Ahnt, dass etwas nicht stimmt, hat aber keine Beweise.",
+      "startIndex": 1576,
+      "endIndex": 1798,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "HAUPTKOMMISSAR JANSEN — Älterer Ghul, seit 12 Jahren blutsgebunden an Prinz Konstantin. Onkel von M.J. (dem Zeugen), dadurch persönlich involviert/erpressbar. Vertuscht Maskerade-relevante Vorfälle, kann aber auch Infos zuspielen, wenn es der Maskerade dient.",
+      "startIndex": 1800,
+      "endIndex": 2059,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "JOHANNA DE VALOMBRE — \"Die Emergente Variable\". Kosmische Entität jenseits des Kain-Fluchs, wahre Meisterin von Muse_Art. Hardenberg glaubt fälschlich, sie zu kontrollieren. Manifestiert nur durch Träume/Visionen/Realitätszersetzung, NIEMALS direkt konfrontierbar. Ziel: Transzendenz durch Vernichtung (Lilith-Kosmologie).",
+      "startIndex": 2061,
+      "endIndex": 2383,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "JUSTIKAR HARDENBERG — \"Der Architekt des Chaos\". Ventrue, Gen. 7, geboren 1712 Deutschland, umarmt 1755 (43 J.). Hat \"Operation Ultio\" initiiert und damit unabsichtlich Johannas Erwachen ausgelöst. Glaubt, alles unter Kontrolle zu haben (Hybris = seine Schwäche). Wird SC nie direkt konfrontieren, agiert nur durch Stellvertreter.",
+      "startIndex": 2385,
+      "endIndex": 2715,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "PRINZ KONSTANTIN VON STRAETEN — Ventrue, Gen. 7, geboren ca. 1820 Preußen, umarmt ca. 1860 (40 J., als Jurist). WICHTIGES GEHEIMNIS: Verriet einst auf einem alten Konklave einen Gesandten der Banu Haqim, entwendete ein Fragment der Quietus-Lehren und ließ den Assassinen spurlos verschwinden — lebt seither in Furcht, dass dies bekannt wird (besonders gegenüber Vance!). Besitzt gestohlene Quietus-Disziplin (Stufe 2) UND rituell erhaltenes Temporis (Stufe 1). Bannkreis im Thronsaal, in dem niemand lügen kann. Steht unter Hardenbergs Druck UND faktisch unter Elaras Kontrolle. Hat öffentlich geschworen, nie selbst die Hand gegen ein Kainskind zu erheben.",
+      "startIndex": 2717,
+      "endIndex": 3374,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "MEPHISTO — \"Der Agent des Chaos/Herr M. Ethos\". Übernatürliche, unsterbliche Trickster-Entität, viktorianischer Gentleman. Materialisiert an Übergangsorten (Karussells, Rummelplätze). Kann in seiner Domäne nicht besiegt werden, kämpft nie. Schwäche: an eigene Spielregeln gebunden — kann nicht lügen, muss Deals einhalten, kann niemanden zum Pakt zwingen.",
+      "startIndex": 3376,
+      "endIndex": 3731,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "AVI — \"Der Wächter der Bar/Blutmagier am Tresen\". WICHTIGE PRÄZISIERUNG: Avi ist TREMERE (nicht nur ein neutraler Barkeeper), Gen. 9, geboren 1987 Jerusalem, umarmt 2016 in Amman. Wächter des inoffiziellen Elysiums Electric Taberna, hat dort verdeckt Tremere-Schutzsiegel/Bannkreise verbaut (nie genehmigt). Blutmagie(Thaumaturgie) 5. Geheimnis: sein eigener Embrace könnte Teil eines Experiments gewesen sein, das dieselben Symbole nutzte, die heute in Johannas Litanei auftauchen — er fürchtet eine Verbindung zwischen seinem Blut und Johanna/Dornenrose.",
+      "startIndex": 3733,
+      "endIndex": 4289,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "PIT (Peter Hoffmann) — Rhinos Ghul & Enforcer, \"Drecksarbeit\"-Ausführer, blutsgebunden, keine Disziplinen. Griff Hannah Richter in einer Gasse an (bestätigt aus Nebencharaktere-Dossier).",
+      "startIndex": 4291,
+      "endIndex": 4477,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "REINHARDT \"RHINO\" GRUBER — Brujah, Gen. 8, geboren 1975, umarmt 2003 (als Hells-Angels-Nomade nach Gewaltorgie). Sheriff. Schwäche: Jähzorn (fast immer Frenzy-Probe bei Provokation), teilweise blutsgebunden an Elara UND Konstantin.",
+      "startIndex": 4479,
+      "endIndex": 4710,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "SILAS VANCE — \"Der Ausbilder/Schattenrichter\". Banu Haqim (Assamit), Gen. 6, geboren ca. 1163 Levante, umarmt 1195 während des Dritten Kreuzzugs (als Assassine/Elitespäher Saladins). WICHTIGSTE PRÄZISIERUNG: Offiziell Hardenbergs Ausbilder, TATSÄCHLICH ein Beobachter/Prüfer des Inneren Zirkels — sein Auftrag: herausfinden, ob Hardenberg noch im Rahmen der Camarilla agiert oder eine \"persönliche Inquisition\" aufgebaut hat. Hält Kontakt zu einem anonymen Verbindungsglied im Inneren Zirkel. Kennt Bruchstücke über Johanna/Dornenrose/Volkov, aber keine vollständige Chronik. Trigger für sein Eingreifen: wiederholte undokumentierte Hinrichtungen, Beweise für Hardenbergs private Geheimgerichte, systematische Info-Blockaden Richtung Zirkel. Ahnt Konstantins Verrat (siehe oben).",
+      "startIndex": 4712,
+      "endIndex": 5491,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "SOFIA — \"Die Ratte von Kleve\". Nosferatu, Gen. 13, geboren 2004, umarmt 2021 (mit 17 Jahren — sehr jung!). Besitzt \"Archiv im Abwasser\" (kompromittierendes Material) und \"Rattenorakel\" (Zugriff auf kollektives Stadtratten-Gedächtnis).",
+      "startIndex": 5493,
+      "endIndex": 5727,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "SYNTAX — \"Das Gespenst im System/Vances Schatten\". Malkavianerin, Gen. 12, geboren 2005, umarmt 2020 (mit 15 Jahren — noch jünger als Sofia!). Vances geheime Partnerin — \"Zweitschlüssel-System\": er zerstört Körper, sie zerstört Identitäten/Reputation/Beweislagen. Leidet an \"digitaler Schizophrenie\" (verwechselt Menschen mit Datenpaketen). Niemand weiß, wer sie umarmt hat.",
+      "startIndex": 5729,
+      "endIndex": 6103,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1V0j6khNQoCWHBrwQevaQdgUMCkRPXuHX23jp1-RfFxo"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "a004",
+  "type": "text",
+  "title": "Notiz: 'Ger\u00fccht vom Elysium'",
+  "date": "2025-10-21",
+  "visibility": { "role": "player" },
+  "tags": ["Ger\u00fccht", "Elysium"],
+  "abstract": "Helenas Notiz ueber ein Gespraech mit dem Tremere-Primogen.",
+  "body_md": "Helena berichtet von einem nervoesen Tremere-Primogen. Er sprach von einer 'Anomalie' unter der Stadt und dass die 'alten Vertraege' nicht mehr gelten. Der Name 'Hardenberg' fiel mehrfach im Kontext der Propstei.\n\nDer Primogen bat darum, das Thema nur mit Clan-internen Gremien zu teilen.",
+  "thumb": "assets/img/orte/placeholder.png",
+  "source": "spieler"
+}

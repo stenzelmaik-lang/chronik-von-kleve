@@ -1,0 +1,15 @@
+{
+  "id": "amj0xjlusxu1uh",
+  "type": "text",
+  "title": "Termin 2 Notizen",
+  "category": "wissen",
+  "tags": [],
+  "visibility": "player",
+  "abstract": "",
+  "body_md": "\t- Hannah Richter: Zeitungsbericht über mehrere vermisste & Symbole im Haus wo Lukas gekämpft\n\t- Wer ist Muse Art? \"Ästhetik des Zerfalls\"\n\t\t○ Auge Kreuze Symbol\n\nReddit Post\n\t\t○ Polizei & Blut am Kurhaus\n\t\t○ Schattenläufer hat Infos\nChat\n\t○ Red-Hand & Schattenläufer denken es war ein Ritual (Memory Block (Nicht selber Künstler)\n\t- Schattenläufer: es hat begonnen Karrusel?\n\t- Hannah hatte Visitenkarte\n\t\t○ Nigel Crown, Muse Art Kranenburg\n\t- Spiegelbild Signatur \"Der Trickser\"\n\t- 37788 (Sperma, anderes Bild aus Blut, anders Bild verschwindet (Hände): Nigel Crown - Atelier in Kronburg\n\t- 37388 - M. Ethos (Mephisto) - Volkoff (Kunsthändler)\n\t- Kunstkurator das das Bild verkauft ist ein Mensch und der Ghul von Nigel\n\n\t- Bild mit magischen Rahmen im Arsenal\n\t- Auge sieht alles, \"Frau\" steckt dahinter\n\n\t- Volkoff = Gärtner!!!\n\t- Mephisto erwähnte Lilith\n\t- \"Pinselstricher auf Liliths unfertigen Gemälde\" -> Mephisto\n\nNigels Mühle\n\t- Kasette: Das Schneiden mit den Assistenten Lukas\n\t- Kasette: Der Auftrag\n\t- Kasette: Die Wahrheit über Muse\n\t- \"Mein eigentum war fehlerhaft. Fehlerpflanze muss geschnitten werden damit Garten schön - Volkoff redet mit uns\"\n\t- \"Man muss Ritual lösen, macht Leiche an Wand\" -> hängt jetzt selber\n\t\t○ Vikinger Ritual der Blutadler -> Lungen über Schulter gelegt bei Loyalität tests gemacht \n\t\t○ Es ist Nigel\n\t- Hinter Leiche sind Vikinger Runen\n\t\t○ Stärke: Ur, Thorn: Protect\n\t\t○ Eoh: Rebirth\n\t\t○ Odal: Property, Heritage\n\t- Oben im Atelier\n\t\t○ Russisches Schild: Blut ist Warheit\n\t\t○ Dornenrose die Johanna gezeigt hat gemalt\n\t\t○ Schild mit Körper\n\t\t○ \"Körper = Gefäß - Bild - Seele\"\n\t- Signatur Meister Eilrich\n\t- Durch höhere Gewalt\n\t- \"Mein Eigentum war fehlerhaft, also nicht zu gebrauchen\"\nJohanna de Valombre = Mutter der Dornen?",
+  "date": "2025-12-11",
+  "source": "player",
+  "thumb": "assets/img/orte/placeholder.png",
+  "modified": "2025-12-11T04:20:16.613Z",
+  "attachments": []
+}

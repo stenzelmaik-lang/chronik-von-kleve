@@ -1,0 +1,217 @@
+{
+  "documentId": "1XQDFJ4CQ1bKFV4y7eyIffMU0qcwcsv6l3zX75HnxRwo",
+  "title": "LEGACY-DB Status Quo Sitzung 05 2026-07-05",
+  "revisionId": "ANLCKQk1bSWKLtX1zbncliL9lbmSr6twq7_gm5HOpSYYLYe9dDq4kCiy0NRx6TGKn6mAlEIr4E9pQ1EF9ti_-PgWIxe6DjafraNFv0rKTwA",
+  "tabId": null,
+  "paragraphs": [
+    {
+      "text": "DB-FUND: VOLLTEXT \"STATUS QUO VOR SITZUNG 05\" + VOLLTEXT SITZUNG-05-LEITFADEN",
+      "startIndex": 1,
+      "endIndex": 78,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Quelle: panoram_vampireabend.json, Tabelle sl_plots, Einträge id=1 (section=current), id=4 (section=future), id=7 (section=npcs).",
+      "startIndex": 79,
+      "endIndex": 208,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Dies ist die vollständige Originalfassung (HTML-Tags entfernt) — deutlich detaillierter als jede bisherige Zusammenfassung im Projekt. Autoritative Quelle für den Spielstand kurz vor der abgesagten Sitzung 5.",
+      "startIndex": 209,
+      "endIndex": 417,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "TEIL A: STATUS QUO VOR SITZUNG 05 (12.12.2025)",
+      "startIndex": 419,
+      "endIndex": 465,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Kaserne Schwarzholz bleibt sichere Basis, aber mit interner Spannung: Reibung zwischen Helena und Schäfer, Helenas eigenes \"Kain\"-Manifest spaltet die Gruppe leicht. Cat sichtete im Reichswald erstmals eine Mönchsgestalt mit rotem Schimmer, die einen konstanten Abstand (~150m) hält, egal ob sie sich nähert oder entfernt — eine \"gebundene Erscheinung\", kein Verfolger, endet an Waldgrenzen.",
+      "startIndex": 466,
+      "endIndex": 857,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Richterhof: Vorraum jetzt sichtbar aufgerüstet (verstärkte Türen, Gaseinlässe, Schießscharten, Laserlinien). Leopold wurde einzeln vorgeladen und befragt.",
+      "startIndex": 858,
+      "endIndex": 1012,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Elysium (Taverne): voller Betrieb, Avi warnt Leopold wortlos. Corvina entdeckt feine Dornenrillen in Tresen/Tischkanten — ein fremdes Zugangssiegel, das quer zur klassischen Tremere-Ward des Ortes liegt (Ritualkonflikt zweier Systeme an derselben Schwelle). Eine unnahbare Fremde in der Ecke bricht Gespräche ab, bevor sie beginnen — möglicher Jägerkontakt.",
+      "startIndex": 1013,
+      "endIndex": 1370,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Friedhof Materborn/Kapelle: Dornen-Sigille mit feinem \"H\" im Zentrum hinter dem Altar, Eisenketten im Stein (Bindung, kein Schmuck), ungewöhnliche Wärme/Dünste hinter dem Chor. Bleiplakette in der Sakristei: JS/KLE/ULTIO-0011. Zwei lateinische Formelpaare: \"porta clausum/porta clausa\" (Tür verschlossen/verriegelt = Schwellen-Anteil, verortet an \"Säule 6\" in der Propstei) und \"cor ligatum/cor devinctum\" (Herz gebunden/versklavt = Pfand-Anteil, Kapelle/Altar). Geisterchor rezitiert \"cor ligatum\", endet an der Friedhofsmauer. Madonna am Altar winkt stumm dreimal heran.",
+      "startIndex": 1371,
+      "endIndex": 1943,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Parkhaus Oberstadt: Blutspur (\"rückwärts fließend\") ohne Laborbefund; danach Laborakte gestohlen, Laborassistent Ingo Schuster seither vermisst — gezielte Spurenbereinigung, kein Zufall.",
+      "startIndex": 1944,
+      "endIndex": 2130,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Jägerorden (SL-Hintergrund): Die \"Wächter von Sankt Domingo\" und \"Ritter des Wahren Kreuzes\" handeln im Auftrag des Heiligen Stuhls. Mandat: den \"Bleisarg\" (als Anathema klassifiziert) vernichten, alle Spuren dorthin bereinigen, Sucher abschrecken/isolieren. Mittel: Liturgie, Archivmacht, soziale Kontrolle — KEIN offener Kampf. Die Geistermönche/Dornen-Phänomene gehören NICHT zu den Jägern, sondern zur \"Litanei der Dornenrose\" — die Jäger begegnen diesem System, erzeugen es nicht. SL-Spannungsuhr \"Jäger-Aufmerksamkeit\" 0-6, bei 6 direkte, aber gewaltfreie Kontaktaufnahme.",
+      "startIndex": 2132,
+      "endIndex": 2710,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Dornen & Justiz (Kernhypothesen, klar als Hypothese markiert): Die Dornenrose betreibt eine \"Doppelschloss-Architektur\" (Schwelle = Propstei/Säule 6, Pfand = Kapelle/Altar). Das \"H\" markiert vermutlich juristische Einbindung (Hardenberg-Peripherie). \"ULTIO-0011\" = vermutlich laufende Maßnahme im Kontext Kapelle-Propstei. Die Kurie (Jäger) kollidiert strukturell mit der Dornenrose: löschen vs. bewahren.",
+      "startIndex": 2712,
+      "endIndex": 3117,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Vier persönliche SC-Fäden:",
+      "startIndex": 3119,
+      "endIndex": 3145,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- HELENA: \"Herz\"-Resonanz auf \"cor ligatum\" (Pfand-Sensor), altes Ziel bleibt Vollstreckung am abtrünnigen Vampir von damals; Kirchenbuch + Pergamentstreifen im Besitz (Brücke zu Säule 6).",
+      "startIndex": 3146,
+      "endIndex": 3334,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- CORVINA: Brief aus den Niederlanden behauptet Wissen über den Mord an Selene (ihrer Erzeugerin) — schneidet die H-Peripherie/Hardenberg, Fälle im ULTIO-Register. Corvina ist die \"Archivlinse\" der Gruppe.",
+      "startIndex": 3335,
+      "endIndex": 3540,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- CAT: Erste Zeugin der Mönchserscheinung; trägt ein Collar (von Helena), das Rage/Instinktspitzen dämpft, aber möglicherweise eine Bindungsfunktion hat (Preis unklar); ihr Erzeuger jagt dieselbe Mönchsspur.",
+      "startIndex": 3541,
+      "endIndex": 3748,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "- LEOPOLD: zwischen zwei Herren — Prinz Konstantin erwartet stille Berichte über Vance, seine Familie drängt ihn, den \"Bleisarg\" zu finden (Verbindung zum Vatikan). Beide Seiten wollen wahrscheinlich dasselbe Objekt, ohne es zu wissen.",
+      "startIndex": 3749,
+      "endIndex": 3984,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "NSC-Status: Konstantin fährt Alarmbereitschaft, zentralisiert Informationsfluss. Vance hält die Coterie funktionsfähig, hält Prinz/Kurie-Konflikt neutral. Avi hält Elysium-Wards stabil trotz Dornen-Gegensignatur. Elara konsolidiert Sicherheitsarchitektur. Syntax kreuzreferenziert Codes/Register. Sofia verdichtet ihr Netz. Schäfer hält Kasernenroutine. Rhino zieht Hof-Perimeter hart. Ingo Schuster weiterhin vermisst. Lukas Weber: \"laufende Rechnung\", Schatten auf Umbra-Spuren.",
+      "startIndex": 3986,
+      "endIndex": 4466,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Offene Fragen (im Dokument selbst benannt): Wessen Herz ist gebunden? Welche Tür liegt an Säule 6, warum bewacht eine Madonna sie? Warum schweigt das Parkhaus-Blut? Wo steht der Bleisarg, auf welcher Seite stehen die SC?",
+      "startIndex": 4468,
+      "endIndex": 4688,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "TEIL B: SITZUNG-05-LEITFADEN \"S3: STEIN · SEELE · STILLE\" (12.12.2025, NIE GESPIELT) — vollständig fertig ausgearbeitet",
+      "startIndex": 4690,
+      "endIndex": 4809,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Rahmen: Ohne Volkov/MX-17, Bleisarg nur als Resonanz (nicht zu öffnen). Empfohlene Taktung: Taberna → Parkhaus/Stenten → Bahnhof (S3-Fenster) → Hannah → Schwanenburg-Scouting → Cliffhanger.",
+      "startIndex": 4810,
+      "endIndex": 4999,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Kernrätsel: Der Code \"S3\" taucht konsistent an drei Fundorten auf (Taberna-Streichholz, Stenten-Quittung \"00327-S3/11\" mit Siegel \"Rose+Dorn\", Bahnhof-Frachtzettel \"KLE–S3–UM\"). Die Litanei/der Chronist verschlüsseln ein Akrostichon → Leserichtung Nord-Ost-Süd-West (\"Doppelschloss\"); \"H\" = \"Hauptstein\". Ein Vers \"Herz/Stein/Wasser\" verweist auf eine Stadtmetapher: Markt=Herz, Burg=Stein, Kermisdahl=Wasser (Fluss durch Kleve).",
+      "startIndex": 5000,
+      "endIndex": 5429,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Schauplätze: Bahnhof-Unterführung (S3-Kurierfenster 23:40-00:15, zwei Ghul-Kuriere mit gekühlter Kiste \"Blind 12\"), Parkhaus (Zelle \"Leise Hände\" will Beweise stehlen, nicht kämpfen), Stenten Bestattungen (Belege matchen Bahnhofsfracht-Handschrift), Hannah Richters Wohnung (Tonband: \"...wenn der Stein atmet, schweigt das Wasser...\"), Schwanenburg unteres Plateau (Scouting via Servicestollen, 3 Beweisstücke: Frottage \"JS/KLE/ULTIO-0011\" + feines H, akustisches Doppel-Echo im 4-Schlag-Rhythmus, feiner Bleiglanzstaub am Wasserrand — ausdrücklich KEIN Öffnen des Bleisargs, nur Scans/Frottage/Audio).",
+      "startIndex": 5430,
+      "endIndex": 6032,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Cliffhanger (geplant, nie gespielt): Aufnahme vom Plateau zeigt vier kalte Bass-Impulse; in der Taberna pulst die Jukebox im selben Muster OHNE Strom; SMS auf einem Prepaid-Handy: \"S3 – [Sanduhr-Symbol]\".",
+      "startIndex": 6033,
+      "endIndex": 6237,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Garantierte Spieler-Beats: Helena bekommt bei \"Herz/Stein/Wasser\"-Themen eine Einwort-Vision \"cor ligatum\". Leopold entschlüsselt Stentens Kurzschrift zum Hinweis \"Bahnhof-Seiteneingang/Blind 12\". Corvina liest Akrosticha blitzschnell (spart Zeit/Stress).",
+      "startIndex": 6238,
+      "endIndex": 6493,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Gegner-Rahmen (V20, nur zur Deeskalation/Verzögerung gedacht, nicht zum Töten): Ghul-Kuriere, Zelle \"Leise Hände\", Notfallzelle \"Kalter Poller\", \"Techniker\"-Scout (Laienjäger, sozial lösbar), Hausmeister Kamm, an der Taberna \"Grauauge\" (Späher) + ein sterblicher Ordner. Maskerade-Ticker 0-4, bei 4 räumt Rhino zwangsweise die Szene.",
+      "startIndex": 6494,
+      "endIndex": 6827,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    },
+    {
+      "text": "Einordnung: Dieses komplette, fertig ausgearbeitete Modul wurde nie gespielt (Kampagne am 21.01.2026 abgesagt). Es bleibt als vollständig nutzbares Material erhalten, falls die Kampagne wiederaufgenommen wird — entweder als direkter Fortsetzungspunkt oder als Fundus für Szenen/Rätsel, die in einer neu konzipierten Fortsetzung wiederverwendet werden können.",
+      "startIndex": 6829,
+      "endIndex": 7187,
+      "tabId": "t.0",
+      "namedStyleType": "NORMAL_TEXT",
+      "isListItem": false
+    }
+  ],
+  "document_url": "https://docs.google.com/document/d/1XQDFJ4CQ1bKFV4y7eyIffMU0qcwcsv6l3zX75HnxRwo"
+}

@@ -1,0 +1,113 @@
+{
+  "format": "cvk-pnp-conflict-register",
+  "version": 1,
+  "generated_at": "2026-09-14",
+  "campaign_id": "chronik-von-kleve",
+  "rule": "NO_AUTOMATIC_RECONCILIATION",
+  "conflicts": [
+    {
+      "id": "conflict.ultio-founder",
+      "topic": "ULTIO Gründung/Führung",
+      "legacy_claim": "Hardenberg initiiert/gruendet Operation/Projekt ULTIO.",
+      "current_ruling": "Hardenberg ist Vorsitzender, nicht Gründer.",
+      "status": "SUPERSEDED",
+      "action": "Legacy-Aussage als alte Quelle erhalten; aktuelle Darstellung verwenden."
+    },
+    {
+      "id": "conflict.taberna-elysium",
+      "topic": "Electric Taberna Rechtsstatus",
+      "legacy_claim": "Offizielles/neutrales Camarilla-Elysium, teils mit stadtweiten Rechtsannahmen.",
+      "current_ruling": "Inoffizielles Elysium/Schutzraum unter Avis Hausrecht; kein automatisch bestätigter stadtweiter Rechtsschutz.",
+      "status": "SUPERSEDED",
+      "action": "Alte Rechtsbehauptungen nicht als aktuelle Regeln ausspielen."
+    },
+    {
+      "id": "conflict.bleisack-schwanenburg",
+      "topic": "Bleisack/Bleisarg Standort",
+      "legacy_claim": "Ältere Lösungen/Entwürfe verorten den Sarg an/unter der Schwanenburg oder anderen wechselnden Orten.",
+      "current_ruling": "Bleisack liegt nicht in der Schwanenburg. Burgspur bleibt wichtig, eigener Kampf + Mephisto-Prüfung.",
+      "status": "SUPERSEDED",
+      "action": "Alte Standortangaben nur als historische Behauptung/Falschspur/Entwurf verwenden."
+    },
+    {
+      "id": "conflict.volkov-nature",
+      "topic": "Grigori Volkov Wesen/Loyalität",
+      "legacy_claim": "DB: Mensch, Johannas Agent/Priester; andere Quellen: Sabbat-/Retorten-/Ritualvarianten.",
+      "current_ruling": "Aktuell sicher: zentrale Volkov-Figur, will Johannas Macht/Essenz nutzen und ihr Erwachen verhindern; weitere Naturdetails nicht aus Altquellen erzwingen.",
+      "status": "CONTRADICTION",
+      "action": "Wesen, Clan/Fraktion und genaue Kosmologie OPEN halten bis SL entscheidet."
+    },
+    {
+      "id": "conflict.johanna-cosmology",
+      "topic": "Johanna Kosmologie",
+      "legacy_claim": "Kosmische Entität/Lilith-Linie, teils direkte Mastermind-Deutungen.",
+      "current_ruling": "Körper im versiegelten Bleisack; extreme Projektionen/Illusionen; will Vampire vernichten. Gleichsetzung mit Lilith nicht endgültig bestätigt.",
+      "status": "CONTRADICTION",
+      "action": "Bestätigte Effekte nutzen, Metaphysik OPEN."
+    },
+    {
+      "id": "conflict.silas-triggers",
+      "topic": "Silas Eingriffslogik",
+      "legacy_claim": "Ältere Dossiers nennen feste Trigger, Beobachterauftrag und konkrete Eingriffsbedingungen.",
+      "current_ruling": "F19: Silas entscheidet selbst; keine feste Eingriffsliste nötig, Abwesenheit muss nicht erklärt werden.",
+      "status": "SUPERSEDED",
+      "action": "Alte Trigger nur als frühere Autorenhilfe, nicht als Zwangsmechanik."
+    },
+    {
+      "id": "conflict.schaefer-role",
+      "topic": "Herr Schäfer",
+      "legacy_claim": "Teilweise Hausmeister/sterblicher Verwalter.",
+      "current_ruling": "Silas’ Ghul, ehemaliger Kommandant, rechte Hand und lokaler Entscheider.",
+      "status": "SUPERSEDED",
+      "action": "Aktuelle Rolle verwenden; Hausmeister nur Tarn-/Alltagsfunktion."
+    },
+    {
+      "id": "conflict.kaserne-residency",
+      "topic": "Kaserne Bewohner",
+      "legacy_claim": "Silas und Schäfer als dauerhafte Zentrale/Bewohner.",
+      "current_ruling": "Beide haben permanenten Mittelpunkt verlassen; Schäfer lebt in der Nähe und überwacht, Silas ist unterwegs wegen unbekanntem Gerücht.",
+      "status": "SUPERSEDED",
+      "action": "Alte Präsenz als historische Phase erhalten."
+    },
+    {
+      "id": "conflict.pc-helena",
+      "topic": "Helena Hintergrund",
+      "legacy_claim": "Live-DB: Malkavian Gen12, Gregor Mendel, Gerichtsmedizinerin; Roman: Brujah/anderer Ahn.",
+      "current_ruling": "Tischcharakter/aktuelle Drive-Bögen haben Vorrang.",
+      "status": "CONTRADICTION",
+      "action": "Roman- und Game-Variante getrennt speichern; nichts automatisch mergen."
+    },
+    {
+      "id": "conflict.pc-corvina",
+      "topic": "Corvina Hintergrund",
+      "legacy_claim": "Live-DB: Selene Everwyn, Primogenin London; Roman: Vivienne Moreau/Berlin.",
+      "current_ruling": "Tischcharakter/aktuelle Drive-Bögen haben Vorrang; Selene-Faden ist in späteren Spielkanon-Dokumenten präsent.",
+      "status": "CONTRADICTION",
+      "action": "Varianten getrennt speichern."
+    },
+    {
+      "id": "conflict.pc-cat",
+      "topic": "Cat Hintergrund",
+      "legacy_claim": "DB: Gangrel Gen12, Tierflüsterer, Sire leer; andere Quellen nennen Alaric.",
+      "current_ruling": "Vorhandene aktuelle Drive-Bögen verwenden; fehlende Werte nicht erfinden.",
+      "status": "OPEN",
+      "action": "Sire nicht automatisch ergänzen."
+    },
+    {
+      "id": "conflict.session05",
+      "topic": "S3 Sitzung 05",
+      "legacy_claim": "Vollständig ausgearbeitetes Modul mit Bahnhof/Parkhaus/Stenten/Hannah/Schwanenburg.",
+      "current_ruling": "Explizit nie gespielt. Einzelne Elemente wie Bahnhof 23:40–00:15 wurden später neu bestätigt.",
+      "status": "UNPLAYED_PREP",
+      "action": "Nur später erneut gesetzte Elemente CANON; Rest Materialbank."
+    },
+    {
+      "id": "conflict.diary-history",
+      "topic": "chronik.diary.json",
+      "legacy_claim": "22 Einträge erscheinen als Timeline mit Abend 1–3 und weiteren Fakten.",
+      "current_ruling": "Nicht pauschal als gespielte Geschichte behandeln.",
+      "status": "GM_REVIEW",
+      "action": "Einzeln gegen Spielberichte/Kanonquellen klassifizieren."
+    }
+  ]
+}

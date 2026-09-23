@@ -1,0 +1,26 @@
+{
+    "id": "wiki_forstgarten",
+    "type": "text",
+    "category": "orte",
+    "title": "Forstgarten Kleve",
+    "date": "2025-10-23",
+    "tags": [
+        "Forstgarten",
+        "Kleve",
+        "Elysium",
+        "Maskerade"
+    ],
+    "visibility": "public",
+    "source": "spielleiter",
+    "abstract": "Der Forstgarten ist ein historischer Park in Kleve und dient als neutraler Treffpunkt für die Kainiten der Stadt.",
+    "body_md": "# Forstgarten Kleve\n\nDer **Forstgarten** ist ein ausgedehnter historischer Park im Herzen von Kleve. Unter den [[Kainiten]] der Stadt gilt er als neutrales Gebiet und inoffizielles [[Elysium]].\n\n## Geschichte\n\nDer Park wurde im 17. Jahrhundert angelegt und diente ursprünglich als Jagdgebiet der Herzöge von Kleve. In den letzten Jahrhunderten wurde er mehrfach umgestaltet.\n\n## Bedeutung für Kainiten\n\n- **Neutrales Gebiet**: Hier gilt strikter Waffenstillstand\n- **Treffpunkt**: Viele informelle Versammlungen finden hier statt\n- **Maskerade-Risiko**: Aufgrund der Nähe zu Wohngebieten ist besondere Vorsicht geboten\n\n## Jüngste Ereignisse\n\nIn der Nacht vom 19. auf den 20. Oktober wurde im Forstgarten eine Leiche gefunden. Die Umstände deuten auf einen [[Maskeradebruch]] hin.\n\n*Siehe auch:* [[Zeitungsartikel Leichenfund]], [[Propstei]], [[Elysium-Regeln]]",
+    "thumb": "assets/img/orte/placeholder.png",
+    "media": [
+        {
+            "type": "image",
+            "url": "assets/img/archive/forstgarten_nacht.jpg",
+            "caption": "Der Forstgarten bei Nacht"
+        }
+    ],
+    "modified": "2025-10-23T14:30:00Z"
+}

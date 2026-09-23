@@ -1,0 +1,11 @@
+{
+    "kicker": "Domäne Kleve",
+    "h1": "Chronik",
+    "intro": "Ereignisse in Reihenfolge.",
+    "content_html": "<div id='timeline-root'></div>",
+    "timeline_kicker": "Zeitleiste",
+    "timeline_title": "Aktuelle Ereignisse",
+    "timeline_intro": "Wähle einen Knoten, um direkt zum passenden Abschnitt des Tagebuchs zu springen.",
+    "filter_kicker": "Filter",
+    "filter_title": "Facetten"
+}

@@ -1,0 +1,19 @@
+﻿{
+  "news": [
+    {
+      "id": "news-001",
+      "title": " Neue Schatten über Kleve",
+      "date": "2025-10-23",
+      "author": "Spielleitung",
+      "category": "Welt",
+      "priority": "normal",
+      "status": "published",
+      "content": "<p><strong><u>Ein erster Blick hinter die Maskerade</u></strong></p><p><em>Die Tore zur Chronik von Kleve öffnen sich langsam.</em></p><p>Noch sind viele Bereiche von Nebel verhüllt, noch flackern die Codes der Seite wie schwache Laternen im Regen  doch das Fundament steht.</p><p>Die Domäne nimmt Gestalt an:</p><p>Die Stimmen von Elara Bosch, Vance, Sofia und den anderen beginnen zu flüstern; Orte wie die Schwanenburg, der Richterhof und das verlassene Kasernengelände fügen sich zu einem lebenden Mosaik.</p><p>Was du hier siehst, ist erst der Anfang.</p><p>Ein Werk im Werden. Ein digitales Grimoire über Macht, Schuld und das Spiel im Schatten.</p><p>Bleib wachsam.</p><p>Mit jedem Update verdichten sich die Linien zwischen Spiel, Geschichte und Wahrheit.</p>",
+      "excerpt": "Willkommen in der offiziellen Chronik der Domäne Kleve",
+      "image": "assets/img/news/news-001-compressed.jpg",
+      "attachments": [],
+      "tags": ["Chronik", "Ankündigung", "Kleve"],
+      "pinned": true
+    }
+  ]
+}

@@ -1,0 +1,439 @@
+{
+  "facets": [
+    {
+      "slug": "type",
+      "label": "Ereignistyp"
+    },
+    {
+      "slug": "characters",
+      "label": "Beteiligte"
+    },
+    {
+      "slug": "location",
+      "label": "Ort"
+    }
+  ],
+  "entries": [
+    {
+      "date": "2025-04-10",
+      "title": "Projekt ULTIO in Kleve aktiviert",
+      "summary": "Justikar Hardenberg erklärt Kleve zur Ausbildungszentrale und setzt die neue Befehlskette durch.",
+      "tags": [
+        "Direktive",
+        "Ultio"
+      ],
+      "type": "Direktive",
+      "characters": [
+        "Justikar Hardenberg",
+        "Prinz Konstantin",
+        "Silas Vance",
+        "Elara",
+        "Herr Schäfer"
+      ],
+      "location": "Richterhof",
+      "body": "<p>Das Justikariat weist der Domäne Kleve am 10.04.2025 die Rolle einer zentralen Evaluierungs- und Ausbildungseinrichtung zu. Projekt <strong>ULTIO</strong> startet unter der Aufsicht von Prinz Konstantin und der operativen Leitung von Silas Vance.</p><ul><li>Kandidaten müssen binnen 72 Stunden in den Richterhof (Büro Bosch) überführt werden, die Aufsicht liegt bei Konstantin.</li><li>Silas Vance prüft im Rahmen des Programms Belastbarkeit, Loyalität und Effizienz sämtlicher Teilnehmenden.</li><li>Nichteinhaltung der Direktive bedeutet Statusverlust, Einstufung als Autarkis und die Androhung einer autorisierten Blutjagd.</li><li>Ghul Herr Schäfer übernimmt im Frühjahr/Sommer 2025 die logistische Sicherung der Kaserne Schwarzholz und hält Sterbliche fern.</li><li>Konstantin agiert unter dem indirekten Einfluss Hardenbergs; Elara vermittelt die Direktiven in die Domäne.</li></ul>"
+    },
+    {
+      "date": "2025-09-28",
+      "title": "Maskeradevorfall im Forstgarten",
+      "summary": "Presseberichte über Symbole lösen verschärfte Maßnahmen des Sheriffs aus.",
+      "tags": [
+        "Maskerade",
+        "Sicherheit"
+      ],
+      "type": "Maskerade",
+      "characters": [
+        "Sheriff",
+        "Harpyie",
+        "M. Jansen"
+      ],
+      "location": "Forstgarten",
+      "body": "<p>Am 28.09.2025 meldet die sterbliche Presse Symbole im Forstgarten. Der Sheriff sperrt das Gelände, setzt Gedächtnismanipulationen durch und hält die Maskerade mühsam aufrecht.</p><ul><li>M. Jansen beobachtet den Angriff von Lukas und wird zur Schlüsselperson für Aufklärung und Maskerade-Risiko.</li></ul>"
+    },
+    {
+      "date": "2025-10-01",
+      "title": "Ratsnacht vorbereitet",
+      "summary": "Primogenrat priorisiert Jagdgebiete, Bosch-Nachfolge und Gerüchte um Sabbat-Späher.",
+      "tags": [
+        "Politik"
+      ],
+      "type": "Politik",
+      "characters": [
+        "Primogenrat",
+        "Elara"
+      ],
+      "location": "Ratskammer",
+      "body": "<p>Am 01.10.2025 legt der Primogenrat die Themenliste für die kommende Ratsnacht fest. Elara koordiniert die Agenda zwischen Jagdgebietsfragen, der Nachfolge von Bosch und den Gerüchten über einen Sabbat-Späher.</p>"
+    },
+    {
+      "date": "2025-10-05",
+      "title": "Ghul-Bindungen protokolliert",
+      "summary": "Drei neue Blutbindungen werden im Club Rote Mauer registriert.",
+      "tags": [
+        "Soziales"
+      ],
+      "type": "Soziales",
+      "characters": [
+        "Harpyie",
+        "Brujah"
+      ],
+      "location": "Club Rote Mauer",
+      "body": "<p>Die Harpyie dokumentiert drei frische Ghul-Bindungen im Club Rote Mauer. Die Einträge stärken die soziale Kontrolle der Domäne.</p>"
+    },
+    {
+      "date": "2025-10-09",
+      "title": "Propstei unter Beobachtung",
+      "summary": "Ungewöhnlicher Verkehr zwingt den Sheriff zu zusätzlichen Spähtrupps.",
+      "tags": [
+        "Sicherheit"
+      ],
+      "type": "Sicherheit",
+      "characters": [
+        "Sheriff",
+        "Wachdienst"
+      ],
+      "location": "Propstei",
+      "body": "<p>Der gesperrte Flügel der Propstei erlebt am 09.10.2025 erhöhten Verkehr. Der Sheriff entsendet Späher, um den Ursprung der Bewegungen zu klären.</p>"
+    },
+    {
+      "date": "2025-10-12",
+      "title": "Downtime-Auswertung und Vorbereitung",
+      "summary": "Elysium prüft Abgaben, Nosferatu verstärken den Untergrund und Toreador planen Benefiz.",
+      "tags": [
+        "Politik",
+        "Soziales"
+      ],
+      "type": "Politik",
+      "characters": [
+        "Prinz Konstantin",
+        "Nosferatu",
+        "Toreador"
+      ],
+      "location": "Elysium",
+      "body": "<p>Die Downtime-Abgaben werden am 12.10.2025 ausgewertet: Nosferatu organisieren Untergrund-Verstärkung, während die Toreador ein Benefizprojekt vorbereiten.</p>"
+    },
+    {
+      "date": "2025-10-18",
+      "title": "Harpyie verschärft Verschwiegenheit",
+      "summary": "Nach einer weiteren Leiche ordnet die Harpyie maximale Diskretion an.",
+      "tags": [
+        "Maskerade",
+        "Sicherheit"
+      ],
+      "type": "Maskerade",
+      "characters": [
+        "Harpyie",
+        "Seneschall"
+      ],
+      "location": "Forstgarten",
+      "body": "<p>Am 18.10.2025 folgt eine erneute Warnung: Die Harpyie verlangt absolute Verschwiegenheit zu den Ermittlungen im Forstgarten, sämtliche Kontakte laufen über die Seneschallin.</p>"
+    },
+    {
+      "date": "2025-10-18",
+      "title": "Abend 1 – Ultio-Kadetten eintreffen",
+      "summary": "Silas Vance startet das harsche Training, während Elara die politische Ordnung sichert.",
+      "tags": [
+        "Ultio",
+        "Politik"
+      ],
+      "type": "Operation",
+      "characters": [
+        "Silas Vance",
+        "Elara",
+        "Prinz Konstantin",
+        "M. Jansen"
+      ],
+      "location": "Kaserne Schwarzholz",
+      "body": "<p>Zum Auftakt des ersten Abends treffen die Ultio-Kadetten in der umgenutzten Kaserne Schwarzholz ein. Silas Vance führt den Drill im Schatten der Direktiven, während Elara im Richterhof Stabilität garantiert.</p><ul><li>Der Forstgarten bleibt brisant; M. Jansen avanciert zum kritischen Zeugen.</li><li>Die Unterstadt und die Electric Taberna rumort als Subkultur-Knoten mit Krills Symbolik.</li></ul>"
+    },
+    {
+      "date": "2025-10-19",
+      "title": "Abend 2 – Spuren im Archiv",
+      "summary": "Ominöse Botschaften, ein Phonograph und Mikrofilme führen tiefer zu MX-G-17.",
+      "tags": [
+        "Ermittlung",
+        "MX-G-17"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Silas Vance",
+        "Helena",
+        "Umbra Artis",
+        "Volkov"
+      ],
+      "location": "Hochschule-Archiv",
+      "body": "<p>Während des zweiten Abends häufen sich Hinweise im Archiv A-02 der Hochschule.</p><ul><li>Die Ultio-Kadetten tauschen eine &quot;Rose&quot;-Warnung und einen Vatikanbrief.</li><li>Ein Phonograph spricht vom Spiegel; Helena hört erneut Kains Stimme.</li><li>Mikrofilme der Kommission MX-G-17 notieren Koordinaten und den Begriff &quot;Rückwärtsblutung&quot;.</li><li>Förderakten zu &quot;Umbra Artis&quot; enthüllen Zahlungen an Sigma Ridge Solutions und Volkov.</li><li>Ein Tagebuchversteck hält fest: &quot;Der Spiegel ist der Weg – unter ihm beginnt der Rücken der Stadt.&quot;</li></ul>"
+    },
+    {
+      "date": "2025-10-19",
+      "title": "Abend 2 – Parkhaus und Electric Taberna",
+      "summary": "Blutleere Obdachlose, Codes und Retorten-Kainiten verdichten die Spur.",
+      "tags": [
+        "Ermittlung",
+        "Parkhaus"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Umbra Artis",
+        "Avi",
+        "Krill",
+        "Obdachlose"
+      ],
+      "location": "Parkhaus Oberstadt",
+      "body": "<p>Die Ermittlungen verlagern sich ins Parkhaus Oberstadt und in die Electric Taberna.</p><ul><li>Mehrere Obdachlose werden blutleer aufgefunden; auf Parkdeck 3 erscheint eine Blutrose.</li><li>Überwachungsaufnahmen wurden durch Umbra Artis gelöscht; ein Obdachloser Zeuge gilt als erpressbar.</li><li>Avi nennt den Code &quot;MX-17&quot;, weist auf Schattenkunden mit schwebenden Füßen und unfertige Retorten-Kainiten hin.</li><li>Der Funkcode &quot;Neon schlägt Neon&quot; deutet auf einen Eingang &quot;unter dem Spiegel&quot; und einen &quot;Rücken aus Stahl&quot;.</li></ul>"
+    },
+    {
+      "date": "2025-10-19",
+      "title": "Abend 2 – Stenten Bestattungen und Omen",
+      "summary": "Menschenhandel, Lieferketten nach Freiraum und ein Nod-Omen gegen Manipulatoren.",
+      "tags": [
+        "Ermittlung",
+        "Logistik"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Herr Stenten",
+        "KLÜ GmbH",
+        "Volkov"
+      ],
+      "location": "Stenten Bestattungen",
+      "body": "<p>Die Spur führt zu Stenten Bestattungen als logistische Drehscheibe.</p><ul><li>Ein Vertrag mit der KLÜ GmbH verschleiert &quot;medizinisches Material&quot;.</li><li>Im Vorbereitungsraum liegen Sedativ-Ampullen und Fixierungen; in der Kühlkammer eine sedierte lebende Person.</li><li>Lieferscheine nennen die Galerie Freiraum; E-Mails stammen vom Projektleiter Volkov.</li><li>Aus <em>Das Buch Nod</em> (Ayishas Warnschrift) wird Misstrauen gegen alte Manipulatoren abgeleitet – ein Omen für Hardenbergs Schatten.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Briefing und Zeuge",
+      "summary": "Silas bündelt die Funde, ein Obdachloser Zeuge taucht im Wachbüro auf.",
+      "tags": [
+        "Ultio",
+        "Briefing"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Silas Vance",
+        "Ultio-Kadetten",
+        "Obdachloser Zeuge"
+      ],
+      "location": "Kaserne Schwarzholz",
+      "body": "<p>Zu Beginn des dritten Abends rekapituliert Silas Vance alle Spuren: Rückwärtsblutung, Umbra Artis, Galerie Freiraum, Bleisarg und Vatikan-Kontakt. Im Wachbüro lungert ein Obdachloser herum, der Experimente beobachtet haben will.</p>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Kaserne Schwarzholz vertieft",
+      "summary": "Terminalmeldungen, süßlicher Laborgeruch und ein sensorischer Weißer Raum.",
+      "tags": [
+        "Ermittlung",
+        "Ultio"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Silas Vance",
+        "Herr Schäfer"
+      ],
+      "location": "Kaserne Schwarzholz",
+      "body": "<p>Die Untersuchung innerhalb der Kaserne offenbart weitere Facetten.</p><ul><li>Ein Terminal vermerkt: &quot;Probanden reaktiv. Phase 1 stabil. Erwarte Resonanz-Kaskade. – H.&quot;</li><li>Die Krankenstation riecht süßlich; leere Ampullen entsprechen denen bei Stenten.</li><li>Ein weißer Raum dient als sensorisch isolierter Würfel mit Blutbotschaften und Kratzspuren.</li><li>Silas' Meditationsraum zeigt Khopesh und Gebetsteppich – Einblicke in seine Ritualdisziplin.</li><li>Herr Schäfer hält Zivilisten fern und beseitigt Spuren.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Parkhaus-Rose erneut",
+      "summary": "Die Dornenrose fungiert als Signatur, Kameras bleiben deaktiviert.",
+      "tags": [
+        "Parkhaus",
+        "Maskerade"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Umbra Artis"
+      ],
+      "location": "Parkhaus Oberstadt",
+      "body": "<p>Die Rückkehr zum Parkhaus bestätigt die kunstvolle Blutrose als wiederkehrende Signatur. Kameras wurden bewusst deaktiviert, das Blutbild wirkt wie ein künstlich erzeugtes Ritual.</p>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Galerie Freiraum, Elten",
+      "summary": "Ausstellung, Schmuggel und Tunnel verknüpfen Umbra Artis mit MX-G-17.",
+      "tags": [
+        "Umbra Artis",
+        "Galerie"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Elise Brandt",
+        "A. von Straeten",
+        "Nosferatu",
+        "Julian May"
+      ],
+      "location": "Galerie Freiraum",
+      "body": "<p>Die Galerie Freiraum (G-01) wird zur Schaltstelle.</p><ul><li>Die Ausstellung &quot;Dornen im Beton&quot; arbeitet mit spiralförmiger Geometrie und Dornenranken.</li><li>Kuratorin Elise Brandt dient als Logistikerin für Umbra Artis und steht in Verbindung zu A. von Straeten.</li><li>Im Gästebuch findet sich von Straetens Handschrift; Julian May signiert eine unscheinbare Skulptur und behauptet Exklusivbindung.</li><li>Schattenhafte Gäste – unfertige Retortenexemplare – schweben förmlich durch den Raum.</li><li>Eine Luke im Lager führt in Tunnel mit Nosferatu-Markierungen; ein Ast führt Richtung Grenze Wyler, der andere endet am vergitterten &quot;Spiegel&quot; – Eingang zu MX-G-17. Cat erkennt den Geruch ihres Sires Maxence im Tunnel.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Bahnhof Kleve Nord",
+      "summary": "Neon, Dornen und ein Angebot von Mephisto belasten die Maskerade.",
+      "tags": [
+        "Bahnhof",
+        "MX-G-17"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Mephisto",
+        "Polizei"
+      ],
+      "location": "Bahnhof Kleve Nord",
+      "body": "<p>Der Bahnhof Kleve Nord offenbart die nächste Spur.</p><ul><li>Betonskelett und flackernde Dornenmuster setzen den Ton.</li><li>Im Schließfach-Trakt markiert Dornenrosen-Klebeband den &quot;Pfad der Stille&quot;.</li><li>Mephisto bietet einen Jeton gegen einen künftigen Gefallen; der Bonus erhöht spätere Wahrnehmung.</li><li>Polizei, Kameras und Geräuschkulisse verstärken den Maskerade-Druck am öffentlichen Ort.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Wohnung Hannah Richter",
+      "summary": "Ermittlerwand, Fotos und ein USB-Versteck geraten ins Visier von Krills Handlangern.",
+      "tags": [
+        "Ermittlung",
+        "Hannah Richter"
+      ],
+      "type": "Ermittlung",
+      "characters": [
+        "Hannah Richter",
+        "Krill",
+        "Syntax"
+      ],
+      "location": "Wohnung Hannah Richter",
+      "body": "<p>Die Wohnung H-01 sammelt Beweise gegen Umbra Artis.</p><ul><li>Korktafeln verknüpfen Umbra Artis, MX-G-17, Volkov und Krill.</li><li>Eine Dunkelkammer enthält Fotos von Krill-Treffen, Lieferwagen an der Hafenstraße und Teleaufnahmen des Parkhauses.</li><li>Ein USB-Stick liegt hinter einer Putzstelle verborgen; der väterliche Schreibtisch hält Koordinaten zu Graefenthal und Moyland.</li><li>Krills Handlanger versuchen, eine SD-Karte zu stehlen – Schutz der Zeugin vs. Rückzug.</li><li>Syntax/Tremere beobachten die Wohnung via Auspex.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Abend 3 – Lilith-Strang und Bleisarg",
+      "summary": "Kirchliche Orte, Leopoldi-Wachen und der rufende Bleisarg verknüpfen sich mit Lilith-Motiven.",
+      "tags": [
+        "Relikt",
+        "Lilith"
+      ],
+      "type": "Relikt",
+      "characters": [
+        "Pater Gregorius",
+        "Societas Leopoldi"
+      ],
+      "location": "St. Maria Rosenkranz",
+      "body": "<p>Der Lilith-Strang konzentriert sich auf katholische Knotenpunkte.</p><ul><li>St. Maria Rosenkranz diente als ursprünglicher Versteckort des Bleisargs; Pater Gregorius bleibt angespannt.</li><li>Wachen mit Fischabzeichen der Societas Leopoldi sichern die Rosenkirche.</li><li>Die Rosenmadonna trägt Liliths Namen in kabbalistischer Schrift.</li><li>Der Bleisarg wird in dieser Nacht entweder in Schloss Moyland oder in den Kellern des Klosters Graefenthal verwahrt.</li><li>Sensiblen Kainskindern drängt sich eine mentale Resonanz des Sargs auf.</li><li><em>Das Buch Nod</em> motiviert die Deutung eines drohenden Erwachens und den Krieg der Manipulatoren.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Meta-Verknüpfungen des Falls",
+      "summary": "Volkov, Dornenrose, Umbra Artis und Hardenbergs Schatten greifen ineinander.",
+      "tags": [
+        "Meta",
+        "MX-G-17"
+      ],
+      "type": "Analyse",
+      "characters": [
+        "Volkov",
+        "Umbra Artis",
+        "Justikar Hardenberg"
+      ],
+      "location": "Domäne Kleve",
+      "body": "<p>Die Auswertung der Spuren zeigt ein Netz eng verknüpfter Akteure.</p><ul><li>Volkovs Experimente mit der Dornenrose verstärken die Bedeutung von MX-G-17 und erhöhen den Ultio-Druck.</li><li>Die Maskerade steht durch Forstgarten, Parkhaus und Bahnhof permanent unter Stress.</li><li>Politisch bleibt Konstantin von Elara und Hardenberg abhängig und verliert Handlungsspielraum.</li><li>Umbra Artis, Galerie Freiraum und Stenten bilden eine durchgehende Lieferkette.</li><li>Der Spiegel fungiert als Schlüsselzugang zum Komplex MX-G-17 unter der Stadt.</li><li>Hardenbergs initiale Direktive spiegelt sich in der Terminal-Signatur &quot;H.&quot; wider.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Orte für spätere Abende",
+      "summary": "Wehrturm, Fabrikhalle, Kuhlenweide und Spiegelkammer bleiben als Schauplätze offen.",
+      "tags": [
+        "Ausblick"
+      ],
+      "type": "Ausblick",
+      "characters": [],
+      "location": "Domäne Kleve",
+      "body": "<p>Die folgenden Schauplätze werden für spätere Abende vorgemerkt:</p><ul><li>Wehrturm am Spoykanal mit möglichem Geheimgang.</li><li>Aufgegebene Fabrikhalle als Unterschlupf der Retortenkreaturen.</li><li>Kuhlenweide über der Tunnelgabel.</li><li>Unterirdische Spiegelkammer als finaler Abschnitt von MX-G-17.</li></ul>"
+    },
+    {
+      "date": "2025-10-20",
+      "title": "Buch Nod – Kontextanhang",
+      "summary": "Ayishas Warnschrift und das Erwachen-Motiv liefern okkulte Deutungsrahmen.",
+      "tags": [
+        "Omen",
+        "Buch Nod"
+      ],
+      "type": "Anhang",
+      "characters": [
+        "Ayisha"
+      ],
+      "location": "Okkultes Archiv",
+      "body": "<p>Der Buchanhang verknüpft die Chronikereignisse mit Passagen aus <em>Das Buch Nod</em>.</p><ul><li>Ayisha die Iokastianerin mahnt vor den Kriegen weniger Mächtiger – ein Spiegel für Hardenberg, Volkov und die Leopoldi.</li><li>Das Motiv des Erwachens deutet auf den rufenden Bleisarg und die drohende Öffnung des Spiegelportals.</li></ul>"
+    },
+    {
+      "date": "2025-08-03",
+      "title": "Lokal Zeitung - Toter Künstler ",
+      "summary": "Kranenburg: Der britische Künstler Nigel Crown wird in den frühen Morgenstunden tot am Ortsrand von Kranenburg aufgefunden. ",
+      "body": "<h2>LOKALES KLEVE | Kranenburg — <em>von Hannah Richter</em></h2>\n\n<h3>Toter Künstler in Kranenburg: Spuren eines „Blutadlers“ – Verbindung zum Kurhaus-Fall?</h3>\n\n<p><strong>Kranenburg.</strong> In den frühen Morgenstunden ist am Ortsrand von Kranenburg ein Mann tot aufgefunden worden. Wie die Polizei bestätigt, handelt es sich bei dem Opfer um den britischen Künstler Nigel Crown, der erst vor wenigen Wochen in der Stadthalle Kleve eine vielbeachtete Ausstellung gezeigt hatte – Arbeiten, die an die Ästhetik von „Körperwelten“ erinnern. Die Ermittler sprechen von einem <strong>besonders ungewöhnlichen Tatbild</strong> und prüfen einen Zusammenhang mit dem ungeklärten <strong>Kurhaus-Fall</strong> vom Frühsommer.</p>\n\n<p>Zeugen hatten in der Nacht verdächtige Geräusche gemeldet. Am Fundort stießen die Beamten auf eine Inszenierung, die – so heißt es aus Ermittlerkreisen – <strong>„an den historisch umstrittenen ‚Blutadler‘ erinnert“</strong>. Offiziell wollten sich weder Kriminalpolizei noch Staatsanwaltschaft zu Details äußern. Man bitte aus <strong>ermittlungstaktischen Gründen</strong> um Verständnis. Klar ist: Es gibt bislang <strong>keine Festnahme</strong>.</p>\n\n<p>Ein Sprecher des Polizeipräsidiums Krefeld, das die Ermittlungen führt, erklärte, man setze eine <strong>Sonderkommission</strong> ein. „Wir prüfen <strong>Parallelen</strong> zum Geschehen im Museum Kurhaus. Ob es sich um <strong>denselben Täterkreis</strong> handelt, ist offen.“ Das Kurhaus war im Juni nach massiven Spuren von Gewalt geschlossen worden, bis heute fehlt eine offizielle Aufklärung.</p>\n\n<p>Die Nachricht trifft die hiesige Kulturszene hart. Crowns Ausstellung polarisierte; Fachleute lobten die technische Präzision, andere kritisierten die Nähe zur Grenz-Ästhetik. Aus seinem Umfeld heißt es, Crown habe zuletzt <strong>an einem neuen Projekt</strong> gearbeitet und Kontakte in die Region ausgebaut. Die Stadt Kleve zeigte sich <strong>„tief betroffen“</strong> und sagte eine geplante Nachschau kurzfristig ab.</p>\n\n<p>Unterdessen kocht die Gerüchteküche in sozialen Netzwerken. Die Polizei warnt vor <strong>Spekulationen und Bildteilen</strong> aus dem mutmaßlichen Tatortumfeld. „Das behindert die Ermittlungen und respektiert nicht die Würde des Opfers.“ Hinweise nimmt jede Polizeidienststelle entgegen.</p>",
+      "type": "Ermittlung",
+      "tags": [
+        "Lokal",
+        "Presse"
+      ],
+      "location": "Kleve",
+      "characters": [
+        "Hannah Richter"
+      ],
+      "media": {
+        "images": [
+          {
+            "src": "assets/img/chronik/Zeitungsartikel/rheinischepost030825.png",
+            "caption": ""
+          }
+        ]
+      }
+    },
+    {
+      "date": "2025-11-07",
+      "title": "Kaserne – Manifest & Misstöne",
+      "summary": "Spannungen in der Kaserne: ein scharfer Austausch mit Schäfer, Helenas selbst verfasstes Manifest und Cats Bericht über eine rätselhafte Gestalt im Reichswald.",
+      "body": "Die Nacht setzte in Beton und Neon an. Schäfer, der Wachhabende mit der stoischen Ruhe alter Stahlmöbel, brachte die gewärmten Konserven. Helena wollte ihn festnageln – nicht an die Wand, sondern an eine Idee der Entbehrlichkeit. Worte prallten an ihm ab; er wich nicht aus, er wich nach innen. Im Flur blieb nur der Geruch von Blut, kaltem Plastik und angehaltenem Atem.\n\nSpäter verteilte Helena ihre Schrift – ein Manifest, gesprochen von einer Stimme, die nur sie zu hören schien. Das Papier hatte Gewicht, weil es fiel: auf Gewissen, auf Tische, auf die Augen. Cat, noch nicht abgekühlt von Waldluft und Nachtpfad, erzählte von einer Mönchsgestalt: stets in gleicher Distanz, immer 150 Schritte, egal, ob sie nahte oder wich. Ein Wächter, der Abstand maß statt Schritte? Man legte die Sache beiseite wie eine Klinge in einem fremden Messerblock. Doch seit wann kehrt Ruhe zurück, nur weil man sie befiehlt?",
+      "type": "Soziales",
+      "tags": [
+        "Kaserne",
+        "Soziales",
+        "Schäfer",
+        "Manifest",
+        "Reichswald"
+      ],
+      "location": "Kaserne, Kleve",
+      "characters": [
+        "Helena Michanover",
+        "Corvina Ashford",
+        "Cat Roux",
+        "Leopold von Hohenfels",
+        "Schäfer",
+        "Silas Vance"
+      ],
+      "media": {
+        "images": [
+          {
+            "src": "assets/img/chronik/Screenshot 2025-11-09 134454.png",
+            "caption": ""
+          }
+        ]
+      }
+    },
+    {
+      "date": "2025-11-09",
+      "title": "Richterhof – Vorladung & verstärkte Sicherung",
+      "summary": "Leopold zur Anhörung vorgeladen; die übrigen warten im neu aufgerüsteten Vorraum. Der Hof zeigt Zähne, die Coterie verlässt das Gebäude ohne Eklat.",
+      "body": "<p>Der Richterhof hat das Blei in seine Wände zurückgerufen. Er war nicht mehr das Haus der Gerechtigkeit, sondern eine Festung der Paranoia. Dicke Türen, deren Scharniere nur aus Höflichkeit nicht knarrten, verbargen dahinter einen Vorraum, der zur vollendeten Todesfalle umgebaut war. Fugen mit tödlichen Lasern, versteckte Lamellen für Gas, automatische Geschütze, die in den Ecken lauerten. Drei Ghule mit der Körperstatik von Lehrbuchseiten postiert – nicht feindselig, aber ohne jede Einladung. Die Coterie verstand mit einem kalten Schauder: Hier endet nicht nur ein Korridor, hier endet jede spontane Idee.</p> <p>Leopold wurde hineinbefohlen, allein. Der Flur nahm seine Schritte an und gab keinen zurück. Drinnen saß der Prinz, wie ein Siegel, das schon auf dem Umschlag liegt, bevor der Brief geschrieben ist. Die Luft war schwer, nicht von Feuchtigkeit, sondern von unangefochtener Autorität. Fragen folgten, deren Antworten bereits umrissen waren. Der Prinz kannte Leopolds Familienerbe und die Briefe aus dem Vatikan – die Schande des Neonaten lag offen vor ihm. Die Ausführungen des Ventrue wurden mit wachsender Ungeduld zerschlagen, bis der Prinz mit einem Befehl, der in Leopolds Hirn schnitt, zur Sache kam.</p> <p>Der Prinz forderte vollständige Treue, die Blutsbande und die sofortige Übernahme der Doppelagenten-Rolle gegen seine eigene Coterie. Der Akt der Unterwerfung war erzwungen, ein psychologisches Opfer der letzten Widerstandskraft, um dem endgültigen Tod zu entgehen. Leopold ging tief in die Knie. Er hatte sein Überleben gekauft, doch der Preis war die Integrität. Als er zurückkam, war die Gruppe wieder vollständig, aber nicht vollständiger. Was veranlasst einen Hof, seine Vorzimmer in Fallen zu kleiden? Furcht vor den Feinden, die draußen stehen – oder vor den Wahrheiten, die drinnen ausgesprochen und gewaltsam unterdrückt wurden?</p>",
+      "type": "Politik",
+      "tags": [
+        "Richterhof",
+        "Politik",
+        "Sicherheit",
+        "Vorladung",
+        "Prinz"
+      ],
+      "location": "Richterhof / Schwanenburg, Kleve",
+      "characters": [
+        "Leopold von Hohenfels",
+        "Helena Michanover",
+        "Corvina Ashford",
+        "Cat Roux",
+        "Prinz Konstantin von Straeten",
+        "Wachtrupp"
+      ]
+    }
+  ]
+}

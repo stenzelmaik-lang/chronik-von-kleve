@@ -1,0 +1,15 @@
+{
+  "id": "amj0xaofee3yg7",
+  "type": "text",
+  "title": "Termin 1 Notizen",
+  "category": "wissen",
+  "tags": [],
+  "visibility": "player",
+  "abstract": "",
+  "body_md": "• Wir wurden vor mehreren Wochen von einen Ghul nach Kleve gebracht\n• mehrere Wochen gekämpft & trainiert mit Silas\n• Ellara gibt uns eine Aufgabe (Lukas Weber) finden\n• Rote Augen lauschten uns heimlich zu\n• (Sofia (Streetwise) & Syntax (Hacker) = Informationsquelle)\n \n• Auf dem Weg zum Tatort werden wir verfolgt\n• Tatort: am Pavillon zertretene Büsche = Ort des Todes\n• Es war ein Kampf\n\t○ “Das Blut lügt nicht es schweigt anders”\n• Kratzer am Pavillon\n• Fußspuren, Blutspritzer\n• Ein Geist ist am Pavillon \n\t○ Schmerzen, Panik, Der Geist des Opfers\n• Kaninchen hat gesagt Weber ist zum Naturpark\n\n• \"Schrebergärten\" hat er sich aufgehalten = Syntax Rätsel\n• Hüte riecht nach Verwesung\n• Altar hat Skizzenbuch, Kunstobjekte, Finger, zunge\n• Bild mit Museum Kurhaus markiert mit Zuflucht\n\t○ Orakel Vision: am Buch  - \"Im Traum war ein Gärtner in Triladen war im Rote Augen Rote Spiralen im Gras\n• Collage mit Blumen & Stoffen von anderen opfern steht drauf \"Warum leer?\"\n• Auf Altar ist ein Handy\n\t○ Gärtner beauftragt Morde\n\t○ 3 Uhr, Westseite\n\t○ Roter Schal, Durst muss gestillt werden, aber Nachtwächter\n\t○ Dort hat Vance uns aufgehalten weil es Reinhards Gebiet ist\n\t○ Eine Mächtige Aura & eine Ängstliche in Lagerhalle aber wir mussten gehen (wahrscheinlich Reinhard)\n• Sofia? Schickt Ratte mit Zettel \"Wir haben ihre Beute geklaut, haben uns gemeldet ohne Bescheid zu sagen?\"\n\n• Lukas Weber im Kurhaus, trinkt Opfer leer\n• Lukas geflüchtet\n• Wurden zu Sofia und Prinz gebracht\n• Zu Ultio Mitglied geworden, müssen nicht mehr befähle der Camarilla befolgen, nur Justikar kann noch\n• Lukas ist anders, Retorten Kind\n• Executo Legio Ultio\n• Schwerter der Justikare\n",
+  "date": "2025-12-11",
+  "source": "player",
+  "thumb": "assets/img/orte/placeholder.png",
+  "modified": "2025-12-11T04:17:41.235Z",
+  "attachments": []
+}

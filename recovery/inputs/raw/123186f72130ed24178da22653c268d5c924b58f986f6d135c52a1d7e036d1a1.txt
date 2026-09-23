@@ -1,0 +1,54 @@
+{
+  "tags": [
+    "Propstei",
+    "R\u00e4tsel",
+    "Zeitungsartikel",
+    "Ger\u00fccht",
+    "Forstgarten",
+    "Maskeradebruch"
+  ],
+  "entries": [
+    {
+      "id": "a001",
+      "title": "Zeitungsartikel: 'Leichenfund im Forstgarten'",
+      "date": "20.10.2025",
+      "type": "text",
+      "source": "spielleiter",
+      "tags": ["Forstgarten", "Maskeradebruch", "Zeitungsartikel"],
+      "summary": "Ein Artikel aus der 'Rheinischen Post' \u00fcber einen angeblichen Tierangriff.",
+      "content_html": "<p>Die lokale Polizei fand heute Morgen eine 'grausam zugerichtete' Leiche im Klever Forstgarten. Ein Sprecher bat die Bev\u00f6lkerung um Ruhe und verwies auf Spuren, die auf einen 'gro\u00dfen, wildernden Hund oder Wolf' hindeuten.</p><p>Anwohner berichten jedoch von seltsamen Ger\u00e4uschen in der Nacht...</p>"
+    },
+    {
+      "id": "a002",
+      "title": "Foto: 'Symbol an der Propstei'",
+      "date": "18.10.2025",
+      "type": "image",
+      "source": "spieler",
+      "tags": ["Propstei", "R\u00e4tsel"],
+      "summary": "Ein Foto, das 'Cat' (Spieler) nachts an der Hintert\u00fcr der Propstei gemacht hat.",
+      "media_url": "https://placehold.co/600x400/0f1725/cda66b?text=Geheimes+Symbol",
+      "content_html": "<p>Das Symbol war frisch mit Kreide aufgemalt. Es sieht aus wie eine Schlange, die sich selbst in den Schwanz bei\u00dft, aber das Auge ist ge\u00f6ffnet. Scheint eine Art Warnung oder Treffpunkt zu sein.</p>"
+    },
+    {
+      "id": "a003",
+      "title": "Audio: 'Kanal-Aufnahme'",
+      "date": "15.10.2025",
+      "type": "audio",
+      "source": "spielleiter",
+      "tags": ["Ger\u00fccht", "Propstei"],
+      "summary": "Eine rauschende Aufnahme von einem Diktierger\u00e4t, gefunden in der N\u00e4he des Spoykanals.",
+      "media_url": "audio/beispiel.mp3",
+      "content_html": "<p>Man h\u00f6rt Schritte auf Kies und eine verzerrte Stimme, die fl\u00fcstert: <em>'...sie kommen nicht aus dem Wasser... sie sind schon drin... im Fundament...'</em>. Die Aufnahme bricht abrupt ab.</p>"
+    },
+    {
+      "id": "a004",
+      "title": "Notiz: 'Ger\u00fccht vom Elysium'",
+      "date": "21.10.2025",
+      "type": "text",
+      "source": "spieler",
+      "tags": ["Ger\u00fccht"],
+      "summary": "Helenas Notiz \u00fcber ein Gespr\u00e4ch mit dem Tremere-Primogen.",
+      "content_html": "<p>Der Tremere war nerv\u00f6s. Er sprach von einer 'Anomalie' unter der Stadt und dass die 'alten Vertr\u00e4ge' nicht mehr gelten. Er erw\u00e4hnte den Namen 'Hardenberg' im Zusammenhang mit der Propstei.</p>"
+    }
+  ]
+}

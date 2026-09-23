@@ -1,0 +1,1 @@
+﻿{"h1":"Würfel-Tool (V20)","intro":"SL-Konsole und Werkzeuge für den Spielleiter.","content_html":""}

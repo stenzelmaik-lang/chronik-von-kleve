@@ -1,0 +1,9 @@
+{
+	"h1": "Login",
+	"intro": "Melde dich mit deinem Konto an, um interne Bereiche freizuschalten.",
+	"content_html": "<p>Der Login schuetzt die SL-Werkzeuge sowie Spielerbereiche. Konten werden von der Spielleitung vergeben.</p>",
+	"login_help_html": "<p>Nach dem ersten Login sollte das Passwort in <code>assets/data/users.json</code> angepasst werden. Die Datei enthaelt Hashes und Salts, keine Klartext-Passwoerter.</p>",
+	"login_copy_html": "<p>Wenn du dein Passwort vergessen hast, kontaktiere bitte die Spielleitung. Ohne gueltige Anmeldung bleiben Admin- und Datenpflege-Bereiche verborgen.</p>",
+	"login_success_html": "<p>Du bist angemeldet. Ueber die Links unten gelangst du direkt zur Startseite oder in den Adminbereich.</p>",
+	"login_actions_note_html": "<p class=\"muted small\">Logout beendet die Sitzung auf diesem Geraet. Mit \"Angemeldet bleiben\" verlaengert sich die Session auf zwei Wochen.</p>"
+}

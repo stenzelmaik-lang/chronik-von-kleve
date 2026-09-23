@@ -1,0 +1,6 @@
+import { actor, database, failure, HttpError, json } from "@/server/access";
+import { characterDetailProjectionWithCompanion } from "@/server/character-projection";
+import type { LegacyRecordRow } from "@/domain/legacy";
+export const dynamic="force-dynamic";
+export async function GET(req: Request){try{const a=await actor();const id=new URL(req.url).searchParams.get("id");if(!id)throw new HttpError(400,"Charakter-ID fehlt.");const db=database();const r=await db.prepare("SELECT * FROM records WHERE id=? AND campaign_id=? AND kind='charaktere'").bind(id,a.campaignId).first<LegacyRecordRow>();if(!r)throw new HttpError(404,"Charakter nicht gefunden.");const entity=await db.prepare("SELECT canon_status FROM entities WHERE id=? AND campaign_id=?").bind(id,a.campaignId).first<{canon_status:string}>();if(!a.gm&&entity?.canon_status==="GM_SECRET")throw new HttpError(404,"Charakter nicht gefunden.");const content=JSON.parse(r.body||"{}") as Record<string,unknown>;if(!a.gm&&content.recoveryOnly===true)throw new HttpError(404,"Charakter nicht gefunden.");const p=await characterDetailProjectionWithCompanion(a,r,content,db);if(!p)throw new HttpError(404,"Charakter nicht gefunden.");return json(p)}catch(e){return failure(e,req)}}
+

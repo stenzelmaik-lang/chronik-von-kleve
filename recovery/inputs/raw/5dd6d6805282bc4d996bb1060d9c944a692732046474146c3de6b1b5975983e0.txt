@@ -1,0 +1,210 @@
+[
+    {
+        "schema_version": 2,
+        "_comment": "Journalistin. Wohnung als Infoknoten.",
+        "id": "95",
+        "title": "Wohnung von Hannah Richter",
+        "subtitle": "Die investigative Journalistin und das Vermächtnis ihres Vaters",
+        "teaser": "Eine kleine, überfüllte Altbauwohnung im Herzen Kleves. Zeitungsseiten an den Wänden, Tonbandgeräte auf dem Tisch – Hannah Richter jagt den Schatten, den schon ihr Vater gesehen hat.",
+        "district": "Innenstadt",
+        "address": "Klever Berg 27, 3. Etage (rechts)",
+        "owner": "Hannah Richter",
+        "faction": "Sterbliche / Presse (Rheinische Post)",
+        "status": "Privat",
+        "opening_hours": "Nur abends; meist zwischen 18:00 und 02:00 Uhr beleuchtet",
+        "tags": [
+            "Sterbliche",
+            "Rheinische Post",
+            "Recherche",
+            "Umbra Artis",
+            "Lukas Weber",
+            "Schattenpolitik",
+            "Kleve Innenstadt"
+        ],
+        "thumb": "assets/img/orte/wohnung_hannah.jpg",
+        "banner": "assets/img/orte/wohnung_hannah.jpg",
+        "media": {
+            "hero": "assets/img/orte/wohnung_hannah.jpg",
+            "gallery": [
+                {
+                    "src": "assets/img/orte/wohnung_hannah.jpg",
+                    "caption": "Recherche-Wand & Dunkelkammer"
+                }
+            ]
+        },
+        "danger_level": 1,
+        "danger": "Bedenkzone",
+        "overview": {
+            "history": "Die Wohnung am Klever Berg 27 gehörte einst Thomas Richter, einem Lokaljournalisten, der den Ruf hatte, zu tief zu graben.\nEr schrieb über Korruption in der Stadtverwaltung, verschwundene Haushaltsgelder, dubiose Bauprojekte und einen anonymen Zirkel, der Entscheidungen außerhalb der offiziellen Kanäle traf. Kurz nach der Ankündigung einer Enthüllungsreihe über eine „Schattenpolitik“ in Kleve wurde er tot aufgefunden – offiziell ein Herzinfarkt. Inoffiziell blieb vieles unklar.\n\nSeine Tochter Hannah Richter übernahm die Wohnung, kaum dass die Polizei die versiegelte Tür freigab.\nZwischen den vergilbten Notizblöcken ihres Vaters fand sie Hinweise auf dieselben Namen, die heute wieder in ihren Recherchen auftauchen: Straeten, Bosch, Umbra Artis, Dornenrose.\nSeitdem führt sie seine Arbeit weiter – heimlich, unermüdlich, allein.\n\nDie Nachbarn auf dem Klever Berg hören oft nachts das Klacken ihrer Tastatur und das Spulen eines alten Kassettenrekorders. Manche behaupten, sie rede mit ihrem Vater – andere, sie höre etwas, das gar nicht auf den Bändern ist.",
+            "today": "Die Wohnung am Klever Berg 27 ist ein stilles Nest aus Papier, Kabeln und Staub.\nEin Ort, der nie wirklich schläft. Der Geruch von kaltem Kaffee und Druckerschwärze hängt in der Luft wie ein alter Gedanke, der nicht loslässt.\nZwischen dem Murmeln des Regens und dem leisen Brummen eines Laptops scheint die Zeit hier in Schleifen zu laufen.\n\nAuf dem Tisch türmen sich Notizen, Zeitungsausschnitte, offene Mappen.\nEine Wand ist fast vollständig mit Artikeln und Fotografien bedeckt – Linien aus rotem Garn verbinden Namen, Daten und Orte, als wolle jemand die Stadt sezierend verstehen.\nIn der Mitte klebt ein verblasstes Pressefoto: Lukas Weber, daneben ein Zitat mit Filzstift:\n„Es gibt Dinge in Kleve, die man nicht drucken darf.“\n\nDer Raum wirkt bewohnt und doch verlassen.\nDer Lichtschein der Schreibtischlampe reicht kaum über die Kaffeetasse hinaus.\nDurch das halb geöffnete Fenster weht feuchte Nachtluft herein, bewegt die Papiere, lässt Schatten über die Wände kriechen.\nEs ist, als atme die Wohnung selbst – schwer, unruhig, suchend.",
+            "rumors": [
+                "Zeichnet Dornenlinien",
+                "wird nachts beobachtet vom Haus gegenüber",
+                "seltsame Schattenbewegungen auf ihrem Balkon"
+            ],
+            "nscs": [
+                "Hannah Richter"
+            ],
+            "rumors_unlocked": true,
+            "nscs_unlocked": true,
+            "cameras": [
+                "Keine. (Nur eine defekte Gegensprechanlage am Eingang des Altbaus.)"
+            ],
+            "access": [
+                "Haupteingang (Haustür",
+                "alter Schlüssel)",
+                "Balkonfenster zur Straßenseite"
+            ],
+            "patrol": [
+                "Keine offiziellen. Nachbarn bemerken nur",
+                "wenn nachts Licht brennt."
+            ],
+            "cameras_unlocked": false,
+            "access_unlocked": false,
+            "patrol_unlocked": false
+        },
+        "rules": {
+            "masquerade": {
+                "risk": "Instabil",
+                "site": "I-03",
+                "breachTriggers": [
+                    "Ein Vampir offenbart übernatürliche Kräfte in ihrer Anwesenheit",
+                    "Hannah erkennt eine übermenschliche Regeneration oder Gewaltanwendung",
+                    "Spieler lassen Beweise oder Spuren ihres wahren Wesens in der Wohnung zurück",
+                    "Hannah veröffentlicht einen Artikel mit eindeutigen Hinweisen auf die Existenz der Kainskinder"
+                ],
+                "consequences": [
+                    "Sheriff Gruber erhält den Auftrag, Hannah „zum Schweigen“ zu bringen",
+                    "Elara Bosch ordnet eine vollständige Medienbereinigung an (Löschen aller digitalen Spuren)",
+                    "Die Rheinische Post wird intern untersucht, was weitere Aufmerksamkeit auf Kleve zieht",
+                    "Die Domäne erhält temporär Maskerade-Status „Rot“ für den Sektor Innenstadt"
+                ]
+            },
+            "security": {
+                "level": "A-01",
+                "keys": "Ein einziger Wohnungsschlüssel, Ersatzschlüssel unter einem Blumentopf im Treppenhaus",
+                "access": [
+                    "Haupteingang des Altbaus (Gegensprechanlage mit Summer)",
+                    "Balkontür zur Straßenseite (schwer, aber aufhebelbar)"
+                ],
+                "cameras": [
+                    "Keine offiziellen Überwachungssysteme",
+                    "Nachbar gegenüber besitzt eine private Außenkamera, die den Hauseingang streift"
+                ],
+                "patrol": [
+                    "Keine – gelegentlich Streifenwagen der Polizei auf Routinefahrt, 1–2 mal pro Nacht"
+                ]
+            },
+            "stress": {
+                "triggers": [
+                    "Laute Geräusche in der Nacht (Erinnerung an den Tod des Vaters)",
+                    "Unerwarteter Besuch oder Klopfen an der Tür",
+                    "Stromausfall oder flackerndes Licht (Paranoia, sie glaubt, man beobachtet sie)",
+                    "Erkenntnisse, die Parallelen zu den Notizen ihres Vaters zeigen",
+                    "Erwähnung des Namens Straeten oder Umbra Artis"
+                ],
+                "relief": [
+                    "Ritualisierte Routine – Kaffee aufsetzen, Notizen ordnen, Kassette abspielen",
+                    "Ruhige Gespräche mit jemandem, der zuhört (selten)",
+                    "Sich auf Fakten konzentrieren statt auf Vermutungen",
+                    "Ein kurzer Spaziergang bei Nacht – ironischerweise beruhigend für sie"
+                ]
+            }
+        },
+        "content_html": "<p>\nDie Wohnung am Klever Berg 27 ist klein, aber voller Leben – oder dessen Überreste. \nZwischen alten Zeitungsstapeln und einem ständig brummenden Laptop hat sich die junge Reporterin \n<strong>Hannah Richter</strong> ein provisorisches Redaktionsbüro geschaffen. \nDer Raum riecht nach kaltem Kaffee, Papierstaub und dem flüchtigen Hauch von Regen, \nder durch das offene Fenster zieht. \nAn den Wänden hängen Fotos, handschriftliche Notizen und rote Fäden, \ndie Namen und Orte verbinden, als versuche jemand, ein unsichtbares Muster in der Stadt zu entschlüsseln. \nIn der Mitte prangt ein vergilbter Zeitungsausschnitt: \n<em>„Schatten über Kleve – unbestätigte Berichte über geheime Netzwerke“</em>.\n</p><p>\n\n</p><p>\nWer länger hinsieht, spürt, dass hier jemand die Wahrheit sucht – \nnicht für Ruhm oder Schlagzeilen, sondern weil sie nicht anders kann. \nDie Wohnung ist kein Zuhause, sondern ein Zeugenstand. \nUnd irgendetwas in der Stille dieses Ortes scheint zuzuhören.\n</p><p>\n</p>",
+        "gm_notes_html": "<h3>Überblick &amp; Intention</h3><p>\n</p><p>\nDie Wohnung ist <em>kein</em> okkulter Ort. Sie ist ein menschlicher Knotenpunkt von Informationen, an dem die Maskerade indirekt gefährdet wird – durch Veröffentlichung. \nHannah verfolgt die Fährten ihres verstorbenen Vaters (Thomas Richter) und verdichtet sie zu einem Dossier über eine „Schattenpolitik“ in Kleve. \nDie SC können hier: Vertrauen gewinnen, Material sichern/vernichten, oder die Spuren lenken.\n</p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Hannah Richter – Haltung &amp; Reaktion</h3><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Fundstücke &amp; Spuren (bei Tisch, Regal, Karton „Vater – unbearbeitet“)</h3><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h4>Audio-Auszug Kassette 3A (Vater)</h4><p>\n</p><blockquote>\n„…die Sitzung war nicht im Kalender. Türen zu, keine Presse. \nJemand erwähnte eine <em>Stiftung</em>, die ‚Kunst im Stadtraum‘ kuratiert und dafür <em>Sonderwege</em> bekommt.\nEin Mann mit fremdem Akzent sprach von <em>Materialprüfungen</em>… keine Namen, nur Initialen. \nDraußen standen zwei, die nicht nach Stadtverwaltung aussahen…“\n</blockquote><p>\n</p><p><em>SL-Hinweis:</em> Initialen dürfen auf <strong>U.</strong> (Umbra Artis) und einen externen Sicherheitsdienst deuten. Der „Akzent“ kann später mit Volkovs Umfeld oder einer auswärtigen Gruppe verknüpft werden – ohne harte Enthüllung.</p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Interaktionsszenen (Beispiele)</h3><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Maskerade &amp; Eskalationspfad (lokal)</h3><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Verbindungen &amp; Weiterführende Hooks</h3><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Beobachtung von Gegenüber (optional nutzen)</h3><p>\n</p><p>\nDas Haus gegenüber hat in einem Fenster eine private Außenkamera (Weitwinkel), die ab und zu den Eingang streift. \n</p><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Mini-Ereignistabelle (1W6, wenn du Tempo brauchst)</h3><p>\n</p><p><br></p><p>\n\n</p><p><br></p><p>\n\n</p><h3>Abschlussnutzen für die Chronik</h3><p>\n</p><p>\nDieser Ort bietet: \n<em>menschliche Spannung</em> (moralische Entscheidungen), \n<em>Informationsgewinn</em> (Spurenverknüpfung ohne magische Abkürzung), \nund einen <em>Regler</em> für die Maskerade (laut/leise). \nLenke Hannah – nicht breche sie. Als wiederkehrende Quelle wird sie wertvoller als Problem.\n</p><p>\n</p>",
+        "masquerade_rules_html": "<h2>Maskerade-Eskalation – Wohnung Hannah Richter</h2>\n\n<h3>Matrix: Zeugen × Verstoßschwere</h3>\n<table border=\"1\" cellpadding=\"6\">\n  <thead>\n    <tr>\n      <th>Zeugen</th>\n      <th>Leicht</th>\n      <th>Auffällig</th>\n      <th>Eklatant</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td><strong>0</strong> (keine Zeugen)</td>\n      <td>Keine Eskalation. Spurenmanagement empfohlen.</td>\n      <td>Interne Notiz bei der Kanzlei; leises Monitoring der Leitung (Router/Cloud).</td>\n      <td>Lokale Bereinigung (digitale Spuren, Nachbarskamera) innerhalb 2 Std.; <em>Sheriff</em> in Bereitschaft.</td>\n    </tr>\n    <tr>\n      <td><strong>1</strong> (Hannah <em>oder</em> ein Nachbar)</td>\n      <td>Maskerade-Stufe 0–1: Irritation. Hannah verunsichert, veröffentlicht nichts ohne Bestätigung.</td>\n      <td>Stufe 2: Hannah beginnt Entwurf „Schatten über Kleve (Update)“. Redaktion wird aufmerksam; Ultio prüft leise.</td>\n      <td>Stufe 3: Soforteinsatz Sheriff/Ultio; Medienbereinigung + Gespräch „unter vier Augen“. Option: Gedächtnislenkung via Domäne/Verbündete.</td>\n    </tr>\n    <tr>\n      <td><strong>2–3</strong> (Hannah + 1–2 weitere)</td>\n      <td>Stufe 2: Nachbarschaftsgeflüster; Gerüchte „merkwürdige Besucher“. SL setzt Beobachter gegenüber aktiv ein.</td>\n      <td>Stufe 3–4: Redaktion bekommt Material (Fotos/Ton). Kanzlei verlangt Gegen-Narrativ (Einbruch, Stalker, Fehlalarm).</td>\n      <td>Stufe 5: Öffentliche Gefahr. Ultio-Maßnahmenkette, <em>Rot</em> für Sektor Innenstadt (temporär); Zeugenmanagement priorisiert.</td>\n    </tr>\n    <tr>\n      <td><strong>4+</strong> (Treppenhaus, Straße, Socials)</td>\n      <td>Stufe 3: Polizeiruf durch Nachbarn; Akteneintrag „Ruhestörung/Einbruch“.</td>\n      <td>Stufe 4–5: Social-Clips/Handyaufnahmen im Umlauf; schnelle Takedowns nötig (Provider/Plattform).</td>\n      <td>Stufe 6: Domänenweiter Vorfall. Justikarat wird informiert; großflächige Narrative (Brand, Gasleck, Polizeieinsatz) ausrollen.</td>\n    </tr>\n  </tbody>\n</table>\n\n<h3>Sofortmaßnahmen (SL-Kurzliste)</h3>\n<ul>\n  <li>Kameras/Gegenseite: Speicherkarte sichern oder überschreiben; Nachbar ansprechen (sozialer Hook).</li>\n  <li>Digitale Spuren: Router-Logs, Cloud-Sync, USB-Sticks spiegeln/entfernen; „abgehörte Leitung“ prüfen.</li>\n  <li>Geräuschkulisse: Streit/Polizeiklingeln als Cover einsetzen, um Zeit zu gewinnen.</li>\n  <li>Redaktion: Anruf der Ressortleitung abfangen/umdeuten (Quelle schützt Quelle).</li>\n  <li>Hannah deeskalieren: Gespräch führen, Gegenleistung anbieten (exklusiver „harmloser“ Scoop).</li>\n</ul>\n\n<h3>Nachmaßnahmen & Cleanup</h3>\n<ul>\n  <li>Zeugenpflege: Nachbar erhält plausible Erklärung (Stalker, Zivilfahndung, Wasserschaden-Einsatz).</li>\n  <li>Dossier lenken: Teile der Notizen auf <em>externe</em> Spur schieben (Galerie Freiraum / Parkhaus), damit gefährliche Schlüsse fernbleiben.</li>\n  <li>Redaktionsspur: Interner Hinweis „Fehlinterpretation / laufende Polizeiermittlung“ hinterlegen, um Veröffentlichung zu verzögern.</li>\n  <li>Monitoring: 7 Tage stilles Lauschen (Telefon/Netzaktivität) – bei Aktivität erneute Intervention.</li>\n</ul>\n\n<h3>Schwellenwerte (Daumenregel)</h3>\n<ul>\n  <li><strong>1 eklatanter Akt</strong> <em>ohne</em> Zeugen → lokale Bereinigung, keine Alarmstufe.</li>\n  <li><strong>1 eklatanter Akt</strong> <em>mit</em> Hannah als Zeugin → Stufe 3 (Sheriff-Kontakt, Mediencleanup).</li>\n  <li><strong>2+ auffällige Akte</strong> mit 2–3 Zeugen innerhalb einer Nacht → Stufe 4, Domänenmaßnahme.</li>\n  <li><strong>Öffentliche Clips</strong> (Social Media, Presse) → Stufe 5–6, Justikarat informieren.</li>\n</ul>\n\n<p><em>SL-Hinweis:</em> Diese Wohnung eignet sich hervorragend, um „laut/leise“ zu dosieren. Belohne leises Vorgehen mit Informationen; bestrafe Lärm mit Verwaltungs- und Medienstress – nicht mit Zwangskampf.</p>\n",
+        "encounters": [
+            {
+                "title": "Der Blick aus dem Fenster",
+                "difficulty": "Niedrig",
+                "sg": 6,
+                "description": "Gegenüber sitzt eine reglose Silhouette im Dunkeln. Ein rotes Glimmen – Zigarette – verglimmt, sobald man hinsieht.",
+                "trigger": "Wenn die SC länger als ein paar Minuten in der Wohnung sind oder den Balkon betreten",
+                "checks": [
+                    {
+                        "test": "[SC-Name] macht eine Probe auf Wahrnehmung + Aufmerksamkeit gegen einen Schwierigkeitsgrad von 6.",
+                        "on_success": "Die SC erkennen: Die Zigarette ist frisch, jemand beobachtet aktiv die Wohnung.",
+                        "on_failure": "Nur vages Unbehagen; die SC übersehen, dass das Licht exakt in dem Moment erlischt, als sie ans Fenster treten."
+                    }
+                ]
+            },
+            {
+                "title": "Hannahs Panikmoment",
+                "difficulty": "Mittel",
+                "sg": 6,
+                "description": "Bei direkter Ansprache zu Umbra Artis oder dem Tod ihres Vaters gerät Hannah ins Wanken. Sie sucht hektisch nach einer fehlenden Kassette („3B“).",
+                "trigger": "Wenn SC Umbra Artis, Lukas Weber oder die ‚Schattenpolitik‘ offen thematisieren",
+                "checks": [
+                    {
+                        "test": "[SC-Name] macht eine Probe auf Charisma + Empathie gegen einen Schwierigkeitsgrad von 6.",
+                        "on_success": "Hannah fasst Vertrauen und erwähnt eine nächtliche Sitzung im Rathaus ohne Protokoll.",
+                        "on_failure": "Sie blockt ab und beendet das Gespräch; später kontaktiert sie ihre Redaktion mit einer Vorabnotiz."
+                    }
+                ]
+            },
+            {
+                "title": "Der Schatten im Treppenhaus",
+                "difficulty": "Mittel",
+                "sg": 7,
+                "description": "Im Flur bewegt sich ein Schatten gegen die Laufrichtung der Lampe. Schritte hallen, aber niemand ist zu sehen.",
+                "trigger": "Wenn SC die Wohnung verlassen oder im Treppenhaus warten",
+                "checks": [
+                    {
+                        "test": "[SC-Name] macht eine Probe auf Geschick + Heimlichkeit gegen einen Schwierigkeitsgrad von 7.",
+                        "on_success": "Die SC nähern sich unbemerkt und hören ein leises Funkrauschen hinter der nächsten Etage.",
+                        "on_failure": "Der Schatten zieht sich zurück; ein Nachbar wird aufmerksam und droht, die Polizei zu rufen."
+                    }
+                ]
+            },
+            {
+                "title": "Abgehörte Leitung",
+                "difficulty": "Hoch",
+                "sg": 7,
+                "description": "Das Modem blinkt in unregelmäßigen Intervallen. Ein externer Zugriff lief in der letzten Stunde.",
+                "trigger": "Wenn SC Hannahs Technik prüfen oder länger am Laptop arbeiten",
+                "checks": [
+                    {
+                        "test": "[SC-Name] macht eine Probe auf Intelligenz + Computer gegen einen Schwierigkeitsgrad von 7.",
+                        "on_success": "Die Spur führt über einen Proxy in die IP-Range des Rathauses; Zeitstempel passen zu einer nächtlichen Sitzung.",
+                        "on_failure": "Nur Artefakte sichtbar; beim Herumprobieren werden Logeinträge überschrieben (–1 auf Folgeproben zur digitalen Spur)."
+                    }
+                ]
+            },
+            {
+                "title": "Begegnung mit dem Beobachter",
+                "difficulty": "Hoch",
+                "sg": 8,
+                "description": "Gegenüber: ein Mann in grauer Arbeitskleidung (‚Stadtwerke‘). Tabakgeruch, neutraler Blick, falscher Name auf dem Ausweis.",
+                "trigger": "Wenn SC der Fensterspur nachgehen oder das Haus gegenüber aufsuchen",
+                "checks": [
+                    {
+                        "test": "[SC-Name] macht eine Probe auf Manipulation + Ausflüchte gegen einen Schwierigkeitsgrad von 8.",
+                        "on_success": "Der Mann gibt knappe, aber brauchbare Infos preis (Schichtzeiten, Kennzeichen eines Lieferwagens, Hinweis auf Galerie-Termine).",
+                        "on_failure": "Er bricht das Gespräch ab; wenige Minuten später verschwindet er in einem Lieferwagen ohne Kennzeichen."
+                    }
+                ]
+            }
+        ],
+        "player_actions": [],
+        "custom_sections": [],
+        "geo": {
+            "lat": 51.7837200000000024147084332071244716644287109375,
+            "lon": 6.14796999999999993491428540437482297420501708984375,
+            "zoom": 18
+        },
+        "tile": {
+            "source": "narration",
+            "custom": ""
+        },
+        "discovered": false,
+        "rules_unlocked": false,
+        "content_unlocked": true,
+        "encounters_unlocked": false,
+        "size": 3,
+        "order": 0,
+        "hours": "Nur abends; meist zwischen 18:00 und 02:00 Uhr beleuchtet",
+        "_updated_at": "2025-11-10 22:31:45",
+        "_db_id": 95
+    }
+]

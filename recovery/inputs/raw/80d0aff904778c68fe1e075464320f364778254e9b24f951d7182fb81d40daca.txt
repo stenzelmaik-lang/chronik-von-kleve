@@ -1,0 +1,24 @@
+{
+  "id": "akte_ratsnacht",
+  "type": "akte",
+  "title": "Akte: Ratsnacht-Protokoll",
+  "date": "2025-09-18",
+  "visibility": { "role": "admin" },
+  "tags": ["ratsnacht", "geheimbund"],
+  "abstract": "Interne Notizen zur Ratsnacht, inklusive Aussagen der Primogenen und verschlüsselter Hinweise auf die Maskerade.",
+  "body_md": "==Nur für den Rat bestimmt.==\\n\\nDie Sitzung wurde um 23:45 eröffnet. [[NSC:elara_bosch]] präsentierte die Ergebnisse der Ermittlungsgruppe. Ein verdeckter Kanal im [[Ort:propstei]] führte zu einem bislang unkartierten Refugium.\\n\\n{{probe: Nachforschungen + Scharfsinn, 8}} um die verschlüsselten Namenslisten zu dechiffrieren.\\n\\n==Sanktionsplan==\\n\\n- Beteiligte Koterien werden vorerst unter Beobachtung gestellt.\\n- Die Domäne verstärkt die Präsenz der Wachen an der HSRW.\\n- Öffentliche Kommunikation übernimmt [[NSC:marek_keller]].",
+  "thumb": "assets/img/orte/placeholder.png",
+  "attachments": [
+    {
+      "type": "image",
+      "href": "assets/img/orte/placeholder.png",
+      "title": "Sitzungsprotokoll 18.09."
+    }
+  ],
+  "source": "Sicherheitssektion des Rates",
+  "related": {
+    "places": ["propstei"],
+    "npcs": ["elara_bosch", "marek_keller"],
+    "chronik": ["ratsnacht"]
+  }
+}

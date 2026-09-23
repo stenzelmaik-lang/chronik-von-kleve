@@ -1,0 +1,188 @@
+{
+  "records": [
+    {
+      "id": "a001",
+      "type": "text",
+      "category": "ereignisse",
+      "title": "Zeitungsartikel: 'Leichenfund im Forstgarten'",
+      "date": "2025-10-20",
+      "tags": [
+        "Forstgarten",
+        "Maskeradebruch",
+        "Zeitungsartikel"
+      ],
+      "visibility": "public",
+      "source": "spielleiter",
+      "abstract": "Ein Artikel aus der 'Rheinischen Post' ueber einen angeblichen Tierangriff.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "a002",
+      "type": "image",
+      "category": "orte",
+      "title": "Foto: 'Symbol an der Propstei'",
+      "date": "2025-10-18",
+      "tags": [
+        "Propstei",
+        "Rätsel"
+      ],
+      "visibility": "public",
+      "source": "spieler",
+      "abstract": "Ein Foto, das 'Cat' nachts an der Hintertuer der Propstei aufgenommen hat.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "a003",
+      "type": "audio",
+      "category": "medien",
+      "title": "Audio: 'Kanal-Aufnahme'",
+      "date": "2025-10-15",
+      "tags": [
+        "Gerücht",
+        "Propstei"
+      ],
+      "visibility": "player",
+      "source": "spielleiter",
+      "abstract": "Eine verrauschte Aufnahme von einem Diktiergeraet nahe des Spoykanals.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "a004",
+      "type": "text",
+      "category": "wissen",
+      "title": "Notiz: 'Gerücht vom Elysium'",
+      "date": "2025-10-21",
+      "tags": [
+        "Gerücht",
+        "Elysium"
+      ],
+      "visibility": "player",
+      "source": "spieler",
+      "abstract": "Helenas Notiz ueber ein Gespraech mit dem Tremere-Primogen.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "a005",
+      "type": "text",
+      "category": "ereignisse",
+      "title": "[ADMIN] Sabbat-Aktivitaet (Intern)",
+      "date": "2025-10-22",
+      "tags": [
+        "Sabbat",
+        "Maskeradebruch"
+      ],
+      "visibility": "admin",
+      "source": "spielleiter",
+      "abstract": "Bericht ueber bestaetigte Sabbat-Spaeher im Reichswald.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "wiki_forstgarten",
+      "type": "text",
+      "category": "orte",
+      "title": "Forstgarten Kleve",
+      "date": "2025-10-23",
+      "tags": [
+        "Forstgarten",
+        "Kleve",
+        "Elysium",
+        "Maskerade"
+      ],
+      "visibility": "public",
+      "source": "spielleiter",
+      "abstract": "Der Forstgarten ist ein historischer Park in Kleve und dient als neutraler Treffpunkt für die Kainiten der Stadt.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "wiki_tremere_clan",
+      "type": "text",
+      "category": "clans",
+      "title": "Clan Tremere",
+      "date": "2025-10-23",
+      "tags": [
+        "Tremere",
+        "Clan",
+        "Magie",
+        "Blutmagie",
+        "Thaumaturgie"
+      ],
+      "visibility": "player",
+      "source": "spielleiter",
+      "abstract": "Die Tremere sind ein Vampirclan, der für seine Beherrschung der Blutmagie bekannt ist.",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "amj0xaofee3yg7",
+      "type": "text",
+      "title": "Termin 1 Notizen",
+      "date": "2025-12-11",
+      "tags": [],
+      "category": "wissen",
+      "visibility": "player",
+      "source": "player",
+      "abstract": "",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "amj0xjlusxu1uh",
+      "type": "text",
+      "title": "Termin 2 Notizen",
+      "date": "2025-12-11",
+      "tags": [],
+      "category": "wissen",
+      "visibility": "player",
+      "source": "player",
+      "abstract": "",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "amj0xtvsu3w9bv",
+      "type": "text",
+      "title": "Termin 3 Notizen",
+      "date": "2025-12-11",
+      "tags": [],
+      "category": "wissen",
+      "visibility": "player",
+      "source": "player",
+      "abstract": "",
+      "thumb": "assets/img/orte/placeholder.png"
+    },
+    {
+      "id": "amj0y5avdx76bm",
+      "type": "text",
+      "title": "Termin 4 Notizen",
+      "date": "2025-12-11",
+      "tags": [],
+      "category": "wissen",
+      "visibility": "player",
+      "source": "player",
+      "abstract": "",
+      "thumb": "assets/img/orte/placeholder.png"
+    }
+  ],
+  "facets": {
+    "type": {
+      "text": 3,
+      "image": 1,
+      "audio": 1
+    },
+    "tags": {
+      "Forstgarten": 1,
+      "Maskeradebruch": 2,
+      "Zeitungsartikel": 1,
+      "Propstei": 2,
+      "Rätsel": 1,
+      "Gerücht": 2,
+      "Elysium": 1,
+      "Sabbat": 1
+    },
+    "year": {
+      "2025": 5
+    },
+    "visibility": {
+      "public": 2,
+      "player": 2,
+      "admin": 1
+    }
+  }
+}

@@ -1,0 +1,1 @@
+{"h1":"Ledger","intro":"Transaktionen & Marker.","content_html":"<div id='ledger-root'><p>Einträge folgen.</p></div>"}

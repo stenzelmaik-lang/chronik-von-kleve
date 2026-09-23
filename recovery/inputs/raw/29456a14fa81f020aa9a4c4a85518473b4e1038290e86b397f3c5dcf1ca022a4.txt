@@ -1,0 +1,10 @@
+﻿[
+  { "id": "clear",        "label": "klar",                        "diff_mod": 0 },
+  { "id": "low_light",    "label": "Dämmerung / schwaches Licht", "diff_mod": 1 },
+  { "id": "darkness",     "label": "Dunkelheit",                  "diff_mod": 2 },
+  { "id": "heavy_rain",   "label": "Starkregen",                  "diff_mod": 1 },
+  { "id": "fog",          "label": "Nebel",                       "diff_mod": 1 },
+  { "id": "attacker_run", "label": "Schütze rennt",               "diff_mod": 1 },
+  { "id": "target_run",   "label": "Ziel rennt",                  "diff_mod": 1 },
+  { "id": "wind_strong",  "label": "Starker Wind",                "diff_mod": 1 }
+]

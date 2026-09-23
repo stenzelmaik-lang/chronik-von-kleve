@@ -1,0 +1,1 @@
+{"h1":"Charakterbögen","intro":"Spielercharaktere und Werte.","content_html":"<div id='chars-root'><p class='muted'>Lade Charaktere…</p></div>"}

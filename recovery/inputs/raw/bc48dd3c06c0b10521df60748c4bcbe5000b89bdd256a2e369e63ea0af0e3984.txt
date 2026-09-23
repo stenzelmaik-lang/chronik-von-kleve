@@ -1,0 +1,158 @@
+[
+  {
+    "id": "silas-vance",
+    "name": "Silas Vance",
+    "epithet": "Der Ausbilder / Schattenrichter",
+    "tier": "exekutive",
+    "clan": "Banu Haqim",
+    "sect": "Camarilla (offiziell) / Beobachter (tats\u00e4chlich)",
+    "generation": "6",
+    "role": "Ausbilder der Justiz-Dom\u00e4ne",
+    "img": "assets/nsc/silas-vance.jpg",
+    "badges": [
+      "Quietus 7",
+      "Celerity 6",
+      "Fortitude 6",
+      "Obfuscate 10",
+      "Dominate 5",
+      "Thaumaturgie 4",
+      "Tenebrosit\u00e4t 3"
+    ],
+    "appearance": "Makellose Kontrolle. Dunkelblauer Ma\u00dfanzug, tiefschwarzes Hemd, olivfarbene Haut, ruhige Pr\u00e4zision. Augen wie schwarzes Glas.",
+    "legend": "\u00dcberlebender der S\u00e4uberungen. Leiser Vollstrecker von Kodex und Konsequenz. Sein Name beendet Gespr\u00e4che.",
+    "beschreibung": "Vance ist eine lebende Warnung. Er agiert selten offen, doch seine Eingriffe setzen die Spielwelt neu. Er testet Loyalit\u00e4t, Disziplin und Maskerade. Wer ihn herausfordert, erntet keine Schl\u00e4gerei, sondern Finalit\u00e4t: Erinnerungskorrekturen, lautlose Verschleppung, politische Demontage.",
+    "stats": {
+      "attrs": "Str 8 \u2022 Ges 8 \u2022 Wid 9 \u2022 Wahrn 9 \u2022 GsS 8 \u2022 Int 7 \u2022 Cha 6 \u2022 Man 10 \u2022 Ersch 3",
+      "skills": "Taktik 6 \u2022 F\u00fchrung 7 \u2022 Auspex 5 \u2022 Nahkampf 6",
+      "discs": "Quietus 7, Celerity 6, Fortitude 6, Obfuscate 10, Dominate 5, Thaumaturgie 4, Tenebrosit\u00e4t 3",
+      "backgrounds": "Zugang 5, Ressourcen 4, Gefolge 3",
+      "wp": "10"
+    },
+    "hooks": [
+      "Briefing in Schwarzholz",
+      "Testlauf der Operation Bleisarg",
+      "Lautlose Auditierung der Maskerade"
+    ]
+  },
+  {
+    "id": "elara-bosch",
+    "name": "Elara Bosch",
+    "epithet": "Die Kanzlerin / Seneschallin",
+    "tier": "f\u00fchrung",
+    "clan": "Ventrue",
+    "sect": "Camarilla",
+    "generation": "9",
+    "role": "Kanzlerin und Strategin",
+    "img": "assets/nsc/elara-bosch.jpg",
+    "badges": [
+      "Pr\u00e4senz 5",
+      "Auspex 4",
+      "Politik 5"
+    ],
+    "appearance": "Makellos gekleidet, randlose Brille, k\u00fchle Stimme. Tr\u00e4gt stets einen Ordner mit gepr\u00e4gtem Siegel.",
+    "legend": "Verwaltet die Dom\u00e4ne wie ein Archiv. Kennt jede Akte oder erstellt sie bei Bedarf.",
+    "beschreibung": "Elara ist das Ged\u00e4chtnis der Dom\u00e4ne. Wer bei ihr vorstellig wird, kauft sich gleichzeitig in eine neue Akte ein. Sie erwartet Pr\u00e4zision und liefert nur Gegenleistungen, wenn sie langfristig n\u00fctzen.",
+    "stats": {
+      "attrs": "Str 3 \u2022 Ges 3 \u2022 Wid 4 \u2022 Wahrn 4 \u2022 Int 5 \u2022 Cha 4 \u2022 Man 5 \u2022 Ersch 3",
+      "skills": "B\u00fcrokratie 5 \u2022 Diplomatie 4 \u2022 Recherche 4",
+      "discs": "Beherrschung 4, Pr\u00e4senz 3, Seelenst\u00e4rke 2",
+      "backgrounds": "Status 3 (Kanzlei), Gefallen 4, Ressourcen 3, Verb\u00fcndete 2",
+      "wp": "8"
+    },
+    "hooks": [
+      "Audienz mit dem Kanzleisiegel",
+      "Revision alter Dossiers",
+      "Verhandlung mit dem Bischof von Essen"
+    ]
+  },
+  {
+    "id": "prinz-konstantin",
+    "name": "Prinz Konstantin von Hardenberg",
+    "epithet": "Der Magistrat",
+    "tier": "f\u00fchrung",
+    "clan": "Ventrue",
+    "sect": "Camarilla",
+    "generation": "7",
+    "role": "Prinz von Kleve",
+    "img": "assets/nsc/konstantin-von-straeten.jpg",
+    "badges": [
+      "Strateg 5",
+      "Maskerade 5"
+    ],
+    "appearance": "Schnittiger Ma\u00dfanzug, wei\u00dfer Handschuh \u00fcber Brandnarbe. Ruhige, kontrollierte Mimik.",
+    "legend": "Pragmatiker, der die Dom\u00e4ne wie ein Regiment f\u00fchrt. Duldet Justikariatsaktionen nur, wenn er sie kontrolliert.",
+    "beschreibung": "Konstantin setzt Priorit\u00e4ten: Maskerade, Stabilit\u00e4t, dann erst pers\u00f6nliche Gewinne. Wer ihm Ergebnisse liefert, erh\u00e4lt Schutz; wer ihn narrt, verliert das Recht auf Stimme.",
+    "stats": {
+      "attrs": "Str 3 \u2022 Ges 3 \u2022 Wid 4 \u2022 Wahrn 3 \u2022 Int 4 \u2022 Cha 4 \u2022 Man 4",
+      "discs": "Beherrschung 4, Pr\u00e4senz 4, Seelenst\u00e4rke 3",
+      "backgrounds": "Status 5 (Prinz), Gefolge 3, Dom\u00e4ne 4, Einfluss 3",
+      "wp": "9"
+    },
+    "hooks": [
+      "Audienz im Schloss Moyland",
+      "Notfallproklamation",
+      "Krisengespr\u00e4ch mit dem Inner Circle"
+    ]
+  },
+  {
+    "id": "rhino-gruber",
+    "name": "Sheriff \\\"Rhino\\\" Gruber",
+    "epithet": "Die Brechstange",
+    "tier": "exekutive",
+    "clan": "Brujah",
+    "sect": "Camarilla",
+    "generation": "10",
+    "role": "Maskerade-Vollstrecker",
+    "img": "assets/nsc/rhino-gruber.jpg",
+    "badges": [
+      "St\u00e4rke 4",
+      "Geschwindigkeit 3",
+      "Seelenst\u00e4rke 2"
+    ],
+    "appearance": "Breitschultrig, Bomberjacke \u00fcber Hemd, kurze Stoppelhaare. Dauerhaft kampfbereit.",
+    "legend": "Ehemaliger SEK-Beamter, der T\u00fcren buchst\u00e4blich aus den Angeln tritt. Bevorzugt klare Befehle.",
+    "beschreibung": "Rhino l\u00f6st Probleme, indem er der lauteste Faktor im Raum wird. Wer ihm Leinen gibt, sollte sie festhalten.",
+    "stats": {
+      "attrs": "Str 5 \u2022 Ges 3 \u2022 Wid 4 \u2022 Wahrn 3 \u2022 Int 2 \u2022 Cha 2",
+      "skills": "Handgemenge 5 \u2022 Schusswaffen 4 \u2022 Einsch\u00fcchtern 4",
+      "discs": "St\u00e4rke 4, Geschwindigkeit 3, Seelenst\u00e4rke 2",
+      "backgrounds": "Kontakte 2 (Polizei), Ressourcen 2, Gefolge 1",
+      "wp": "6"
+    },
+    "hooks": [
+      "Razzia in der Niederrhein-Loge",
+      "Streife mit Panzerwagen",
+      "Verh\u00f6r im alten Wasserwerk"
+    ]
+  },
+  {
+    "id": "sofia",
+    "name": "Sofia",
+    "epithet": "Die Netzwerkerin",
+    "tier": "informationsnetz",
+    "clan": "Nosferatu",
+    "sect": "Camarilla",
+    "generation": "11",
+    "role": "Informationsbrokerin",
+    "img": "assets/nsc/sofia.jpg",
+    "badges": [
+      "Informationsnetz 5",
+      "Verdunklung 4"
+    ],
+    "appearance": "Verh\u00fcllt sich in langen M\u00e4nteln, verzerrte Stimme, Narbenmosaik auf der Haut.",
+    "legend": "Ehemalige Journalistin, die nun unter den Stra\u00dfen lebt. Tauscht Geheimnisse gegen Gefallen.",
+    "beschreibung": "Sofia ist ein Ger\u00fcchte-\u00d6kosystem. Sie f\u00fcttert, was sie fressen will: Informationen gegen Informationen. Ihr Archiv im Abwasser ist eine Erpressungsbibliothek.",
+    "stats": {
+      "attrs": "Str 2 \u2022 Ges 3 \u2022 Wid 3 \u2022 Wahrn 4 \u2022 Int 4 \u2022 Man 3",
+      "skills": "Heimlichkeit 4 \u2022 Computer 4 \u2022 Aufmerksamkeit 4",
+      "discs": "Verdunklung 4, Tierhaftigkeit 2, Beherrschung 1",
+      "backgrounds": "Kontakte 4 (Untergrund), Alliierte 2, Ressourcen 1",
+      "wp": "6"
+    },
+    "hooks": [
+      "Schattendeal im alten Kino",
+      "Volkov-Dossier",
+      "Verzerrte \u00dcbertragungen aus dem Netz"
+    ]
+  }
+]

@@ -1,0 +1,275 @@
+{
+  "id": "place.electric-taberna",
+  "legacyEntityId": "legacy-1bf8cd98a7c87c2e018890b4",
+  "title": "Electric Taberna",
+  "subtitle": "Neon & Schatten",
+  "district": "Innenstadt",
+  "address": "Kavarinerstraße 30, 47533 Kleve",
+  "image": "/images/edf112ec863d6cd02b1a.jpg",
+  "summary": "Violett-blaues Neon, kalter Kaffee, ein Hauch Ozon. Werkbanktische, Field-Recordings und eine kleine Bühne ziehen Studierende, Kuriere und Nachtgestalten an.",
+  "atmosphere": "Ein elektronischer Nachtknoten in der Innenstadt: oben lebendige Bar, darunter kontrollierte Schatten. Die Electric Taberna klingt heller als der Rest der Domäne und bleibt trotzdem ein Ort, an dem jedes Gespräch Gewicht bekommt.",
+  "discovery": "visited",
+  "worldState": "active",
+  "markers": [
+    "watched",
+    "highSecurity"
+  ],
+  "factionSignals": [
+    {
+      "label": "Elysium / Camarilla",
+      "mode": "control",
+      "visibility": "gm"
+    },
+    {
+      "label": "Sterbliche Öffentlichkeit",
+      "mode": "observation",
+      "visibility": "group"
+    }
+  ],
+  "areas": [
+    {
+      "id": "area.electric-taberna.public-guests",
+      "order": 1,
+      "title": "Öffentlicher Gästebereich",
+      "discovery": "visited",
+      "worldState": "active",
+      "markers": [
+        "watched"
+      ],
+      "visibility": "group",
+      "rooms": [
+        {
+          "id": "room.electric-taberna.entrance-cloakroom",
+          "order": 1,
+          "title": "01 Eingang & Garderobe",
+          "discovery": "visited",
+          "worldState": "active",
+          "markers": [
+            "watched"
+          ],
+          "visibility": "group"
+        },
+        {
+          "id": "room.electric-taberna.bar-seating",
+          "order": 2,
+          "title": "02 Tresen & Sitzbereich",
+          "discovery": "visited",
+          "worldState": "active",
+          "markers": [],
+          "visibility": "group"
+        },
+        {
+          "id": "room.electric-taberna.dancefloor-console",
+          "order": 3,
+          "title": "03 Tanzfläche & Pult",
+          "discovery": "known",
+          "worldState": "changed",
+          "markers": [
+            "occupied"
+          ],
+          "visibility": "group"
+        },
+        {
+          "id": "room.electric-taberna.toilets",
+          "order": 4,
+          "title": "04 Toiletten",
+          "discovery": "known",
+          "worldState": "active",
+          "markers": [],
+          "visibility": "group"
+        }
+      ]
+    },
+    {
+      "id": "area.electric-taberna.staff-back",
+      "order": 2,
+      "title": "Personal-/Hinterbereich",
+      "discovery": "hidden",
+      "worldState": "inaccessible",
+      "markers": [
+        "locked",
+        "watched"
+      ],
+      "visibility": "gm",
+      "playerHint": "Hinter dem Gästebereich liegt offenbar eine nicht erschlossene Zone.",
+      "rooms": [
+        {
+          "id": "room.electric-taberna.talk-room",
+          "order": 5,
+          "title": "05 Gesprächsraum",
+          "discovery": "hidden",
+          "worldState": "active",
+          "markers": [],
+          "visibility": "gm"
+        },
+        {
+          "id": "room.electric-taberna.staff-hall",
+          "order": 6,
+          "title": "06 Personalflur",
+          "discovery": "hidden",
+          "worldState": "active",
+          "markers": [
+            "locked"
+          ],
+          "visibility": "gm"
+        },
+        {
+          "id": "room.electric-taberna.office",
+          "order": 7,
+          "title": "07 Büro",
+          "discovery": "hidden",
+          "worldState": "inaccessible",
+          "markers": [
+            "locked",
+            "watched"
+          ],
+          "visibility": "gm"
+        },
+        {
+          "id": "room.electric-taberna.courtyard-delivery",
+          "order": 8,
+          "title": "08 Hof & Anlieferung",
+          "discovery": "hidden",
+          "worldState": "active",
+          "markers": [
+            "watched"
+          ],
+          "visibility": "gm"
+        }
+      ]
+    },
+    {
+      "id": "area.electric-taberna.cellar-service",
+      "order": 3,
+      "title": "Keller & Service",
+      "discovery": "hidden",
+      "worldState": "inaccessible",
+      "markers": [
+        "locked",
+        "unstable"
+      ],
+      "visibility": "gm",
+      "rooms": [
+        {
+          "id": "room.electric-taberna.drinks-storage",
+          "order": 9,
+          "title": "09 Getränkevorrat",
+          "discovery": "hidden",
+          "worldState": "active",
+          "markers": [],
+          "visibility": "gm"
+        },
+        {
+          "id": "room.electric-taberna.rest-room",
+          "order": 10,
+          "title": "10 Ruheraum",
+          "discovery": "hidden",
+          "worldState": "active",
+          "markers": [],
+          "visibility": "gm"
+        },
+        {
+          "id": "room.electric-taberna.maintenance-exit",
+          "order": 11,
+          "title": "11 Wartungsgang / äußerer Ausgang",
+          "discovery": "hidden",
+          "worldState": "inaccessible",
+          "markers": [
+            "locked"
+          ],
+          "visibility": "gm"
+        }
+      ]
+    }
+  ],
+  "knownInformation": [
+    {
+      "id": "info.electric-taberna.public-signal",
+      "title": "Atmosphäre",
+      "text": "Neon, Field-Recordings und Werkbanktische prägen den sichtbaren Gästebereich.",
+      "noteType": "insight",
+      "pinned": true,
+      "visibility": "group",
+      "targetId": "place.electric-taberna"
+    },
+    {
+      "id": "info.electric-taberna.address",
+      "title": "Adresse",
+      "text": "Kavarinerstraße 30 in der Klever Innenstadt.",
+      "noteType": "note",
+      "pinned": false,
+      "visibility": "group",
+      "targetId": "place.electric-taberna"
+    },
+    {
+      "id": "info.electric-taberna.elysium",
+      "title": "SL-Vermerk",
+      "text": "Bestehende Quelle führt den Ort als Elysium/Camarilla-Kontext. Spielerfreigabe bleibt SL-Entscheidung.",
+      "noteType": "note",
+      "pinned": true,
+      "visibility": "gm",
+      "targetId": "place.electric-taberna"
+    }
+  ],
+  "activity": [
+    {
+      "id": "activity.electric-taberna.visited",
+      "label": "Electric Taberna besucht",
+      "targetLabel": "Öffentlicher Gästebereich",
+      "targetId": "area.electric-taberna.public-guests",
+      "time": "Letzter Spielstand",
+      "visibility": "group"
+    },
+    {
+      "id": "activity.electric-taberna.note",
+      "label": "Notiz erstellt",
+      "targetLabel": "Electric Taberna",
+      "targetId": "place.electric-taberna",
+      "time": "Vorbereitet",
+      "visibility": "private"
+    },
+    {
+      "id": "activity.electric-taberna.info",
+      "label": "Information erhalten",
+      "targetLabel": "Atmosphäre",
+      "targetId": "info.electric-taberna.public-signal",
+      "time": "Vorbereitet",
+      "visibility": "group"
+    }
+  ],
+  "preparedActions": [
+    {
+      "id": "action.electric-taberna.office-known.group",
+      "label": "Büro bekannt machen",
+      "target": "Gruppe",
+      "status": "ready",
+      "targetId": "room.electric-taberna.office",
+      "visibility": "gm"
+    },
+    {
+      "id": "action.electric-taberna.cellar-visited.group",
+      "label": "Keller als besucht markieren",
+      "target": "Gruppe",
+      "status": "open",
+      "targetId": "area.electric-taberna.cellar-service",
+      "visibility": "gm"
+    },
+    {
+      "id": "action.electric-taberna.info.player",
+      "label": "Vorbereitete Information senden",
+      "target": "Spieler",
+      "status": "ready",
+      "targetId": "info.electric-taberna.public-signal",
+      "visibility": "gm"
+    },
+    {
+      "id": "action.electric-taberna.vision.player",
+      "label": "Vorbereitete Vision senden",
+      "target": "Spieler",
+      "status": "open",
+      "targetId": "vision.electric-taberna.placeholder",
+      "visibility": "gm"
+    }
+  ],
+  "sourceLabel": "Bestehender Katalogeintrag legacy-1bf8cd98a7c87c2e018890b4 und Ortssystem-Spezifikation Phase 1."
+}

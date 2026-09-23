@@ -1,0 +1,6 @@
+﻿[
+  { "id": "none",           "label": "keine Deckung",  "diff_mod": 0, "soak_bonus": { "bashing": 0, "lethal": 0, "aggravated": 0 } },
+  { "id": "half_cover",     "label": "Halbdeckung",    "diff_mod": 1, "soak_bonus": { "bashing": 2, "lethal": 1, "aggravated": 0 } },
+  { "id": "three_quarters", "label": "¾-Deckung",      "diff_mod": 2, "soak_bonus": { "bashing": 3, "lethal": 2, "aggravated": 0 } },
+  { "id": "full_cover",     "label": "Volldeckung (sichtbar)", "diff_mod": 3, "soak_bonus": { "bashing": 4, "lethal": 3, "aggravated": 0 } }
+]

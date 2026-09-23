@@ -1,0 +1,2 @@
+# Historical originals must retain exact bytes across Windows checkouts and ZIPs.
+recovery/inputs/raw/* -text
