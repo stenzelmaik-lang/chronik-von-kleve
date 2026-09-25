@@ -34,6 +34,8 @@ const secret=await req('/api/entities','gm','POST',{type:'CLUE',canonStatus:'GM_
 check((await req('/api/knowledge','gm','POST',{entityId:secret.d.id,audience:'group',state:'VERIFIED'})).s===400,'GM_SECRET cannot be released');
 check((await req('/api/entities?id='+secret.d.id,'a')).s===404,'GM_SECRET hidden by server');
 check((await req('/api/locations')).s===401,'Location dossier denies anonymous');
+const unknownMapPlace=await req('/api/locations?place=place.unknown-secret&view=player','a');
+check(unknownMapPlace.s===404&&!JSON.stringify(unknownMapPlace.d).includes('coordinates'),'Unknown Chronicle place yields no player map data or coordinates');
 check((await req('/api/locations/migrate','a','POST',{placeId:'place.electric-taberna'})).s===403,'Player cannot migrate location data');
 const migrated=await req('/api/locations/migrate','gm','POST',{placeId:'place.electric-taberna'});
 check(migrated.s===200&&migrated.d.migrated===true,'GM migrates Electric Taberna fixture once');
@@ -46,6 +48,8 @@ check(gmLocation.d.projection.location.areas.reduce((sum,area)=>sum+area.rooms.l
 const playerLocation=await req('/api/locations?place=place.electric-taberna','a');
 const playerLocationJson=JSON.stringify(playerLocation.d);
 check(playerLocation.s===200,'Player opens projected Electric Taberna dossier');
+check(playerLocation.d.mapMarker?.id==='place.electric-taberna'&&playerLocation.d.mapMarker.coordinateSource==='prototype-test-coordinate','Known player projection receives only its prototype map marker');
+check(!Object.hasOwn(gmLocation.d,'mapMarker'),'GM-only dossier response does not expose player map markers');
 check(!playerLocationJson.includes('Keller & Service')&&!playerLocationJson.includes('Getränkevorrat')&&!playerLocationJson.includes('Büro'),'Player projection hides unreleased Electric Taberna room names');
 check(!playerLocationJson.includes('room.electric-taberna.office')&&!playerLocationJson.includes('room.electric-taberna.entrance-cloakroom')&&!playerLocationJson.includes('area.electric-taberna.public-guests')&&!playerLocationJson.includes('info.electric-taberna.public-signal')&&!playerLocationJson.includes('legacy-1bf8cd98a7c87c2e018890b4'),'Player projection hides internal room, area, info and legacy IDs');
 const gmPlayerPreview=await req('/api/locations?place=place.electric-taberna&view=player&target=group','gm');
@@ -145,6 +149,17 @@ const characterBody={player:'QA owner',chronicle:'QA',clan:'QA',generation:10,na
 const character=await req('/api/records','a','POST',{kind:'charaktere',title:'QA Character',visibility:'private',body:characterBody});
 check(character.s===200,'CHAR-P01 attribute character is created');
 const charId=character.d.id;
+let dashboard=await req('/api/dashboard','a');
+check(dashboard.s===200&&dashboard.d.character?.id===charId&&dashboard.d.characterCount===1,'DASH-01 sole owned character is selected in dashboard projection');
+const secondDashboardCharacter=await req('/api/records','a','POST',{kind:'charaktere',title:'QA Second Character',visibility:'private',body:{...characterBody,testData:true}});
+const secondDashboardCharacterId=secondDashboardCharacter.d.id;
+dashboard=await req('/api/dashboard','a');
+check(dashboard.s===200&&dashboard.d.character===null&&dashboard.d.characterCount===2&&dashboard.d.characters.length===2,'DASH-02 multiple owned characters require an explicit selection');
+dashboard=await req(`/api/dashboard?characterId=${encodeURIComponent(charId)}`,'a');
+check(dashboard.s===200&&dashboard.d.character.id===charId,'DASH-03 selected character is returned by stable ID');
+check((await req(`/api/dashboard?characterId=${encodeURIComponent(charId)}`,'b')).s===404,'DASH-S01 another player cannot select a foreign character');
+check((await req('/api/dashboard','b')).d.characterCount===0,'DASH-S02 private characters are absent from another player dashboard');
+check(JSON.stringify((await req('/api/records?kind=charaktere','b')).d).indexOf(secondDashboardCharacterId)===-1,'DASH-S03 character-list projection keeps private ownership filter');
 const characterDetail=async(who)=>req('/api/character-detail?id='+charId,who);
 let charProjection=await characterDetail('a');
 check(charProjection.s===200&&charProjection.d.sheet.attributes.Geschick===4,'CHAR-P01 attribute reload persists');
@@ -241,6 +256,8 @@ const inventory=(who,characterId,archived=false)=>req('/api/inventory?characterI
 const inventoryCreate=async(who,payload,expectedCarryRevision)=>{const revision=expectedCarryRevision??(await inventory(who,payload.characterId)).d.carry.revision;return req('/api/inventory',who,'POST',{...payload,action:'create',expectedCarryRevision:revision})};
 const inventoryPatch=async(who,item,payload,action='update',expectedCarryRevision)=>{const revision=expectedCarryRevision??(await inventory(who,payload.characterId,true)).d.carry.revision;return req('/api/inventory',who,'PATCH',{...payload,id:item.id,expectedRevision:item.revision,expectedCarryRevision:revision,action})};
 const privateCreated=await inventoryCreate('a',invPayload(charId));
+const characterAfterItem=await req('/api/character-detail?id='+charId,'a');
+check(characterAfterItem.s===200&&!characterAfterItem.d.companion.relationships.some(r=>r.type==='character.owns'||r.targetId===privateCreated.d.id),'CHAR-POS-01 inventory ownership does not appear as a social relationship');
 check((await req('/api/inventory','a','POST',{action:'update',...invPayload(charId,{name:'INV invalid command'})})).s===400,'INV-C01 Unknown create action is rejected');
 check((await req('/api/inventory','a','POST',{action:'create',...invPayload(charId,{name:'INV unknown field'}),unknownField:'no'})).s===400,'INV-C02 Unknown Item field is rejected');
 check((await req('/api/inventory','a','POST',{action:'create',...invPayload(charId,{category:'INVALID'})})).s===400,'INV-C03 Invalid category is rejected');

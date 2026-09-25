@@ -27,17 +27,30 @@ export function useNavigation(
     [gm],
   );
   const [section, setSection] = useState(() =>
-    canOpen(initialSection) ? initialSection : "charaktere",
+    canOpen(initialSection) ? initialSection : "dashboard",
   );
   const navigate = useCallback(
     (id: string) => {
       if (!canOpen(id)) return;
       setSection(id);
       onNavigate();
-      history.replaceState(null, "", "/spielbereich?bereich=" + id);
+      const nextUrl = new URL(window.location.href);
+      nextUrl.pathname = "/spielbereich";
+      nextUrl.searchParams.set("bereich", id);
+      nextUrl.searchParams.delete("ort");
+      if (nextUrl.href !== window.location.href) history.pushState(null, "", nextUrl);
     },
     [canOpen, onNavigate],
   );
+  useEffect(() => {
+    const syncWithHistory = () => {
+      const requested = new URLSearchParams(window.location.search).get("bereich") || "dashboard";
+      setSection(canOpen(requested) ? requested : "dashboard");
+      onNavigate();
+    };
+    window.addEventListener("popstate", syncWithHistory);
+    return () => window.removeEventListener("popstate", syncWithHistory);
+  }, [canOpen, onNavigate]);
   useEffect(() => {
     const context = (document as Document & { modelContext?: ModelContext })
       .modelContext;

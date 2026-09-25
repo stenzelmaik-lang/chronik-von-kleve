@@ -3,6 +3,7 @@ import { z } from "zod";
 import { discoveryStates, worldStateIds } from "@/domain/location-types";
 import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
 import { loadPersistedLocation } from "@/server/location-repository";
+import { prototypeMapMarker } from "@/server/location-map-prototype";
 import { actor, database, failure, gmOnly, HttpError, json } from "@/server/access";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +33,10 @@ export async function GET(req: Request) {
     if (!projection && !a.gm) throw new HttpError(404, "Ort nicht gefunden.");
     if (!projection)
       throw new HttpError(424, "Dieser Musterort wurde noch nicht in die Ortsdatenbank übernommen.");
+    const mapMarker = requestedView === "player" ? prototypeMapMarker(projection) : undefined;
     return json({
       projection,
+      ...(mapMarker ? { mapMarker } : {}),
       states: {
         discovery: discoveryStates,
         worldState: worldStateIds,

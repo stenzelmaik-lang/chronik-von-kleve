@@ -33,5 +33,5 @@ export default async function Page({
   searchParams: Promise<{ bereich?: string }>;
 }) {
   const params = await searchParams;
-  return <SignedIn initialSection={params.bereich || "charaktere"} />;
+  return <SignedIn initialSection={params.bereich || "dashboard"} />;
 }

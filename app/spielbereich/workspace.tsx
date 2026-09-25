@@ -26,7 +26,7 @@ import {
   Shield,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { Entry } from "@/domain/legacy";
@@ -39,7 +39,6 @@ import { DashboardPanel } from "./modules/dashboard";
 import { DicePanel } from "./modules/dice";
 import { EconomyPanel } from "./modules/economy";
 import { FavorPanel } from "./modules/favors";
-import { LocationDossierPanel } from "./modules/location-dossier";
 import { MerchantPanel } from "./modules/merchant";
 import { personal, sections } from "./modules/navigation";
 import { RecordEditor } from "./modules/record-editor";
@@ -50,10 +49,16 @@ import { InventoryPanel } from "./modules/inventory";
 import { WorkspaceShell } from "./modules/shell";
 import { useNavigation } from "./modules/use-navigation";
 import { useWorkspaceData } from "./modules/use-workspace-data";
-import { WorldMapPanel } from "./modules/world-map";
+import { WorldExperience } from "./modules/world-experience";
+import {
+  activatePlayerDataScope,
+  clearPlayerDataScope,
+  describeDataError,
+  invalidatePlayerData,
+} from "./modules/player-data-cache";
 export default function Workspace({
   actor: a,
-  initialSection = "charaktere",
+  initialSection = "dashboard",
 }: {
   actor: Actor;
   initialSection?: string;
@@ -71,6 +76,19 @@ export default function Workspace({
     [uploadVisibility, setUploadVisibility] = useState("private");
   const uploadInput = useRef<HTMLInputElement>(null),
     active = a.status === "active";
+  const dataScope = `${a.campaignId}:${a.id}:${a.gm ? "gm" : "player"}`;
+  const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope: dataScope, id: null });
+  const activeCharacterId = selection.scope === dataScope ? selection.id : null;
+  const setActiveCharacterId = useCallback((id: string | null) => setSelection({ scope: dataScope, id }), [dataScope]);
+  useEffect(() => {
+    activatePlayerDataScope(dataScope);
+    const clear = () => clearPlayerDataScope(dataScope);
+    window.addEventListener("pagehide", clear);
+    return () => {
+      window.removeEventListener("pagehide", clear);
+      clear();
+    };
+  }, [dataScope]);
   const resetEditor = useCallback(() => {
     setSearch("");
     setEdit(null);
@@ -80,14 +98,15 @@ export default function Workspace({
     initialSection,
     resetEditor,
   );
-  const { entries, files, members, catalog, loading, error, reload } =
-    useWorkspaceData(section, active);
+  const { entries, files, members, catalog, loading, refreshing, hasData, error, reload } =
+    useWorkspaceData(section, active, dataScope);
   const current = sections.find((s) => s.id === section) || {
     id: "verwaltung",
     name: "Spielleitung",
     desc: "Mitglieder freigeben und die Chronik übernehmen.",
     icon: Shield,
   };
+  const worldExperienceActive = section === "schauplaetze" || section === "weltkarte";
   function create(kind = section) {
     setFormError("");
     const body =
@@ -109,30 +128,47 @@ export default function Workspace({
   }
   async function save() {
     if (!edit) return;
+    const savedKind = edit.kind;
+    const savedId = edit.id;
     setSaving(true);
     setFormError("");
     try {
       await api("/api/records", "POST", edit);
+      invalidatePlayerData(dataScope, "/api/dashboard");
+      if (savedKind === "charaktere")
+        invalidatePlayerData(dataScope, "/api/records?kind=charaktere");
+      if (savedKind === "charaktere" && savedId)
+        invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(savedId)}`);
       setEdit(null);
       toast.success("Gespeichert");
       await reload();
     } catch (e) {
       setFormError((e as Error).message);
+      if (describeDataError(e).permission) await reload();
     } finally {
       setSaving(false);
     }
   }
   async function destroy() {
     if (!remove) return;
+    const removedId = remove.id;
+    const removedCharacter = edit?.kind === "charaktere";
     setSaving(true);
     try {
       await api(remove.file ? "/api/files" : "/api/records", "DELETE", remove);
+      invalidatePlayerData(dataScope, "/api/dashboard");
+      invalidatePlayerData(dataScope, "/api/records?kind=charaktere");
+      if (removedCharacter) {
+        invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(removedId)}`);
+        if (activeCharacterId === removedId) setActiveCharacterId(null);
+      }
       setRemove(null);
       setEdit(null);
       toast.success("Gelöscht");
       await reload();
     } catch (e) {
       toast.error((e as Error).message);
+      if (describeDataError(e).permission) await reload();
     } finally {
       setSaving(false);
     }
@@ -195,7 +231,7 @@ export default function Workspace({
     );
   return (
     <WorkspaceShell a={a} section={section} navigate={navigate}>
-      <div className="section-title">
+      {!worldExperienceActive && section !== "inventar" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -224,25 +260,33 @@ export default function Workspace({
                 : "Eintrag erstellen"}
             </button>
           )}
-      </div>
-      {error && (
+      </div>}
+      {!worldExperienceActive && refreshing && <p className="muted" role="status">Wird aktualisiert …</p>}
+      {!worldExperienceActive && error && hasData && (
         <div role="alert" className="error-box">
-          {error}
-          <button className="button" onClick={reload}>
-            Erneut versuchen
-          </button>
+          <strong>{describeDataError(error).title}</strong>
+          <p>{error.message}</p>
+          <button className="button" onClick={reload}>Erneut versuchen</button>
         </div>
       )}
-      {loading ? (
+      {worldExperienceActive ? (
+        <WorldExperience a={a} dataScope={dataScope} />
+      ) : loading ? (
         <div className="entry-grid">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-56 w-full" />
           ))}
         </div>
+      ) : error && !hasData ? (
+        <section role="alert" className="panel">
+          <h2>{describeDataError(error).title}</h2>
+          <p className="muted">{error.message}</p>
+          <button className="button" onClick={reload}>Erneut versuchen</button>
+        </section>
       ) : section === "charaktere" ? (
-        <CharacterDetail entries={entries} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
+        <CharacterDetail key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
       ) : section === "inventar" ? (
-        <InventoryPanel />
+        <InventoryPanel key={dataScope} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "verwaltung" ? (
         <div className="admin-stack">
           <section className="panel">
@@ -345,7 +389,7 @@ export default function Workspace({
           onCreate={(kind) => create(kind)}
         />
       ) : section === "dashboard" ? (
-        <DashboardPanel a={a} onNavigate={navigate} />
+        <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "chronik" ? (
         <ChroniclePanel
           entries={entries}
@@ -438,24 +482,6 @@ export default function Workspace({
         <DicePanel />
       ) : section === "sitzung" ? (
         <SessionPanel entries={entries} a={a} onRefresh={reload} />
-      ) : section === "weltkarte" ? (
-        <WorldMapPanel
-          entries={entries}
-          a={a}
-          onOpen={(e) => {
-            setFormError("");
-            setEdit(structuredClone(e));
-          }}
-        />
-      ) : section === "schauplaetze" ? (
-        <LocationDossierPanel
-          entries={entries}
-          a={a}
-          onOpen={(e) => {
-            setFormError("");
-            setEdit(structuredClone(e));
-          }}
-        />
       ) : section === "wirtschaft" ? (
         <EconomyPanel entries={entries} onRefresh={reload} />
       ) : section === "haendler" ? (

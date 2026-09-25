@@ -3,7 +3,7 @@ import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
 import { canEdit, canRead } from "./access";
 import {
   grantsFor,
-  loadEntities,
+  loadEntitiesForIds,
   projectEntity,
   resolveEntity,
   type EntityRow,
@@ -165,8 +165,9 @@ async function projectRelationships(
     )
     .bind(a.campaignId, characterId, characterId)
     .all<RelationshipRow>();
-  if (!relationships.results.length) return [];
-  const otherIds = relationships.results.map((row) =>
+  const socialRelationships = relationships.results.filter((row) => row.type !== "character.owns");
+  if (!socialRelationships.length) return [];
+  const otherIds = socialRelationships.map((row) =>
     row.source_id === characterId ? row.target_id : row.source_id,
   );
   const placeholders = [...new Set(otherIds)].map(() => "?").join(",");
@@ -194,11 +195,11 @@ async function projectRelationships(
       ),
     ]),
   );
-  return relationships.results.flatMap((row) => {
+  return socialRelationships.flatMap((row) => {
     if (!a.gm && row.visibility !== "group") return [];
     const targetId = row.source_id === characterId ? row.target_id : row.source_id;
     const target = entities.get(targetId);
-    if (!target) return [];
+    if (!target || target.type === "ITEM") return [];
     const projected = projectEntity(a, target, grants);
     if (!projected) return [];
     const content = projected.content;
@@ -230,7 +231,7 @@ async function projectLastSession(
     .all<LegacyRecordRow>();
   if (!rows.results.length) return null;
   const entities = new Map(
-    (await loadEntities(db, a.campaignId)).map((entity) => [entity.id, entity]),
+    (await loadEntitiesForIds(db, a.campaignId, rows.results.map((row) => row.id))).map((entity) => [entity.id, entity]),
   );
   for (const row of rows.results) {
     const entity = entities.get(row.id);

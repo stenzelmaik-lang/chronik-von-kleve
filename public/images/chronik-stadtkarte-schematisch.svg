@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" fill="none">
+  <defs>
+    <linearGradient id="ground" x1="90" y1="46" x2="1510" y2="857" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#202a2a"/>
+      <stop offset=".53" stop-color="#172022"/>
+      <stop offset="1" stop-color="#11191c"/>
+    </linearGradient>
+    <linearGradient id="river" x1="0" y1="175" x2="350" y2="792" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#334347"/>
+      <stop offset="1" stop-color="#202e32"/>
+    </linearGradient>
+    <linearGradient id="park" x1="1035" y1="400" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#293733"/>
+      <stop offset="1" stop-color="#1b2927"/>
+    </linearGradient>
+    <pattern id="grain" width="118" height="118" patternUnits="userSpaceOnUse">
+      <circle cx="9" cy="19" r=".8" fill="#d9c99d" opacity=".12"/>
+      <circle cx="72" cy="77" r=".65" fill="#e5e1d4" opacity=".09"/>
+      <circle cx="104" cy="31" r=".55" fill="#d9c99d" opacity=".12"/>
+    </pattern>
+    <pattern id="blocks" width="186" height="156" patternUnits="userSpaceOnUse" patternTransform="rotate(-13)">
+      <path d="M12 13h53v34H12zM77 13h90v34H77zM12 58h73v41H12zM97 58h70v41H97zM12 110h44v33H12zM69 110h98v33H69z" fill="#323c3c" stroke="#48504b" stroke-width="1.2"/>
+      <path d="M19 20h39v19H19zM84 20h72v19H84zM20 65h57v27H20zM105 65h54v27h-54zM20 117h31v19H20zM77 117h79v19H77z" fill="#263130" opacity=".8"/>
+    </pattern>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <clipPath id="land"><path d="M0 0h1600v900H0z"/></clipPath>
+  </defs>
+  <g clip-path="url(#land)">
+    <path fill="url(#ground)" d="M0 0h1600v900H0z"/>
+    <path fill="url(#river)" d="M-80 168c173 12 252 66 333 151 69 73 69 142 27 212-47 78-94 147-102 246-6 76 21 130 67 189H-80V168Z"/>
+    <path d="M-27 213c149 12 226 58 303 139 61 65 65 123 30 181-47 79-91 152-94 244-2 65 23 124 58 176" stroke="#71817a" stroke-opacity=".23" stroke-width="2"/>
+    <path fill="url(#park)" d="M1145 646c93-31 213-25 455 9v282h-530c12-92 3-214 75-291Z"/>
+    <path d="M1132 687c125-51 291-10 472 10m-462 35c136-37 294 5 447 27m-442 31c111-18 258 22 394 46" stroke="#526058" stroke-opacity=".32" stroke-width="2"/>
+    <path fill="url(#blocks)" opacity=".76" d="M184-70h1490v1060H184z"/>
+
+    <!-- Primary avenues shape coherent districts; the finer grid remains an illustrative texture. -->
+    <path d="M225 74c173 101 257 144 404 216s236 98 381 102c179 5 298-77 651-224" stroke="#131a1c" stroke-width="61" opacity=".9"/>
+    <path d="M225 74c173 101 257 144 404 216s236 98 381 102c179 5 298-77 651-224" stroke="#8a8170" stroke-opacity=".46" stroke-width="2"/>
+    <path d="M302 917c48-173 91-264 180-370 105-125 253-206 332-347 39-69 62-130 77-229" stroke="#131a1c" stroke-width="72" opacity=".92"/>
+    <path d="M302 917c48-173 91-264 180-370 105-125 253-206 332-347 39-69 62-130 77-229" stroke="#8a8170" stroke-opacity=".42" stroke-width="2"/>
+    <path d="M405 842c104-66 229-126 391-167 163-41 297-38 465-5 113 22 209 55 349 124" stroke="#131a1c" stroke-width="48" opacity=".94"/>
+    <path d="M405 842c104-66 229-126 391-167 163-41 297-38 465-5 113 22 209 55 349 124" stroke="#8a8170" stroke-opacity=".38" stroke-width="2"/>
+    <path d="M1343-65c-80 143-131 238-162 338-44 141-29 270 42 387 48 79 103 142 202 223" stroke="#131a1c" stroke-width="55" opacity=".94"/>
+    <path d="M1343-65c-80 143-131 238-162 338-44 141-29 270 42 387 48 79 103 142 202 223" stroke="#8a8170" stroke-opacity=".38" stroke-width="2"/>
+
+    <!-- Quiet civic core: a broad open square, surrounded by compact urban blocks. -->
+    <path d="M734 343 821 318l75 25 22 70-46 58-93-4-55-48z" fill="#4a4a3e" stroke="#807762" stroke-opacity=".48" stroke-width="2"/>
+    <path d="M772 357 827 344l44 16 13 41-29 37-58-5-34-28z" fill="#373c35" stroke="#b5a986" stroke-opacity=".38" stroke-width="1.5"/>
+    <path d="M812 362v54m-27-27h54" stroke="#a49a7e" stroke-opacity=".4" stroke-width="1.5"/>
+
+    <path fill="url(#grain)" opacity=".82" d="M0 0h1600v900H0z"/>
+    <path d="M0 0h1600v900H0z" fill="url(#ground)" opacity=".18"/>
+    <ellipse cx="836" cy="414" rx="262" ry="216" fill="#c6a86b" opacity=".035" filter="url(#soft)"/>
+    <path d="M0 0h1600v900H0z" stroke="#d6c38d" stroke-opacity=".14" stroke-width="2"/>
+  </g>
+</svg>

@@ -145,6 +145,33 @@ export async function loadEntities(
     ),
   );
 }
+
+/** Load only the requested campaign entities and the legacy rows they reference. */
+export async function loadEntitiesForIds(
+  db: D1Database,
+  campaignId: string,
+  ids: readonly string[],
+) {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (!uniqueIds.length) return [];
+  // Keep each statement safely below D1's SQLite bind-variable ceiling.
+  const chunks = <T,>(values: T[]) => Array.from({ length: Math.ceil(values.length / 80) }, (_, index) => values.slice(index * 80, index * 80 + 80));
+  const entityBatches = await db.batch(chunks(uniqueIds).map((idsInChunk) =>
+    db.prepare(`SELECT * FROM entities WHERE campaign_id=? AND id IN (${idsInChunk.map(() => "?").join(",")})`)
+      .bind(campaignId, ...idsInChunk),
+  ));
+  const entityRows = entityBatches.flatMap((batch) => batch.results as EntityRow[]);
+  if (!entityRows.length) return [];
+  const legacyIds = [...new Set(entityRows.flatMap((row) => row.legacy_record_id ? [row.legacy_record_id] : []))];
+  const legacyBatches = legacyIds.length
+    ? await db.batch(chunks(legacyIds).map((idsInChunk) =>
+        db.prepare(`SELECT * FROM records WHERE campaign_id=? AND id IN (${idsInChunk.map(() => "?").join(",")})`)
+          .bind(campaignId, ...idsInChunk),
+      ))
+    : [];
+  const legacy = new Map(legacyBatches.flatMap((batch) => batch.results as LegacyRecordRow[]).map((row) => [row.id, row]));
+  return entityRows.map((row) => resolveEntity(row, row.legacy_record_id ? legacy.get(row.legacy_record_id) : undefined));
+}
 export async function grantsFor(db: D1Database, a: Actor): Promise<GrantRow[]> {
   const result = await db
     .prepare(

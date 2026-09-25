@@ -1,73 +1,147 @@
 "use client";
+
 import type { Entry, Upload } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api-client";
+import {
+  describeDataError,
+  readPlayerData,
+  requestPlayerData,
+} from "./player-data-cache";
+
 type Data = {
   entries: Entry[];
   files: Upload[];
   members: Actor[];
   catalog: { available: number; imported: number };
 };
+
 const empty: Data = {
   entries: [],
   files: [],
   members: [],
   catalog: { available: 67, imported: 0 },
 };
-async function fetchSection(section: string): Promise<Data> {
-  if (section === "dashboard" || section === "cms" || section === "wuerfel" || section === "inventar")
-    return empty;
-  if (section === "galerie")
-    return { ...empty, files: (await api("/api/files")).files };
-  if (section === "verwaltung") {
-    const [m, c] = await Promise.all([
-      api("/api/members"),
-      api("/api/catalog"),
-    ]);
-    return { ...empty, members: m.members, catalog: c };
-  }
+
+function pathFor(section: string) {
+  if (section === "galerie") return "/api/files";
+  if (section === "verwaltung") return "/api/members|/api/catalog";
+  if (["dashboard", "cms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
+    return `empty:${section}`;
   const kind =
     section === "weltkarte"
       ? "schauplaetze"
       : section === "sitzung"
         ? "sitzungen"
         : section;
-  return {
-    ...empty,
-    entries: (await api("/api/records?kind=" + kind)).records,
-  };
+  return `/api/records?kind=${encodeURIComponent(kind)}`;
 }
-export function useWorkspaceData(section: string, active: boolean) {
-  const [version, refresh] = useState(0);
-  const [result, setResult] = useState({
-    section: "",
-    version: -1,
-    data: empty,
-    error: "",
-  });
+
+async function fetchSection(section: string): Promise<Data> {
+  if (["dashboard", "cms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
+    return empty;
+  if (section === "galerie")
+    return { ...empty, files: (await api<{ files: Upload[] }>("/api/files")).files };
+  if (section === "verwaltung") {
+    const [members, catalog] = await Promise.all([
+      api<{ members: Actor[] }>("/api/members"),
+      api<{ available: number; imported: number }>("/api/catalog"),
+    ]);
+    return { ...empty, members: members.members, catalog };
+  }
+  const path = pathFor(section);
+  return { ...empty, entries: (await api<{ records: Entry[] }>(path)).records };
+}
+
+type Result = {
+  key: string;
+  hasValue: boolean;
+  data: Data;
+  error: Error | null;
+  loading: boolean;
+  refreshing: boolean;
+};
+
+const initial: Result = {
+  key: "",
+  hasValue: false,
+  data: empty,
+  error: null,
+  loading: false,
+  refreshing: false,
+};
+
+export function useWorkspaceData(
+  section: string,
+  active: boolean,
+  scope: string,
+) {
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const forceNext = useRef(false);
+  const [result, setResult] = useState<Result>(initial);
+  const key = pathFor(section);
+  const resultKey = `${scope}\u0000${key}`;
+
   useEffect(() => {
     if (!active) return;
     let alive = true;
-    fetchSection(section)
+    const force = forceNext.current;
+    forceNext.current = false;
+    const cached = key.startsWith("empty:")
+      ? undefined
+      : readPlayerData<Data>(scope, key);
+
+    if (key.startsWith("empty:")) return;
+
+    setResult({
+      key: resultKey,
+      hasValue: cached !== undefined,
+      data: cached?.value ?? empty,
+      error: null,
+      loading: cached === undefined,
+      refreshing: cached !== undefined && (force || !cached.fresh),
+    });
+
+    requestPlayerData(scope, key, () => fetchSection(section), { force })
       .then((data) => {
-        if (alive) setResult({ section, version, data, error: "" });
+        if (alive) setResult({ key: resultKey, hasValue: true, data, error: null, loading: false, refreshing: false });
       })
-      .catch((e: Error) => {
-        if (alive)
-          setResult({ section, version, data: empty, error: e.message });
+      .catch((error: unknown) => {
+        if (!alive) return;
+        const issue = describeDataError(error);
+        const permissionFailure = issue.permission;
+        setResult({
+          key: resultKey,
+          hasValue: !permissionFailure && cached !== undefined,
+          data: !permissionFailure && cached ? cached.value : empty,
+          error: error instanceof Error ? error : new Error(issue.detail),
+          loading: false,
+          refreshing: false,
+        });
       });
+
     return () => {
       alive = false;
     };
-  }, [section, version, active]);
-  const reload = useCallback(() => refresh((v) => v + 1), []);
-  const loading =
-    active && (result.section !== section || result.version !== version);
-  return {
-    ...(loading ? empty : result.data),
-    error: loading ? "" : result.error,
-    loading,
-    reload,
-  };
+  }, [active, key, refreshVersion, resultKey, scope, section]);
+
+  const cached = active && !key.startsWith("empty:")
+    ? readPlayerData<Data>(scope, key)
+    : undefined;
+  const matches = result.key === resultKey;
+  const isEmptySection = key.startsWith("empty:");
+  const hasValue = isEmptySection || (matches ? result.hasValue : cached !== undefined);
+  const data = isEmptySection ? empty : matches ? result.data : cached?.value ?? empty;
+  const error = isEmptySection ? null : matches ? result.error : null;
+  const loading = active && !hasValue;
+  const refreshing = matches
+    ? result.refreshing
+    : cached !== undefined && !cached.fresh;
+  const reload = useCallback(() => {
+    forceNext.current = true;
+    setRefreshVersion((version) => version + 1);
+  }, []);
+
+  return { ...data, hasData: hasValue, loading, refreshing, error, reload };
 }

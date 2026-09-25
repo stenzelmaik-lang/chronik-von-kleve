@@ -17,7 +17,7 @@ import {
   TriangleAlert,
   Upload,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -40,6 +40,14 @@ import {
   type InventoryStatus,
 } from "@/domain/inventory";
 import { api } from "./api-client";
+import {
+  describeDataError,
+  invalidatePlayerData,
+  purgeProtectedPlayerData,
+  readPlayerData,
+  requestPlayerData,
+  storePlayerData,
+} from "./player-data-cache";
 import styles from "./inventory-v1c.module.css";
 
 type ConcealmentClass = "T" | "J" | "M" | "N";
@@ -210,37 +218,88 @@ function EmptyZone({ title, description }: { title: string; description: string 
   );
 }
 
-export function InventoryPanel() {
-  const [p, setP] = useState<InventoryProjection | null>(null);
-  const [characterId, setCharacterId] = useState("");
+function inventoryKey(characterId: string | null, archived: boolean) {
+  const query = new URLSearchParams({ includeArchived: archived ? "1" : "0" });
+  if (characterId) query.set("characterId", characterId);
+  return `/api/inventory?${query.toString()}`;
+}
+
+export function InventoryPanel({
+  dataScope,
+  activeCharacterId,
+  onActiveCharacterChange,
+}: {
+  dataScope: string;
+  activeCharacterId: string | null;
+  onActiveCharacterChange: (id: string | null) => void;
+}) {
+  const [projection, setProjection] = useState<InventoryProjection | null>(null);
+  const [projectionError, setProjectionError] = useState<Error | null>(null);
   const [selected, setSelected] = useState<InventoryItem | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Alle");
   const [archived, setArchived] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyProfile, setBusyProfile] = useState(false);
+  const requestSequence = useRef(0);
+  const p = projection && (!activeCharacterId || projection.selectedCharacter?.id === activeCharacterId)
+    ? projection
+    : null;
 
-  const load = useCallback(async (id = characterId) => {
-    setLoading(true);
+  const load = useCallback(async (force = false) => {
+    const sequence = ++requestSequence.current;
+    const key = inventoryKey(activeCharacterId, archived);
+    const cached = readPlayerData<InventoryProjection>(dataScope, key);
+    setProjection(cached?.value ?? null);
+    setProjectionError(null);
+    setLoading(!cached);
+    setRefreshing(!!cached && (force || !cached.fresh));
     try {
-      const next = await api<InventoryProjection>(
-        `/api/inventory${id ? `?characterId=${encodeURIComponent(id)}&includeArchived=${archived ? 1 : 0}` : `?includeArchived=${archived ? 1 : 0}`}`,
+      const next = await requestPlayerData(
+        dataScope,
+        key,
+        () => api<InventoryProjection>(key),
+        { force },
       );
-      setP(next);
-      if (next.selectedCharacter && !id) setCharacterId(next.selectedCharacter.id);
+      if (sequence !== requestSequence.current) return;
+      setProjection(next);
+      if (next.selectedCharacter && !activeCharacterId) {
+        storePlayerData(dataScope, inventoryKey(next.selectedCharacter.id, archived), next);
+        onActiveCharacterChange(next.selectedCharacter.id);
+      }
       setSelected((old) => old ? next.items.find((item) => item.id === old.id) || null : null);
     } catch (error) {
-      toast.error((error as Error).message);
+      if (sequence !== requestSequence.current) return;
+      const issue = describeDataError(error);
+      setProjectionError(error instanceof Error ? error : new Error(issue.detail));
+      if (issue.permission) setProjection(null);
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [characterId, archived]);
+  }, [activeCharacterId, archived, dataScope, onActiveCharacterChange]);
 
-  // Synchronize the initial projection with the selected character.
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    // A newer selection makes any late response from the previous character inert.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
+    return () => { requestSequence.current += 1; };
+  }, [load]);
+
+  const handleMutationError = (error: unknown) => {
+    const issue = describeDataError(error);
+    toast.error(issue.detail);
+    if (issue.permission) {
+      purgeProtectedPlayerData();
+      setProjection(null);
+      setProjectionError(error instanceof Error ? error : new Error(issue.detail));
+    }
+  };
 
   const filteredItems = useMemo(() => p?.items.filter((item) => {
     const matches = item.name.toLowerCase().includes(search.toLowerCase());
@@ -253,9 +312,11 @@ export function InventoryPanel() {
   const open = (item?: InventoryItem) => {
     if (!p?.selectedCharacter) return;
     if (!item) {
+      setSelected(null);
       setDraft(fresh(p.selectedCharacter.id));
       return;
     }
+    setSelected(null);
     setDraft({
       id: item.id,
       expectedRevision: item.revision,
@@ -280,6 +341,7 @@ export function InventoryPanel() {
 
   const addToBodySlot = (slot: BodySlot) => {
     if (!p?.selectedCharacter) return;
+    setSelected(null);
     setDraft({ ...fresh(p.selectedCharacter.id), location: "BODY", bodySlot: slot });
   };
 
@@ -293,7 +355,7 @@ export function InventoryPanel() {
       setDraft({ ...draft, imageFileId: result.id });
       toast.success("Bild sicher gespeichert");
     } catch (error) {
-      toast.error((error as Error).message);
+      handleMutationError(error);
     }
   };
 
@@ -310,12 +372,13 @@ export function InventoryPanel() {
           : undefined,
         armorProfile: draft.category === "Schutz / Rüstung" ? draft.armorProfile : undefined,
       });
+      invalidatePlayerData(dataScope, "/api/inventory");
       setDraft(null);
       setSelected(null);
-      await load();
+      await load(true);
       toast.success(action === "archive" ? "Gegenstand archiviert" : "Gegenstand gespeichert");
     } catch (error) {
-      toast.error((error as Error).message);
+      handleMutationError(error);
     } finally {
       setSaving(false);
     }
@@ -330,9 +393,10 @@ export function InventoryPanel() {
         profile,
         expectedRevision: p.carry.revision,
       });
-      await load();
+      invalidatePlayerData(dataScope, "/api/inventory");
+      await load(true);
     } catch (error) {
-      toast.error((error as Error).message);
+      handleMutationError(error);
     } finally {
       setBusyProfile(false);
     }
@@ -342,12 +406,41 @@ export function InventoryPanel() {
     return <section className={styles.emptyPage} aria-live="polite">Inventar wird geöffnet …</section>;
   }
 
+  if (projectionError && !p) {
+    const issue = describeDataError(projectionError);
+    return (
+      <section role="alert" className={styles.emptyPage}>
+        <TriangleAlert size={34} />
+        <h2>{issue.title}</h2>
+        <p>{issue.detail}</p>
+        <button className="button" type="button" onClick={() => void load(true)}>Erneut versuchen</button>
+      </section>
+    );
+  }
+
   if (!p?.characters.length) {
     return (
       <section className={styles.emptyPage}>
         <Box size={42} />
         <h2>Noch kein aktiver eigener Charakter</h2>
         <p>Das Inventar wird an einen eigenen Charakter gebunden.</p>
+      </section>
+    );
+  }
+
+  if (!p.selectedCharacter) {
+    return (
+      <section className={styles.emptyPage}>
+        <Box size={42} />
+        <h2>Charakter auswählen</h2>
+        <p>{p.characters.length} eigene Charaktere sind verfügbar. Wähle aus, welches Inventar du öffnen möchtest.</p>
+        <label className={styles.characterSelect}>
+          <span>Aktiver Charakter</span>
+          <select aria-label="Aktiver Charakter" value={activeCharacterId || ""} onChange={(event) => onActiveCharacterChange(event.target.value || null)}>
+            <option value="">Auswählen …</option>
+            {p.characters.map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}
+          </select>
+        </label>
       </section>
     );
   }
@@ -399,18 +492,20 @@ export function InventoryPanel() {
 
   return (
     <div className={styles.inventoryPage}>
+      {refreshing && <p className="muted" role="status">Inventar wird aktualisiert …</p>}
+      {projectionError && <div role="alert" className="error-box"><strong>{describeDataError(projectionError).title}</strong><p>{projectionError.message}</p><button className="button" onClick={() => void load(true)}>Erneut versuchen</button></div>}
       <header className={styles.inventoryHero}>
         <div className={styles.heroCopy}>
-          <p className="eyebrow">CHARACTER INVENTORY</p>
-          <h2>{p.selectedCharacter?.name || "Charakter wählen"}</h2>
+          <p className="eyebrow">AUSRÜSTUNG · INVENTAR</p>
+          <h1>Dein Inventar</h1>
           <p>{p.selectedCharacter
-            ? `${p.inventorySummary.active} aktive Gegenstände · ${p.inventorySummary.equipped} ausgerüstet`
+            ? `${p.selectedCharacter.name} · ${p.inventorySummary.active} aktive Gegenstände · ${activeBodyItems.length} am Körper`
             : "Jedes Inventar bleibt eindeutig einem Charakter zugeordnet."}</p>
         </div>
         {p.characters.length > 1 && (
           <label className={styles.characterSelect}>
             <span>Charakter</span>
-            <select value={characterId} onChange={(event) => { setCharacterId(event.target.value); setSelected(null); }}>
+            <select value={activeCharacterId || ""} onChange={(event) => { setSelected(null); onActiveCharacterChange(event.target.value || null); }}>
               <option value="">Auswählen …</option>
               {p.characters.map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}
             </select>
@@ -532,58 +627,65 @@ export function InventoryPanel() {
           {renderItems(storedItems, "Nichts gelagert.", "Gelagerte Gegenstände erscheinen getrennt vom aktiven Gepäck.")}
         </section>
 
-        {selected && (
-          <section className={styles.detailPanel} aria-labelledby="selected-item-title">
-            <button type="button" className={styles.detailClose} onClick={() => setSelected(null)} aria-label="Detail schließen">×</button>
-            <div className={styles.detailArt}>
-              {selected.imageFileId
-                ? <img src={`/api/files?id=${encodeURIComponent(selected.imageFileId)}`} alt="" />
-                : (() => { const Icon = icons[selected.category]; return <Icon size={38} strokeWidth={1.5} />; })()}
-            </div>
-            <div className={styles.detailMain}>
-              <p className="eyebrow">GEGENSTAND · {selected.category}</p>
-              <h3 id="selected-item-title">{selected.name}</h3>
-              <div className={styles.detailMeta}>
-                <span>Menge <b>{selected.quantity}</b></span>
-                <span>Status <b>{selected.status}</b></span>
-                <span>Sichtbarkeit <b>{visibilityLabels[selected.visibility]}</b></span>
-                <span>Trageort <b>{selected.location === "BODY" ? labels[selected.bodySlot!] : selected.location === "BACKPACK" ? "Rucksack" : "Gelagert"}</b></span>
-                <span>Slots <b>{selected.slotCost}</b></span>
-                {selected.weightKg !== undefined && <span>Gewicht <b>{selected.weightKg} kg</b></span>}
+        <Dialog open={!!selected} onOpenChange={(isOpen) => !isOpen && setSelected(null)}>
+          <DialogContent className={styles.itemDialog}>
+            {selected && <>
+              <div className={styles.detailArt}>
+                {selected.imageFileId
+                  ? <img src={`/api/files?id=${encodeURIComponent(selected.imageFileId)}`} alt="" />
+                  : (() => { const Icon = icons[selected.category]; return <Icon size={42} strokeWidth={1.5} />; })()}
               </div>
-              {selected.description && <p className={styles.detailDescription}>{selected.description}</p>}
-              {selected.tags.length > 0 && <div className={styles.tags}>{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
-              {selected.weaponProfile && (
-                <section className={styles.profileDetail}>
-                  <h4>Waffenprofil · V20</h4>
-                  <dl>
-                    <dt>Schaden</dt><dd>{selected.weaponProfile.damage || "—"}</dd>
-                    <dt>Reichweite</dt><dd>{selected.weaponProfile.range || "—"}</dd>
-                    <dt>Schussfolge</dt><dd>{selected.weaponProfile.rate || "—"}</dd>
-                    <dt>Magazin</dt><dd>{selected.weaponProfile.capacity || "—"}</dd>
-                    <dt>Versteck</dt><dd>{selected.weaponProfile.concealmentClass || "Nicht festgelegt"}</dd>
-                  </dl>
-                  {selected.weaponProfile.concealmentClass && <p>{selected.weaponProfile.concealmentClass === "N" ? "Kann nach V20 nicht am Körper verborgen werden." : `V20-Versteckklasse ${selected.weaponProfile.concealmentClass}.`}</p>}
-                  {slotWarning(selected) && <p className={styles.warningText}>Sehr auffällig · offene oder unpassende Körperplatzierung.</p>}
-                </section>
-              )}
-              {selected.armorProfile && (
-                <section className={styles.profileDetail}>
-                  <h4>Rüstung</h4>
-                  <dl>
-                    <dt>Rüstungsklasse</dt><dd>{selected.armorProfile.armorClass ?? "—"}</dd>
-                    <dt>Rüstungswert</dt><dd>{selected.armorProfile.armorValue ?? "—"}</dd>
-                    <dt>Abzug</dt><dd>{selected.armorProfile.dexterityPenalty ?? "—"}</dd>
-                  </dl>
-                </section>
-              )}
-              <div className={styles.detailActions}>
-                <button className="button primary" onClick={() => open(selected)}>Bearbeiten</button>
-                {selected.lifecycleStatus === "ACTIVE" && <button className="button" onClick={() => open(selected)}><Archive size={16} /> Archivieren</button>}
+              <div className={styles.detailMain}>
+                <DialogHeader className={styles.itemDialogHeader}>
+                  <p className="eyebrow">GEGENSTAND · {selected.category}</p>
+                  <DialogTitle className={styles.detailTitle}>{selected.name}</DialogTitle>
+                  <DialogDescription className={styles.itemDialogDescription}>
+                    {selected.lifecycleStatus === "ARCHIVED" ? "Archivierter Gegenstand" : "Ausrüstung deines Charakters"}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className={styles.detailMeta}>
+                  <span>Menge <b>{selected.quantity}</b></span>
+                  <span>Status <b>{selected.status}</b></span>
+                  <span>Sichtbarkeit <b>{visibilityLabels[selected.visibility]}</b></span>
+                  <span>Trageort <b>{selected.location === "BODY" ? (selected.bodySlot ? labels[selected.bodySlot] : "Am Körper") : selected.location === "BACKPACK" ? "Rucksack" : "Gelagert"}</b></span>
+                  <span>Auffälligkeit <b>{slotWarning(selected) ? "Platzierung prüfen" : "Keine Warnung"}</b></span>
+                  <span>Slots <b>{selected.slotCost}</b></span>
+                  {selected.weightKg !== undefined && <span>Gewicht <b>{selected.weightKg} kg</b></span>}
+                </div>
+                <p className={styles.detailDescription}>{selected.description || "Keine Beschreibung hinterlegt."}</p>
+                {selected.tags.length > 0 && <div className={styles.tags} aria-label="Tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
+                {selected.weaponProfile && (
+                  <section className={styles.profileDetail} aria-label="Waffenprofil nach V20">
+                    <h4>Waffenprofil · V20</h4>
+                    <dl>
+                      <dt>Schaden</dt><dd>{selected.weaponProfile.damage || "—"}</dd>
+                      <dt>Reichweite</dt><dd>{selected.weaponProfile.range || "—"}</dd>
+                      <dt>Schussfolge</dt><dd>{selected.weaponProfile.rate || "—"}</dd>
+                      <dt>Magazin</dt><dd>{selected.weaponProfile.capacity || "—"}</dd>
+                      <dt>Versteck</dt><dd>{selected.weaponProfile.concealmentClass || "Nicht festgelegt"}</dd>
+                    </dl>
+                    {selected.weaponProfile.note && <p>{selected.weaponProfile.note}</p>}
+                    {selected.weaponProfile.concealmentClass && <p>{selected.weaponProfile.concealmentClass === "N" ? "Kann nach V20 nicht am Körper verborgen werden." : `V20-Versteckklasse ${selected.weaponProfile.concealmentClass}.`}</p>}
+                    {slotWarning(selected) && <p className={styles.warningText}>Platzierung auffällig · bitte Trageort prüfen.</p>}
+                  </section>
+                )}
+                {selected.armorProfile && (
+                  <section className={styles.profileDetail} aria-label="Rüstungswerte">
+                    <h4>Schutz / Rüstung</h4>
+                    <dl>
+                      <dt>Rüstungsklasse</dt><dd>{selected.armorProfile.armorClass ?? "—"}</dd>
+                      <dt>Rüstungswert</dt><dd>{selected.armorProfile.armorValue ?? "—"}</dd>
+                      <dt>Abzug</dt><dd>{selected.armorProfile.dexterityPenalty ?? "—"}</dd>
+                    </dl>
+                  </section>
+                )}
+                <div className={styles.detailActions}>
+                  <button className="button primary" onClick={() => open(selected)}>Bearbeiten</button>
+                </div>
               </div>
-            </div>
-          </section>
-        )}
+            </>}
+          </DialogContent>
+        </Dialog>
       </>}
 
       <Dialog open={!!draft} onOpenChange={(isOpen) => !isOpen && setDraft(null)}>

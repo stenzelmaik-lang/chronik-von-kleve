@@ -1,5 +1,5 @@
 import type { LegacyRecordRow } from "@/domain/legacy";
-import { loadEntities, grantsFor, projectEntity } from "@/server/entities";
+import { loadEntitiesForIds, grantsFor, projectEntity } from "@/server/entities";
 import { z } from "zod";
 import {
   actor,
@@ -67,16 +67,16 @@ export async function GET(req: Request) {
     if (![...campaignKinds, ...personalKinds].includes(kind))
       throw new HttpError(400, "Unbekannter Bereich.");
     const db = database();
-    const [rows, entities, grants] = await Promise.all([
+    const [rows, grants] = await Promise.all([
       db
         .prepare(
           "SELECT * FROM records WHERE campaign_id=? AND kind=? ORDER BY updated_at DESC",
         )
         .bind(a.campaignId, kind)
         .all<LegacyRecordRow>(),
-      loadEntities(db, a.campaignId),
       grantsFor(db, a),
     ]);
+    const entities = await loadEntitiesForIds(db, a.campaignId, rows.results.map((row) => row.id));
     const index = new Map(entities.map((e) => [e.id, e]));
     const records = rows.results.flatMap((r) => {
       const entity = index.get(r.id);

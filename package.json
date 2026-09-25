@@ -12,7 +12,7 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node --experimental-strip-types --test tests/foundation.test.mjs tests/recovery.test.mjs tests/location-system.test.mjs",
+    "test": "node --experimental-strip-types --test tests/foundation.test.mjs tests/recovery.test.mjs tests/location-system.test.mjs tests/player-data-cache.test.mjs tests/world-map.test.mjs",
     "test:integration": "node scripts/test-local.mjs",
     "typecheck": "tsc --noEmit --incremental false"
   },
@@ -28,6 +28,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^1.31.0",
+    "maplibre-gl": "5.24.0",
     "next": "16.3.4",
     "next-themes": "^0.4.6",
     "radix-ui": "^1.6.7",

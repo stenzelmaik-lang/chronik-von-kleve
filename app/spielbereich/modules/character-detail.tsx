@@ -16,7 +16,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "./api-client";
+import { ApiError, api } from "./api-client";
+import { describeDataError, invalidatePlayerData, purgeProtectedPlayerData, readPlayerData, requestPlayerData } from "./player-data-cache";
 import {
   CharacterCompanionNote,
   CharacterDetailProjection,
@@ -44,23 +45,30 @@ const mediaLabels: Record<string, string> = {
 
 export function CharacterDetail({
   entries,
+  dataScope,
+  activeCharacterId,
+  onActiveCharacterChange,
   onCreate,
   onEdit,
   onRefresh,
 }: {
   entries: Entry[];
+  dataScope: string;
+  activeCharacterId: string | null;
+  onActiveCharacterChange: (id: string | null) => void;
   onCreate: () => void;
   onEdit: (e: Entry) => void;
   onRefresh?: () => void;
 }) {
-  const [selected, setSelected] = useState<string | null>(
-    entries.length === 1 ? (entries[0].id ?? null) : null,
-  );
-  const [projection, setProjection] = useState<CharacterDetailProjection | null>(
+  const [projectionState, setProjection] = useState<CharacterDetailProjection | null>(
     null,
   );
   const [state, setState] = useState("");
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadedCharacterId, setLoadedCharacterId] = useState<string | null>(null);
+  const loadVersion = useRef(0);
   const [roleEdit, setRoleEdit] = useState<"story" | "play" | null>(null);
   const [storyDraft, setStoryDraft] = useState("");
   const [playDraft, setPlayDraft] = useState("");
@@ -76,23 +84,53 @@ export function CharacterDetail({
   const [companionBusy, setCompanionBusy] = useState(false);
   const portraitInput = useRef<HTMLInputElement>(null);
   const mediaInput = useRef<HTMLInputElement>(null);
+  const selected = activeCharacterId;
   const active = entries.find((e) => e.id === selected) ?? null;
+  const projection = loadedCharacterId === active?.id ? projectionState : null;
 
-  async function reload() {
-    if (!active?.id) return;
-    setLoading(true);
+  useEffect(() => {
+    if (activeCharacterId && entries.length && !entries.some((entry) => entry.id === activeCharacterId)) {
+      onActiveCharacterChange(null);
+      return;
+    }
+    if (!activeCharacterId && entries.length === 1 && entries[0].id) {
+      onActiveCharacterChange(entries[0].id);
+    }
+  }, [activeCharacterId, entries, onActiveCharacterChange]);
+
+  async function reload(force = false) {
+    const characterId = active?.id;
+    if (!characterId) return;
+    const version = ++loadVersion.current;
+    const key = `/api/character-detail?id=${encodeURIComponent(characterId)}`;
+    const cached = readPlayerData<CharacterDetailProjection>(dataScope, key);
+    setProjection(cached?.value ?? null);
+    setLoadedCharacterId(characterId);
+    setLoadError(null);
+    setLoading(!cached);
+    setRefreshing(!!cached && (force || !cached.fresh));
     try {
-      const r = await fetch(
-        "/api/character-detail?id=" + encodeURIComponent(active.id),
+      const next = await requestPlayerData(
+        dataScope,
+        key,
+        () => api<CharacterDetailProjection>(key),
+        { force },
       );
-      if (!r.ok) throw new Error("Charakter konnte nicht geladen werden.");
-      setProjection((await r.json()) as CharacterDetailProjection);
+      if (version !== loadVersion.current) return;
+      setProjection(next);
+      setLoadedCharacterId(characterId);
+      setLoadError(null);
       setState("");
     } catch (e) {
-      setProjection(null);
-      setState((e as Error).message);
+      if (version !== loadVersion.current) return;
+      const issue = describeDataError(e);
+      setLoadError(e instanceof Error ? e : new Error(issue.detail));
+      if (issue.permission) setProjection(null);
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }
 
@@ -100,13 +138,20 @@ export function CharacterDetail({
     // This fetch intentionally synchronizes the server projection when selection changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void reload();
-  }, [selected]);
+    return () => { loadVersion.current += 1; };
+  }, [selected, active?.version]);
+
+  function invalidateCharacter() {
+    if (!active?.id) return;
+    invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(active.id)}`);
+    invalidatePlayerData(dataScope, "/api/dashboard");
+  }
 
   async function runtime(
     field: "blood" | "willpowerTemporary" | "health",
     value: unknown,
   ) {
-    if (!active?.id || !projection) return;
+    if (!active?.id || !projection || loadedCharacterId !== active.id) return;
     setState("SPEICHERT …");
     try {
       const r = await fetch("/api/character-runtime", {
@@ -123,15 +168,27 @@ export function CharacterDetail({
       if (!r.ok) {
         if (r.status === 409) {
           setState("KONFLIKT – Serverstand wird geladen.");
-          await reload();
+          invalidateCharacter();
+          await reload(true);
           return;
         }
-        throw new Error(data.error || "FEHLER");
+        if ([401, 403, 404].includes(r.status)) {
+          purgeProtectedPlayerData();
+          setProjection(null);
+          setLoadError(new ApiError(data.error || "Charakter ist nicht mehr verfügbar.", r.status));
+        }
+        throw new ApiError(data.error || "FEHLER", r.status);
       }
-      await reload();
+      invalidateCharacter();
+      await reload(true);
       setState("GESPEICHERT");
     } catch (e) {
       setState("FEHLER: " + (e as Error).message);
+      if (describeDataError(e).permission) {
+        purgeProtectedPlayerData();
+        setProjection(null);
+        setLoadError(e instanceof Error ? e : new Error(describeDataError(e).detail));
+      }
     }
   }
 
@@ -154,11 +211,13 @@ export function CharacterDetail({
       });
       toast.success("Companion gespeichert");
       setRoleEdit(null);
-      await reload();
+      invalidateCharacter();
+      await reload(true);
       onRefresh?.();
     } catch (e) {
       toast.error((e as Error).message);
-      await reload();
+      invalidateCharacter();
+      await reload(true);
     } finally {
       setCompanionBusy(false);
     }
@@ -182,11 +241,13 @@ export function CharacterDetail({
       toast.success(type === "portrait" ? "Portrait gespeichert" : "Bild gespeichert");
       if (portraitInput.current) portraitInput.current.value = "";
       if (mediaInput.current) mediaInput.current.value = "";
-      await reload();
+      invalidateCharacter();
+      await reload(true);
       onRefresh?.();
     } catch (e) {
       toast.error((e as Error).message);
-      await reload();
+      invalidateCharacter();
+      await reload(true);
     } finally {
       setCompanionBusy(false);
     }
@@ -217,11 +278,13 @@ export function CharacterDetail({
       });
       toast.success("Notiz gespeichert");
       setNoteDraft(null);
-      await reload();
+      invalidateCharacter();
+      await reload(true);
       onRefresh?.();
     } catch (e) {
       toast.error((e as Error).message);
-      await reload();
+      invalidateCharacter();
+      await reload(true);
     } finally {
       setCompanionBusy(false);
     }
@@ -238,11 +301,13 @@ export function CharacterDetail({
         version: note.version,
       });
       toast.success("Notiz archiviert");
-      await reload();
+      invalidateCharacter();
+      await reload(true);
       onRefresh?.();
     } catch (e) {
       toast.error((e as Error).message);
-      await reload();
+      invalidateCharacter();
+      await reload(true);
     } finally {
       setCompanionBusy(false);
     }
@@ -264,7 +329,10 @@ export function CharacterDetail({
                 type="button"
                 className="entry-card"
                 key={e.id}
-                onClick={() => setSelected(e.id ?? null)}
+                onClick={() => {
+                  const id = e.id ?? null;
+                  onActiveCharacterChange(id);
+                }}
               >
                 <strong>{e.title}</strong>
                 <span>{String(e.body.clan || "Clan nicht angegeben")}</span>
@@ -287,11 +355,9 @@ export function CharacterDetail({
   if (!projection)
     return (
       <section className="panel">
-        <h2>Charakter konnte nicht geladen werden</h2>
-        <p className="muted">{state || "Bitte erneut versuchen."}</p>
-        <button className="button" onClick={() => void reload()}>
-          Neu laden
-        </button>
+        <h2>{loadError ? describeDataError(loadError).title : "Charakter konnte nicht geladen werden"}</h2>
+        <p className="muted">{loadError?.message || "Bitte erneut versuchen."}</p>
+        <button className="button" onClick={() => void reload(true)}>Erneut versuchen</button>
       </section>
     );
 
@@ -325,6 +391,8 @@ export function CharacterDetail({
 
   return (
     <div className="character-detail-page">
+      {refreshing && <p className="muted" role="status">Charakterbogen wird aktualisiert …</p>}
+      {loadError && <div role="alert" className="error-box"><strong>{describeDataError(loadError).title}</strong><p>{loadError.message}</p><button className="button" onClick={() => void reload(true)}>Erneut versuchen</button></div>}
       <header className="character-hero">
         <div className="character-portrait">
           {typeof i.portraitRef === "string" && i.portraitRef ? (
@@ -352,6 +420,21 @@ export function CharacterDetail({
           </dl>
         </div>
         <div className="character-hero-actions">
+          {entries.length > 1 && (
+            <label className="character-active-select">
+              <span>Aktiver Charakter</span>
+              <select
+                aria-label="Aktiver Charakter"
+                value={active.id ?? ""}
+                onChange={(event) => {
+                  const id = event.target.value || null;
+                  onActiveCharacterChange(id);
+                }}
+              >
+                {entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
+              </select>
+            </label>
+          )}
           {permissions.canEdit === true && (
             <button
               className="button primary character-edit"
