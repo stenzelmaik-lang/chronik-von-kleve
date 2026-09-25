@@ -1,51 +1,46 @@
-import type { PlaceProjection, ProjectedPlace } from "@/domain/location-types";
+import type { DiscoveryState, PlaceGeography, ProjectedPlace } from "@/domain/location-types";
 
-export type WorldMapPlace = Pick<
+export type WorldHubPlace = Pick<
   ProjectedPlace,
-  "id" | "title" | "discovery" | "worldState"
->;
+  "id" | "title" | "subtitle" | "district" | "image" | "summary" | "discovery" | "worldState"
+> & { geography: PlaceGeography };
+
+export type WorldMapPlace = Pick<WorldHubPlace, "id" | "title" | "discovery" | "worldState">;
 
 export type WorldMapMarker = WorldMapPlace & {
   coordinates: [longitude: number, latitude: number];
-  coordinateSource: "prototype-test-coordinate";
+  precision: "exact" | "approximate";
+  source: string;
+  accuracyMeters?: number;
 };
 
-const EXACT_KNOWLEDGE = new Set(["known", "visited", "investigated"]);
+const MAP_KNOWLEDGE = new Set<DiscoveryState>(["known", "visited", "investigated"]);
 
-/**
- * Map candidates can only come from the player projection. Rumors and hidden
- * places may not have an exact player-known position, even if a fixture does.
- */
-export function playerMapPlaces(
-  projection: PlaceProjection | null | undefined,
-): WorldMapPlace[] {
-  if (!projection || projection.view !== "player") return [];
-  const place = projection.location;
-  if (
-    !place.id ||
-    !place.title.trim() ||
-    !EXACT_KNOWLEDGE.has(place.discovery)
-  ) {
-    return [];
-  }
+/** The exact same released collection feeds player search, place tiles, previews,
+ * and markers. GM view may include unrevealed projections because the server
+ * has already authorized that view. */
+export function visibleWorldPlaces(places: readonly WorldHubPlace[], gmView = false): WorldHubPlace[] {
+  return gmView ? [...places] : playerMapPlaces(places);
+}
 
-  // Deliberately project only the fields required to create a map candidate.
-  return [
-    {
+/** The hub response is already server-projected; this function deliberately
+ * copies only the safe tile fields and never adds information from detail data. */
+export function playerMapPlaces(places: readonly WorldHubPlace[]): WorldHubPlace[] {
+  return places.filter((place) => place.id && place.title.trim() && MAP_KNOWLEDGE.has(place.discovery));
+}
+
+export function mapMarkersForPlaces(places: readonly WorldHubPlace[], includeUnrevealed = false): WorldMapMarker[] {
+  return places.flatMap((place) => {
+    if ((!includeUnrevealed && !MAP_KNOWLEDGE.has(place.discovery)) || place.geography.status === "unknown") return [];
+    return [{
       id: place.id,
       title: place.title,
       discovery: place.discovery,
       worldState: place.worldState,
-    },
-  ];
-}
-
-export function mapMarkerFor(
-  place: WorldMapPlace,
-  marker: WorldMapMarker | null | undefined,
-): WorldMapMarker | null {
-  if (!marker || marker.id !== place.id || !EXACT_KNOWLEDGE.has(place.discovery)) {
-    return null;
-  }
-  return marker;
+      coordinates: place.geography.coordinates,
+      precision: place.geography.status,
+      source: place.geography.source,
+      ...(place.geography.status === "approximate" ? { accuracyMeters: place.geography.accuracyMeters } : {}),
+    }];
+  });
 }

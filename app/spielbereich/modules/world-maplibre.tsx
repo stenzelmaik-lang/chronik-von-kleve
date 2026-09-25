@@ -33,9 +33,12 @@ function createMarkerElement(place: WorldMapMarker) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = styles.mapLibreMarker;
-  button.setAttribute("aria-label", `${place.title}, bekannter Ort. Vorschau anzeigen.`);
+  const positionText = place.precision === "approximate"
+    ? `ungefähre Position, Genauigkeit etwa ${place.accuracyMeters ?? 0} Meter`
+    : "geprüfte genaue Position";
+  button.setAttribute("aria-label", `${place.title}, ${positionText}. Vorschau anzeigen.`);
   button.setAttribute("aria-pressed", "false");
-  button.title = `${place.title} · bekannte Chronik-Position`;
+  button.title = `${place.title} · ${positionText}`;
   button.innerHTML = '<span aria-hidden="true"></span><i aria-hidden="true"></i>';
   return button;
 }

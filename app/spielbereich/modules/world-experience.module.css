@@ -140,6 +140,7 @@
 .mapStage[data-map-state="ready"] .mapScale { display: none; }
 .mapStage[data-map-state="ready"] .mapLegend { z-index: 4; top: 16px; right: auto; left: 16px; }
 .mapStage[data-map-state="ready"] .mapPreview { z-index: 5; right: auto; bottom: 54px; left: 16px; }
+.mapStage:not([data-map-state="ready"]) .mapPreview { bottom: 68px; }
 .mapStatus {
   position: absolute;
   z-index: 6;
@@ -219,8 +220,10 @@
   box-shadow: 0 18px 42px rgba(0,0,0,.36);
   animation: previewIn .24s ease-out both;
 }
+.mapPreviewNoImage { grid-template-columns: minmax(0,1fr); }
 
 .previewImage { min-height: 100%; overflow: hidden; background: #182023; }
+.mapPreviewNoImage .previewImage { display: none; }
 .previewImage img { width: 100%; height: 100%; min-height: 176px; object-fit: cover; object-position: 53% center; filter: saturate(.75) brightness(.76); }
 .previewBody { display: flex; flex-direction: column; align-items: start; padding: 14px 16px 12px; }
 .previewTopline { display: flex; align-items: center; gap: 8px; color: #cfbb90; font-size: 9px; letter-spacing: .09em; text-transform: uppercase; }
@@ -238,8 +241,9 @@
 .sectionHeading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .sectionHeading h2 { margin: 6px 0 0; font: normal clamp(26px, 3vw, 36px)/1.08 Georgia, "Times New Roman", serif; letter-spacing: -.025em; }
 .sectionHeading > p { margin: 0 1px 2px; color: #8e9890; font-size: 12px; line-height: 1.6; text-align: right; }
-.placeGrid { display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(240px, .72fr); align-items: stretch; gap: 18px; }
-.placeCard { display: grid; grid-template-columns: minmax(270px, .95fr) minmax(220px, .8fr); min-width: 0; padding: 0; overflow: hidden; border: 1px solid rgba(189,175,144,.21); background: #151e20; color: inherit; text-align: left; cursor: pointer; transition: border-color .22s ease, transform .22s ease, box-shadow .22s ease; }
+.placeGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); align-items: stretch; gap: 18px; }
+.placeCard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); min-width: 0; padding: 0; overflow: hidden; border: 1px solid rgba(189,175,144,.21); background: #151e20; color: inherit; text-align: left; cursor: pointer; transition: border-color .22s ease, transform .22s ease, box-shadow .22s ease; }
+.placeCardNoImage { grid-template-columns: minmax(0,1fr); }
 .placeCard:hover,.placeCardActive { border-color: rgba(205,166,107,.64); box-shadow: 0 15px 38px rgba(0,0,0,.23); }
 .placeCard:hover { transform: translateY(-2px); }
 .cardImage { position: relative; min-height: 278px; overflow: hidden; background: #182023; }
@@ -248,6 +252,8 @@
 .cardShade { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(7,12,14,.72), transparent 48%), linear-gradient(90deg, rgba(7,12,14,.2), transparent 60%); }
 .cardStatus { position: absolute; left: 15px; bottom: 14px; display: inline-flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid rgba(221,201,156,.3); background: rgba(12,18,19,.78); color: #ddc99b; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; backdrop-filter: blur(8px); }
 .cardStatus .statePip { width: 6px; height: 6px; }
+.cardStatusInline { display: inline-flex; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid rgba(221,201,156,.3); color: #ddc99b; background: rgba(12,18,19,.4); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.cardStatusInline .statePip { width: 6px; height: 6px; }
 .cardArrow { position: absolute; right: 14px; top: 14px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid rgba(232,217,183,.38); border-radius: 50%; color: #f2e3c1; background: rgba(10,16,18,.5); }
 .cardCopy { display: flex; flex-direction: column; align-items: start; padding: clamp(22px,3vw,36px); }
 .cardOverline { color: #aab0a7; font-size: 9px; letter-spacing: .15em; text-transform: uppercase; }
@@ -450,6 +456,7 @@
   .placeMarker { width: 56px; height: 56px; }
   .markerLabel { top: 58px; font-size: 11px; }
   .mapPreview { right: 10px; bottom: 10px; left: 10px; grid-template-columns: 104px minmax(0,1fr); width: auto; min-height: 142px; }
+  .mapStage:not([data-map-state="ready"]) .mapPreview { bottom: 10px; }
   .mapStage[data-map-state="ready"] .mapPreview { right: 10px; bottom: 53px; left: 10px; width: auto; }
   .previewImage img { min-height: 142px; }
   .previewBody { padding: 11px 12px 9px; }

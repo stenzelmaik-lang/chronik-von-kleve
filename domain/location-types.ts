@@ -33,6 +33,22 @@ export type PreparedActionStatus = (typeof preparedActionStatusIds)[number];
 
 export type PlaceVisibility = "public" | "group" | "private" | "shared" | "gm";
 
+export type PlaceGeography =
+  | { status: "unknown" }
+  | {
+      status: "exact";
+      coordinates: [longitude: number, latitude: number];
+      source: string;
+      reviewedAt: string;
+    }
+  | {
+      status: "approximate";
+      coordinates: [longitude: number, latitude: number];
+      accuracyMeters: number;
+      source: string;
+      reviewedAt: string;
+    };
+
 export type FactionSignal = {
   label: string;
   mode: "control" | "observation";
@@ -107,6 +123,7 @@ export type PlaceModel = {
   image: string;
   summary: string;
   atmosphere: string;
+  geography?: PlaceGeography;
   discovery: DiscoveryState;
   worldState: WorldStateId;
   markers: StateMarkerId[];

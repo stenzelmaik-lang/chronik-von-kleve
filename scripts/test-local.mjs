@@ -6,7 +6,7 @@ import {once} from 'node:events';
 // Isolated local test worker: never reuse .wrangler production/preview state.
 const state='work/tests/'+randomUUID();mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const env={...process.env,WRANGLER_SEND_METRICS:'false',CVK_TEST_URL:'http://127.0.0.1:8793',CVK_TEST_STATE:state};
+const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:state+'/wrangler.log',CVK_TEST_URL:'http://127.0.0.1:8793',CVK_TEST_STATE:state};
 for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql']){
  const r=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8'});
  if(r.status!==0)throw new Error('Local migration failed: '+r.stderr);
@@ -24,6 +24,10 @@ try{
  if(!ready)throw new Error('Local worker did not become ready.');
  const suite=spawn(process.execPath,['tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});
  const [code]=await once(suite,'exit');process.exitCode=code??1;
+ if(process.exitCode===0&&process.env.CVK_CAPTURE_SCREENSHOTS==='1'){
+  const screenshots=spawnSync(process.execPath,['scripts/capture-location-screenshots.mjs'],{env,stdio:'inherit',windowsHide:true});
+  if(screenshots.status!==0)throw new Error('Location desktop/mobile visual checks failed.');
+ }
 }finally{
  if(process.platform==='win32'&&worker.pid)spawnSync('taskkill',['/PID',String(worker.pid),'/T','/F'],{stdio:'ignore',windowsHide:true});
  else worker.kill('SIGTERM');

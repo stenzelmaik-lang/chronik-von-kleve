@@ -12,12 +12,11 @@ import type {
 } from "@/domain/location-types";
 import type { Actor } from "@/domain/types";
 import {
-  ELECTRIC_TABERNA_ID,
-  ELECTRIC_TABERNA_LEGACY_ENTITY_ID,
   electricTabernaLocation,
   projectLocationForPlayer,
   projectLocationForSl,
 } from "@/domain/location-model";
+import { projectLocationGeography } from "@/server/location-geography";
 
 type NodeRow = {
   entity_id: string;
@@ -33,6 +32,7 @@ type NodeRow = {
   revision: number;
   canon_status: string;
   entity_content: string;
+  entity_title: string;
 };
 type ActionRow = {
   id: string;
@@ -55,6 +55,8 @@ const jsonObject = (value: string): Record<string, unknown> => {
 };
 const stringArray = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+const safeLocationImage = (value: unknown): string =>
+  typeof value === "string" && (/^\/images\/[a-zA-Z0-9_.-]+$/.test(value) || /^\/api\/files\?id=[a-zA-Z0-9-]+$/.test(value)) ? value : "";
 const parseArray = (value: string): string[] => {
   try { return stringArray(JSON.parse(value)); } catch { return []; }
 };
@@ -76,101 +78,138 @@ function attrs(row: NodeRow): Record<string, unknown> {
   };
 }
 
-export async function loadPersistedLocation(db: D1Database, actor: Actor, placeId = ELECTRIC_TABERNA_ID, requestedView: "sl" | "player" = actor.gm ? "sl" : "player", target: "group" | "player" = "group") {
-  const rows = await db
-    .prepare("SELECT n.*,e.canon_status,e.content AS entity_content FROM location_nodes n JOIN entities e ON e.id=n.entity_id AND e.campaign_id=n.campaign_id WHERE n.campaign_id=? AND n.location_id=? ORDER BY n.position,n.entity_id")
-    .bind(actor.campaignId, placeId)
-    .all<NodeRow>();
-  if (!rows.results.length) return null;
-  const actions = await db
-    .prepare("SELECT id,target_id,definition,status,revision FROM location_actions WHERE campaign_id=? AND location_id=? ORDER BY id")
-    .bind(actor.campaignId, placeId)
-    .all<ActionRow>();
-  const ids = rows.results.map((row) => row.entity_id);
-  const placeholders = ids.map(() => "?").join(",");
-  const grants = ids.length
-    ? await db.prepare(`SELECT entity_id,audience,subject_id,discovery_state FROM knowledge WHERE campaign_id=? AND entity_id IN (${placeholders}) AND state<>'UNKNOWN' AND (audience='public' OR (audience=? AND subject_id=?) OR (audience=? AND subject_id=?))`).bind(actor.campaignId, ...ids, "group", actor.campaignId, "player", target === "player" ? actor.id : "").all<KnowledgeRow>()
-    : { results: [] as KnowledgeRow[] };
+type LoadedRows = { rows: NodeRow[]; actions: ActionRow[]; grants: KnowledgeRow[] };
+
+function buildPersistedProjection(
+  actor: Actor,
+  placeId: string,
+  loaded: LoadedRows,
+  requestedView: "sl" | "player",
+  target: "group" | "player",
+) {
+  const { rows, actions, grants } = loaded;
+  if (!rows.length) return null;
+  const sl = requestedView === "sl" && actor.gm;
+  const grantRows = new Map<string, KnowledgeRow[]>();
+  for (const grant of grants) grantRows.set(grant.entity_id, [...(grantRows.get(grant.entity_id) ?? []), grant]);
   const grantMap = new Map<string, DiscoveryState>();
-  for (const grant of grants.results) {
+  for (const grant of grants) {
     if (!grant.discovery_state) continue;
     const current = grantMap.get(grant.entity_id);
-    if (!current || discoveryOrder.indexOf(validDiscovery(grant.discovery_state)) > discoveryOrder.indexOf(current))
-      grantMap.set(grant.entity_id, validDiscovery(grant.discovery_state));
+    if (!current || discoveryOrder.indexOf(validDiscovery(grant.discovery_state)) > discoveryOrder.indexOf(current)) grantMap.set(grant.entity_id, validDiscovery(grant.discovery_state));
   }
-  const sl = requestedView === "sl" && actor.gm;
-  const blocked = new Set(rows.results.filter(row => locationIsSecret(row.canon_status,jsonObject(row.entity_content),attrs(row))).map(row => row.entity_id));
-  // A secret ancestor is a hard boundary even if a stale descendant grant exists.
-  for (let pass=0; pass<rows.results.length; pass++)
-    for (const row of rows.results) if (row.parent_id && blocked.has(row.parent_id)) blocked.add(row.entity_id);
-  const availableRows = sl ? rows.results : rows.results.filter(row => !blocked.has(row.entity_id));
-  const root = availableRows.find((row) => row.level === "location");
+  const blocked = new Set(rows.filter(row => locationIsSecret(row.canon_status, jsonObject(row.entity_content), attrs(row))).map(row => row.entity_id));
+  for (let pass = 0; pass < rows.length; pass++) for (const row of rows) if (row.parent_id && blocked.has(row.parent_id)) blocked.add(row.entity_id);
+  const availableRows = sl ? rows : rows.filter(row => !blocked.has(row.entity_id));
+  const root = availableRows.find(row => row.level === "location" && row.entity_id === placeId);
   if (!root) return null;
   const rootAttrs = attrs(root);
-  const fullDiscovery = (row: NodeRow): DiscoveryState =>
-    validDiscovery(grantMap.get(row.entity_id) ?? (attrs(row).visibility === "public" ? "known" : "hidden"));
+  const grantsForNode = (row: NodeRow) => grantRows.get(row.entity_id) ?? [];
+  const publicRule = (row: NodeRow) => attrs(row).visibility === "public" || row.world_visibility === "public" || grantsForNode(row).some(grant => grant.audience === "public");
+  const fullDiscovery = (row: NodeRow): DiscoveryState => publicRule(row) ? "known" : validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
   if (!sl && fullDiscovery(root) === "hidden") return null;
+  const rootGrants = grantsForNode(root);
+  const groupGrant = rootGrants.some(grant => grant.audience === "public" || grant.audience === "group");
+  const playerGrant = rootGrants.some(grant => grant.audience === "player" && grant.subject_id === actor.id);
   const worldVisible = (row: NodeRow) => sl || row.world_visibility === "public" || row.world_visibility === "group" ||
     (target === "player" && row.world_visibility === "private" && row.world_subject_id === actor.id);
-  const byParent = (parentId: string | null, level: NodeRow["level"]) => availableRows.filter((row) => row.parent_id === parentId && row.level === level).sort((a, b) => a.position - b.position);
+  const byParent = (parentId: string | null, level: NodeRow["level"]) => availableRows.filter(row => row.parent_id === parentId && row.level === level).sort((a, b) => a.position - b.position);
   const buildRoom = (row: NodeRow): PlaceRoom => {
     const data = attrs(row);
-    return {
-      id: row.entity_id,
-      order: row.position,
-      title: String(data.title || "Unbenannter Raum"),
-      discovery: fullDiscovery(row),
-      worldState: worldVisible(row) ? worldState(row.world_state) : "active",
-      markers: worldVisible(row) ? parseMarkers(row.markers) : [],
-      visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility),
-      short: typeof data.short === "string" ? data.short : undefined,
-    };
+    return { id: row.entity_id, order: row.position, title: String(data.title || row.entity_title || ""), discovery: fullDiscovery(row),
+      worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
+      visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), short: typeof data.short === "string" ? data.short : undefined };
   };
   const buildArea = (row: NodeRow): PlaceArea => {
     const data = attrs(row);
-    return {
-      id: row.entity_id,
-      order: row.position,
-      title: String(data.title || "Unbenannter Bereich"),
-      discovery: fullDiscovery(row),
-      worldState: worldVisible(row) ? worldState(row.world_state) : "active",
-      markers: worldVisible(row) ? parseMarkers(row.markers) : [],
+    return { id: row.entity_id, order: row.position, title: String(data.title || row.entity_title || ""), discovery: fullDiscovery(row),
+      worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
       visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility),
-      playerHint: typeof data.playerHint === "string" ? data.playerHint : undefined,
-      rooms: byParent(row.entity_id, "room").map(buildRoom),
-    };
+      playerHint: typeof data.playerHint === "string" ? data.playerHint : undefined, rooms: byParent(row.entity_id, "room").map(buildRoom) };
   };
-  const infoRows = byParent(placeId, "information");
   const model: PlaceModel = {
     id: placeId,
-    legacyEntityId: String(rootAttrs.legacyEntityId || ELECTRIC_TABERNA_LEGACY_ENTITY_ID),
-    title: String(rootAttrs.title || electricTabernaLocation.title),
-    subtitle: String(rootAttrs.subtitle || ""),
-    district: String(rootAttrs.district || ""),
-    address: String(rootAttrs.address || ""),
-    image: String(rootAttrs.image || ""),
-    summary: String(rootAttrs.summary || ""),
-    atmosphere: String(rootAttrs.atmosphere || ""),
-    discovery: fullDiscovery(root),
-    worldState: worldVisible(root) ? worldState(root.world_state) : "active",
+    legacyEntityId: String(rootAttrs.legacyEntityId || ""),
+    title: String(rootAttrs.title || root.entity_title || ""),
+    subtitle: String(rootAttrs.subtitle || ""), district: String(rootAttrs.district || ""), address: String(rootAttrs.address || ""),
+    image: safeLocationImage(rootAttrs.image), summary: String(rootAttrs.summary || ""), atmosphere: String(rootAttrs.atmosphere || ""),
+    geography: projectLocationGeography(rootAttrs.geography, { gm: sl, known: discoveryOrder.indexOf(fullDiscovery(root)) >= discoveryOrder.indexOf("known"), groupGrant, playerGrant, target }),
+    discovery: fullDiscovery(root), worldState: worldVisible(root) ? worldState(root.world_state) : "active",
     markers: worldVisible(root) ? parseMarkers(root.markers) : [],
     factionSignals: Array.isArray(rootAttrs.factionSignals) ? rootAttrs.factionSignals as PlaceModel["factionSignals"] : [],
     areas: byParent(placeId, "area").map(buildArea),
-    knownInformation: infoRows.filter(row => sl || fullDiscovery(row) !== "hidden").map((row): PlaceNote => {
+    knownInformation: byParent(placeId, "information").filter(row => sl || fullDiscovery(row) !== "hidden").map((row): PlaceNote => {
       const data = attrs(row);
-      return { id: row.entity_id, title: String(data.title || "Information"), text: String(data.text || ""), noteType: (data.noteType as PlaceNote["noteType"]) || "note", pinned: data.pinned === true, visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), targetId: placeId };
+      return { id: row.entity_id, title: String(data.title || row.entity_title || "Information"), text: String(data.text || ""),
+        noteType: (data.noteType as PlaceNote["noteType"]) || "note", pinned: data.pinned === true,
+        visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), targetId: placeId };
     }),
-    activity: Array.isArray(rootAttrs.activity) ? (rootAttrs.activity as PlaceActivity[]).filter(item => sl || (["public","group"].includes(item.visibility) && availableRows.some(row => row.entity_id === item.targetId && fullDiscovery(row) !== "hidden"))) : [],
-    preparedActions: actions.results.map((row): PreparedPlaceAction => {
-      const data = jsonObject(row.definition);
-      const status = ["ready", "triggered", "open"].includes(row.status) ? row.status as PreparedActionStatus : "ready";
+    activity: Array.isArray(rootAttrs.activity) ? (rootAttrs.activity as PlaceActivity[]).filter(item => sl || (["public", "group"].includes(item.visibility) && availableRows.some(row => row.entity_id === item.targetId && fullDiscovery(row) !== "hidden"))) : [],
+    preparedActions: actions.map((row): PreparedPlaceAction => {
+      const data = jsonObject(row.definition); const status = ["ready", "triggered", "open"].includes(row.status) ? row.status as PreparedActionStatus : "ready";
       return { id: row.id, label: String(data.label || row.id), target: String(data.target || "Gruppe"), targetId: row.target_id, status, visibility: "gm" };
     }),
-    sourceLabel: String(rootAttrs.sourceLabel || "Persistierte Electric-Taberna-Ortsdaten."),
+    sourceLabel: String(rootAttrs.sourceLabel || ""),
   };
-  if (requestedView === "sl" && actor.gm) return projectLocationForSl(Object.fromEntries(model.preparedActions.map((action) => [action.id, action.status])), model);
-  // The existing projection is reused after database-backed discovery and state have been applied.
+  if (sl) return projectLocationForSl(Object.fromEntries(model.preparedActions.map(action => [action.id, action.status])), model);
   return projectLocationForPlayer(actor.gm ? "gm" : "player", target, model);
+}
+
+async function selectLocationData(db: D1Database, actor: Actor, placeIds: string[], target: "group" | "player"): Promise<LoadedRows> {
+  const rows: NodeRow[] = [];
+  const grants: KnowledgeRow[] = [];
+  const actions: ActionRow[] = [];
+  for (let offset = 0; offset < placeIds.length; offset += 70) {
+    const batch = placeIds.slice(offset, offset + 70);
+    if (!batch.length) continue;
+    const placeholders = batch.map(() => "?").join(",");
+    const [nodeRows, actionRows] = await Promise.all([
+      db.prepare(`SELECT n.*,e.canon_status,e.content AS entity_content,e.title AS entity_title FROM location_nodes n JOIN entities e ON e.id=n.entity_id AND e.campaign_id=n.campaign_id WHERE n.campaign_id=? AND n.location_id IN (${placeholders}) ORDER BY n.location_id,n.position,n.entity_id`).bind(actor.campaignId, ...batch).all<NodeRow>(),
+      db.prepare(`SELECT id,location_id,target_id,definition,status,revision FROM location_actions WHERE campaign_id=? AND location_id IN (${placeholders}) ORDER BY id`).bind(actor.campaignId, ...batch).all<ActionRow & { location_id: string }>(),
+    ]);
+    rows.push(...nodeRows.results);
+    actions.push(...actionRows.results);
+  }
+  const entityIds = rows.map(row => row.entity_id);
+  for (let offset = 0; offset < entityIds.length; offset += 70) {
+    const batch = entityIds.slice(offset, offset + 70);
+    if (!batch.length) continue;
+    const placeholders = batch.map(() => "?").join(",");
+    const result = await db.prepare(`SELECT entity_id,audience,subject_id,discovery_state FROM knowledge WHERE campaign_id=? AND entity_id IN (${placeholders}) AND state<>'UNKNOWN' AND (audience='public' OR (audience='group' AND subject_id=?) OR (audience='player' AND subject_id=?))`)
+      .bind(actor.campaignId, ...batch, actor.campaignId, target === "player" ? actor.id : "").all<KnowledgeRow>();
+    grants.push(...result.results);
+  }
+  return { rows, actions, grants };
+}
+
+const nodeSelect = "SELECT n.*,e.canon_status,e.content AS entity_content,e.title AS entity_title FROM location_nodes n JOIN entities e ON e.id=n.entity_id AND e.campaign_id=n.campaign_id";
+
+export async function loadPersistedLocation(db: D1Database, actor: Actor, placeId: string, requestedView: "sl" | "player" = actor.gm ? "sl" : "player", target: "group" | "player" = "group") {
+  const data = await selectLocationData(db, actor, [placeId], target);
+  const rows = data.rows.filter(row => row.location_id === placeId);
+  if (!rows.length) return null;
+  return buildPersistedProjection(actor, placeId, {
+    rows,
+    actions: data.actions.filter((row) => (row as ActionRow & { location_id?: string }).location_id === placeId),
+    grants: data.grants,
+  }, requestedView, target);
+}
+
+/** Read all root IDs, nodes, grants, and actions in bounded batches. This is the
+ * shared source for the hub, map markers, and search; it never performs per-place reads. */
+export async function loadLocationHub(db: D1Database, actor: Actor, requestedView: "sl" | "player", target: "group" | "player") {
+  const roots = await db.prepare(`${nodeSelect} WHERE n.campaign_id=? AND n.level='location' AND n.parent_id IS NULL AND n.location_id=n.entity_id ORDER BY n.position,n.entity_id`).bind(actor.campaignId).all<NodeRow>();
+  const placeIds = roots.results.map(root => root.entity_id);
+  if (!placeIds.length) return [];
+  const loaded = await selectLocationData(db, actor, placeIds, target);
+  const byPlace = new Map<string, NodeRow[]>();
+  const actionsByPlace = new Map<string, ActionRow[]>();
+  for (const row of loaded.rows) byPlace.set(row.location_id, [...(byPlace.get(row.location_id) ?? []), row]);
+  for (const row of loaded.actions as (ActionRow & { location_id: string })[]) actionsByPlace.set(row.location_id, [...(actionsByPlace.get(row.location_id) ?? []), row]);
+  return placeIds.flatMap(placeId => {
+    const projection = buildPersistedProjection(actor, placeId, { rows: byPlace.get(placeId) ?? [], actions: actionsByPlace.get(placeId) ?? [], grants: loaded.grants }, requestedView, target);
+    return projection ? [projection] : [];
+  });
 }
 
 /** Build the first migration payload from the accepted V12 fixture. Used only by the GM migration route. */
@@ -210,11 +249,12 @@ export const MIGRATION_SOURCE_ID = "location-migration-electric-taberna-v12";
 
 export async function locationReferenceIsVisible(db: D1Database, actor: Actor, targetId: string) {
   const row = await db.prepare("SELECT entity_id,location_id,level,position FROM location_nodes WHERE campaign_id=? AND entity_id=?").bind(actor.campaignId,targetId).first<{entity_id:string;location_id:string;level:string;position:number}>();
-  const projection = await loadPersistedLocation(db,actor,row?.location_id || ELECTRIC_TABERNA_ID,actor.gm ? "sl" : "player","player");
+  if (!row) return false;
+  const projection = await loadPersistedLocation(db,actor,row.location_id,actor.gm ? "sl" : "player","player");
   if (!projection) return false;
   const location = projection.location;
   if (targetId === location.id) return true;
   if (actor.gm) return !!row;
-  const key = row ? `${row.level}-${row.position}` : targetId;
+  const key = `${row.level}-${row.position}`;
   return location.areas.some(area => (!area.redacted && area.viewKey === key) || area.rooms.some(room => room.viewKey === key));
 }

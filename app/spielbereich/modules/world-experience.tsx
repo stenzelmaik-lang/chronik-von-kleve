@@ -30,7 +30,7 @@ import { toast } from "sonner";
 import type { Entry } from "@/domain/legacy";
 
 import { api } from "./api-client";
-import { mapMarkerFor, playerMapPlaces, type WorldMapMarker } from "./world-map-contract";
+import { mapMarkersForPlaces, visibleWorldPlaces, type WorldHubPlace, type WorldMapMarker } from "./world-map-contract";
 import {
   describeDataError,
   invalidatePlayerData,
@@ -39,13 +39,14 @@ import {
 } from "./player-data-cache";
 import styles from "./world-experience.module.css";
 
-const PLACE_ID = "place.electric-taberna";
-const LOCATION_KEY = "/api/locations?place=place.electric-taberna";
 const NOTES_KEY = "/api/records?kind=notizen";
+const EMPTY_PLACES: WorldHubPlace[] = [];
 
 type Payload = { projection: PlaceProjection; mapMarker?: WorldMapMarker };
+type HubPayload = { places: WorldHubPlace[] };
 type NotesPayload = { records: Entry[] };
-type LocationState = { key: string; projection: PlaceProjection; mapMarker?: WorldMapMarker };
+type LocationState = { key: string; projection: PlaceProjection };
+type HubState = { key: string; places: WorldHubPlace[] };
 type NoteState = { scope: string; records: Entry[] };
 type WorldOverlay = { kind: "image" } | { kind: "clue"; title: string; text: string } | null;
 type WorldMapViewProps = {
@@ -59,8 +60,12 @@ type WorldMapViewProps = {
   onStateChange: (state: "loading" | "ready" | "error") => void;
 };
 
-function locationKey(view: "player" | "sl", target: "group" | "player") {
-  return `${LOCATION_KEY}&view=${view}&target=${target}`;
+function hubKey(view: "player" | "sl", target: "group" | "player") {
+  return `/api/locations?view=${view}&target=${target}`;
+}
+
+function locationKey(id: string, view: "player" | "sl", target: "group" | "player") {
+  return `/api/locations?place=${encodeURIComponent(id)}&view=${view}&target=${target}`;
 }
 
 export function WorldExperience({
@@ -72,14 +77,13 @@ export function WorldExperience({
 }) {
   const [view, setView] = useState<"player" | "sl">("player");
   const target = a.gm ? "group" : "player";
-  const projectionKey = locationKey(view, target);
-  const safeMapKey = locationKey("player", target);
-  const scopedSafeMapKey = `${dataScope}\u0000${safeMapKey}`;
-  const scopedProjectionKey = `${dataScope}\u0000${projectionKey}`;
+  const activeHubKey = hubKey(view, target);
+  const scopedHubKey = `${dataScope}\u0000${activeHubKey}`;
   const [result, setResult] = useState<LocationState | null>(null);
-  const [safeMapResult, setSafeMapResult] = useState<LocationState | null>(null);
+  const [hubResult, setHubResult] = useState<HubState | null>(null);
   const [requestError, setRequestError] = useState<{ key: string; message: string } | null>(null);
-  const [selectedId, setSelectedId] = useState(PLACE_ID);
+  const [hubError, setHubError] = useState<{ key: string; message: string } | null>(null);
+  const [selectedId, setSelectedId] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState(false);
@@ -95,53 +99,53 @@ export function WorldExperience({
   const lastOverlayTrigger = useRef<HTMLButtonElement | null>(null);
   const returnScrollY = useRef(0);
 
-  const cached = readPlayerData<Payload>(dataScope, projectionKey);
-  const cachedSafeMap = readPlayerData<Payload>(dataScope, safeMapKey);
+  const projectionKey = selectedId ? locationKey(selectedId, view, target) : "";
+  const scopedProjectionKey = `${dataScope}\u0000${projectionKey}`;
+
+  const cached = projectionKey ? readPlayerData<Payload>(dataScope, projectionKey) : null;
+  const cachedHub = readPlayerData<HubPayload>(dataScope, activeHubKey);
   useEffect(() => {
+    let alive = true;
+    const initial = readPlayerData<HubPayload>(dataScope, activeHubKey);
+    requestPlayerData(dataScope, activeHubKey, () => api<HubPayload>(activeHubKey), {
+      force: Boolean(initial && !initial.fresh),
+    }).then((payload) => {
+      if (alive) {
+        setHubResult({ key: scopedHubKey, places: payload.places });
+        setHubError(null);
+      }
+    }).catch((reason: unknown) => {
+      if (!alive) return;
+      setHubError({ key: scopedHubKey, message: describeDataError(reason).detail });
+    });
+    return () => { alive = false; };
+  }, [dataScope, activeHubKey, scopedHubKey]);
+
+  useEffect(() => {
+    if (!detail || !selectedId || !projectionKey) return;
     let alive = true;
     const initial = readPlayerData<Payload>(dataScope, projectionKey);
     requestPlayerData(dataScope, projectionKey, () => api<Payload>(projectionKey), {
       force: Boolean(initial && !initial.fresh),
-    })
-      .then((payload) => {
-        if (alive) {
-          setResult({ key: scopedProjectionKey, projection: payload.projection, mapMarker: payload.mapMarker });
-          setRequestError(null);
-        }
-      })
-      .catch((reason: unknown) => {
-        if (!alive) return;
-        const issue = describeDataError(reason);
-        setRequestError({ key: scopedProjectionKey, message: issue.detail });
-        if (issue.permission) setResult(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [dataScope, projectionKey, scopedProjectionKey]);
-
-  useEffect(() => {
-    if (!a.gm || view !== "sl") return;
-    let alive = true;
-    const cachedPlayerProjection = readPlayerData<Payload>(dataScope, safeMapKey);
-    requestPlayerData(dataScope, safeMapKey, () => api<Payload>(safeMapKey), {
-      force: Boolean(cachedPlayerProjection && !cachedPlayerProjection.fresh),
-    })
-      .then((payload) => {
-        if (alive) setSafeMapResult({ key: scopedSafeMapKey, projection: payload.projection, mapMarker: payload.mapMarker });
-      })
-      .catch(() => {
-        if (alive) setSafeMapResult(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [a.gm, dataScope, safeMapKey, scopedSafeMapKey, view]);
+    }).then((payload) => {
+      if (alive) {
+        setResult({ key: scopedProjectionKey, projection: payload.projection });
+        setRequestError(null);
+      }
+    }).catch((reason: unknown) => {
+      if (!alive) return;
+      const issue = describeDataError(reason);
+      setRequestError({ key: scopedProjectionKey, message: issue.detail });
+    });
+    return () => { alive = false; };
+  }, [dataScope, detail, selectedId, projectionKey, scopedProjectionKey]);
 
   useEffect(() => {
     const syncLocation = () => {
       const url = new URL(window.location.href);
-      const isDetail = url.searchParams.has("ort");
+      const requestedId = url.searchParams.get("ort") || "";
+      const isDetail = Boolean(requestedId);
+      setSelectedId(requestedId);
       setDetail(isDetail);
       if (!isDetail) setMapStatus("loading");
       if (!isDetail) requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
@@ -166,45 +170,28 @@ export function WorldExperience({
 
   const projection = result?.key === scopedProjectionKey ? result.projection : cached?.value.projection ?? null;
   const error = requestError?.key === scopedProjectionKey ? requestError.message : "";
-  const loading = !projection && !error;
+  const currentHub = useMemo(() => hubResult?.key === scopedHubKey ? hubResult.places : cachedHub?.value.places ?? EMPTY_PLACES, [hubResult, scopedHubKey, cachedHub]);
+  const mapHub = currentHub;
+  const loading = detail ? !projection && !error : !hubResult && !cachedHub && !hubError;
   const location = projection?.location;
-  const places = useMemo(() => location ? [location] : [], [location]);
-  const playerMapProjection = projection?.view === "player"
-    ? projection
-    : safeMapResult?.key === scopedSafeMapKey ? safeMapResult.projection : null;
-  const safeMapLocation = playerMapProjection?.location ?? null;
-  const safeMapPlaces = useMemo(() => playerMapPlaces(playerMapProjection), [playerMapProjection]);
-  const playerMapMarker = projection?.view === "player"
-    ? result?.key === scopedProjectionKey
-      ? result.mapMarker
-      : cached?.fresh ? cached.value.mapMarker : null
-    : safeMapResult?.key === scopedSafeMapKey
-      ? safeMapResult.mapMarker
-      : cachedSafeMap?.fresh ? cachedSafeMap.value.mapMarker : null;
-  const mapMarkers = useMemo(() => safeMapPlaces.flatMap((place) => {
-    const marker = mapMarkerFor(place, playerMapMarker);
-    return marker ? [{ ...place, ...marker }] : [];
-  }), [playerMapMarker, safeMapPlaces]);
+  const safeMapPlaces = useMemo(() => visibleWorldPlaces(mapHub, view === "sl"), [mapHub, view]);
   const matchingMapPlaces = useMemo(() => {
-    if (!safeMapLocation || !safeMapPlaces.some((place) => place.id === safeMapLocation.id)) return [];
     const needle = query.trim().toLocaleLowerCase("de-DE");
-    const matches = `${safeMapLocation.title} ${safeMapLocation.district} ${safeMapLocation.summary} ${safeMapLocation.address}`.toLocaleLowerCase("de-DE");
-    return !needle || matches.includes(needle) ? safeMapPlaces : [];
-  }, [query, safeMapLocation, safeMapPlaces]);
-  const visibleMapIds = useMemo(() => matchingMapPlaces.map((place) => place.id), [matchingMapPlaces]);
-  const mapPreviewPlace = matchingMapPlaces.length > 0 ? safeMapLocation : null;
+    return safeMapPlaces.filter((place) => !needle || `${place.title} ${place.district} ${place.summary}`.toLocaleLowerCase("de-DE").includes(needle));
+  }, [query, safeMapPlaces]);
+  const mapMarkers = useMemo(() => mapMarkersForPlaces(safeMapPlaces, view === "sl"), [safeMapPlaces, view]);
+  const visibleMapIds = useMemo(() => matchingMapPlaces.filter((place) => mapMarkers.some(marker => marker.id === place.id)).map((place) => place.id), [matchingMapPlaces, mapMarkers]);
+  const mapPreviewPlace = matchingMapPlaces.find((place) => place.id === selectedId) ?? matchingMapPlaces[0] ?? null;
   const matchingPlaces = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("de-DE");
-    return places.filter((place) =>
-      !needle || `${place.title} ${place.district} ${place.summary}`.toLocaleLowerCase("de-DE").includes(needle),
-    );
-  }, [places, query]);
+    return safeMapPlaces.filter((place) => !needle || `${place.title} ${place.district} ${place.summary}`.toLocaleLowerCase("de-DE").includes(needle));
+  }, [safeMapPlaces, query]);
   const selected = matchingPlaces.find((place) => place.id === selectedId) ?? matchingPlaces[0] ?? null;
   const areaList = useMemo(() => location?.areas ?? [], [location]);
   const currentArea = areaList.find((area) => area.viewKey === activeArea) ?? areaList[0] ?? null;
   const cachedNotes = readPlayerData<NotesPayload>(dataScope, NOTES_KEY);
   const notes = noteState?.scope === dataScope ? noteState.records : cachedNotes?.value.records ?? [];
-  const relatedNotes = notes.filter((note) => note.body?.locationId === PLACE_ID);
+  const relatedNotes = notes.filter((note) => note.body?.locationId === location?.id);
   const unresolvedArea = areaList.find((area) => area.redacted && area.playerHint);
 
   useEffect(() => {
@@ -255,6 +242,7 @@ export function WorldExperience({
     setDetail(false);
     setMapStatus("loading");
     setOverlay(null);
+    setSelectedId("");
     const url = new URL(window.location.href);
     url.searchParams.set("bereich", "schauplaetze");
     url.searchParams.delete("ort");
@@ -263,19 +251,20 @@ export function WorldExperience({
   }
 
   async function saveNote() {
+    if (!location) return;
     const text = noteDraft.trim();
     if (!text || busy) return;
     setBusy(true);
     try {
       await api("/api/records", "POST", {
         kind: "notizen",
-        title: "Notiz zur Electric Taberna",
+        title: `Notiz zu ${location.title}`,
         visibility: "private",
         body: {
           text,
-          summary: "Mit Electric Taberna verknüpft",
-          locationId: PLACE_ID,
-          targetId: PLACE_ID,
+          summary: `Mit ${location.title} verknüpft`,
+          locationId: location.id,
+          targetId: location.id,
           noteType: "note",
           pinned: false,
         },
@@ -293,13 +282,13 @@ export function WorldExperience({
   }
 
   async function triggerAction(actionId: string) {
-    if (!a.gm || view !== "sl" || busy) return;
+    if (!a.gm || view !== "sl" || busy || !location) return;
     setBusy(true);
     try {
-      await api("/api/locations/actions", "POST", { placeId: PLACE_ID, actionId });
+      await api("/api/locations/actions", "POST", { placeId: location.id, actionId });
       invalidatePlayerData(dataScope, projectionKey);
       const updated = await requestPlayerData(dataScope, projectionKey, () => api<Payload>(projectionKey), { force: true });
-      setResult({ key: projectionKey, projection: updated.projection });
+      setResult({ key: scopedProjectionKey, projection: updated.projection });
       toast.success("SL-Aktion aktualisiert");
     } catch (reason) {
       toast.error(reason instanceof Error ? reason.message : "Die Aktion konnte nicht aktualisiert werden.");
@@ -315,20 +304,25 @@ export function WorldExperience({
     });
   }
 
-  if (!loading && error && !projection) {
+  const visibleError = detail ? error : hubError?.key === scopedHubKey ? hubError.message : "";
+  if (!loading && visibleError && (detail ? !projection : !hubResult && !cachedHub)) {
     return <section className={styles.statePanel} data-world-experience="world" role="alert">
       <span className={styles.stateIcon}><Shield size={19} /></span>
-      <div><p className={styles.kicker}>SPIELWELT · ZUGRIFF</p><h1>Der Ort ist gerade nicht verfügbar.</h1><p>{error}</p></div>
+      <div><p className={styles.kicker}>SPIELWELT · ZUGRIFF</p><h1>{detail ? "Der Ort ist gerade nicht verfügbar." : "Die Ortsdaten sind gerade nicht verfügbar."}</h1><p>{visibleError}</p></div>
       <button className={styles.secondaryButton} onClick={() => window.location.reload()} type="button">Erneut versuchen</button>
     </section>;
   }
 
-  if (!projection || !location) {
+  if (loading) {
     return <div className={styles.worldRoot} data-world-experience="world" aria-busy="true">
       <header className={styles.worldIntro}><div><p className={styles.kicker}>DOMÄNE KLEVE · NACHTATLAS</p><h1>Spielwelt</h1></div><div className={styles.introMeta}>Die bekannten Orte deiner Chronik</div></header>
       <div className={`${styles.mapStage} ${styles.mapLoading}`} aria-label="Stadtkarte wird geladen"><div className={styles.mapImage} /><span className={styles.loadingMark}><Compass size={17} /> Kartendaten werden geladen</span></div>
       <div className={styles.loadingLine} role="status">Freigegebene Ortsdaten werden geladen …</div>
     </div>;
+  }
+
+  if (detail && (!projection || !location)) {
+    return <section className={styles.statePanel} data-world-experience="world" role="alert"><span className={styles.stateIcon}><Shield size={19} /></span><div><p className={styles.kicker}>SPIELWELT · ZUGRIFF</p><h1>Der Ort ist gerade nicht verfügbar.</h1><p>Für diesen Ort ist keine freigegebene Detailansicht vorhanden.</p></div><button className={styles.secondaryButton} onClick={returnToMap} type="button">Zur Karte</button></section>;
   }
 
   return <div className={`${styles.worldRoot} ${detail ? styles.detailMode : ""}`} data-world-experience="world">
@@ -347,10 +341,10 @@ export function WorldExperience({
       </div>
     </header>
 
-    {!detail ? <>
+    {!detail || !projection || !location ? <>
       <section className={styles.mapSection} aria-label="Bekannte Orte auf der Chronikkarte">
         <div className={styles.mapHeading}>
-          <div className={styles.mapTitle}><span className={styles.mapMark}><Compass size={16} /></span><div><strong>Kleve</strong><span>Persönlicher Nachtatlas</span></div></div>
+          <div className={styles.mapTitle}><span className={styles.mapMark}><Compass size={16} /></span><div><strong>Chronik</strong><span>Persönlicher Nachtatlas</span></div></div>
           <span className={styles.mapCaption}>{mapStatus === "ready" ? "ECHTE KARTE · CHRONIK-ORTE" : "SCHEMATISCHE VORSCHAU"}</span>
           <label className={styles.searchBox}><Search size={16} aria-hidden="true" /><span className={styles.srOnly}>Bekannte Orte suchen</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Bekannte Orte suchen" /></label>
         </div>
@@ -373,28 +367,9 @@ export function WorldExperience({
               : "OpenFreeMap wird geladen. Die schematische Chronikkarte bleibt eingeblendet."}
           </span>}
           <div className={styles.mapCoordinates} aria-hidden="true"><span>DOMÄNE · KLEVE</span><span>NACHTATLAS · ILLUSTRATION</span><span>SCHEMATISCH · NICHT NAVIGIERBAR</span></div>
-          <div className={styles.mapLegend}><span className={styles.legendDot} />Bekannter Ort</div>
-          {mapStatus !== "ready" && matchingMapPlaces.map((place) => {
-            const current = selected?.id === place.id;
-            const hot = hoveredId === place.id;
-            return <button
-              className={`${styles.placeMarker} ${current ? styles.markerSelected : ""} ${hot ? styles.markerHot : ""}`}
-              key={place.id}
-              style={{ left: "54.2%", top: "46.5%" }}
-              type="button"
-              aria-label={`${place.title}, bekannter Ort. Vorschau anzeigen.`}
-              aria-pressed={current}
-              onMouseEnter={() => { setHoveredId(place.id); setSelectedId(place.id); }}
-              onMouseLeave={() => setHoveredId(null)}
-              onFocus={() => { setHoveredId(place.id); setSelectedId(place.id); }}
-              onBlur={() => setHoveredId(null)}
-              onClick={() => setSelectedId(place.id)}
-            >
-              <span className={styles.markerHalo} aria-hidden="true" /><span className={styles.markerCore} aria-hidden="true" /><span className={styles.markerLabel}>{place.title}</span>
-            </button>;
-          })}
-          {mapPreviewPlace && <aside className={styles.mapPreview} aria-live="polite">
-            <div className={styles.previewImage}><img src={mapPreviewPlace.image} alt="" loading="lazy" /></div>
+          <div className={styles.mapLegend}><span className={styles.legendDot} />Geprüfte Ortsposition</div>
+          {mapPreviewPlace && <aside className={`${styles.mapPreview} ${mapPreviewPlace.image ? "" : styles.mapPreviewNoImage}`} aria-live="polite">
+            {mapPreviewPlace.image && <div className={styles.previewImage}><img src={mapPreviewPlace.image} alt="" loading="lazy" /></div>}
             <div className={styles.previewBody}><div className={styles.previewTopline}><span className={styles.statePip} />{discoveryLabel(mapPreviewPlace.discovery)} <span className={styles.previewDistrict}>{mapPreviewPlace.district}</span></div><h2>{mapPreviewPlace.title}</h2><p>{mapPreviewPlace.summary}</p><button type="button" className={styles.textAction} onClick={() => openPlace(mapPreviewPlace.id)}>Ort öffnen <ArrowRight size={15} /></button></div>
           </aside>}
           {matchingMapPlaces.length === 0 && safeMapPlaces.length > 0 && <div className={styles.noSearchResult}><Search size={17} /><span>Keine bekannten Orte passen zu deiner Suche.</span><button type="button" onClick={() => setQuery("")}>Suche zurücksetzen</button></div>}
@@ -407,7 +382,7 @@ export function WorldExperience({
         <div className={styles.placeGrid}>
           {matchingPlaces.map((place) => <button
             type="button"
-            className={`${styles.placeCard} ${selected?.id === place.id || hoveredId === place.id ? styles.placeCardActive : ""}`}
+            className={`${styles.placeCard} ${!place.image ? styles.placeCardNoImage : ""} ${selected?.id === place.id || hoveredId === place.id ? styles.placeCardActive : ""}`}
             aria-label={`${place.title} öffnen`}
             key={place.id}
             onMouseEnter={() => { setHoveredId(place.id); setSelectedId(place.id); }}
@@ -416,33 +391,30 @@ export function WorldExperience({
             onBlur={() => setHoveredId(null)}
             onClick={() => openPlace(place.id)}
           >
-            <span className={styles.cardImage}><img src={place.image} alt="" loading="lazy" /><span className={styles.cardShade} /><span className={styles.cardStatus}><span className={styles.statePip} />{discoveryLabel(place.discovery)}</span><span className={styles.cardArrow}><ArrowUpRight size={18} /></span></span>
-            <span className={styles.cardCopy}><span className={styles.cardOverline}>{place.district} <i>·</i> NACHTORT</span><strong>{place.title}</strong><span className={styles.cardSubtitle}>{place.subtitle}</span><span className={styles.cardSummary}>{place.summary}</span></span>
+            {place.image && <span className={styles.cardImage}><img src={place.image} alt="" loading="lazy" /><span className={styles.cardShade} /><span className={styles.cardStatus}><span className={styles.statePip} />{discoveryLabel(place.discovery)}</span><span className={styles.cardArrow}><ArrowUpRight size={18} /></span></span>}
+            <span className={styles.cardCopy}>{!place.image && <span className={styles.cardStatusInline}><span className={styles.statePip} />{discoveryLabel(place.discovery)}</span>}<span className={styles.cardOverline}>{place.district} <i>·</i> NACHTORT</span><strong>{place.title}</strong>{place.subtitle && <span className={styles.cardSubtitle}>{place.subtitle}</span>}{place.summary && <span className={styles.cardSummary}>{place.summary}</span>}</span>
           </button>)}
-          {matchingPlaces.length === 1 && location?.knownInformation[0] && <aside className={styles.placeAside}>
-            <p className={styles.kicker}>FREIGEGEBENE ERKENNTNIS</p><h3>{location.knownInformation[0].title}</h3><p>{location.knownInformation[0].text}</p><span><Sparkles size={14} />Electric Taberna <i>·</i> {location.district}</span>
-          </aside>}
           {matchingPlaces.length === 0 && <p className={styles.emptySearch}>Keine bekannten Orte passen zu deiner Suche.</p>}
         </div>
       </section>
     </> : <>
       <article className={styles.locationPage} aria-labelledby="location-title">
         <section className={styles.locationHero}>
-          <img className={styles.locationHeroImage} src={location.image} alt="Außenansicht der Electric Taberna bei Nacht" fetchPriority="high" />
+          {location.image && <img className={styles.locationHeroImage} src={location.image} alt={`${location.title} in der Spielwelt`} fetchPriority="high" />}
           <div className={styles.heroVeil} />
-          <div className={styles.heroTopline}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} />Zur Karte</button><span className={styles.heroLocation}><MapPin size={14} />{location.district}, Kleve</span></div>
-          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle} <span>·</span> {discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1><p className={styles.heroSummary}>{location.summary}</p><div className={styles.heroActions}><button type="button" className={styles.primaryAction} onClick={() => { setActiveArea(areaList[0]?.viewKey ?? null); document.getElementById("known-areas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button><button type="button" className={styles.imageAction} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "image" }); }}><Maximize2 size={15} />Bild ansehen</button></div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
+          <div className={styles.heroTopline}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} />Zur Karte</button>{location.district && <span className={styles.heroLocation}><MapPin size={14} />{location.district}</span>}</div>
+          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <p className={styles.heroSummary}>{location.summary}</p>}<div className={styles.heroActions}>{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { setActiveArea(areaList[0]?.viewKey ?? null); document.getElementById("known-areas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "image" }); }}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
           <span className={styles.heroIndex} aria-hidden="true">01 <i>/</i> ORT</span>
         </section>
 
         <section className={styles.locationContent}>
           <div className={styles.locationMain}>
-            <section className={styles.impression}>
+            {location.atmosphere && <section className={styles.impression}>
               <div className={styles.proseEyebrow}><span>01</span><p className={styles.kicker}>DEIN EINDRUCK</p></div>
-              <div><h2>Neon über der Innenstadt.</h2><p>{location.atmosphere}</p><span className={styles.sourceContext}><Sparkles size={14} />Freigegebener Eindruck · {location.district}</span></div>
-            </section>
+              <div><h2>Dein Eindruck</h2><p>{location.atmosphere}</p><span className={styles.sourceContext}><Sparkles size={14} />Freigegebener Eindruck{location.district ? ` · ${location.district}` : ""}</span></div>
+            </section>}
 
-            <section className={styles.areasSection} id="known-areas" aria-labelledby="areas-title">
+            {areaList.length > 0 && <section className={styles.areasSection} id="known-areas" aria-labelledby="areas-title">
               <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>WAS DU HIER KENNST</p><h2 id="areas-title">Bekannte Bereiche</h2></div><span className={styles.sectionCounter}>{String(areaList.length).padStart(2, "0")} <small>Einträge deiner Projektion</small></span></header>
               <div className={styles.areaLayout}>
                 <div className={styles.areaList} role="tablist" aria-label="Bekannte Bereiche">
@@ -454,16 +426,16 @@ export function WorldExperience({
                 {currentArea && <section className={`${styles.areaDetail} ${currentArea.redacted ? styles.unclearDetail : ""}`} role="tabpanel" id={`area-detail-${areaList.indexOf(currentArea)}`} aria-labelledby={`area-tab-${areaList.indexOf(currentArea)}`}>
                   <div className={styles.areaDetailHeader}><span className={styles.detailOverline}>{currentArea.redacted ? "HINWEIS · NICHT ERSCHLOSSEN" : `BEREICH ${String(currentArea.order).padStart(2, "0")}`}</span><span className={styles.discoveryTag}>{currentArea.redacted ? "Ungeklärt" : discoveryLabel(currentArea.discovery)}</span></div>
                   <h3>{currentArea.redacted ? "Ein Hinweis bleibt offen." : currentArea.title}</h3>
-                  {currentArea.redacted && currentArea.playerHint ? <p className={styles.areaHint}>{currentArea.playerHint}</p> : <p className={styles.areaContext}>{currentArea.worldState === "active" ? "Bekannter Bereich der Electric Taberna." : stateLabel(currentArea.worldState)}</p>}
+                  {currentArea.redacted && currentArea.playerHint ? <p className={styles.areaHint}>{currentArea.playerHint}</p> : currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
                   {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <p>{room.short}</p>}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
                   {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
                   {currentArea.redacted && <div className={styles.unclearSeal}><CircleHelp size={15} />Keine Raumdetails freigegeben</div>}
                 </section>}
               </div>
-            </section>
+            </section>}
 
-            {unresolvedArea?.playerHint && <button type="button" className={styles.clueCard} aria-label="Hinweis öffnen: Hinter dem Gästebereich" onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: "Hinter dem Gästebereich", text: unresolvedArea.playerHint! }); }}>
-              <span className={styles.clueGlyph}><CircleHelp size={20} /></span><span className={styles.clueCopy}><span className={styles.kicker}>OFFENER HINWEIS · UNGEKLÄRT</span><strong>Hinter dem Gästebereich</strong><span>{unresolvedArea.playerHint}</span></span><ArrowUpRight className={styles.clueArrow} size={17} />
+            {unresolvedArea?.playerHint && <button type="button" className={styles.clueCard} aria-label="Offenen Orts-Hinweis öffnen" onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: "Offener Orts-Hinweis", text: unresolvedArea.playerHint! }); }}>
+              <span className={styles.clueGlyph}><CircleHelp size={20} /></span><span className={styles.clueCopy}><span className={styles.kicker}>OFFENER HINWEIS · UNGEKLÄRT</span><strong>Offener Orts-Hinweis</strong><span>{unresolvedArea.playerHint}</span></span><ArrowUpRight className={styles.clueArrow} size={17} />
             </button>}
 
             {location.knownInformation.length > 0 && <section className={styles.informationSection}>
@@ -478,10 +450,10 @@ export function WorldExperience({
           </div>
 
           <aside className={styles.locationAside}>
-            <button type="button" className={styles.photoCard} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "image" }); }}><span className={styles.photoImage}><img src={location.image} alt="" loading="lazy" /><span><ImageIcon size={15} />Bild öffnen</span></span><span className={styles.photoCaption}>ELECTRIC TABERNA <i>·</i> KLEVE</span></button>
-            <section className={styles.factCard}><p className={styles.kicker}>EINORDNUNG</p><div className={styles.factRow}><span>Gebiet</span><strong>{location.district}</strong></div><div className={styles.factRow}><span>Adresse</span><strong>{location.address}</strong></div><div className={styles.factRow}><span>Ortszustand</span><strong>{stateLabel(location.worldState)}</strong></div></section>
-            <section className={styles.knownNote}><span><FileText size={16} /></span><div><p className={styles.kicker}>BEKANNTE ATMOSPHÄRE</p><p>{location.knownInformation.find((info) => info.title === "Atmosphäre")?.text ?? location.summary}</p></div></section>
-            <section className={styles.notesSection}><header><span><NotebookPen size={16} />Deine Notizen</span><small>privat</small></header><label className={styles.srOnly} htmlFor="world-note">Private Notiz zu Electric Taberna</label><textarea id="world-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Ein Gedanke, den nur du siehst …" rows={3} maxLength={2500} /><button type="button" className={styles.noteSave} disabled={busy || !noteDraft.trim()} onClick={saveNote}>{busy ? "Speichert …" : "Private Notiz sichern"}<ArrowRight size={14} /></button><div className={styles.savedNotes}>{relatedNotes.length ? relatedNotes.slice(0, 3).map((note) => <article key={note.id}><Check size={13} /><div><strong>{note.title}</strong><p>{String(note.body.text ?? "")}</p></div></article>) : <p>Noch keine eigenen Ortsnotizen.</p>}</div></section>
+            {location.image && <button type="button" className={styles.photoCard} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "image" }); }}><span className={styles.photoImage}><img src={location.image} alt="" loading="lazy" /><span><ImageIcon size={15} />Bild öffnen</span></span><span className={styles.photoCaption}>{location.title}{location.district && <> <i>·</i> {location.district}</>}</span></button>}
+            {(location.district || location.address || location.worldState !== "active") && <section className={styles.factCard}><p className={styles.kicker}>EINORDNUNG</p>{location.district && <div className={styles.factRow}><span>Gebiet</span><strong>{location.district}</strong></div>}{location.address && <div className={styles.factRow}><span>Adresse</span><strong>{location.address}</strong></div>}{location.worldState !== "active" && <div className={styles.factRow}><span>Ortszustand</span><strong>{stateLabel(location.worldState)}</strong></div>}</section>}
+            {location.knownInformation.some((info) => info.title === "Atmosphäre") && <section className={styles.knownNote}><span><FileText size={16} /></span><div><p className={styles.kicker}>BEKANNTE ATMOSPHÄRE</p><p>{location.knownInformation.find((info) => info.title === "Atmosphäre")?.text}</p></div></section>}
+            <section className={styles.notesSection}><header><span><NotebookPen size={16} />Deine Notizen</span><small>privat</small></header><label className={styles.srOnly} htmlFor="world-note">Private Notiz zu {location.title}</label><textarea id="world-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Ein Gedanke, den nur du siehst …" rows={3} maxLength={2500} /><button type="button" className={styles.noteSave} disabled={busy || !noteDraft.trim()} onClick={saveNote}>{busy ? "Speichert …" : "Private Notiz sichern"}<ArrowRight size={14} /></button><div className={styles.savedNotes}>{relatedNotes.length ? relatedNotes.slice(0, 3).map((note) => <article key={note.id}><Check size={13} /><div><strong>{note.title}</strong><p>{String(note.body.text ?? "")}</p></div></article>) : <p>Noch keine eigenen Ortsnotizen.</p>}</div></section>
           </aside>
         </section>
 
@@ -489,13 +461,15 @@ export function WorldExperience({
       </article>
     </>}
 
-    <dialog ref={imageDialog} className={`${styles.overlay} ${styles.imageOverlay}`} aria-label={`Bildansicht: ${location.title}`} onClose={closeOverlay} onClick={(event) => { if (event.target === imageDialog.current) imageDialog.current?.close(); }}>
-      <div className={styles.overlayFrame}><div className={styles.overlayTop}><span><ImageIcon size={15} />{location.title} <i>·</i> {location.district}</span><button type="button" aria-label="Bildansicht schließen" onClick={() => imageDialog.current?.close()}><X size={19} /></button></div><img src={location.image} alt="Außenansicht der Electric Taberna bei Nacht" /><p>Vorhandenes Ortsbild · {location.title}</p></div>
-    </dialog>
+    {location && <>
+      {location.image && <dialog ref={imageDialog} className={`${styles.overlay} ${styles.imageOverlay}`} aria-label={`Bildansicht: ${location.title}`} onClose={closeOverlay} onClick={(event) => { if (event.target === imageDialog.current) imageDialog.current?.close(); }}>
+        <div className={styles.overlayFrame}><div className={styles.overlayTop}><span><ImageIcon size={15} />{location.title}{location.district && <> <i>·</i> {location.district}</>}</span><button type="button" aria-label="Bildansicht schließen" onClick={() => imageDialog.current?.close()}><X size={19} /></button></div><img src={location.image} alt={`${location.title} in der Spielwelt`} /><p>Vorhandenes Ortsbild · {location.title}</p></div>
+      </dialog>}
 
-    <dialog ref={clueDialog} className={`${styles.overlay} ${styles.clueOverlay}`} aria-label={overlay?.kind === "clue" ? overlay.title : "Freigegebener Hinweis"} onClose={closeOverlay} onClick={(event) => { if (event.target === clueDialog.current) clueDialog.current?.close(); }}>
-      <div className={styles.clueDialogFrame}><div className={styles.overlayTop}><span><CircleHelp size={16} />{overlay?.kind === "clue" && overlay.title === "Hinter dem Gästebereich" ? "HINWEIS · DEINE CHRONIK" : "ERKENNTNIS · DEINE CHRONIK"}</span><button type="button" aria-label="Hinweis schließen" onClick={() => clueDialog.current?.close()}><X size={19} /></button></div><p className={styles.kicker}>{overlay?.kind === "clue" && overlay.title === "Hinter dem Gästebereich" ? "UNGEKLÄRT" : "FREIGEGEBEN"}</p><h2>{overlay?.kind === "clue" ? overlay.title : "Hinweis"}</h2><p>{overlay?.kind === "clue" ? overlay.text : ""}</p><div className={styles.clueFooter}><span><Sparkles size={14} />Nur freigegebener Inhalt</span><span>Electric Taberna <ChevronDown size={14} /></span></div></div>
-    </dialog>
+      <dialog ref={clueDialog} className={`${styles.overlay} ${styles.clueOverlay}`} aria-label={overlay?.kind === "clue" ? overlay.title : "Freigegebener Hinweis"} onClose={closeOverlay} onClick={(event) => { if (event.target === clueDialog.current) clueDialog.current?.close(); }}>
+        <div className={styles.clueDialogFrame}><div className={styles.overlayTop}><span><CircleHelp size={16} />{overlay?.kind === "clue" ? "HINWEIS · DEINE CHRONIK" : "ERKENNTNIS · DEINE CHRONIK"}</span><button type="button" aria-label="Hinweis schließen" onClick={() => clueDialog.current?.close()}><X size={19} /></button></div><p className={styles.kicker}>{overlay?.kind === "clue" ? "UNGEKLÄRT" : "FREIGEGEBEN"}</p><h2>{overlay?.kind === "clue" ? overlay.title : "Hinweis"}</h2><p>{overlay?.kind === "clue" ? overlay.text : ""}</p><div className={styles.clueFooter}><span><Sparkles size={14} />Nur freigegebener Inhalt</span><span>{location.title} <ChevronDown size={14} /></span></div></div>
+      </dialog>
+    </>}
   </div>;
 }
 

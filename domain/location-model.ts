@@ -318,17 +318,17 @@ export function projectLocationForPlayer(
         .map((item, index) => ({
           ...item,
           id: `info-${index + 1}`,
-          targetId: publicTargetKey(item.targetId),
+          targetId: publicTargetKey(item.targetId, location),
         })),
       activity: location.activity
         .filter((item) => item.visibility !== "gm")
         .map((item, index) => ({
           ...item,
           id: `activity-${index + 1}`,
-          targetId: publicTargetKey(item.targetId),
+          targetId: publicTargetKey(item.targetId, location),
         })),
       preparedActions: undefined,
-      sourceLabel: "Freigegebene Ortsprojektion der Electric Taberna.",
+      sourceLabel: "Freigegebene Ortsprojektion.",
     },
   };
 }
@@ -377,9 +377,11 @@ function projectAreaForPlayer(area: PlaceArea): ProjectedArea[] {
   ];
 }
 
-function publicTargetKey(targetId: string) {
-  if (targetId === ELECTRIC_TABERNA_ID) return ELECTRIC_TABERNA_ID;
-  if (targetId.includes(".public-guests")) return "area-1";
-  if (targetId.includes(".public-signal")) return "info-1";
+function publicTargetKey(targetId: string, location: PlaceModel) {
+  if (targetId === location.id) return location.id;
+  for (const area of location.areas) {
+    if (targetId === area.id) return `area-${area.order}`;
+    if (area.rooms.some((item) => item.id === targetId)) return `room-${area.order}`;
+  }
   return "linked-object";
 }

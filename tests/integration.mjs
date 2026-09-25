@@ -40,6 +40,19 @@ check((await req('/api/locations/migrate','a','POST',{placeId:'place.electric-ta
 const migrated=await req('/api/locations/migrate','gm','POST',{placeId:'place.electric-taberna'});
 check(migrated.s===200&&migrated.d.migrated===true,'GM migrates Electric Taberna fixture once');
 check((await req('/api/locations/migrate','gm','POST',{placeId:'place.electric-taberna'})).d.migrated===false,'Location migration is idempotent');
+// Synthetic place exists only in this runner's disposable local D1 database.
+localSql(`INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at) VALUES
+('place.synthetic-night-market','chronik-von-kleve','PLACE','WORKING','sprint1-gm','sl','Testort Zwei','{}','',1,'2026-09-25','2026-09-25'),
+('room.synthetic-night-market.secret','chronik-von-kleve','PLACE','GM_SECRET','sprint1-gm','sl','SYNTHETIC_SECRET_ROOM','{}','',1,'2026-09-25','2026-09-25'),
+('place.ungranted-secret','chronik-von-kleve','PLACE','WORKING','sprint1-gm','sl','SYNTHETIC_UNGRANTED_PLACE','{}','',1,'2026-09-25','2026-09-25');
+INSERT INTO location_nodes(entity_id,campaign_id,location_id,parent_id,level,position,world_state,world_visibility,world_subject_id,markers,attributes,revision,updated_at) VALUES
+('place.synthetic-night-market','chronik-von-kleve','place.synthetic-night-market',NULL,'location',0,'active','group',NULL,'[]','{"title":"Testort Zwei","subtitle":"Testdaten","district":"Isolierter Bereich","summary":"Synthetischer Ort für den isolierten Integrationstest.","visibility":"group","geography":{"status":"exact","visibility":"group","coordinates":[6.21,51.83],"provenance":{"source":"isolated synthetic fixture; not canon","reviewedAt":"2026-09-25"}}}',1,'2026-09-25'),
+('room.synthetic-night-market.secret','chronik-von-kleve','place.synthetic-night-market','place.synthetic-night-market','room',1,'active','gm',NULL,'[]','{"title":"SYNTHETIC_SECRET_ROOM"}',1,'2026-09-25'),
+('place.ungranted-secret','chronik-von-kleve','place.ungranted-secret',NULL,'location',0,'active','group',NULL,'[]','{"title":"SYNTHETIC_UNGRANTED_PLACE","visibility":"group","geography":{"status":"exact","visibility":"group","coordinates":[6.22,51.84],"provenance":{"source":"isolated synthetic fixture; not canon","reviewedAt":"2026-09-25"}}}',1,'2026-09-25');
+INSERT INTO knowledge(id,campaign_id,entity_id,audience,subject_id,state,discovery_state,version,granted_by,created_at,updated_at) VALUES
+('qa.synthetic-night-market.group','chronik-von-kleve','place.synthetic-night-market','group','chronik-von-kleve','DISCOVERED','known',1,'sprint1-gm','2026-09-25','2026-09-25');
+INSERT INTO location_actions(id,campaign_id,location_id,target_id,definition,status,revision,updated_at) VALUES
+('action.synthetic-night-market.qa','chronik-von-kleve','place.synthetic-night-market','place.synthetic-night-market','{"label":"Isolated QA action","target":"Group"}','ready',1,'2026-09-25');`);
 const gmLocation=await req('/api/locations?place=place.electric-taberna&view=sl','gm');
 check(gmLocation.s===200,'GM opens Electric Taberna dossier');
 check(gmLocation.d.projection.location.id==='place.electric-taberna','Electric Taberna keeps permanent ID through API');
@@ -48,10 +61,26 @@ check(gmLocation.d.projection.location.areas.reduce((sum,area)=>sum+area.rooms.l
 const playerLocation=await req('/api/locations?place=place.electric-taberna','a');
 const playerLocationJson=JSON.stringify(playerLocation.d);
 check(playerLocation.s===200,'Player opens projected Electric Taberna dossier');
-check(playerLocation.d.mapMarker?.id==='place.electric-taberna'&&playerLocation.d.mapMarker.coordinateSource==='prototype-test-coordinate','Known player projection receives only its prototype map marker');
+check(playerLocation.d.projection.location.geography.status==='unknown'&&!Object.hasOwn(playerLocation.d,'mapMarker'),'Electric Taberna test coordinate is not silently treated as a verified canon position');
 check(!Object.hasOwn(gmLocation.d,'mapMarker'),'GM-only dossier response does not expose player map markers');
 check(!playerLocationJson.includes('Keller & Service')&&!playerLocationJson.includes('Getränkevorrat')&&!playerLocationJson.includes('Büro'),'Player projection hides unreleased Electric Taberna room names');
 check(!playerLocationJson.includes('room.electric-taberna.office')&&!playerLocationJson.includes('room.electric-taberna.entrance-cloakroom')&&!playerLocationJson.includes('area.electric-taberna.public-guests')&&!playerLocationJson.includes('info.electric-taberna.public-signal')&&!playerLocationJson.includes('legacy-1bf8cd98a7c87c2e018890b4'),'Player projection hides internal room, area, info and legacy IDs');
+const worldHub=await req('/api/locations?view=player&target=player','a');
+const worldHubJson=JSON.stringify(worldHub.d);
+check(worldHub.s===200&&worldHub.d.places.some(p=>p.id==='place.electric-taberna')&&worldHub.d.places.some(p=>p.id==='place.synthetic-night-market'),'Generic world hub returns Electric Taberna and isolated second place');
+check(worldHub.d.places.find(p=>p.id==='place.synthetic-night-market').summary!==worldHub.d.places.find(p=>p.id==='place.electric-taberna').summary,'World hub tiles use each location’s released content');
+check(!worldHubJson.includes('place.ungranted-secret')&&!worldHubJson.includes('SYNTHETIC_UNGRANTED_PLACE')&&!worldHubJson.includes('6.22'),'Unreleased location and its coordinates never enter the player hub');
+check(!worldHubJson.includes('SYNTHETIC_SECRET_ROOM')&&!worldHubJson.includes('room.synthetic-night-market.secret'),'GM_SECRET synthetic sibling is absent from player hub and tiles');
+check(!Object.hasOwn(worldHub.d,'total')&&!Object.hasOwn(worldHub.d,'hiddenCount'),'World hub does not disclose a count of unknown locations');
+const syntheticDetail=await req('/api/locations?place=place.synthetic-night-market&view=player&target=player','a');
+check(syntheticDetail.s===200&&syntheticDetail.d.projection.location.summary.includes('isolierten Integrationstest'),'Generic detail route opens a different persisted place');
+check(syntheticDetail.d.mapMarker?.id==='place.synthetic-night-market'&&syntheticDetail.d.mapMarker.coordinates[0]===6.21,'Synthetic known coordinates project a marker through the shared contract');
+check((await req('/api/locations?place=place.ungranted-secret&view=player','a')).s===404,'Existing root without grant is not player knowledge');
+check((await req('/api/locations?place=place.synthetic-night-market&view=sl','a')).s===403,'Player cannot request a generic GM dossier');
+check((await req('/api/locations/actions','gm','POST',{placeId:'place.synthetic-night-market',actionId:'action.synthetic-night-market.qa'})).s===200,'Prepared actions work through the generic place ID');
+check((await req('/api/locations/state','gm','POST',{placeId:'place.synthetic-night-market',entityId:'place.synthetic-night-market',mode:'world',worldState:'changed',expectedRevision:1,reason:'isolated generic QA'})).s===200,'World state uses the same generic place ID contract');
+const syntheticNote=await req('/api/records','a','POST',{kind:'notizen',title:'Synthetic place note',visibility:'private',body:{text:'SYNTHETIC_NOTE_ONLY',locationId:'place.synthetic-night-market',targetId:'place.synthetic-night-market'}});
+check(syntheticNote.s===200&&JSON.stringify((await req('/api/records?kind=notizen','a')).d).includes('place.synthetic-night-market'),'Location note is linked to the selected stable place ID');
 const gmPlayerPreview=await req('/api/locations?place=place.electric-taberna&view=player&target=group','gm');
 check(gmPlayerPreview.s===200&&!JSON.stringify(gmPlayerPreview.d).includes('Keller & Service')&&!JSON.stringify(gmPlayerPreview.d).includes('Elysium / Camarilla'),'GM player preview uses the safe player projection');
 check((await req('/api/locations?place=place.electric-taberna&view=sl','a')).s===403,'Player cannot switch to SL location view');

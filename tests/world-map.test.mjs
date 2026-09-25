@@ -2,80 +2,83 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { prototypeMapMarker } from "../server/location-map-prototype.ts";
-import { mapMarkerFor, playerMapPlaces } from "../app/spielbereich/modules/world-map-contract.ts";
+import { mapMarkersForPlaces, playerMapPlaces, visibleWorldPlaces } from "../app/spielbereich/modules/world-map-contract.ts";
+import { parseStoredLocationGeography, projectLocationGeography } from "../server/location-geography.ts";
 
-function projection({ view = "player", discovery = "visited", id = "place.electric-taberna" } = {}) {
-  return {
-    view,
-    location: {
-      id,
-      title: "Electric Taberna",
-      discovery,
-      worldState: "active",
-      gmBody: "SECRET TEXT MUST NOT REACH THE MAP",
-      address: "Kavarinerstraße 30, 47533 Kleve",
-    },
-  };
+const exact = (coordinates, visibility = "group") => ({
+  status: "exact", visibility, coordinates,
+  provenance: { source: "isolated test fixture", reviewedAt: "2026-09-25" },
+});
+function place(id, geography, discovery = "known") {
+  return { id, title: `Place ${id}`, subtitle: "", district: "", image: "", summary: "released summary", discovery, worldState: "active", geography };
 }
 
-test("hidden and rumored locations never become player map candidates or receive coordinates", () => {
-  for (const discovery of ["hidden", "rumored"]) {
-    const source = projection({ discovery });
-    assert.deepEqual(playerMapPlaces(source), []);
-    assert.equal(prototypeMapMarker(source), null);
-  }
+test("geodata validates latitude/longitude bounds, provenance and strict shape", () => {
+  assert.equal(parseStoredLocationGeography(exact([6.1, 51.7])).status, "exact");
+  assert.deepEqual(parseStoredLocationGeography(exact([181, 51.7])), { status: "unknown" });
+  assert.deepEqual(parseStoredLocationGeography(exact([6.1, 91])), { status: "unknown" });
+  assert.deepEqual(parseStoredLocationGeography(exact([Number.NaN, 51.7])), { status: "unknown" });
+  assert.deepEqual(parseStoredLocationGeography({ ...exact([6.1, 51.7]), secretCoordinates: [6.2, 51.8] }), { status: "unknown" });
+  assert.deepEqual(parseStoredLocationGeography({ status: "approximate", visibility: "group", coordinates: [6, 51], accuracyMeters: 0, provenance: { source: "map", reviewedAt: "2026-09-25" } }), { status: "unknown" });
 });
 
-test("a GM projection cannot create player map markers or coordinates", () => {
-  const source = projection({ view: "sl" });
-  assert.deepEqual(playerMapPlaces(source), []);
-  assert.equal(prototypeMapMarker(source), null);
+test("approximate projection returns only its approximate point and accuracy", () => {
+  const source = { status: "approximate", visibility: "group", coordinates: [6.1, 51.7], accuracyMeters: 1800, provenance: { source: "regional map", reviewedAt: "2026-09-25", reference: "https://example.invalid/map" } };
+  const projected = projectLocationGeography(source, { gm: false, known: true, groupGrant: true, playerGrant: false, target: "group" });
+  assert.deepEqual(projected, { status: "approximate", coordinates: [6.1, 51.7], accuracyMeters: 1800, source: "regional map", reviewedAt: "2026-09-25" });
+  assert.equal("reference" in projected, false);
 });
 
-test("known player projection contains only safe map candidate fields", () => {
-  const [place] = playerMapPlaces(projection());
-  assert.deepEqual(place, {
-    id: "place.electric-taberna",
-    title: "Electric Taberna",
-    discovery: "visited",
-    worldState: "active",
-  });
-  assert.equal(Object.hasOwn(place, "gmBody"), false);
-  assert.equal(Object.hasOwn(place, "address"), false);
-  assert.equal(Object.hasOwn(place, "coordinates"), false);
+test("personal or GM geography does not leak through a group or another player's projection", () => {
+  const personal = exact([6.1, 51.7], "player");
+  assert.deepEqual(projectLocationGeography(personal, { gm: false, known: true, groupGrant: false, playerGrant: true, target: "group" }), { status: "unknown" });
+  assert.deepEqual(projectLocationGeography(personal, { gm: false, known: true, groupGrant: false, playerGrant: false, target: "player" }), { status: "unknown" });
+  assert.deepEqual(projectLocationGeography({ ...personal, visibility: "gm" }, { gm: false, known: true, groupGrant: true, playerGrant: false, target: "group" }), { status: "unknown" });
+  assert.deepEqual(projectLocationGeography(exact([6.1, 51.7]), { gm: false, known: false, groupGrant: true, playerGrant: false, target: "group" }), { status: "unknown" });
 });
 
-test("prototype coordinate is returned only for the known Electric Taberna player projection", () => {
-  const marker = prototypeMapMarker(projection());
-  assert.deepEqual(marker, {
-    id: "place.electric-taberna",
-    coordinates: [6.13827, 51.78993],
-    coordinateSource: "prototype-test-coordinate",
-  });
-  assert.equal(prototypeMapMarker(projection({ id: "place.unmapped" })), null);
-  assert.equal(prototypeMapMarker(projection({ discovery: "rumored" })), null);
+test("tiles and markers are generated generically for multiple released places", () => {
+  const places = [
+    place("place.electric-taberna", { status: "unknown" }),
+    place("place.synthetic-second", { status: "exact", coordinates: [6.2, 51.8], source: "isolated synthetic fixture", reviewedAt: "2026-09-25" }),
+    place("place.synthetic-third", { status: "approximate", coordinates: [6.3, 51.9], accuracyMeters: 2200, source: "isolated synthetic fixture", reviewedAt: "2026-09-25" }),
+  ];
+  assert.deepEqual(playerMapPlaces(places).map(item => item.id), places.map(item => item.id));
+  assert.deepEqual(mapMarkersForPlaces(places).map(item => item.id), ["place.synthetic-second", "place.synthetic-third"]);
+  assert.deepEqual(mapMarkersForPlaces(places).map(item => item.coordinates), [[6.2, 51.8], [6.3, 51.9]]);
 });
 
-test("a marker must match the known projected location", () => {
-  const [place] = playerMapPlaces(projection());
-  assert.equal(mapMarkerFor(place, prototypeMapMarker(projection()))?.id, place.id);
-  assert.equal(mapMarkerFor(place, { ...prototypeMapMarker(projection()), id: "place.other" }), null);
-  assert.equal(mapMarkerFor({ ...place, discovery: "rumored" }, prototypeMapMarker(projection())), null);
+test("hidden and rumored places cannot produce player tiles or markers", () => {
+  const places = [place("place.hidden", exact([6.1, 51.7]), "hidden"), place("place.rumored", exact([6.2, 51.8]), "rumored")];
+  assert.deepEqual(visibleWorldPlaces(places), []);
+  assert.deepEqual(playerMapPlaces(places), []);
+  assert.deepEqual(mapMarkersForPlaces(places), []);
+  assert.deepEqual(visibleWorldPlaces(places, true).map(item => item.id), ["place.hidden", "place.rumored"]);
 });
 
-test("MapLibre is split behind the world view and retains the schematic failure fallback", async () => {
-  const [workspace, experience, styles, mapModule] = await Promise.all([
+test("MapLibre retains its regional start frame and manages a generic marker collection", async () => {
+  const [workspace, experience, styles, mapModule, endpoint, repository] = await Promise.all([
     readFile(new URL("../app/spielbereich/workspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/spielbereich/modules/world-experience.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/spielbereich/modules/world-experience.module.css", import.meta.url), "utf8"),
     readFile(new URL("../app/spielbereich/modules/world-maplibre.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/locations/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../server/location-repository.ts", import.meta.url), "utf8"),
   ]);
   assert.match(workspace, /worldExperienceActive = section === "schauplaetze" \|\| section === "weltkarte"/);
   assert.doesNotMatch(workspace, /maplibre-gl|world-maplibre/);
   assert.match(experience, /import\("\.\/world-maplibre"\)/);
-  assert.match(experience, /new URLSearchParams\(window\.location\.search\)\.has\("ort"\)/);
+  assert.match(experience, /visibleWorldPlaces\(mapHub, view === "sl"\)/);
+  assert.match(experience, /return safeMapPlaces\.filter/);
+  assert.match(experience, /mapMarkersForPlaces\(safeMapPlaces, view === "sl"\)/);
+  assert.doesNotMatch(experience, /place\.electric-taberna|prototype-test-coordinate|6\.13827/);
   assert.match(mapModule, /https:\/\/tiles\.openfreemap\.org\/styles\/dark/);
+  assert.match(mapModule, /new Map<string/);
+  assert.match(mapModule, /\[6\.03, 51\.65\]/);
+  assert.match(mapModule, /\[6\.34, 51\.91\]/);
   assert.match(styles, /data-map-state="error"\] \.mapLibreCanvas/);
-  assert.match(styles, /\.mapImage\s*\{/);
+  assert.match(endpoint, /loadLocationHub/);
+  assert.match(endpoint, /places: projections\.map\(summary\)/);
+  assert.match(repository, /location_id IN \(\$\{placeholders\}\)/);
+  assert.doesNotMatch(repository, /ELECTRIC_TABERNA_LEGACY_ENTITY_ID|Persistierte Electric-Taberna-Ortsdaten/);
 });

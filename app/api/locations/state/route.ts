@@ -2,12 +2,11 @@ import { z } from "zod";
 import { actor, database, failure, gmOnly, HttpError, input, json, sameOrigin } from "@/server/access";
 import { canAdvanceDiscovery, locationIsSecret } from "@/domain/location-discovery";
 import { parseObject } from "@/server/entities";
-import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
 import { discoveryStates, stateMarkerIds, worldStateIds } from "@/domain/location-types";
 
 export const dynamic = "force-dynamic";
 const schema = z.object({
-  placeId: z.literal(ELECTRIC_TABERNA_ID), entityId: z.string().min(1).max(160), mode: z.enum(["discovery", "world"]),
+  placeId: z.string().trim().min(1).max(160), entityId: z.string().min(1).max(160), mode: z.enum(["discovery", "world"]),
   audience: z.enum(["group", "player"]).optional(), playerId: z.string().max(200).optional(),
   discoveryState: z.enum(discoveryStates).optional(), worldState: z.enum(worldStateIds).optional(),
   markers: z.array(z.enum(stateMarkerIds)).max(8).optional(), expectedRevision: z.number().int().nonnegative().optional(),

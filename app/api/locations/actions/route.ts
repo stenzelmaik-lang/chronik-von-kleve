@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
 import {
   actor,
   database,
@@ -16,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 const actionSchema = z
   .object({
-    placeId: z.literal(ELECTRIC_TABERNA_ID),
+    placeId: z.string().trim().min(1).max(160),
     actionId: z.string().min(1).max(120),
   })
   .strict();
