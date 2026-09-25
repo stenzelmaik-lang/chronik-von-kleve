@@ -89,3 +89,12 @@ test('Migration 0004 is additive and constrains campaign roles, platform roles, 
  assert.equal(db.prepare('PRAGMA foreign_key_check').all().length,0);
  db.close();
 });
+
+test('member management UI sends the revision required by the members API',()=>{
+ const workspace=fs.readFileSync('app/spielbereich/workspace.tsx','utf8');
+ const route=fs.readFileSync('app/api/members/route.ts','utf8');
+ assert.match(workspace,/expectedVersion:\s*m\.version/);
+ assert.match(route,/body\.expectedVersion === undefined/);
+ assert.match(route,/new HttpError\(428,/);
+ assert.match(route,/body\.expectedVersion !== currentVersion/);
+});

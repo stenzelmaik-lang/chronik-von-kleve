@@ -57,6 +57,8 @@ export async function POST(req: Request) {
       (body.expectedVersion !== undefined &&
         (!Number.isInteger(body.expectedVersion) || Number(body.expectedVersion) < 1))
     ) throw new HttpError(400, "Ungültige Freigabe.");
+    if (body.expectedVersion === undefined)
+      throw new HttpError(428, "Diese Ansicht ist veraltet. Bitte Anmeldungen aktualisieren.");
     if (body.id === a.id) throw new HttpError(400, "Dein eigener Zugang bleibt aktiv.");
 
     const db = database();
@@ -75,7 +77,7 @@ export async function POST(req: Request) {
     const currentVersion = explicitMembership
       ? target.membership_version!
       : target.member_version;
-    if (body.expectedVersion !== undefined && body.expectedVersion !== currentVersion)
+    if (body.expectedVersion !== currentVersion)
       throw new HttpError(409, "Der Mitgliedsstatus wurde zwischenzeitlich geändert. Bitte neu laden.");
 
     const nextStatus = body.status as "active" | "blocked";

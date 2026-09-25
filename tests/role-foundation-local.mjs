@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {randomUUID} from 'node:crypto';
-import {existsSync,readdirSync,rmSync} from 'node:fs';
+import {existsSync,readdirSync,rmSync,readFileSync} from 'node:fs';
 import {basename,dirname,join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
-import {backfillMemberships,bootstrapFirstPlatformAdmin,planMembershipBackfill} from '../server/role-maintenance.ts';
+import * as roleMaintenance from '../server/role-maintenance.ts';
 import {resolveRoles} from '../server/role-resolver.ts';
+
+const {backfillMemberships,planMembershipBackfill}=roleMaintenance;
 
 const state=process.env.CVK_TEST_STATE||'';
 const stateRoot=resolve(state);
@@ -131,15 +133,25 @@ check(currentCampaignRole.campaignRole==='player'&&foreignCampaignRole.campaignR
 const adminTarget='phase-b-first-platform-admin-test-'+randomUUID();
 const adminOperator='phase-b-approved-operator-test-'+randomUUID();
 insertMember.run(adminTarget,'synthetic-admin@sprint.invalid','Synthetic test principal','pending','chronik-von-kleve','test-bootstrap');
-await assert.rejects(()=>bootstrapFirstPlatformAdmin(db,{targetUserId:adminTarget,verifiedTargetUserId:adminTarget,authorizedByUserId:adminTarget,approvalReference:'phase-b-test-approval'}),/separate authorizing operator/);
-await assert.rejects(()=>bootstrapFirstPlatformAdmin(db,{targetUserId:adminTarget,verifiedTargetUserId:adminTarget,authorizedByUserId:adminOperator,approvalReference:'short'}),/explicit approval reference/);
-const boot=await bootstrapFirstPlatformAdmin(db,{targetUserId:adminTarget,verifiedTargetUserId:adminTarget,authorizedByUserId:adminOperator,approvalReference:'TEST-ONLY-phase-b-isolated-d1'},'test-bootstrap-time');
-check(boot.userId===adminTarget&&boot.role==='platform_admin','controlled bootstrap works only with separate synthetic approval identities');
-await assert.rejects(()=>bootstrapFirstPlatformAdmin(db,{targetUserId:'phase-b-second-admin-test',verifiedTargetUserId:'phase-b-second-admin-test',authorizedByUserId:adminOperator,approvalReference:'TEST-ONLY-second-attempt'},'test-bootstrap-time-2'),/already used|concurrency race/);
-check(count('platform_roles')===1,'bootstrap creates at most the first synthetic Test-D1 admin');
+check(typeof roleMaintenance.bootstrapFirstPlatformAdmin==='undefined','production role maintenance exposes no platform-admin bootstrap mutation');
+const bootstrapRunbook=readFileSync(resolve(process.cwd(),'docs/pre-alpha-v0.1.037/platform-admin-bootstrap.md'),'utf8');
+check(bootstrapRunbook.includes('NOT ENABLED')&&bootstrapRunbook.includes('signed')&&bootstrapRunbook.includes('separate authenticated view'),'future bootstrap requires independent verification and a signed approval gate');
+const bootstrapAt='test-bootstrap-time';
+connection.prepare(`INSERT INTO platform_roles(user_id,role,status,granted_by,created_at,updated_at,version)
+ VALUES(?,'platform_admin','active',?,?,?,1)`).run(adminTarget,adminOperator,bootstrapAt,bootstrapAt);
+connection.prepare(`INSERT INTO role_audit_events(id,actor_id,actor_kind,action,subject_user_id,campaign_id,before_state,after_state,reason,created_at)
+ VALUES(?,?,'user','platform_admin.bootstrapped',?,NULL,'{}',?,?,?)`).run(
+ 'phase-b-test-bootstrap:'+adminTarget,
+ adminOperator,
+ adminTarget,
+ JSON.stringify({role:'platform_admin',status:'active'}),
+ 'SYNTHETIC TEST-D1 FIXTURE ONLY; no bootstrap operation executed.',
+ bootstrapAt,
+);
+check(count('platform_roles')===1,'direct synthetic fixture exists only in the isolated Test-D1');
 const adminRoles=await resolveRoles(db,{userId:adminTarget,email:'synthetic-admin@sprint.invalid',campaignId:'chronik-von-kleve',gmEmail:'gm@sprint.invalid',gmCampaignId:'chronik-von-kleve'});
 check(adminRoles.platformRoles.includes('platform_admin')&&adminRoles.campaignRole==='player'&&adminRoles.campaignStatus==='pending','platform admin does not imply campaign access');
-check(connection.prepare("SELECT COUNT(*) AS n FROM role_audit_events WHERE action='platform_admin.bootstrapped'").get().n===1,'bootstrap writes an audit event');
+check(connection.prepare("SELECT COUNT(*) AS n FROM role_audit_events WHERE action='platform_admin.bootstrapped'").get().n===1,'synthetic platform-admin fixture has one immutable audit record');
 check(connection.prepare("SELECT COUNT(*) AS n FROM role_audit_events WHERE action='campaign_membership.status_changed'").get().n>=1,'legacy and explicit membership changes were audited');
 
 const protectedTables=['campaigns','members','records','files','entities','relationships','knowledge','world_events','recovery_sources','recovery_records','recovery_conflicts','location_nodes','location_actions'];

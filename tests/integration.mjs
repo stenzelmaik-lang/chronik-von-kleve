@@ -50,19 +50,29 @@ check((await req('/api/entities','otherCampaign')).s===403,'another campaign mem
 for(const who of ['a','b']){
  const m=await req('/api/members',who);check(m.s===200,'Player registers');
  if(m.d.actor.status!=='active')check((await req('/api/entities',who)).s===403,'Pending player denied');
- check((await req('/api/members','gm','POST',{id:m.d.actor.id,status:'active'})).s===200,'GM activates player');
+ const pendingMember=(await req('/api/members','gm')).d.members.find(member=>member.id===m.d.actor.id);
+ check(Number.isInteger(pendingMember?.version),'GM member list includes the revision needed for status changes');
+ check((await req('/api/members','gm','POST',{id:m.d.actor.id,status:'active',expectedVersion:pendingMember.version})).s===200,'GM activates player using the listed revision');
 }
 localSql("INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES('chronik-von-kleve','sprint1-b','player','active','manual',1,'phase-b','phase-b')");
 const bMembership=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked'})).s===428,'Old management UI without a revision cannot change a member');
+const freshUiWrite=await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:bMembership.version});
+const staleUiWrite=await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:bMembership.version});
+const afterStaleUi=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check(freshUiWrite.s===200&&staleUiWrite.s===409&&afterStaleUi.status==='blocked'&&afterStaleUi.version===bMembership.version+1,'Stale management UI snapshot returns 409 and cannot overwrite the newer status');
+const memberRaceRevision=afterStaleUi.version;
 const memberRaces=await Promise.all([
- req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:bMembership.version}),
- req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:bMembership.version}),
+ req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:memberRaceRevision}),
+ req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:memberRaceRevision}),
 ]);
 check(memberRaces.filter(result=>result.s===200).length===1&&memberRaces.filter(result=>result.s===409).length===1,'two concurrent membership changes from one revision yield one success and one 409');
 const afterMemberRace=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
-check(afterMemberRace.version===bMembership.version+1,'successful membership mutation advances its revision once');
-if(afterMemberRace.status!=='active')check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'active'})).s===200,'legacy membership request without expectedVersion remains compatible');
-check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:bMembership.version})).s===409,'stale membership revision is rejected');
+check(afterMemberRace.version===memberRaceRevision+1,'successful membership mutation advances its revision once');
+const staleRevisionWrite=await req('/api/members','gm','POST',{id:'sprint1-b',status:afterMemberRace.status==='active'?'blocked':'active',expectedVersion:bMembership.version});
+check(staleRevisionWrite.s===409,'stale membership revision is rejected after a later write');
+const resetMember=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:resetMember.version})).s===200,'membership concurrency fixture is restored to active');
 check((await req('/api/entities','a','POST',{type:'CLUE',title:'test',text:'test'})).s===403,'Player cannot author core entity');
 const created=await req('/api/entities','gm','POST',{type:'CLUE',title:'QA isolated clue',text:'SPRINT_PROTECTED',gmBody:'SPRINT_GM_ONLY'});
 check(created.s===201&&created.d.campaignId==='chronik-von-kleve','Entity has stable ID and campaignId');
@@ -74,9 +84,11 @@ const read=await req('/api/entities?id='+id,'a');check(JSON.stringify(read.d).in
 check((await req('/api/entities?id='+id,'b')).s===404,'Player B cannot obtain player A knowledge');
 check((await req('/api/knowledge','gm','POST',{entityId:id,audience:'group',state:'OBSERVED'})).s===200,'GM grants to group');
 check((await req('/api/entities?id='+id,'b')).s===200,'Active group member receives content');
-await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked'});
+let bCurrent=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:bCurrent.version});
 check((await req('/api/entities?id='+id,'b')).s===403,'Blocked member cannot use group grant');
-await req('/api/members','gm','POST',{id:'sprint1-b',status:'active'});
+bCurrent=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:bCurrent.version});
 await req('/api/knowledge','gm','POST',{entityId:id,audience:'group',state:'UNKNOWN'});
 check((await req('/api/entities?id='+id,'b')).s===404,'Group grant revoked');
 const secret=await req('/api/entities','gm','POST',{type:'CLUE',canonStatus:'GM_SECRET',title:'QA GM SECRET',text:'HIDDEN_CANON'});
