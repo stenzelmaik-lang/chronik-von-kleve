@@ -39,6 +39,7 @@ export type PlaceGeography =
       status: "exact";
       coordinates: [longitude: number, latitude: number];
       source: string;
+      reference?: string;
       reviewedAt: string;
     }
   | {
@@ -46,6 +47,7 @@ export type PlaceGeography =
       coordinates: [longitude: number, latitude: number];
       accuracyMeters: number;
       source: string;
+      reference?: string;
       reviewedAt: string;
     };
 

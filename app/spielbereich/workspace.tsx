@@ -35,6 +35,7 @@ import type { Actor } from "@/domain/types";
 import { api } from "./modules/api-client";
 import { ChroniclePanel } from "./modules/chronicle";
 import { CMSPanel } from "./modules/cms";
+import { LocationCMS } from "./modules/location-cms";
 import { DashboardPanel } from "./modules/dashboard";
 import { DicePanel } from "./modules/dice";
 import { EconomyPanel } from "./modules/economy";
@@ -97,6 +98,7 @@ export default function Workspace({
     a.gm,
     initialSection,
     resetEditor,
+    a.status === "active" && ["campaign_owner", "campaign_gm", "campaign_editor"].includes(a.role),
   );
   const { entries, files, members, catalog, loading, refreshing, hasData, error, reload } =
     useWorkspaceData(section, active, dataScope);
@@ -271,6 +273,8 @@ export default function Workspace({
       )}
       {worldExperienceActive ? (
         <WorldExperience a={a} dataScope={dataScope} />
+      ) : section === "ortscms" ? (
+        <LocationCMS a={a} />
       ) : loading ? (
         <div className="entry-grid">
           {[1, 2, 3].map((i) => (

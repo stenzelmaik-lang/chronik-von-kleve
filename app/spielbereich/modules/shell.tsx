@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-html-link-for-pages -- Native Home links intentionally bypass the reproduced vinext cross-shell navigation failure. */
 import { Toaster } from "@/components/ui/sonner";
-import { ArrowRight, ArrowLeft, BookOpen, Compass, Download, Home, LogOut, ScrollText, Store, Users } from "lucide-react";
+import { ArrowRight, ArrowLeft, BookOpen, Compass, Download, Home, LogOut, ScrollText, Store, Users, MapPinned } from "lucide-react";
 
 import type { Actor } from "@/domain/types";
 
@@ -28,6 +28,7 @@ export function WorkspaceShell({
   children: React.ReactNode;
 }) {
   const table = sections.filter((s) => s.group === "SPIELTISCH");
+  const canManageLocations=a.status==="active"&&["campaign_owner","campaign_gm","campaign_editor"].includes(a.role);
   const worldActive = sections.find((s) => s.id === section)?.group === "SPIELWELT";
   return <div className={`player-shell ${worldActive ? "worldShell" : ""}`}>
     <header className="player-topbar">
@@ -55,6 +56,7 @@ export function WorkspaceShell({
             <Compass size={17} aria-hidden="true" /><span>Orte</span>
           </button>
           <button type="button" className={section === "chronik" ? shellStyles.worldNavActive : ""} aria-current={section === "chronik" ? "page" : undefined} onClick={() => navigate("chronik")}><BookOpen size={17} aria-hidden="true" /><span>Chronik</span></button>
+          {canManageLocations&&<button type="button" className={section === "ortscms" ? shellStyles.worldNavActive : ""} aria-current={section === "ortscms" ? "page" : undefined} onClick={() => navigate("ortscms")}><MapPinned size={17} aria-hidden="true" /><span>Ortsverwaltung</span></button>}
           {plannedWorldSections.map(({ title, icon: Icon }) => <span className={shellStyles.worldNavPlanned} aria-disabled="true" key={title}><Icon size={16} aria-hidden="true" /><span>{title}</span><small>Demnächst</small></span>)}
         </div>
         <button type="button" className={shellStyles.worldNavReturn} onClick={() => navigate("dashboard")}><ArrowLeftIcon /><span>Zum Spieltisch</span></button>
@@ -92,6 +94,7 @@ export function WorkspaceShell({
         <span className="nav-label-short" aria-hidden="true">Welt</span>
         <ArrowRight className="world-switch-arrow" size={16} aria-hidden="true" />
       </button>
+      {canManageLocations&&<button type="button" className={`world-switch ${shellStyles.tableWorldSwitch}`} aria-label="Ortsverwaltung öffnen" onClick={()=>navigate("ortscms")}><MapPinned size={17} aria-hidden="true" /><span className="nav-label-long">Ortsverwaltung</span><span className="nav-label-short" aria-hidden="true">CMS</span></button>}
     </nav>}
     <main className="workspace-main">{children}</main>
     <footer className="player-footer"><span>{a.gm ? "Spielleitung" : "Spieler"} · Domäne Kleve</span><span className="player-footer-links">{a.gm && <a href="/api/export?scope=campaign"><Download size={14}/> Kampagne sichern</a>}<a href="/api/export"><Download size={14}/> Meine Daten sichern</a></span></footer>

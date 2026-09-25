@@ -18,13 +18,14 @@ export function useNavigation(
   gm: boolean,
   initialSection: string,
   onNavigate: () => void,
+  canManageLocations = gm,
 ) {
   const canOpen = useCallback(
     (id: string) => {
       const item = sections.find((s) => s.id === id);
-      return (!!item && (!item.gmOnly || gm)) || (id === "verwaltung" && gm);
+      return (!!item && (!item.gmOnly || gm) && (!item.cmsAccessOnly || canManageLocations)) || (id === "verwaltung" && gm);
     },
-    [gm],
+    [gm, canManageLocations],
   );
   const [section, setSection] = useState(() =>
     canOpen(initialSection) ? initialSection : "dashboard",
@@ -70,7 +71,7 @@ export function useNavigation(
                 section: {
                   type: "string",
                   enum: sections
-                    .filter((s) => !s.gmOnly || gm)
+                    .filter((s) => (!s.gmOnly || gm) && (!s.cmsAccessOnly || canManageLocations))
                     .map((s) => s.id),
                 },
               },
@@ -94,6 +95,6 @@ export function useNavigation(
       ).catch(() => {});
     } catch {}
     return () => lifecycle.abort();
-  }, [navigate, canOpen, gm]);
+  }, [navigate, canOpen, gm, canManageLocations]);
   return { section, navigate };
 }

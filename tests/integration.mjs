@@ -6,6 +6,8 @@ import {basename,dirname,resolve} from 'node:path';
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8791';
 assert.ok(['127.0.0.1','localhost'].includes(new URL(base).hostname),'Tests require localhost');
 const ids={gm:{'oai-authenticated-user-id':'sprint1-gm','oai-authenticated-user-email':'gm@sprint.invalid'},a:{'oai-authenticated-user-id':'sprint1-a','oai-authenticated-user-email':'a@sprint.invalid'},b:{'oai-authenticated-user-id':'sprint1-b','oai-authenticated-user-email':'b@sprint.invalid'}};
+ids.editor={'oai-authenticated-user-id':'sprint1-editor','oai-authenticated-user-email':'editor@sprint.invalid'};
+ids.blockedPlayer={'oai-authenticated-user-id':'sprint1-blocked-player','oai-authenticated-user-email':'blocked-player@sprint.invalid'};
 ids.blockedGm={'oai-authenticated-user-id':'sprint1-blocked-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
 ids.pendingGm={'oai-authenticated-user-id':'sprint1-pending-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
 ids.explicitBlockedGm={'oai-authenticated-user-id':'sprint1-explicit-blocked-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
@@ -194,7 +196,7 @@ check((await req('/api/knowledge','gm','POST',{entityId:entrance,audience:'group
 function localSql(sql) {
   const state=resolve(process.env.CVK_TEST_STATE||'');
   assert.equal(dirname(state),tmpdir());
-  assert.match(basename(state),/^cvk-phase-b-tests-[a-f0-9-]+$/);
+  assert.match(basename(state),/^cvk-phase-c-tests-[a-f0-9-]+$/);
   const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true});
   assert.equal(r.status,0,r.stderr);
 }
@@ -220,6 +222,11 @@ check(!(await locationJson('a')).includes('06 Personalflur'),'Hidden confirmatio
 check((await req('/api/entities?id='+hall,'a')).s===404,'Hidden confirmation does not release generic entity');
 check((await discover(hall,'known',1)).s===200,'Existing hidden grant advances to known');
 check((await locationJson('a')).includes('06 Personalflur'),'Explicit hidden-to-known transition releases to intended player');
+// The Phase-B discovery test intentionally grants this sibling to Player A; clear
+// that isolated fixture grant before proving that a later office release does not
+// itself reveal sibling rooms.
+localSql("DELETE FROM knowledge WHERE campaign_id='chronik-von-kleve' AND entity_id='room.electric-taberna.staff-hall' AND audience='player' AND subject_id='sprint1-a'");
+check(!(await locationJson('a')).includes('06 Personalflur'),'Personal projection fixture reset hides the earlier explicit sibling grant');
 const gmLocationAfterAction=await req('/api/locations?place=place.electric-taberna&view=sl','gm');
 check(JSON.stringify(gmLocationAfterAction.d).includes('"status":"triggered"'),'Prepared location action status persists');
 const shared=await req('/api/records','gm','POST',{kind:'schauplaetze',title:'QA hidden place',visibility:'group',body:{text:'LEGACY_HIDDEN',discovered:false},gmBody:'LEGACY_GM_ONLY'});
@@ -524,4 +531,122 @@ check(backup.records.some(r=>r.id===note.d.id),'Campaign export includes other o
 check(backup.binaries.included===false,'Separate R2 binary handling explicit');
 for(const kind of ['charaktere','inventar','wirtschaft','gefallen','sitzungen','chronik','schauplaetze','nscs','archiv','regelwerk','haendler','termine','neuigkeiten'])check((await req('/api/records?kind='+kind,'gm')).s===200,'Existing API '+kind);
 await req('/api/files','a','DELETE',{id:file.id});await req('/api/records','a','DELETE',{id:note.d.id,version:2});await req('/api/records','gm','DELETE',{id:shared.d.id,version:1});
+
+// Phase C editorial workflow: all records below live only in this disposable Test-D1 and Test-R2.
+localSql(`INSERT INTO members(id,campaign_id,email,name,status,created_at) VALUES
+('sprint1-editor','chronik-von-kleve','editor@sprint.invalid','Phase C Editor','active','phase-c-test'),
+('sprint1-blocked-player','chronik-von-kleve','blocked-player@sprint.invalid','Blocked Phase C Player','blocked','phase-c-test')
+ON CONFLICT(id) DO UPDATE SET status=excluded.status;
+UPDATE members SET status='active' WHERE id IN ('sprint1-a','sprint1-b');
+INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES
+('chronik-von-kleve','sprint1-a','player','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-b','player','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-editor','campaign_editor','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-blocked-player','player','blocked','manual',1,'phase-c-test','phase-c-test')
+ON CONFLICT(campaign_id,user_id) DO UPDATE SET role=excluded.role,status=excluded.status,version=campaign_memberships.version+1,updated_at=excluded.updated_at;`);
+check((await req('/api/cms/locations','a')).s===403,'Phase C editor APIs deny ordinary players');
+const cmsCatalog=await req('/api/cms/locations','editor');
+check(cmsCatalog.s===200&&cmsCatalog.d.locations.some(place=>place.id==='place.electric-taberna'),'Campaign editor can open existing Electric Taberna without creating a new location');
+check((await req('/api/cms/releases?entityId=place.electric-taberna&scope=group','editor')).s===403,'Campaign editor cannot read protected publisher controls');
+check((await req('/api/cms/locations','blockedPlayer')).s===403,'Blocked campaign membership cannot open the CMS or campaign APIs');
+check((await req('/api/cms/locations','otherCampaign')).s===403,'A different campaign membership does not grant access to Kleve CMS');
+
+const cmsCreate=(entityId,scope,who='gm',playerId)=>req('/api/cms/drafts',who,'POST',{entityId,audience:scope,...(playerId?{playerId}:{})});
+const cmsSave=(revisionId,expectedVersion,payload,extra={},who='gm')=>req('/api/cms/drafts',who,'PATCH',{revisionId,expectedVersion,payload,...extra});
+const cmsTransition=(who,action,revisionId,expectedVersion,reason='Phase C isolated review')=>req('/api/cms/transitions',who,'POST',{action,revisionId,expectedVersion,reason});
+const cmsRelease=(who,action,entityId,scope,expectedReleaseVersion,revisionId,extra={})=>req('/api/cms/releases',who,'POST',{action,entityId,scope,expectedReleaseVersion,...(revisionId?{revisionId}:{}),...extra,reason:'Phase C isolated Test-D1 release QA'});
+const publicDraft=await cmsCreate('place.electric-taberna','public','gm');
+check(publicDraft.s===201&&publicDraft.d.geography.status==='unknown','Existing Electric Taberna can start an explicit public draft with unknown geodata');
+check((await req('/api/cms/drafts','editor','POST',{entityId:'recovery.synthetic-secret',audience:'group'})).s===404,'Recovery-only or unknown IDs cannot be opened as CMS locations');
+const cmsPng=new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,1,2,3]);
+const cmsForm=new FormData();cmsForm.set('file',new Blob([cmsPng],{type:'image/png'}),'phase-c-test.png');
+const mediaResponse=await fetch(base+'/api/cms/media',{method:'POST',headers:ids.gm,body:cmsForm});const media=await mediaResponse.json();
+check(mediaResponse.status===201&&media.id,'Spielleitung can place a synthetic image into private Test-R2 through the CMS uploader');
+const publicPayload={...publicDraft.d.payload,title:'TEST_DATA Electric Taberna public release',summary:'TEST_DATA freigegebene öffentliche Zusammenfassung'};
+const firstSave=await cmsSave(publicDraft.d.id,1,publicPayload,{geography:{status:'unknown'},heroFileId:media.id});
+check(firstSave.s===200&&firstSave.d.version===2,'Draft save uses expectedVersion and can attach private campaign media');
+const invalidCmsPayload=await cmsSave(publicDraft.d.id,2,{...publicPayload,gm_body:'MUST_NOT_PERSIST'});
+check(invalidCmsPayload.s===400,'Strict player-content schema rejects unknown secret fields');
+const cmsRace=await Promise.all([
+  cmsSave(publicDraft.d.id,2,{...publicPayload,title:'TEST_DATA parallel A'},{geography:{status:'unknown'},heroFileId:media.id}),
+  cmsSave(publicDraft.d.id,2,{...publicPayload,title:'TEST_DATA parallel B'},{geography:{status:'unknown'},heroFileId:media.id}),
+]);
+check(cmsRace.filter(result=>result.s===200).length===1&&cmsRace.filter(result=>result.s===409).length===1,'Two simultaneous draft saves from the same version yield one success and one 409');
+const savedDrafts=await req('/api/cms/drafts?entityId=place.electric-taberna','gm');
+const savedPublic=savedDrafts.d.drafts.find(item=>item.id===publicDraft.d.id);
+check(savedPublic.version===3&&savedPublic.hero_file_id===media.id,'Draft reload preserves its winning content version and attached image');
+const previewImage=await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}&preview=1`,{headers:ids.gm});
+check(previewImage.status===200&&previewImage.headers.get('cache-control')==='private, no-store','Authorized CMS preview streams image bytes through the private proxy');
+check((await fetch(base+'/api/files?id='+media.id,{headers:ids.a})).status===404,'Player cannot read an unpublished SL-only R2 media object');
+check((await req('/api/files','gm','DELETE',{id:media.id})).s===409,'Existing file delete API refuses a referenced editorial image');
+check((await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a})).status===404,'Player cannot request an unpublished draft media URL');
+const submitted=await cmsTransition('gm','submit',publicDraft.d.id,savedPublic.version);
+check(submitted.s===200&&submitted.d.status==='in_review','Draft can be submitted into the review queue');
+check((await cmsTransition('editor','approve',publicDraft.d.id,submitted.d.version)).s===403,'Campaign editor cannot self-approve submitted material');
+const approved=await cmsTransition('gm','approve',publicDraft.d.id,submitted.d.version);
+check(approved.s===200&&approved.d.status==='approved','Campaign GM approves the reviewed revision');
+const publicRaces=await Promise.all([
+  cmsRelease('gm','publish','place.electric-taberna','public',0,publicDraft.d.id),
+  cmsRelease('gm','publish','place.electric-taberna','public',0,publicDraft.d.id),
+]);
+check(publicRaces.filter(result=>result.s===200).length===1&&publicRaces.filter(result=>result.s===409).length===1,'Parallel publication for the same target version allows only one writer');
+const publicHistory=await req('/api/cms/releases?entityId=place.electric-taberna&scope=public','gm');
+check(publicHistory.s===200&&publicHistory.d.currentVersion===1,'Release ledger starts at target-specific version 1');
+const publicPlayer=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+const publicHub=await req('/api/locations?view=player&target=player','b');
+check(publicPlayer.s===200&&publicPlayer.d.projection.location.title.startsWith('TEST_DATA parallel'),'Published content reaches player detail through the shared projector');
+check(publicHub.s===200&&publicHub.d.places.some(place=>place.id==='place.electric-taberna'&&place.title.startsWith('TEST_DATA parallel')),'Published title feeds the same safe hub/search/map tile source');
+check(publicPlayer.d.projection.location.geography.status==='unknown'&&!publicHub.d.places.find(place=>place.id==='place.electric-taberna').geography.coordinates,'Unknown Electric Taberna geodata produces no player coordinates or marker');
+const liveMedia=await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a});
+check(liveMedia.status===200&&liveMedia.headers.get('content-type')==='image/png','Player can stream the published target image only via the authorized R2 proxy');
+check((await fetch(base+'/api/files?id='+media.id,{headers:ids.a})).status===404,'Published editorial image never becomes a direct generic file URL');
+
+const groupDraft=await cmsCreate('place.electric-taberna','group','editor');
+check(groupDraft.s===201,'Campaign editor can create a safe group draft on the same existing location node');
+const groupPayload={...groupDraft.d.payload,title:'TEST_DATA Electric Taberna group release',summary:'TEST_DATA freigegebener Gruppentext'};
+const groupSaved=await cmsSave(groupDraft.d.id,1,groupPayload,{geography:{status:'unknown'}},'editor');
+check(groupSaved.s===200,'Campaign editor can save a group-scoped draft');
+const groupSubmitted=await cmsTransition('editor','submit',groupDraft.d.id,groupSaved.d.version);
+check(groupSubmitted.s===200,'Campaign editor can submit group draft for review');
+const groupApproved=await cmsTransition('gm','approve',groupDraft.d.id,groupSubmitted.d.version);
+check(groupApproved.s===200,'Campaign GM can approve group draft');
+const groupPreview=await req('/api/cms/preview','editor','POST',{revisionId:groupDraft.d.id});
+check(groupPreview.s===200&&groupPreview.d.projection.location.title==='TEST_DATA Electric Taberna group release','Editor preview uses the shared player-safe projector for its actual target');
+const groupPublished=await cmsRelease('gm','publish','place.electric-taberna','group',0,groupDraft.d.id,{discoveryState:'known'});
+check(groupPublished.s===200,'Approved group revision publishes to the exact group target');
+check((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d.projection.location.title==='TEST_DATA Electric Taberna group release','Group release supersedes lower public release for Player A');
+const blockedRelease=await cmsRelease('gm','block','place.electric-taberna','group',1,null);
+check(blockedRelease.s===200&&(await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).s===404,'A group block suppresses both that release and lower public/legacy fallback');
+check((await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a})).status===404,'Blocking higher-priority content also blocks lower-priority media');
+const revokedBlock=await cmsRelease('gm','revoke','place.electric-taberna','group',2,null);
+check(revokedBlock.s===200,'A later revoke may remove a previous explicit block');
+const fallbackPlayer=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+check(fallbackPlayer.s===200&&fallbackPlayer.d.projection.location.title.startsWith('TEST_DATA parallel'),'Revoke falls through only to the explicit lower public release, never old entity fields');
+check((await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a})).status===200,'Authorized media follows the same lower public release after a group revoke');
+
+const personalArea=await cmsCreate('area.electric-taberna.staff-back','player','gm','sprint1-a');
+check(personalArea.s===201,'Spielleitung can draft for one explicitly selected active player');
+const areaSubmitted=await cmsTransition('gm','submit',personalArea.d.id,personalArea.d.version);
+const areaApproved=await cmsTransition('gm','approve',personalArea.d.id,areaSubmitted.d.version);
+check(areaApproved.s===200,'Personal-area revision goes through the same review transition');
+check((await cmsRelease('gm','publish','area.electric-taberna.staff-back','player',0,personalArea.d.id,{playerId:'sprint1-a',discoveryState:'known'})).s===200,'Personal release is bound to Player A and creates matching discovery');
+const playerAAfterArea=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d);
+const playerBAfterArea=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','b')).d);
+const groupAfterArea=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=group','gm')).d);
+check(playerAAfterArea.includes('Personal-/Hinterbereich'),'Player A sees the personally granted area');
+check(!playerBAfterArea.includes('Personal-/Hinterbereich')&&!groupAfterArea.includes('Personal-/Hinterbereich'),'Player B and group preview do not see Player A personal area');
+const personalOffice=await cmsCreate('room.electric-taberna.office','player','gm','sprint1-a');
+const officeSubmit=await cmsTransition('gm','submit',personalOffice.d.id,personalOffice.d.version);
+const officeApprove=await cmsTransition('gm','approve',personalOffice.d.id,officeSubmit.d.version);
+check(officeApprove.s===200,'Personal room draft can be reviewed');
+check((await cmsRelease('gm','publish','room.electric-taberna.office','player',0,personalOffice.d.id,{playerId:'sprint1-a',discoveryState:'known'})).s===200,'Personal office release creates Player A discovery');
+const officeA=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d);
+const officeB=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','b')).d);
+const officeGroup=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=group','gm')).d);
+check(officeA.includes('07 Büro'),'Player A sees their personally released office');
+check(!officeB.includes('07 Büro')&&!officeGroup.includes('07 Büro'),'Player B and group do not see the personal office');
+for(const secretSibling of ['06 Personalflur','08 Hof & Anlieferung','Keller & Service','legacy-1bf8cd98','Elysium / Camarilla'])check(!officeA.includes(secretSibling),'Personal office grant does not reveal sibling or legacy secret '+secretSibling);
+check((await req('/api/cms/drafts?entityId=room.electric-taberna.office','b')).s===403,'A player cannot read other users’ drafts');
+check((await req('/api/locations?view=player&target=player','blockedPlayer')).s===403,'Blocked player identity cannot read player hub');
+check((await req('/api/cms/drafts','gm','POST',{entityId:'recovery.synthetic-secret',audience:'public'})).s===404,'Recovery entities cannot be drafted or published through location CMS');
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');

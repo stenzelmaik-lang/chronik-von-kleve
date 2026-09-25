@@ -28,6 +28,7 @@ type Section = {
   desc: string;
   group?: string;
   gmOnly?: boolean;
+  cmsAccessOnly?: boolean;
 };
 
 export const sections: Section[] = [
@@ -164,6 +165,14 @@ export const sections: Section[] = [
     desc: "Inhalte kuratieren, freigeben und ordnen.",
     group: "SPIELLEITUNG",
     gmOnly: true,
+  },
+  {
+    id: "ortscms",
+    name: "Ortsverwaltung",
+    icon: MapPin,
+    desc: "Bestehende Orte sicher bearbeiten und gezielt freigeben.",
+    group: "SPIELLEITUNG",
+    cmsAccessOnly: true,
   },
 ];
 

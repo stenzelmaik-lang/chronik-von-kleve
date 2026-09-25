@@ -36,6 +36,13 @@
       "when": 1790275200000,
       "tag": "0004_role_membership_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790354863885,
+      "tag": "0005_phase_c_editorial_revisions",
+      "breakpoints": true
     }
   ]
 }

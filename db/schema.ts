@@ -119,7 +119,10 @@ export const files = sqliteTable(
     key: text("key").notNull(),
     createdAt: text("created_at").notNull(),
   },
-  (t) => [index("idx_files_owner").on(t.ownerId)],
+  (t) => [
+    index("idx_files_owner").on(t.ownerId),
+    uniqueIndex("idx_files_campaign_id").on(t.campaignId, t.id),
+  ],
 );
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
@@ -302,4 +305,136 @@ export const locationActions = sqliteTable("location_actions", {
 },t=>[
   foreignKey({columns:[t.campaignId,t.locationId],foreignColumns:[entities.campaignId,entities.id]}),
   index("idx_location_actions_campaign_location").on(t.campaignId,t.locationId),
+]);
+
+// Phase C editorial snapshots remain attached to the existing stable Entity IDs.
+// Releases are audience-specific and never mutate location_nodes or entities.
+export const entityRevisions = sqliteTable("entity_revisions", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  entityId: text("entity_id").notNull(),
+  revisionNo: integer("revision_no").notNull(),
+  parentRevisionId: text("parent_revision_id"),
+  audienceScope: text("audience_scope", { enum: ["gm", "public", "group", "player"] }).notNull(),
+  audienceKey: text("audience_key").notNull(),
+  audienceUserId: text("audience_user_id"),
+  status: text("status", { enum: ["draft", "in_review", "approved", "rejected", "archived"] }).notNull(),
+  baseEntityVersion: integer("base_entity_version").notNull(),
+  version: integer("version").notNull().default(1),
+  playerPayloadJson: text("player_payload_json").notNull().default("{}"),
+  gmSecretJson: text("gm_secret_json").notNull().default("{}"),
+  geographyJson: text("geography_json").notNull().default('{"status":"unknown"}'),
+  authorId: text("author_id").notNull().references(() => members.id, { onDelete: "restrict" }),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+  foreignKey({ columns: [t.campaignId, t.entityId], foreignColumns: [entities.campaignId, entities.id] }).onDelete("restrict"),
+  foreignKey({ columns: [t.parentRevisionId], foreignColumns: [t.id] }).onDelete("restrict"),
+  foreignKey({ columns: [t.campaignId, t.audienceUserId], foreignColumns: [campaignMemberships.campaignId, campaignMemberships.userId] }).onDelete("restrict"),
+  uniqueIndex("uq_entity_revisions_campaign_entity_no").on(t.campaignId, t.entityId, t.revisionNo),
+  uniqueIndex("uq_entity_revisions_campaign_entity_id").on(t.campaignId, t.entityId, t.id),
+  uniqueIndex("uq_entity_revisions_audience_ref").on(t.campaignId, t.entityId, t.id, t.audienceScope, t.audienceKey),
+  uniqueIndex("uq_entity_revisions_draft_target").on(t.campaignId, t.entityId, t.audienceScope, t.audienceKey).where(sql`${t.status} = 'draft'`),
+  index("idx_entity_revisions_entity_status").on(t.campaignId, t.entityId, t.status, t.revisionNo),
+  index("idx_entity_revisions_parent").on(t.campaignId, t.entityId, t.parentRevisionId),
+  check("entity_revisions_no_check", sql`${t.revisionNo} >= 1`),
+  check("entity_revisions_version_check", sql`${t.version} >= 1 AND ${t.baseEntityVersion} >= 1`),
+  check("entity_revisions_scope_check", sql`${t.audienceScope} IN ('gm','public','group','player')`),
+  check("entity_revisions_status_check", sql`${t.status} IN ('draft','in_review','approved','rejected','archived')`),
+  check("entity_revisions_payload_check", sql`json_valid(${t.playerPayloadJson}) AND json_type(${t.playerPayloadJson}) = 'object'`),
+  check("entity_revisions_gm_secret_check", sql`json_valid(${t.gmSecretJson}) AND json_type(${t.gmSecretJson}) = 'object'`),
+  check("entity_revisions_geo_check", sql`(
+    json_valid(${t.geographyJson}) AND json_type(${t.geographyJson}) = 'object' AND
+    json_extract(${t.geographyJson}, '$.status') IN ('unknown','exact','approximate') AND
+    ((json_extract(${t.geographyJson}, '$.status') = 'unknown' AND json_type(${t.geographyJson}, '$.coordinates') IS NULL) OR
+     (json_extract(${t.geographyJson}, '$.status') IN ('exact','approximate') AND
+      json_type(${t.geographyJson}, '$.coordinates') = 'array' AND json_array_length(${t.geographyJson}, '$.coordinates') = 2 AND
+      json_type(${t.geographyJson}, '$.coordinates[0]') IN ('integer','real') AND json_extract(${t.geographyJson}, '$.coordinates[0]') BETWEEN -180 AND 180 AND
+      json_type(${t.geographyJson}, '$.coordinates[1]') IN ('integer','real') AND json_extract(${t.geographyJson}, '$.coordinates[1]') BETWEEN -90 AND 90 AND
+      json_type(${t.geographyJson}, '$.source') = 'text' AND length(trim(json_extract(${t.geographyJson}, '$.source'))) BETWEEN 1 AND 300 AND
+      json_type(${t.geographyJson}, '$.reviewedAt') = 'text' AND
+      (json_type(${t.geographyJson}, '$.reference') IS NULL OR json_type(${t.geographyJson}, '$.reference') = 'text') AND
+      (json_extract(${t.geographyJson}, '$.status') = 'exact' OR
+       (json_type(${t.geographyJson}, '$.accuracyMeters') = 'integer' AND json_extract(${t.geographyJson}, '$.accuracyMeters') BETWEEN 1 AND 1000000))))
+  )`),
+  check("entity_revisions_audience_key_check", sql`(
+    (${t.audienceScope} = 'gm' AND ${t.audienceKey} = '@gm' AND ${t.audienceUserId} IS NULL) OR
+    (${t.audienceScope} = 'public' AND ${t.audienceKey} = '@public' AND ${t.audienceUserId} IS NULL) OR
+    (${t.audienceScope} = 'group' AND ${t.audienceKey} = '@group' AND ${t.audienceUserId} IS NULL) OR
+    (${t.audienceScope} = 'player' AND ${t.audienceUserId} IS NOT NULL AND ${t.audienceKey} = ${t.audienceUserId})
+  )`),
+]);
+
+export const entityRevisionReleases = sqliteTable("entity_revision_releases", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  entityId: text("entity_id").notNull(),
+  revisionId: text("revision_id"),
+  audienceScope: text("audience_scope", { enum: ["public", "group", "player"] }).notNull(),
+  audienceKey: text("audience_key").notNull(),
+  audienceUserId: text("audience_user_id"),
+  releaseVersion: integer("release_version").notNull(),
+  transition: text("transition", { enum: ["publish", "revoke", "block"] }).notNull(),
+  discoveryGrantState: text("discovery_grant_state"),
+  actorId: text("actor_id").notNull().references(() => members.id, { onDelete: "restrict" }),
+  reason: text("reason").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+  foreignKey({ columns: [t.campaignId, t.entityId], foreignColumns: [entities.campaignId, entities.id] }).onDelete("restrict"),
+  foreignKey({ columns: [t.campaignId, t.entityId, t.revisionId, t.audienceScope, t.audienceKey], foreignColumns: [entityRevisions.campaignId, entityRevisions.entityId, entityRevisions.id, entityRevisions.audienceScope, entityRevisions.audienceKey] }).onDelete("restrict"),
+  foreignKey({ columns: [t.campaignId, t.audienceUserId], foreignColumns: [campaignMemberships.campaignId, campaignMemberships.userId] }).onDelete("restrict"),
+  uniqueIndex("uq_entity_revision_releases_target_version").on(t.campaignId, t.entityId, t.audienceScope, t.audienceKey, t.releaseVersion),
+  index("idx_entity_revision_releases_target").on(t.campaignId, t.entityId, t.audienceScope, t.audienceKey, t.releaseVersion),
+  check("entity_revision_releases_version_check", sql`${t.releaseVersion} >= 1`),
+  check("entity_revision_releases_transition_check", sql`${t.transition} IN ('publish','revoke','block')`),
+  check("entity_revision_releases_scope_check", sql`${t.audienceScope} IN ('public','group','player')`),
+  check("entity_revision_releases_reason_check", sql`length(trim(${t.reason})) BETWEEN 1 AND 500`),
+  check("entity_revision_releases_discovery_check", sql`${t.discoveryGrantState} IS NULL OR ${t.discoveryGrantState} IN ('rumored','known','visited','investigated')`),
+  check("entity_revision_releases_audience_key_check", sql`(
+    (${t.audienceScope} = 'public' AND ${t.audienceKey} = '@public' AND ${t.audienceUserId} IS NULL) OR
+    (${t.audienceScope} = 'group' AND ${t.audienceKey} = '@group' AND ${t.audienceUserId} IS NULL) OR
+    (${t.audienceScope} = 'player' AND ${t.audienceUserId} IS NOT NULL AND ${t.audienceKey} = ${t.audienceUserId})
+  )`),
+  check("entity_revision_releases_revision_action_check", sql`(${t.transition} = 'publish' AND ${t.revisionId} IS NOT NULL) OR (${t.transition} <> 'publish' AND ${t.revisionId} IS NULL AND ${t.discoveryGrantState} IS NULL)`),
+]);
+
+export const entityRevisionMedia = sqliteTable("entity_revision_media", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  entityId: text("entity_id").notNull(),
+  revisionId: text("revision_id").notNull(),
+  fileId: text("file_id").notNull(),
+  audienceScope: text("audience_scope", { enum: ["gm", "public", "group", "player"] }).notNull(),
+  audienceKey: text("audience_key").notNull(),
+  purpose: text("purpose", { enum: ["hero", "gallery", "handout"] }).notNull(),
+  altText: text("alt_text").notNull().default(""),
+  position: integer("position").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+  foreignKey({ columns: [t.campaignId, t.entityId, t.revisionId, t.audienceScope, t.audienceKey], foreignColumns: [entityRevisions.campaignId, entityRevisions.entityId, entityRevisions.id, entityRevisions.audienceScope, entityRevisions.audienceKey] }).onDelete("restrict"),
+  foreignKey({ columns: [t.campaignId, t.fileId], foreignColumns: [files.campaignId, files.id] }).onDelete("restrict"),
+  uniqueIndex("uq_entity_revision_media_file_purpose").on(t.campaignId, t.revisionId, t.fileId, t.purpose),
+  index("idx_entity_revision_media_file").on(t.campaignId, t.fileId),
+  index("idx_entity_revision_media_revision").on(t.campaignId, t.revisionId, t.position),
+  check("entity_revision_media_purpose_check", sql`${t.purpose} IN ('hero','gallery','handout')`),
+  check("entity_revision_media_position_check", sql`${t.position} >= 0`),
+]);
+
+export const entityRevisionEvents = sqliteTable("entity_revision_events", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  entityId: text("entity_id").notNull(),
+  revisionId: text("revision_id").notNull(),
+  actorId: text("actor_id").notNull().references(() => members.id, { onDelete: "restrict" }),
+  event: text("event", { enum: ["created", "saved", "submitted", "approved", "rejected"] }).notNull(),
+  expectedVersion: integer("expected_version").notNull(),
+  revisionVersion: integer("revision_version").notNull(),
+  reason: text("reason").notNull().default(""),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+  foreignKey({ columns: [t.campaignId, t.entityId, t.revisionId], foreignColumns: [entityRevisions.campaignId, entityRevisions.entityId, entityRevisions.id] }).onDelete("restrict"),
+  uniqueIndex("uq_entity_revision_events_version").on(t.campaignId, t.revisionId, t.revisionVersion),
+  index("idx_entity_revision_events_entity_time").on(t.campaignId, t.entityId, t.createdAt),
+  check("entity_revision_events_version_check", sql`${t.expectedVersion} >= 0 AND ${t.revisionVersion} >= 1`),
+  check("entity_revision_events_reason_check", sql`length(${t.reason}) <= 500`),
 ]);

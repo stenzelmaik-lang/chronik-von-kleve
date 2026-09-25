@@ -12,7 +12,7 @@ const {backfillMemberships,planMembershipBackfill}=roleMaintenance;
 const state=process.env.CVK_TEST_STATE||'';
 const stateRoot=resolve(state);
 assert.equal(dirname(stateRoot),tmpdir(),'role maintenance requires an isolated Wrangler Test-D1 state');
-assert.match(basename(stateRoot),/^cvk-phase-b-tests-[a-f0-9-]+$/,'role maintenance requires an isolated Wrangler Test-D1 state');
+assert.match(basename(stateRoot),/^cvk-phase-[bc]-tests-[a-f0-9-]+$/,'role maintenance requires an isolated Wrangler Test-D1 state');
 function findSqlite(directory){
   const found=[];
   for(const entry of readdirSync(directory,{withFileTypes:true})){
@@ -152,7 +152,7 @@ check(count('platform_roles')===1,'direct synthetic fixture exists only in the i
 const adminRoles=await resolveRoles(db,{userId:adminTarget,email:'synthetic-admin@sprint.invalid',campaignId:'chronik-von-kleve',gmEmail:'gm@sprint.invalid',gmCampaignId:'chronik-von-kleve'});
 check(adminRoles.platformRoles.includes('platform_admin')&&adminRoles.campaignRole==='player'&&adminRoles.campaignStatus==='pending','platform admin does not imply campaign access');
 check(connection.prepare("SELECT COUNT(*) AS n FROM role_audit_events WHERE action='platform_admin.bootstrapped'").get().n===1,'synthetic platform-admin fixture has one immutable audit record');
-check(connection.prepare("SELECT COUNT(*) AS n FROM role_audit_events WHERE action='campaign_membership.status_changed'").get().n>=1,'legacy and explicit membership changes were audited');
+check(connection.prepare("SELECT COUNT(*) AS n FROM role_audit_events WHERE action='campaign_membership.backfilled'").get().n===first.inserted,'backfill writes one matching immutable audit event per migrated membership');
 
 const protectedTables=['campaigns','members','records','files','entities','relationships','knowledge','world_events','recovery_sources','recovery_records','recovery_conflicts','location_nodes','location_actions'];
 const preRollback=new Map(protectedTables.map(table=>[table,JSON.stringify(rows(table))]));
