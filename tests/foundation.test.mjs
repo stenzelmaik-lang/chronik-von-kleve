@@ -59,3 +59,33 @@ test('Migration preserves all 67 legacy records and files; adapters, FKs, stable
  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM entities').get().n,66);
  db.close();
 });
+test('Migration 0004 is additive and constrains campaign roles, platform roles, revisions and audit history',()=>{
+ const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');
+ for(const file of ['0000_aromatic_network.sql','0001_purple_blockbuster.sql','0002_thick_mister_fear.sql','0003_careful_leech.sql'])db.exec(fs.readFileSync(`drizzle/${file}`,'utf8'));
+ db.prepare('INSERT INTO members(id,email,name,status,created_at) VALUES(?,?,?,?,?)').run('phase-b-schema-user','schema@test.invalid','Schema fixture','active','before-0004');
+ db.prepare('INSERT INTO records(id,owner_id,kind,title,created_at,updated_at) VALUES(?,?,?,?,?,?)').run('phase-b-schema-record','phase-b-schema-user','chronik','Existing record','before-0004','before-0004');
+ db.prepare('INSERT INTO files(id,owner_id,name,mime,size,key,created_at) VALUES(?,?,?,?,?,?,?)').run('phase-b-schema-file','phase-b-schema-user','kept.bin','application/octet-stream',4,'kept/r2/key','before-0004');
+ const beforeMember=db.prepare('SELECT id,email,name,status,created_at FROM members WHERE id=?').get('phase-b-schema-user');
+ const beforeRecords=db.prepare('SELECT * FROM records ORDER BY id').all();
+ const beforeFiles=db.prepare('SELECT * FROM files ORDER BY id').all();
+ db.exec(fs.readFileSync('drizzle/0004_role_membership_foundation.sql','utf8'));
+ assert.equal(db.prepare('SELECT id,email,name,status,created_at FROM members WHERE id=?').get('phase-b-schema-user').email,beforeMember.email);
+ assert.equal(db.prepare('SELECT version FROM members WHERE id=?').get('phase-b-schema-user').version,1);
+ assert.deepEqual(db.prepare('SELECT * FROM records ORDER BY id').all(),beforeRecords);
+ assert.deepEqual(db.prepare('SELECT * FROM files ORDER BY id').all(),beforeFiles);
+ assert.equal(db.prepare('SELECT COUNT(*) AS n FROM campaign_memberships').get().n,0,'migration does not backfill memberships');
+ assert.equal(db.prepare('SELECT COUNT(*) AS n FROM platform_roles').get().n,0,'migration does not provision an administrator');
+ assert.equal(db.prepare('SELECT COUNT(*) AS n FROM role_audit_events').get().n,0);
+ db.prepare(`INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at)
+  VALUES('chronik-von-kleve','phase-b-schema-user','player','active','manual',1,'test','test')`).run();
+ assert.throws(()=>db.prepare(`INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at)
+  VALUES('chronik-von-kleve','phase-b-schema-user','platform_admin','active','manual',1,'test','test')`).run(),/CHECK constraint/);
+ assert.throws(()=>db.prepare(`INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at)
+  VALUES('unknown-campaign','phase-b-schema-user','player','active','manual',1,'test','test')`).run(),/FOREIGN KEY/);
+ db.prepare(`INSERT INTO role_audit_events(id,actor_id,actor_kind,action,subject_user_id,campaign_id,before_state,after_state,reason,created_at)
+  VALUES('immutable-phase-b','operator','user','campaign_membership.backfilled','phase-b-schema-user','chronik-von-kleve','{}','{"role":"player"}','test','test')`).run();
+ assert.throws(()=>db.prepare("UPDATE role_audit_events SET reason='changed' WHERE id='immutable-phase-b'").run(),/immutable/);
+ assert.throws(()=>db.prepare("DELETE FROM role_audit_events WHERE id='immutable-phase-b'").run(),/immutable/);
+ assert.equal(db.prepare('PRAGMA foreign_key_check').all().length,0);
+ db.close();
+});

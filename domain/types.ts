@@ -1,6 +1,17 @@
 import { z } from "zod";
 
 export const KLEVE_CAMPAIGN_ID = "chronik-von-kleve";
+export const campaignRoleSchema = z.enum([
+  "campaign_owner",
+  "campaign_gm",
+  "campaign_editor",
+  "player",
+]);
+export type CampaignRole = z.infer<typeof campaignRoleSchema>;
+export const platformRoleSchema = z.enum(["platform_admin"]);
+export type PlatformRole = z.infer<typeof platformRoleSchema>;
+export const membershipStatusSchema = z.enum(["pending", "active", "blocked"]);
+export type MembershipStatus = z.infer<typeof membershipStatusSchema>;
 export const visibilitySchema = z.enum(["private", "sl", "group"]);
 export type Visibility = z.infer<typeof visibilitySchema>;
 export const canonStatusSchema = z.enum([
@@ -49,7 +60,8 @@ export type Membership = {
   campaignId: string;
   email: string;
   name: string;
-  status: "pending" | "active" | "blocked";
+  status: MembershipStatus;
+  role: CampaignRole;
 };
 export type Actor = Membership & { gm: boolean };
 export type Entity = {

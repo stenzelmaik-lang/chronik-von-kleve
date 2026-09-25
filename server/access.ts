@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { KLEVE_CAMPAIGN_ID, type Actor } from '@/domain/types';
+import { resolveRoles } from "@/server/role-resolver";
 export type { Actor } from '@/domain/types';
 export class HttpError extends Error {
   constructor(
@@ -25,7 +26,6 @@ export async function actor(requireActive = true): Promise<Actor> {
     (env as unknown as { GM_EMAIL?: string }).GM_EMAIL ||
     process.env.GM_EMAIL ||
     "";
-  const gm = !!gmEmail && u.email.toLowerCase() === gmEmail.toLowerCase();
   const db = database();
   await db
     .prepare(
@@ -35,26 +35,40 @@ export async function actor(requireActive = true): Promise<Actor> {
       u.userId,
       u.email,
       u.displayName,
-      gm ? "active" : "pending",
+      gmEmail && u.email.trim().toLowerCase() === gmEmail.trim().toLowerCase()
+        ? "active"
+        : "pending",
       new Date().toISOString(),
     )
     .run();
-  const m = await db
-    .prepare("SELECT status FROM members WHERE id=? AND campaign_id=?")
-    .bind(u.userId,KLEVE_CAMPAIGN_ID)
-    .first<{ status: Actor['status'] }>();
-  const status = gm ? "active" : m?.status || "pending";
-  if (requireActive && status !== "active")
+  const roles = await resolveRoles(db, {
+    userId: u.userId,
+    email: u.email,
+    campaignId: KLEVE_CAMPAIGN_ID,
+    gmEmail,
+    gmCampaignId: KLEVE_CAMPAIGN_ID,
+  });
+  const gm = roles.campaignRole === "campaign_owner" || roles.campaignRole === "campaign_gm";
+  if (requireActive && roles.campaignStatus !== "active")
     throw new HttpError(
       403,
-      status === "blocked"
+      roles.campaignStatus === "blocked"
         ? "Dein Zugang ist gesperrt."
         : "Die Spielleitung muss deinen Zugang noch freigeben.",
     );
-  return { id: u.userId, campaignId:KLEVE_CAMPAIGN_ID, email: u.email, name: u.displayName, gm, status };
+  return {
+    id: u.userId,
+    campaignId: KLEVE_CAMPAIGN_ID,
+    email: u.email,
+    name: u.displayName,
+    gm,
+    role: roles.campaignRole,
+    status: roles.campaignStatus,
+  };
 }
 export function gmOnly(a: Actor) {
-  if (!a.gm) throw new HttpError(403, "Nur für die Spielleitung.");
+  if (a.status !== "active" || !a.gm || !["campaign_owner", "campaign_gm"].includes(a.role))
+    throw new HttpError(403, "Nur für die Spielleitung.");
 }
 export function sameOrigin(req: Request) {
   const origin = req.headers.get("origin");
@@ -133,6 +147,7 @@ export function canRead(
   a: Actor,
   r: { owner_id: string; visibility: string; kind?: string },
 ) {
+  if (a.status !== "active") return false;
   return (
     r.owner_id === a.id ||
     r.visibility === "group" ||
@@ -143,6 +158,7 @@ export function canEdit(
   a: Actor,
   r: { owner_id: string; visibility: string; kind: string },
 ) {
+  if (a.status !== "active") return false;
   return (
     r.owner_id === a.id ||
     (a.gm &&

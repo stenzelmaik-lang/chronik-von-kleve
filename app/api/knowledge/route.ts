@@ -64,9 +64,14 @@ export async function POST(req: Request) {
     if (d.audience === "player") {
       const member = await db
         .prepare(
-          "SELECT id FROM members WHERE id=? AND campaign_id=? AND status=?",
+          `SELECT m.id FROM members m
+           LEFT JOIN campaign_memberships cm ON cm.campaign_id=? AND cm.user_id=m.id
+           WHERE m.id=? AND (
+             (cm.user_id IS NOT NULL AND cm.status=?) OR
+             (cm.user_id IS NULL AND m.campaign_id=? AND m.status=?)
+           )`,
         )
-        .bind(subject, a.campaignId, "active")
+        .bind(a.campaignId, subject, "active", a.campaignId, "active")
         .first();
       if (!member)
         throw new HttpError(400, "Spieler ist nicht aktiv in dieser Chronik.");

@@ -36,7 +36,14 @@ export async function POST(req: Request) {
     const subject = d.audience === "group" ? a.campaignId : d.playerId;
     if (!subject) throw new HttpError(400, "Spieler fehlt.");
     if (d.audience === "player") {
-      const member = await db.prepare("SELECT id FROM members WHERE id=? AND campaign_id=? AND status=?").bind(subject, a.campaignId, "active").first();
+      const member = await db.prepare(
+        `SELECT m.id FROM members m
+         LEFT JOIN campaign_memberships cm ON cm.campaign_id=? AND cm.user_id=m.id
+         WHERE m.id=? AND (
+           (cm.user_id IS NOT NULL AND cm.status=?) OR
+           (cm.user_id IS NULL AND m.campaign_id=? AND m.status=?)
+         )`,
+      ).bind(a.campaignId, subject, "active", a.campaignId, "active").first();
       if (!member) throw new HttpError(400, "Spieler ist nicht aktiv in dieser Chronik.");
     }
     const entity = await db.prepare("SELECT canon_status,content FROM entities WHERE campaign_id=? AND id=?").bind(a.campaignId,d.entityId).first<{canon_status:string;content:string}>();
