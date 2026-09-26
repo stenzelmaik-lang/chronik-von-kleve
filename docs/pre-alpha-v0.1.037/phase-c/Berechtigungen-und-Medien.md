@@ -11,6 +11,8 @@
 
 Die Implementierung fragt Rollen über das bestehende `server/access`-/Rollenmodell ab. Das alte GM-Flag erzeugt keine Plattformadministratorrechte. Der Player-Preview-Pfad projiziert weiterhin mit Player-Rechten, auch wenn die anfragende Person Spielleitung ist.
 
+Für `campaign_editor` ist die Draftliste serverseitig auf `audience_scope='group'` und `audience_key='@group'` beschränkt. Die Einschränkung geschieht in der D1-Abfrage, bevor persönliche oder Public-Revisionsdaten geladen und zurückgegeben werden. Die konkreten Scope-/Key-Werte werden außerdem beim Speichern, Einreichen und Öffnen der Player-Vorschau geprüft; erratene persönliche und Public-Revisions-IDs ergeben eine opake `404`-Antwort.
+
 ## Inhaltssicherheit
 
 - Neue Bearbeitung ist auf existierende `location_nodes` und dieselbe Kampagne beschränkt. Es gibt keine API zum Erzeugen neuer Ortsidentitäten oder zum Ändern des Elternknotens.
@@ -24,10 +26,16 @@ Die Implementierung fragt Rollen über das bestehende `server/access`-/Rollenmod
 
 - Uploads werden als private R2-Objekte unter zufälligem Schlüssel abgelegt; nur erlaubte Bildtypen und begrenzte Dateigröße werden akzeptiert.
 - `entity_revision_media` speichert die kampagnen- und revisionsgebundene Referenz, keine öffentliche Objekt-URL.
-- `/api/cms/media` prüft bei jedem Abruf entweder die autorisierte CMS-Preview-Rolle und Revision oder die aktuell ausgewählte Live-Freigabe samt konkretem Player-/Gruppenziel.
+- `/api/cms/media` prüft bei der CMS-Preview aktive Editor-/Publisher-Rolle, Kampagne, Ortsobjekt, konkrete Revisions-ID, erlaubten Scope-Key, Revisionsstatus sowie den passenden Medienanhang mit identischem Ziel. Bei Player-Liveabruf wird nur die Bild-URL aus der aktuellen sicheren Player-Projektion akzeptiert.
 - Die generische Datei-API erzeugt für Editorial-Medien keine direkte Player-URL. Der bestehende Löschpfad verweigert das Entfernen referenzierter Dateien.
 - Produktive R2-Inhalte wurden weder gelesen noch verändert.
 
+Ein `block` oder `revoke` wirkt auf Player-Livebilder genauso wie auf den Inhalt: die entzogene Freigabe ist über den Livepfad nicht mehr erreichbar, und ein Fallback folgt ausschließlich einer noch gültigen niedrigeren Veröffentlichung. Eine aktive CMS-Rolle kann weiterhin die konkret zu ihrem erlaubten Gruppenentwurf gehörende Editor-Vorschau abrufen; sie erhält dadurch keinen Player-Livezugriff.
+
+## Public-Lesergrenze
+
+`public` ist derzeit ein explizites Freigabeziel im CMS, aber keine anonyme Webseite. `/api/locations` verlangt weiterhin einen authentifizierten aktiven Kampagnen-Actor. Der Integrationstest veröffentlicht synthetische Public-Testinhalte und bestätigt anschließend `401` beim anonymen Reader-Aufruf. Ein anonymer Visitor-Reader ist **NICHT IMPLEMENTIERT**.
+
 ## Testnachweise
 
-Die lokale Test-D1/Test-R2-Regression deckt Editor, Publisher, zwei synthetische Spieler, blockierten Spieler, fremde Kampagne, Public, Gruppen-/persönliche Veröffentlichung, Revoke/Block, R2-Preview und Live-Abruf, direkte Datei-URL, Datei-Löschung und Recovery-Entity ab. Die ausführlichen Prüfergebnisse stehen in `Testbericht.md`.
+Die lokale Test-D1/Test-R2-Regression deckt Editor-Draftlisten mit persönlichen/Public-Gegenproben, erratene Revisions- und Medien-IDs, fremde Kampagne, exakte Gruppen-Bildvorschau, blockierten Spieler, Public-/Gruppen-/persönliche Veröffentlichung, anonymen Public-Reader, Revoke/Block, R2-Liveabruf, direkte Datei-URL, Datei-Löschung und Recovery-Entity ab. Die ausführlichen Prüfergebnisse stehen in `Testbericht.md`.

@@ -72,6 +72,7 @@ export type PlaceArea = {
   id: string;
   order: number;
   title: string;
+  image?: string;
   discovery: DiscoveryState;
   worldState: WorldStateId;
   markers: StateMarkerId[];

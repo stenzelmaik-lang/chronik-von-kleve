@@ -1,17 +1,12 @@
-import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
+import { redirect } from "next/navigation";
+import { currentUserFromContext } from "@/server/platform-auth";
 import { visitorContent } from "./visitor/content";
 import { VisitorShell } from "./visitor/visitor-shell";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await getChatGPTUser();
-
-  return (
-    <VisitorShell
-      content={visitorContent}
-      entryHref={user ? "/spielbereich" : chatGPTSignInPath("/spielbereich")}
-      isSignedIn={Boolean(user)}
-    />
-  );
+  const user = await currentUserFromContext();
+  if (user) redirect("/spielbereich");
+  return <VisitorShell content={visitorContent} entryHref="/anmelden" isSignedIn={false} />;
 }

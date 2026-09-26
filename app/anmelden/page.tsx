@@ -1,0 +1,2 @@
+import AuthForm from "./auth-form";
+export default function SignInPage() { return <main className="auth-page"><section className="auth-card"><p className="eyebrow">CHRONIPLAY · GESCHLOSSENE ALPHA</p><h1>Willkommen zurück</h1><p>Melde dich mit dem Konto an, das dir für die Alpha eingerichtet wurde.</p><AuthForm /></section></main>; }

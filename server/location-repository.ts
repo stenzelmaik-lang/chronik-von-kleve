@@ -120,7 +120,8 @@ function buildPersistedProjection(
     }
     return publicRule(row) ? "known" : validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
   };
-  const visibleNode = (row: NodeRow) => sl || (fullDiscovery(row) !== "hidden" &&
+  const gmOnlyInformation = (row: NodeRow) => row.level === "information" && attrs(row).visibility === "gm";
+  const visibleNode = (row: NodeRow) => sl || (!gmOnlyInformation(row) && fullDiscovery(row) !== "hidden" &&
     (!overlay?.managedIds.has(row.entity_id) || overlay.playerPayloads.has(row.entity_id)));
   if (!sl && fullDiscovery(root) === "hidden") return null;
   const rootGrants = grantsForNode(root);
@@ -141,9 +142,12 @@ function buildPersistedProjection(
   };
   const buildArea = (row: NodeRow): PlaceArea => {
     const data = attrsFor(row);
+    const revisionId = overlay?.selectedRevisionIds.get(row.entity_id);
+    const areaImageId = revisionId ? overlay?.selectedMediaFileIds.get(revisionId) : undefined;
     return { id: row.entity_id, order: row.position, title: String(data.title || row.entity_title || ""), discovery: fullDiscovery(row),
       worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
       visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility),
+      ...(areaImageId && revisionId ? { image: `/api/cms/media?id=${encodeURIComponent(areaImageId)}&entityId=${encodeURIComponent(row.entity_id)}&revisionId=${encodeURIComponent(revisionId)}${overlay?.previewRevisionIds.has(revisionId) ? "&preview=1" : ""}` } : {}),
       playerHint: typeof data.playerHint === "string" ? data.playerHint : undefined, rooms: byParent(row.entity_id, "room").map(buildRoom) };
   };
   const rootRevisionId = overlay?.selectedRevisionIds.get(placeId);
@@ -155,7 +159,7 @@ function buildPersistedProjection(
     title: String(rootAttrs.title || root.entity_title || ""),
     subtitle: String(rootAttrs.subtitle || ""), district: String(rootAttrs.district || ""), address: String(rootAttrs.address || ""),
     image: heroFileId && rootRevisionId
-      ? `/api/cms/media?id=${encodeURIComponent(heroFileId)}&entityId=${encodeURIComponent(placeId)}&revisionId=${encodeURIComponent(rootRevisionId)}`
+      ? `/api/cms/media?id=${encodeURIComponent(heroFileId)}&entityId=${encodeURIComponent(placeId)}&revisionId=${encodeURIComponent(rootRevisionId)}${overlay?.previewRevisionIds.has(rootRevisionId) ? "&preview=1" : ""}`
       : safeLocationImage(rootAttrs.image),
     summary: String(rootAttrs.summary || ""), atmosphere: String(rootAttrs.atmosphere || ""),
     geography: overlay?.managedIds.has(placeId)

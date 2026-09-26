@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { isRichTextWithinLimit } from "./location-rich-text";
 
 const cleanText = (max: number) => z.string().trim().max(max);
+const richText = (max: number) => z.string().refine(value => isRichTextWithinLimit(value, max), `Text darf höchstens ${max} Zeichen enthalten und muss sichere Formatierungen verwenden.`);
 
 export const geographyDraftSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("unknown") }).strict(),
@@ -32,8 +34,8 @@ const rootPayload = z.object({
   subtitle: cleanText(160).optional(),
   district: cleanText(120).optional(),
   address: cleanText(240).optional(),
-  summary: cleanText(1600).optional(),
-  atmosphere: cleanText(3000).optional(),
+  summary: richText(1600).optional(),
+  atmosphere: richText(3000).optional(),
   image: z.string().regex(/^\/images\/[a-zA-Z0-9_.-]+$/).optional(),
   factionSignals: z.array(z.object({
     label: cleanText(160).min(1),
@@ -52,17 +54,17 @@ const rootPayload = z.object({
 
 const areaPayload = z.object({
   title: cleanText(160).min(1),
-  playerHint: cleanText(1200).optional(),
+  playerHint: richText(1200).optional(),
 }).strict();
 
 const roomPayload = z.object({
   title: cleanText(160).min(1),
-  short: cleanText(1000).optional(),
+  short: richText(1000).optional(),
 }).strict();
 
 const informationPayload = z.object({
   title: cleanText(160).min(1),
-  text: cleanText(3000).optional(),
+  text: richText(3000).optional(),
   noteType: z.enum(["note", "suspicion", "insight", "question", "task", "memory", "theory"]).optional(),
   pinned: z.boolean().optional(),
 }).strict();

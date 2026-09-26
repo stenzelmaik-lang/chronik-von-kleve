@@ -21,6 +21,8 @@ export type RevisionOverlay = {
   playerPayloads: Map<string, Record<string, unknown>>;
   geographies: Map<string, Record<string, unknown>>;
   selectedRevisionIds: Map<string, string>;
+  /** Revisions overlaid by the protected CMS preview, rather than a live release. */
+  previewRevisionIds: Set<string>;
   selectedMediaFileIds: Map<string, string>;
   publicKnownIds: Set<string>;
   extraKnowledge: KnowledgeRef[];
@@ -69,7 +71,7 @@ export async function loadRevisionOverlay(
 ): Promise<RevisionOverlay> {
   const overlay: RevisionOverlay = {
     managedIds: new Set(), playerPayloads: new Map(), geographies: new Map(),
-    selectedRevisionIds: new Map(), selectedMediaFileIds: new Map(), publicKnownIds: new Set(), extraKnowledge: [],
+    selectedRevisionIds: new Map(), previewRevisionIds: new Set(), selectedMediaFileIds: new Map(), publicKnownIds: new Set(), extraKnowledge: [],
   };
   const ids = [...new Set(nodes.map(node => node.entity_id))];
   const releases: ReleaseRow[] = [];
@@ -118,6 +120,7 @@ export async function loadRevisionOverlay(
       overlay.playerPayloads.set(preview.entityId,parseObject(revision.player_payload_json));
       overlay.geographies.set(preview.entityId,parseObject(revision.geography_json));
       overlay.selectedRevisionIds.set(preview.entityId,preview.revisionId);
+      overlay.previewRevisionIds.add(preview.revisionId);
       if (preview.scope === "public") overlay.publicKnownIds.add(preview.entityId);
       if (preview.discoveryState && preview.discoveryState !== "hidden") {
         overlay.extraKnowledge.push({
@@ -140,4 +143,3 @@ export async function loadRevisionOverlay(
   }
   return overlay;
 }
-

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { actor,database,failure,HttpError,input,json,sameOrigin } from "@/server/access";
 import { loadPersistedLocation } from "@/server/location-repository";
-import { getLocationNode,requireActivePlayer,requireCmsEditor,requireCmsPublisher } from "@/server/location-cms-service";
+import { getLocationNode,requireActivePlayer,requireCmsEditor,requireCmsRevisionAudience } from "@/server/location-cms-service";
 export const dynamic="force-dynamic";
 const schema=z.object({revisionId:z.string().uuid(),viewerId:z.string().min(1).max(180).optional()}).strict();
 export async function POST(req:Request){
@@ -10,8 +10,8 @@ export async function POST(req:Request){
     const db=database();const revision=await db.prepare(`SELECT id,entity_id,audience_scope,audience_key,audience_user_id,status FROM entity_revisions WHERE id=? AND campaign_id=?`)
       .bind(parsed.data.revisionId,a.campaignId).first<{id:string;entity_id:string;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string}>();
     if(!revision||!(["draft","in_review","approved"].includes(revision.status)))throw new HttpError(404,"Entwurf nicht gefunden.");
+    requireCmsRevisionAudience(a,revision.audience_scope,revision.audience_key);
     if(revision.audience_scope==="gm")throw new HttpError(403,"GM-Geheimnisse erhalten keine Spieler-Vorschau.");
-    if(revision.audience_scope!=="group")requireCmsPublisher(a);
     const node=await getLocationNode(db,a,revision.entity_id);
     let viewerId=parsed.data.viewerId||a.id;let target:"group"|"player"="group";
     if(revision.audience_scope==="player"){

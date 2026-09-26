@@ -43,6 +43,13 @@
       "when": 1790354863885,
       "tag": "0005_phase_c_editorial_revisions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790428908185,
+      "tag": "0006_auth_platform",
+      "breakpoints": true
     }
   ]
 }

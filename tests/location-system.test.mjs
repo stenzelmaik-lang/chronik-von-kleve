@@ -95,6 +95,23 @@ test("Player projection removes unreleased room names and GM metadata", () => {
   }
 });
 
+test("Area images follow the same player discovery projection and disappear from redacted areas", () => {
+  const known = electricTabernaLocation.areas[0];
+  const hidden = electricTabernaLocation.areas[1];
+  const fixture = {
+    ...electricTabernaLocation,
+    areas: [
+      { ...known, image: "/api/cms/media?id=known&entityId=area-known&revisionId=revision-known" },
+      { ...hidden, image: "/api/cms/media?id=secret&entityId=area-hidden&revisionId=revision-hidden", visibility: "gm", discovery: "hidden", playerHint: "Ein Umriss bleibt zurück.", rooms: [] },
+    ],
+  };
+  const projection = projectLocationForPlayer("player", "group", fixture);
+  const json = JSON.stringify(projection);
+  assert.ok(projection.location.areas.some(area => area.image?.includes("id=known")));
+  assert.ok(projection.location.areas.some(area => area.redacted));
+  assert.equal(json.includes("id=secret"), false);
+});
+
 test("GM player preview changes only the projection, not the real role", () => {
   const projection = projectLocationForPlayer("gm", "group");
   assert.equal(projection.view, "player");

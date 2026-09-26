@@ -33,7 +33,9 @@ function createMarkerElement(place: WorldMapMarker) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = styles.mapLibreMarker;
-  const positionText = place.precision === "approximate"
+  const positionText = place.precision === "candidate"
+    ? "unbestätigte, noch nicht gespeicherte Kartenauswahl"
+    : place.precision === "approximate"
     ? `ungefähre Position, Genauigkeit etwa ${place.accuracyMeters ?? 0} Meter`
     : "geprüfte genaue Position";
   button.setAttribute("aria-label", `${place.title}, ${positionText}. Vorschau anzeigen.`);
@@ -52,6 +54,7 @@ export function WorldMapLibre({
   onHover,
   onFocusPlace,
   onStateChange,
+  onMapClick,
 }: {
   places: WorldMapMarker[];
   visibleIds: string[];
@@ -61,16 +64,16 @@ export function WorldMapLibre({
   onHover: (id: string | null) => void;
   onFocusPlace: (id: string) => void;
   onStateChange: (state: "loading" | "ready" | "error") => void;
+  onMapClick?: (coordinates: [longitude: number, latitude: number]) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const markers = useRef(new Map<string, { marker: Marker; element: HTMLButtonElement; coordinates: [number, number] }>());
-  const callbacks = useRef({ onSelect, onHover, onFocusPlace });
-  const markerIds = places.map((place) => `${place.id}:${place.title}:${place.coordinates.join(",")}`).join("\u0000");
+  const callbacks = useRef({ onSelect, onHover, onFocusPlace, onMapClick });
 
   useEffect(() => {
-    callbacks.current = { onSelect, onHover, onFocusPlace };
-  }, [onFocusPlace, onHover, onSelect]);
+    callbacks.current = { onSelect, onHover, onFocusPlace, onMapClick };
+  }, [onFocusPlace, onHover, onMapClick, onSelect]);
 
   useEffect(() => {
     const container = host.current;
@@ -107,6 +110,12 @@ export function WorldMapLibre({
       if (active && !mapReady) onStateChange("error");
     }, 12000);
     instance.once("load", handleLoad);
+    instance.on("click", (event) => {
+      callbacks.current.onMapClick?.([
+        Number(event.lngLat.lng.toFixed(6)),
+        Number(event.lngLat.lat.toFixed(6)),
+      ]);
+    });
     instance.on("error", (event) => {
       // Individual tile failures may recover. Fall back only if the map style
       // itself cannot initialize, using the bounded timer above.
@@ -123,10 +132,10 @@ export function WorldMapLibre({
       instance.remove();
       map.current = null;
     };
-    // Coordinates and IDs define the MapLibre marker set; callbacks are held
-    // in a ref so React state changes do not restart the expensive map.
+    // Keep one map instance for this component lifetime; callbacks and markers
+    // update independently so editor clicks never restart the map.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markerIds]);
+  }, []);
 
   useEffect(() => {
     const instance = map.current;
@@ -139,8 +148,15 @@ export function WorldMapLibre({
       }
     }
     for (const place of places) {
-      if (markers.current.has(place.id)) continue;
       const [longitude, latitude] = place.coordinates;
+      const existing = markers.current.get(place.id);
+      if (existing) {
+        if (existing.coordinates[0] !== longitude || existing.coordinates[1] !== latitude) {
+          existing.marker.setLngLat([longitude, latitude]);
+          existing.coordinates = [longitude, latitude];
+        }
+        continue;
+      }
       const element = createMarkerElement(place);
       const marker = new Marker({ element, anchor: "center" })
         .setLngLat([longitude, latitude])
@@ -155,7 +171,7 @@ export function WorldMapLibre({
       });
       markers.current.set(place.id, { marker, element, coordinates: [longitude, latitude] });
     }
-  }, [markerIds, places]);
+  }, [places]);
 
   useEffect(() => {
     const visible = new Set(visibleIds);

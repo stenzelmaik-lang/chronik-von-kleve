@@ -1,0 +1,34 @@
+.editor { display: grid; gap: 8px; min-width: 0; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; border: 1px solid rgba(205,166,107,.22); background: rgba(6,11,13,.82); }
+.toolbar > button, .linkRow > button { min-height: 31px; padding: 0 9px; border: 1px solid rgba(205,166,107,.18); color: #d8d0c1; background: #151d1f; font-size: 10px; cursor: pointer; }
+.toolbar > button:hover, .toolbar > button:focus-visible, .linkRow > button:hover, .linkRow > button:focus-visible { border-color: #c6a36c; color: #f5dfb2; outline: none; }
+.toolbar > span { width: 1px; height: 22px; margin: 0 3px; background: rgba(205,166,107,.22); }
+.colorControl { display: flex; align-items: center; gap: 7px; margin-left: auto; color: #9fa49b; font-size: 9px; }
+.colorControl select { min-height: 31px; padding: 0 8px; border: 1px solid rgba(205,166,107,.2); color: #e4dac8; background: #151d1f; font-size: 10px; }
+.linkRow { display: flex; align-items: end; gap: 8px; }
+.linkRow label { display: grid; flex: 1; gap: 4px; color: #9fa49b; font-size: 9px; }
+.linkRow input { min-width: 0; min-height: 34px; padding: 7px 9px; border: 1px solid rgba(205,166,107,.18); color: #ece5d8; background: rgba(6,11,13,.72); }
+.editable { min-height: 150px; padding: 15px 16px; border: 1px solid rgba(205,166,107,.28); outline: none; color: #ded8cb; background: rgba(6,11,13,.7); font: 14px/1.72 Georgia,serif; }
+.editable:focus { border-color: rgba(214,179,111,.78); box-shadow: 0 0 0 2px rgba(214,179,111,.09); }
+.editable:empty::before { color: #7f8983; content: attr(data-placeholder); pointer-events: none; }
+.editable p { margin: 0 0 10px; }
+.editable h2, .editable h3 { margin: 12px 0 7px; color: #eee6d6; font-family: Georgia,serif; }
+.editable h2 { font-size: 22px; }
+.editable h3 { font-size: 18px; }
+.editable ul, .editable ol { margin: 4px 0 10px; padding-left: 23px; }
+.editable a { color: #d6b36f; text-decoration: underline; }
+.editorFooter { display: flex; justify-content: space-between; gap: 12px; color: #89928d; font-size: 9px; line-height: 1.5; }
+.editorFooter small { flex: 0 0 auto; color: #c1ae85; font: 10px ui-monospace,Consolas,monospace; }
+.editorFooter small[data-over-limit="true"] { color: #e98d81; }
+.view { display: grid; gap: 9px; }
+.view p, .view h2, .view h3, .view ul, .view ol { margin: 0; }
+.view p { white-space: pre-wrap; }
+.view h2 { color: #eee6d6; font: normal 1.25em/1.2 Georgia,serif; }
+.view h3 { color: #e6dcc8; font: normal 1.08em/1.25 Georgia,serif; }
+.view ul, .view ol { padding-left: 1.4em; }
+.view a { color: #d6b36f; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 600px) {
+  .colorControl { margin-left: 0; }
+  .linkRow { align-items: stretch; flex-direction: column; }
+  .editable { min-height: 180px; }
+}

@@ -6,13 +6,13 @@ import {once} from 'node:events';
 import {tmpdir} from 'node:os';
 import {dirname,join,relative,resolve} from 'node:path';
 import {createServer} from 'node:http';
-import {Log,Miniflare} from 'miniflare';
+import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 
 // Isolated local test worker: never reuse .wrangler production/preview state.
 const state=join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:8793',CVK_TEST_STATE:state};
-for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql']){
+for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql']){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
  if(result.status!==0)throw new Error('Local migration failed: '+result.stderr);
 }
@@ -28,7 +28,7 @@ function findModules(directory){
 const moduleFiles=findModules(serverRoot).map(path=>relative(serverRoot,path).replaceAll('\\','/'));
 const entry=relative(serverRoot,resolve(serverRoot,wrangler.main)).replaceAll('\\','/');
 const modules=[{type:'ESModule',path:resolve(serverRoot,entry)},...moduleFiles.filter(path=>path!==entry).map(path=>({type:'ESModule',path:resolve(serverRoot,path)}))];
-const mf=new Miniflare({
+const mf=new Miniflare(convertV4MiniflareOptions({
  name:wrangler.name,
  modules,
  modulesRoot:serverRoot,
@@ -38,16 +38,15 @@ const mf=new Miniflare({
  d1Databases:Object.fromEntries(wrangler.d1_databases.map(binding=>[binding.binding,binding.database_id])),
  r2Buckets:Object.fromEntries(wrangler.r2_buckets.map(binding=>[binding.binding,binding.bucket_name])),
  assets:{directory:resolve(dirname(config),wrangler.assets.directory),binding:'ASSETS',routerConfig:{has_user_worker:true,invoke_user_worker_ahead_of_assets:true}},
- d1Persist:join(state,'v3','d1'),
- r2Persist:false,
+ resourcePersistencePath:join(state,'v3'),
  log:new Log('ERROR'),
-});
+}));
 let server;
 let localDb;
 try{
  localDb=await mf.getD1Database('DB');
- const schema=await localDb.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='entity_revision_releases'").first();
- if(schema?.n!==1)throw new Error('The direct local Worker did not open the migrated isolated Test-D1 with migration 0005.');
+ const schema=await localDb.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('entity_revision_releases','auth_member_links')").first();
+ if(schema?.n!==2)throw new Error('The direct local Worker did not open the migrated isolated Test-D1 with migrations 0005 and 0006.');
  server=createServer(async(req,res)=>{
   try{
    const headers=new Headers();

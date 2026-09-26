@@ -438,3 +438,66 @@ export const entityRevisionEvents = sqliteTable("entity_revision_events", {
   check("entity_revision_events_version_check", sql`${t.expectedVersion} >= 0 AND ${t.revisionVersion} >= 1`),
   check("entity_revision_events_reason_check", sql`length(${t.reason}) <= 500`),
 ]);
+
+// Closed-alpha sign-in is provisioned only through an explicitly reviewed
+// identity-to-member crosswalk. Account identity never depends on email equality.
+export const authUsers = sqliteTable("auth_users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  emailNormalized: text("email_normalized").notNull(),
+  displayName: text("display_name").notNull(),
+  passwordHash: text("password_hash"),
+  emailVerifiedAt: text("email_verified_at"),
+  status: text("status", { enum: ["active", "blocked"] }).notNull().default("active"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+  uniqueIndex("auth_users_email_normalized_unique").on(t.emailNormalized),
+  check("auth_users_status_check", sql`${t.status} IN ('active', 'blocked')`),
+]);
+
+export const authIdentities = sqliteTable("auth_identities", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+  provider: text("provider", { enum: ["local", "google", "discord"] }).notNull(),
+  providerSubject: text("provider_subject").notNull(),
+  providerEmail: text("provider_email"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+  uniqueIndex("auth_identities_provider_subject_unique").on(t.provider, t.providerSubject),
+  index("auth_identities_user_idx").on(t.userId),
+  check("auth_identities_provider_check", sql`${t.provider} IN ('local', 'google', 'discord')`),
+]);
+
+export const authSessions = sqliteTable("auth_sessions", {
+  sessionHash: text("session_hash").primaryKey(),
+  userId: text("user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+  revokedAt: text("revoked_at"),
+}, (t) => [
+  index("auth_sessions_user_idx").on(t.userId),
+  index("auth_sessions_expiry_idx").on(t.expiresAt),
+]);
+
+export const authRateLimits = sqliteTable("auth_rate_limits", {
+  keyHash: text("key_hash").primaryKey(),
+  windowStartedAt: text("window_started_at").notNull(),
+  attempts: integer("attempts").notNull().default(0),
+  blockedUntil: text("blocked_until"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const authMemberLinks = sqliteTable("auth_member_links", {
+  authUserId: text("auth_user_id").primaryKey().references(() => authUsers.id, { onDelete: "restrict" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "restrict" }),
+  approvedBy: text("approved_by").notNull(),
+  approvalReference: text("approval_reference").notNull(),
+  linkedAt: text("linked_at").notNull(),
+}, (t) => [
+  uniqueIndex("auth_member_links_member_unique").on(t.memberId),
+  check("auth_member_links_approved_by_check", sql`length(trim(${t.approvedBy})) BETWEEN 1 AND 200`),
+  check("auth_member_links_approval_reference_check", sql`length(trim(${t.approvalReference})) BETWEEN 1 AND 300`),
+]);

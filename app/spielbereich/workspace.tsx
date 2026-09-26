@@ -233,7 +233,7 @@ export default function Workspace({
     );
   return (
     <WorkspaceShell a={a} section={section} navigate={navigate}>
-      {!worldExperienceActive && section !== "inventar" && <div className="section-title">
+      {!worldExperienceActive && section !== "inventar" && section !== "ortscms" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -274,7 +274,7 @@ export default function Workspace({
       {worldExperienceActive ? (
         <WorldExperience a={a} dataScope={dataScope} />
       ) : section === "ortscms" ? (
-        <LocationCMS a={a} />
+        <LocationCMS a={a} dataScope={dataScope} />
       ) : loading ? (
         <div className="entry-grid">
           {[1, 2, 3].map((i) => (

@@ -1,66 +1,40 @@
 import { env } from "cloudflare:workers";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
-import { KLEVE_CAMPAIGN_ID, type Actor } from '@/domain/types';
+import { KLEVE_CAMPAIGN_ID, type Actor } from "@/domain/types";
+import { currentUserFromContext } from "@/server/platform-auth";
+import { database, HttpError } from "@/server/database";
 import { resolveRoles } from "@/server/role-resolver";
-export type { Actor } from '@/domain/types';
-export class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-export function database() {
-  if (!env.DB)
-    throw new HttpError(
-      503,
-      "Die Datenbank ist gerade nicht erreichbar. Bitte versuche es erneut.",
-    );
-  return env.DB;
-}
+export { database, HttpError } from "@/server/database";
+export type { Actor } from "@/domain/types";
 export async function actor(requireActive = true): Promise<Actor> {
-  const u = await getChatGPTUser();
-  if (!u) throw new HttpError(401, "Bitte melde dich mit ChatGPT an.");
+  const u = await currentUserFromContext();
+  if (!u) throw new HttpError(401, "Bitte melde dich mit deinem ChroniPlay-Konto an.");
   const gmEmail =
     (env as unknown as { GM_EMAIL?: string }).GM_EMAIL ||
     process.env.GM_EMAIL ||
     "";
   const db = database();
-  await db
-    .prepare(
-      "INSERT INTO members (id,email,name,status,created_at) VALUES (?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET email=excluded.email,name=excluded.name",
-    )
-    .bind(
-      u.userId,
-      u.email,
-      u.displayName,
-      gmEmail && u.email.trim().toLowerCase() === gmEmail.trim().toLowerCase()
-        ? "active"
-        : "pending",
-      new Date().toISOString(),
-    )
-    .run();
+  const member = await db.prepare(
+    "SELECT id,email,name,status FROM members WHERE id=? LIMIT 1",
+  ).bind(u.memberId).first<{ id: string; email: string; name: string; status: string }>();
+  if (!member) throw new HttpError(403, "Dein ChroniPlay-Konto ist noch keinem bestehenden Spielmitglied zugeordnet.");
   const roles = await resolveRoles(db, {
-    userId: u.userId,
-    email: u.email,
+    userId: member.id,
+    email: member.email,
     campaignId: KLEVE_CAMPAIGN_ID,
     gmEmail,
     gmCampaignId: KLEVE_CAMPAIGN_ID,
   });
   const gm = roles.campaignRole === "campaign_owner" || roles.campaignRole === "campaign_gm";
-  if (requireActive && roles.campaignStatus !== "active")
-    throw new HttpError(
-      403,
-      roles.campaignStatus === "blocked"
-        ? "Dein Zugang ist gesperrt."
-        : "Die Spielleitung muss deinen Zugang noch freigeben.",
-    );
+  if (requireActive && roles.campaignStatus !== "active") {
+    throw new HttpError(403, roles.campaignStatus === "blocked"
+      ? "Dein Zugang ist gesperrt."
+      : "Die Spielleitung muss deinen Zugang noch freigeben.");
+  }
   return {
-    id: u.userId,
+    id: member.id,
     campaignId: KLEVE_CAMPAIGN_ID,
-    email: u.email,
-    name: u.displayName,
+    email: member.email,
+    name: u.displayName || member.name,
     gm,
     role: roles.campaignRole,
     status: roles.campaignStatus,

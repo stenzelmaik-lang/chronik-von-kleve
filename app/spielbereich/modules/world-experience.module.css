@@ -279,6 +279,8 @@
 .heroContent { display: flex; align-items: end; justify-content: space-between; gap: 26px; width: 100%; max-width: 1120px; }
 .heroContent h1 { margin: 9px 0 8px; color: #f1eadb; font: normal clamp(48px, 7vw, 78px)/.98 Georgia, "Times New Roman", serif; letter-spacing: -.05em; text-shadow: 0 2px 18px rgba(0,0,0,.28); }
 .heroSummary { max-width: 58ch; margin: 0; color: rgba(232,230,220,.86); font-size: 14px; line-height: 1.65; }
+.heroSummary p { margin: 0; }
+.heroSummary ul, .heroSummary ol { margin: 4px 0 0; padding-left: 20px; }
 .heroActions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 19px; }
 .primaryAction,.imageAction { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; padding: 10px 14px; border: 1px solid rgba(205,166,107,.68); border-radius: 3px; color: #151715; background: #d1b171; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .primaryAction:hover { background: #e0c184; }
@@ -296,6 +298,12 @@
 .proseEyebrow > span { color: #c2a46d; font: italic 14px Georgia,serif; }
 .impression h2 { margin: 0 0 12px; font: normal clamp(26px,3vw,37px)/1.12 Georgia,serif; }
 .impression > div:last-child > p { max-width: 75ch; margin: 0; color: #b4b9b0; font: normal 15px/1.8 Georgia,serif; }
+.richProse { display: grid; gap: 9px; color: #b4b9b0; font: normal 15px/1.8 Georgia,serif; }
+.richProse p, .richProse h2, .richProse h3, .richProse ul, .richProse ol { margin: 0; }
+.richProse h2 { color: #eee6d6; font: normal 1.22em/1.2 Georgia,serif; }
+.richProse h3 { color: #e6dcc8; font: normal 1.08em/1.3 Georgia,serif; }
+.richProse ul, .richProse ol { padding-left: 22px; }
+.richProse a { color: #d6b36f; text-decoration: underline; text-underline-offset: 2px; }
 .sourceContext { display: inline-flex; align-items: center; gap: 8px; margin-top: 19px; color: #9a9d92; font-size: 10px; letter-spacing: .04em; }
 
 .areasSection { padding: 39px 0 37px; scroll-margin-top: 150px; }
@@ -322,12 +330,16 @@
 .discoveryTag { padding: 5px 8px; border: 1px solid rgba(198,173,116,.3); color: #d6c18d; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; }
 .areaDetail h3 { margin: 18px 0 9px; font: normal clamp(23px,2.7vw,31px)/1.1 Georgia,serif; }
 .areaHint { max-width: 48ch; margin: 0; color: #d4cdbd; font: italic 16px/1.7 Georgia,serif; }
+.areaHint p { margin: 0; }
+.areaImage { display: block; width: 100%; max-height: 360px; margin: 14px 0; border: 1px solid rgba(190,177,143,.18); object-fit: cover; }
 .areaContext { margin: 0; color: #a0aaa2; font-size: 12px; line-height: 1.6; }
 .roomList { display: grid; margin-top: 18px; border-top: 1px solid rgba(190,177,143,.15); }
 .roomRow { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 55px; border-bottom: 1px solid rgba(190,177,143,.1); }
 .roomOrder { color: #8f968c; font: italic 12px Georgia,serif; }
 .roomRow strong { color: #ded9cc; font: normal 14px Georgia,serif; }
 .roomRow p { margin: 4px 0 0; color: #9ba59d; font-size: 11px; }
+.roomRichText { margin-top: 4px; color: #9ba59d; font-size: 11px; line-height: 1.6; }
+.roomRichText p { margin: 0; }
 .roomStatus { color: #c1aa77; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
 .unclearSeal { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px; padding: 9px 11px; border: 1px solid rgba(205,166,107,.22); color: #c8ba99; font-size: 10px; }
 .mutedText { color: #929c94; font-size: 12px; }

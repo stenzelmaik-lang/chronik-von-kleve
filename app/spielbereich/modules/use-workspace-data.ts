@@ -29,7 +29,7 @@ const empty: Data = {
 function pathFor(section: string) {
   if (section === "galerie") return "/api/files";
   if (section === "verwaltung") return "/api/members|/api/catalog";
-  if (["dashboard", "cms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
+  if (["dashboard", "cms", "ortscms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
     return `empty:${section}`;
   const kind =
     section === "weltkarte"
@@ -41,7 +41,7 @@ function pathFor(section: string) {
 }
 
 async function fetchSection(section: string): Promise<Data> {
-  if (["dashboard", "cms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
+  if (["dashboard", "cms", "ortscms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
     return empty;
   if (section === "galerie")
     return { ...empty, files: (await api<{ files: Upload[] }>("/api/files")).files };
