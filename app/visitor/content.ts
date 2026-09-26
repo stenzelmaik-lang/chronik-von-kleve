@@ -1,31 +1,30 @@
 export const visitorContent = {
-  title: "Chronik von Kleve",
-  system: "Vampire: The Masquerade V20",
-  intro:
-    "Kleve bei Nacht. Eine gemeinsame Chronik in der Welt von Vampire: The Masquerade – und der Treffpunkt fuer unsere Runde.",
-  heroImage: "/images/kleve.png",
-  cityImage: "/images/kleve.png",
+  title: "ChroniPlay",
+  system: "Eine gemeinsame Chronik voller Geschichten.",
+  intro: "Die Plattform für Pen-&-Paper-Kampagnen, Spielwelten und gemeinsame Geschichten.",
+  heroImage: "/images/chroniplay-hero-background.png",
+  cityImage: "/images/chronik-von-kleve-banner.png",
   sections: [
     {
-      label: "Oeffentlicher Einstieg",
-      title: "Ein ruhiger Anfang fuer eine dunkle Chronik.",
-      text: "Vampire: The Masquerade V20 bildet den Rahmen unserer gemeinsamen Pen-&-Paper-Runde. Hier beginnt der Weg in die Chronik von Kleve.",
+      label: "Kampagnen",
+      title: "Geschichten, die weiterleben.",
+      text: "Die Chronik von Kleve verbindet Orte, Handouts und gemeinsame Geschichten in einem geschützten Spielbereich.",
     },
     {
-      label: "Digitale Chronik",
-      title: "Die Spuren einer gemeinsamen Geschichte.",
-      text: "Orte, Handouts und Notizen begleiten die Runde im Spielbereich. Was dein Charakter bereits weiss, bleibt dort fuer dich greifbar.",
+      label: "Charaktere & Inventar",
+      title: "Alles für deine Runde.",
+      text: "Charaktere, Handouts und Inventar bleiben übersichtlich und im richtigen Moment griffbereit.",
     },
     {
-      label: "Mitspieler",
-      title: "Der Spielbereich bleibt ein geschuetzter Raum.",
-      text: "Spieler melden sich mit ChatGPT an und erhalten erst nach Freigabe durch die Spielleitung Zugriff auf ihre Bereiche.",
+      label: "Orte & Karten",
+      title: "Die Welt wird begehbar.",
+      text: "Interaktive Orte, Karten und Beziehungen verbinden deine Spielabende zu einer lebendigen Chronik.",
     },
   ],
   previewItems: [
-    "Startpunkt fuer Besucher und neue Mitspieler",
-    "Zugang zum geschuetzten Spielbereich",
-    "Vampire: The Masquerade V20",
+    "Geschlossene Alpha",
+    "Spielbereich für freigegebene Runden",
+    "Erste Kampagne: Chronik von Kleve",
   ],
 };
 

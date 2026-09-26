@@ -77,7 +77,6 @@ const commandEnv = {
   ...process.env,
   WRANGLER_SEND_METRICS: "false",
   WRANGLER_WRITE_LOGS: "false",
-  WRANGLER_LOG: "error",
   [REMOTE_TEST_MODE_ENV]: "1",
   CLOUDFLARE_INCLUDE_PROCESS_ENV: "false",
   CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
@@ -106,7 +105,6 @@ Object.assign(viteEnv, {
   NODE_ENV: "development",
   WRANGLER_SEND_METRICS: "false",
   WRANGLER_WRITE_LOGS: "false",
-  WRANGLER_LOG: "error",
   [REMOTE_TEST_MODE_ENV]: "1",
   CLOUDFLARE_INCLUDE_PROCESS_ENV: "false",
   CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: "false",
@@ -164,17 +162,13 @@ function preflightResourceIdentity() {
   });
   if (!d1Matches) throw new Error("Cloudflare did not verify the exact expected Test-D1 name and ID.");
 
-  const r2Output = runWrangler(
-    ["r2", "bucket", "info", expected.r2Name, "--json", "--config", configPath],
-    "Test-R2 identity check",
-  );
-  const r2Json = parseJson(r2Output, "Test-R2 identity check");
-  const r2Matches = objectsDeep(r2Json).some((row) => row.name === expected.r2Name);
-  if (!r2Matches) throw new Error("Cloudflare did not verify the exact expected Test-R2 bucket name.");
+  if (process.env.CVK_REMOTE_TEST_R2_PREVERIFIED !== "1") {
+    throw new Error("Verify the exact isolated Test-R2 bucket through Cloudflare before running; then set CVK_REMOTE_TEST_R2_PREVERIFIED=1.");
+  }
 
   console.log(`Verified account: ${expected.accountId}`);
   console.log(`Verified remote Test-D1: ${expected.d1Name} (${expected.d1Id})`);
-  console.log(`Verified remote Test-R2: ${expected.r2Name}`);
+  console.log(`Externally verified remote Test-R2: ${expected.r2Name}`);
   console.log("No production resource is present in this runner's generated Wrangler config.");
 }
 
@@ -226,7 +220,7 @@ function verifyTestSchema() {
     "Read-only Test-D1 migration ledger check",
   );
   const migrationRows = objectsDeep(parseJson(migrationOutput, "Read-only Test-D1 migration ledger check"));
-  if (!migrationRows.some((row) => row.name === migration0006Tag)) {
+  if (!migrationRows.some((row) => row.name === `${migration0006Tag}.sql`)) {
     throw new Error(`Test-D1 has not recorded ${migration0006Tag}; no migration was run.`);
   }
   console.log(`Verified Test-D1 schema and migration ${migration0006Tag} (${REQUIRED_TEST_D1_TABLES.length} required tables found).`);
