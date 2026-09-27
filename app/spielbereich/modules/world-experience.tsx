@@ -314,6 +314,33 @@ export function WorldExperience({
     }
   }
 
+
+  async function changeGroupVisibility(entityId: string, reopen: boolean) {
+    const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
+    if(!a.gm||view!=="sl"||busy||!state||embeddedDossier)return;
+    if(reopen&&!state.lastPublishedRevisionId){toast.error("Für diesen Eintrag gibt es noch keinen genehmigten Gruppenstand. Bitte zuerst im SL-CMS veröffentlichen.");return;}
+    if(!window.confirm(reopen?"Den zuletzt genehmigten Gruppenstand wieder anzeigen? Ungespeicherte und unveröffentlichte Entwürfe bleiben verborgen.":"Diesen Eintrag für die aktive Spielgruppe sperren? Untergeordnete Inhalte bleiben ebenfalls verborgen. Das bereits erworbene Wissen wird nicht zurückgestuft."))return;
+    setBusy(true);
+    try{
+      await api("/api/cms/releases","POST",{action:reopen?"publish":"block",entityId,scope:"group",expectedReleaseVersion:state.version,...(reopen?{revisionId:state.lastPublishedRevisionId,discoveryState:state.discoveryState}:{}),reason:reopen?"Gruppenstand am SL-Spieltisch reaktiviert":"Gruppensicht am SL-Spieltisch gesperrt"});
+      invalidatePlayerData(dataScope);
+      const updated=await requestPlayerData(dataScope,projectionKey,()=>api<Payload>(projectionKey),{force:true});
+      setResult({key:scopedProjectionKey,projection:updated.projection});
+      toast.success(reopen?"Genehmigter Gruppenstand wieder sichtbar":"Für die aktive Spielgruppe gesperrt");
+    }catch(reason){toast.error(reason instanceof Error?reason.message:"Die Freigabe konnte nicht geändert werden.");}
+    finally{setBusy(false);}
+  }
+  function slNotesFor(entityId: string) {
+    if(projection?.view!=="sl")return null;
+    const notes=location?.slNotes?.filter(note=>note.entityId===entityId&&(note.text||note.source||note.image))??[];
+    return notes.map((note,index)=><aside className={styles.slConfidential} key={entityId+index}><p className={styles.kicker}>VERTRAULICH · NUR SPIELLEITUNG · GESPEICHERTER STAND</p>{note.text&&<RichTextView value={note.text}/>} {note.source&&<p className={styles.mutedText}>Quelle: {note.source}</p>}{note.image&&<img className={styles.areaImage} src={note.image} alt="Vertrauliches SL-Bild" loading="lazy"/>}</aside>);
+  }
+  function groupVisibilityFor(entityId: string) {
+    const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
+    if(projection?.view!=="sl"||!state||embeddedDossier)return null;
+    return <div className={styles.slVisibility}><span>Gruppenfreigabe dieses Eintrags: {state.transition==="block"?"gesperrt":state.transition==="publish"?"freigegeben":"kein direkter Gruppenstand"}</span><button type="button" className={styles.secondaryButton} disabled={busy||state.transition==="block"} onClick={()=>changeGroupVisibility(entityId,false)}>Für Gruppe sperren</button><button type="button" className={styles.secondaryButton} disabled={busy||!state.lastPublishedRevisionId||state.transition==="publish"} onClick={()=>changeGroupVisibility(entityId,true)}>Gruppenstand aktivieren</button>{!state.lastPublishedRevisionId&&<small>Erste Freigabe im SL-CMS vornehmen.</small>}</div>;
+  }
+
   function closeOverlay() {
     setOverlay(null);
     requestAnimationFrame(() => {
@@ -351,8 +378,8 @@ export function WorldExperience({
       <div className={styles.introRight}>
       <p>{showingDossier ? embeddedLabel || "Ein Ort, wie dein Charakter ihn kennt." : view === "sl" ? "Alle angelegten Orte der Chronik." : "Orte, die deinem Charakter bekannt sind."}</p>
         {a.gm && !embeddedDossier && <div className={styles.viewSwitch} aria-label="Ansicht wählen">
-          <button type="button" className={view === "player" ? styles.switchActive : ""} onClick={() => setView("player")}><Eye size={14} />Spieler</button>
-          <button type="button" className={view === "sl" ? styles.switchActive : ""} onClick={() => setView("sl")}><Shield size={14} />SL</button>
+          <button type="button" className={view === "player" ? styles.switchActive : ""} onClick={() => setView("player")}><Eye size={14} />Spieleransicht</button>
+          <button type="button" className={view === "sl" ? styles.switchActive : ""} onClick={() => setView("sl")}><Shield size={14} />SL-Ansicht</button>
         </div>}
         {a.gm && !embeddedDossier && view === "player" && <span className={styles.previewBadge}><Eye size={13} />Gruppenprojektion</span>}
       </div>
@@ -447,10 +474,12 @@ export function WorldExperience({
                 {currentArea && <section className={`${styles.areaDetail} ${currentArea.redacted ? styles.unclearDetail : ""}`} role="tabpanel" id={`area-detail-${areaList.indexOf(currentArea)}`} aria-labelledby={`area-tab-${areaList.indexOf(currentArea)}`}>
                   <div className={styles.areaDetailHeader}><span className={styles.detailOverline}>{currentArea.redacted ? "HINWEIS · NICHT ERSCHLOSSEN" : `BEREICH ${String(currentArea.order).padStart(2, "0")}`}</span><span className={styles.discoveryTag}>{currentArea.redacted ? "Ungeklärt" : discoveryLabel(currentArea.discovery)}</span></div>
                   <h3>{currentArea.redacted ? "Ein Hinweis bleibt offen." : currentArea.title}</h3>
+                  {groupVisibilityFor(currentArea.viewKey)}
+                  {slNotesFor(currentArea.viewKey)}
                   {currentArea.image && !currentArea.redacted && <img className={styles.areaImage} src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} loading="lazy"/>}
                   {currentArea.playerHint && <RichTextView value={currentArea.playerHint} className={styles.areaHint}/>}
                   {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
-                  {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
+                  {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {slNotesFor(room.viewKey)} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
                   {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
                   {currentArea.redacted && <div className={styles.unclearSeal}><CircleHelp size={15} />Keine Raumdetails freigegeben</div>}
                 </section>}
@@ -466,6 +495,8 @@ export function WorldExperience({
               <div className={styles.informationList}>{location.knownInformation.map((info) => <button type="button" className={styles.informationRow} key={info.id} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: info.title, text: info.text }); }}><span><Sparkles size={15} /></span><span><strong>{info.title}</strong><small>{richTextToPlainText(info.text)}</small></span><ArrowUpRight size={15} /></button>)}</div>
             </section>}
 
+            {slNotesFor(projection.location.id)}
+            {groupVisibilityFor(projection.location.id)}
             {projection.view === "sl" && projection.location.preparedActions && <section className={styles.gmActions}>
               <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>NUR FÜR DIE SPIELLEITUNG</p><h2>Vorbereitete Aktionen</h2></div><Shield size={18} /></header>
               {projection.location.preparedActions.map((action) => <div className={styles.gmActionRow} key={action.id}><span><strong>{action.label}</strong><small>{action.target}</small></span><button type="button" className={styles.secondaryButton} disabled={busy || action.status === "triggered"} onClick={() => triggerAction(action.id)}>{action.status === "triggered" ? "Ausgelöst" : "Auslösen"}</button></div>)}

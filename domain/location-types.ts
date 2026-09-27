@@ -159,6 +159,9 @@ export type ProjectedPlace = Omit<
   knownInformation: PlaceNote[];
   activity: PlaceActivity[];
   preparedActions?: PreparedPlaceAction[];
+  /** Only emitted by the campaign publisher SL projection, never the player reader. */
+  slNotes?: { entityId: string; text: string; source: string; image?: string }[];
+  slGroupReleases?: { entityId: string; version: number; transition: string; lastPublishedRevisionId: string | null; discoveryState: DiscoveryState }[];
 };
 
 export type PlaceProjection = {

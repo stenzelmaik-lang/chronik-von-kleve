@@ -143,3 +143,33 @@ export async function loadRevisionOverlay(
   }
   return overlay;
 }
+
+/** Saved confidential revisions are an SL-only side channel. They are never
+ * merged into player payloads or used to infer discovery. */
+export async function loadSlDossierExtras(db: D1Database, actor: Actor, entityIds: string[]) {
+  const slNotes: {entityId:string;text:string;source:string;image?:string}[] = [];
+  const slGroupReleases: {entityId:string;version:number;transition:string;lastPublishedRevisionId:string|null;discoveryState:DiscoveryState}[] = [];
+  if (actor.status !== "active" || !["campaign_owner", "campaign_gm"].includes(actor.role)) return {slNotes,slGroupReleases};
+  for (let start=0;start<entityIds.length;start+=70) {
+    const ids=entityIds.slice(start,start+70); const placeholders=ids.map(()=>"?").join(",");
+    const notes=await db.prepare(`SELECT v.entity_id,v.id,v.gm_secret_json,
+      (SELECT m.file_id FROM entity_revision_media m WHERE m.campaign_id=v.campaign_id AND m.entity_id=v.entity_id AND m.revision_id=v.id AND m.audience_scope='gm' AND m.audience_key='@gm' AND m.purpose='hero' ORDER BY m.position,m.id LIMIT 1) AS file_id
+      FROM entity_revisions v WHERE v.campaign_id=? AND v.entity_id IN (${placeholders}) AND v.audience_scope='gm' AND v.audience_key='@gm' AND v.status IN ('draft','in_review','approved') ORDER BY v.revision_no DESC`)
+      .bind(actor.campaignId,...ids).all<{entity_id:string;id:string;gm_secret_json:string;file_id:string|null}>();
+    const seen=new Set<string>();
+    for(const row of notes.results) {
+      if(seen.has(row.entity_id))continue;seen.add(row.entity_id);
+      const secret=parseObject(row.gm_secret_json);
+      slNotes.push({entityId:row.entity_id,text:typeof secret.text==='string'?secret.text:'',source:typeof secret.source==='string'?secret.source:'',...(row.file_id?{image:`/api/cms/media?id=${encodeURIComponent(row.file_id)}&entityId=${encodeURIComponent(row.entity_id)}&revisionId=${encodeURIComponent(row.id)}&preview=1`}:{})});
+    }
+    const releases=await db.prepare(`SELECT r.entity_id,r.release_version,r.transition,r.revision_id,r.discovery_grant_state
+      FROM entity_revision_releases r WHERE r.campaign_id=? AND r.entity_id IN (${placeholders}) AND r.audience_scope='group' AND r.audience_key='@group' ORDER BY r.release_version DESC`)
+      .bind(actor.campaignId,...ids).all<{entity_id:string;release_version:number;transition:string;revision_id:string|null;discovery_grant_state:DiscoveryState|null}>();
+    for(const entityId of ids) {
+      const history=releases.results.filter(row=>row.entity_id===entityId);
+      const lastPublish=history.find(row=>row.transition==='publish'&&row.revision_id);
+      slGroupReleases.push({entityId,version:history[0]?.release_version??0,transition:history[0]?.transition??'none',lastPublishedRevisionId:lastPublish?.revision_id??null,discoveryState:lastPublish?.discovery_grant_state??'known'});
+    }
+  }
+  return {slNotes,slGroupReleases};
+}

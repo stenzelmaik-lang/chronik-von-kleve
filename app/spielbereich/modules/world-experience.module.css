@@ -564,3 +564,5 @@
 @media (prefers-reduced-motion: reduce) {
   .worldRoot *, .worldRoot *::before, .worldRoot *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.slConfidential{margin:16px 0;padding:18px;border:1px solid #aa815744;border-left:3px solid #c69b61;background:#17130f80;border-radius:8px}.slVisibility{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0;padding:12px;border:1px solid #c69b6133;border-radius:8px}.slVisibility span,.slVisibility small{flex-basis:100%}
