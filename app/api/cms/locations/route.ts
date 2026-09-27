@@ -9,6 +9,7 @@ const createNodeSchema=z.discriminatedUnion("level",[
   z.object({level:z.literal("location"),title:z.string().trim().min(1).max(160)}).strict(),
   z.object({level:z.literal("area"),title:z.string().trim().min(1).max(160),parentId:z.string().trim().min(1).max(160)}).strict(),
   z.object({level:z.literal("room"),title:z.string().trim().min(1).max(160),parentId:z.string().trim().min(1).max(160)}).strict(),
+  z.object({level:z.literal("information"),title:z.string().trim().min(1).max(160),parentId:z.string().trim().min(1).max(160)}).strict(),
 ]);
 type CmsNode={entity_id:string;location_id:string;parent_id:string|null;level:"location"|"area"|"room"|"information";position:number;attributes:string;canon_status:string;content:string;title:string};
 const parse=(raw:string)=>{try{const x:unknown=JSON.parse(raw);return x&&typeof x==="object"&&!Array.isArray(x)?x as Record<string,unknown>:{};}catch{return {};}};
@@ -48,7 +49,7 @@ export async function POST(req:Request){
     requireCmsEditor(a);
     requireCmsPublisher(a);
     const data=createNodeSchema.safeParse(await input(req));
-    if(!data.success)throw new HttpError(400,"Ungültige Anlage eines Orts, Bereichs oder Raums.");
+    if(!data.success)throw new HttpError(400,"Ungültige Anlage eines Orts, Bereichs, Raums oder einer Erkenntnis.");
     return json(await createLocationNode(database(),a,data.data),201);
   }catch(error){return failure(error,req);}
 }
