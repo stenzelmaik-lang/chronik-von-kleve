@@ -51,7 +51,7 @@ const localBindingConfig = {
     : []),
   // Bound CPU per request explicitly on the paid runtime. This limits runaway
   // invocations; it is not an account-wide monetary spending cap.
-  ...(cloudflareBuild ? { limits: { cpu_ms: 2000 }, previews: cloudflarePreviewBindings } : {}),
+  ...(cloudflareBuild ? { limits: { cpu_ms: 5000 }, previews: cloudflarePreviewBindings } : {}),
 };
 
 export default defineConfig(async ({ command }) => {
