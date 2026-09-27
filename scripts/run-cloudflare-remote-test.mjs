@@ -96,6 +96,7 @@ const viteEnv = Object.fromEntries(
       "HOME",
       "APPDATA",
       "LOCALAPPDATA",
+      "XDG_CONFIG_HOME",
       "PROGRAMDATA",
       "CODEX_SANDBOX",
     ].includes(name.toUpperCase()),
