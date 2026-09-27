@@ -69,6 +69,8 @@ export async function POST(req: Request) {
       );
     if (!["private", "sl", "group"].includes(visibility))
       throw new HttpError(400, "Ungültige Sichtbarkeit.");
+    if (visibility === "sl" && !a.gm)
+      throw new HttpError(403, "SL-Dateien können nur von der Spielleitung angelegt werden.");
     const bytes = new Uint8Array(await file.arrayBuffer());
     const sig = String.fromCharCode(...bytes.slice(0, 12));
     const valid =
@@ -121,18 +123,20 @@ export async function DELETE(req: Request) {
     sameOrigin(req);
     const a = await actor();
     const d = await input(req);
-    const f = await database()
-      .prepare("SELECT * FROM files WHERE id=? AND owner_id=?")
-      .bind(String(d.id), a.id)
-      .first<FileRow>();
-    if (!f) throw new HttpError(404, "Eigene Datei nicht gefunden.");
     if (!env.BUCKET)
       throw new HttpError(503, "Dateispeicher nicht erreichbar.");
-    await env.BUCKET.delete(f.key);
-    await database()
-      .prepare("DELETE FROM files WHERE id=? AND owner_id=?")
-      .bind(f.id, a.id)
-      .run();
+    const db=database();
+    const removed=await db.prepare(`DELETE FROM files WHERE id=? AND campaign_id=? AND owner_id=?
+      AND NOT EXISTS (SELECT 1 FROM entity_revision_media m WHERE m.campaign_id=files.campaign_id AND m.file_id=files.id)
+      RETURNING key`).bind(String(d.id),a.campaignId,a.id).first<{key:string}>();
+    if(!removed){
+      const existing=await db.prepare("SELECT id FROM files WHERE id=? AND campaign_id=? AND owner_id=?").bind(String(d.id),a.campaignId,a.id).first();
+      if(!existing)throw new HttpError(404,"Eigene Datei nicht gefunden.");
+      throw new HttpError(409,"Dieses Bild ist in einem Ortsentwurf oder einer Veröffentlichung verwendet und kann nicht gelöscht werden.");
+    }
+    // Remove the D1 locator first. If R2 is temporarily unavailable the object
+    // is an inaccessible orphan, never a still-referenced public object.
+    try{await env.BUCKET.delete(removed.key);}catch(error){console.error("Unreachable R2 orphan after safe file metadata removal",error);}
     return json({ ok: true });
   } catch (e) {
     return failure(e, req);

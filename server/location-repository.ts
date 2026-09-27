@@ -17,6 +17,8 @@ import {
   projectLocationForSl,
 } from "@/domain/location-model";
 import { projectLocationGeography } from "@/server/location-geography";
+import { parseGeography } from "@/domain/location-cms";
+import { loadRevisionOverlay, type PreviewRevision, type RevisionOverlay } from "@/server/location-revision-projector";
 
 type NodeRow = {
   entity_id: string;
@@ -78,7 +80,7 @@ function attrs(row: NodeRow): Record<string, unknown> {
   };
 }
 
-type LoadedRows = { rows: NodeRow[]; actions: ActionRow[]; grants: KnowledgeRow[] };
+type LoadedRows = { rows: NodeRow[]; actions: ActionRow[]; grants: KnowledgeRow[]; overlay?: RevisionOverlay };
 
 function buildPersistedProjection(
   actor: Actor,
@@ -87,7 +89,8 @@ function buildPersistedProjection(
   requestedView: "sl" | "player",
   target: "group" | "player",
 ) {
-  const { rows, actions, grants } = loaded;
+  const { rows, actions, overlay } = loaded;
+  const grants = [...loaded.grants, ...(overlay?.extraKnowledge ?? [])];
   if (!rows.length) return null;
   const sl = requestedView === "sl" && actor.gm;
   const grantRows = new Map<string, KnowledgeRow[]>();
@@ -103,43 +106,71 @@ function buildPersistedProjection(
   const availableRows = sl ? rows : rows.filter(row => !blocked.has(row.entity_id));
   const root = availableRows.find(row => row.level === "location" && row.entity_id === placeId);
   if (!root) return null;
-  const rootAttrs = attrs(root);
+  const attrsFor = (row: NodeRow) => overlay?.managedIds.has(row.entity_id)
+    ? overlay.playerPayloads.get(row.entity_id) ?? {}
+    : attrs(row);
+  const rootAttrs = attrsFor(root);
   const grantsForNode = (row: NodeRow) => grantRows.get(row.entity_id) ?? [];
-  const publicRule = (row: NodeRow) => attrs(row).visibility === "public" || row.world_visibility === "public" || grantsForNode(row).some(grant => grant.audience === "public");
-  const fullDiscovery = (row: NodeRow): DiscoveryState => publicRule(row) ? "known" : validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
+  const publicRule = (row: NodeRow) => attrsFor(row).visibility === "public" || row.world_visibility === "public" || grantsForNode(row).some(grant => grant.audience === "public");
+  const fullDiscovery = (row: NodeRow): DiscoveryState => {
+    if (overlay?.managedIds.has(row.entity_id)) {
+      if (!overlay.playerPayloads.has(row.entity_id)) return "hidden";
+      if (overlay.publicKnownIds.has(row.entity_id)) return "known";
+      return validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
+    }
+    return publicRule(row) ? "known" : validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
+  };
+  const gmOnlyInformation = (row: NodeRow) => row.level === "information" && attrs(row).visibility === "gm";
+  const visibleNode = (row: NodeRow) => sl || (!gmOnlyInformation(row) && fullDiscovery(row) !== "hidden" &&
+    (!overlay?.managedIds.has(row.entity_id) || overlay.playerPayloads.has(row.entity_id)));
   if (!sl && fullDiscovery(root) === "hidden") return null;
   const rootGrants = grantsForNode(root);
   const groupGrant = rootGrants.some(grant => grant.audience === "public" || grant.audience === "group");
   const playerGrant = rootGrants.some(grant => grant.audience === "player" && grant.subject_id === actor.id);
   const worldVisible = (row: NodeRow) => sl || row.world_visibility === "public" || row.world_visibility === "group" ||
     (target === "player" && row.world_visibility === "private" && row.world_subject_id === actor.id);
-  const byParent = (parentId: string | null, level: NodeRow["level"]) => availableRows.filter(row => row.parent_id === parentId && row.level === level).sort((a, b) => a.position - b.position);
+  // Keep safe hidden area rows long enough for projectLocationForPlayer to
+  // replace their identity with its redacted container when a child is granted.
+  // Hidden rooms/information never enter the projection, and secret parents
+  // were already removed with their descendants above.
+  const byParent = (parentId: string | null, level: NodeRow["level"]) => availableRows.filter(row => row.parent_id === parentId && row.level === level && (level === "area" || visibleNode(row))).sort((a, b) => a.position - b.position);
   const buildRoom = (row: NodeRow): PlaceRoom => {
-    const data = attrs(row);
+    const data = attrsFor(row);
     return { id: row.entity_id, order: row.position, title: String(data.title || row.entity_title || ""), discovery: fullDiscovery(row),
       worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
       visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), short: typeof data.short === "string" ? data.short : undefined };
   };
   const buildArea = (row: NodeRow): PlaceArea => {
-    const data = attrs(row);
+    const data = attrsFor(row);
+    const revisionId = overlay?.selectedRevisionIds.get(row.entity_id);
+    const areaImageId = revisionId ? overlay?.selectedMediaFileIds.get(revisionId) : undefined;
     return { id: row.entity_id, order: row.position, title: String(data.title || row.entity_title || ""), discovery: fullDiscovery(row),
       worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
       visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility),
+      ...(areaImageId && revisionId ? { image: `/api/cms/media?id=${encodeURIComponent(areaImageId)}&entityId=${encodeURIComponent(row.entity_id)}&revisionId=${encodeURIComponent(revisionId)}${overlay?.previewRevisionIds.has(revisionId) ? "&preview=1" : ""}` } : {}),
       playerHint: typeof data.playerHint === "string" ? data.playerHint : undefined, rooms: byParent(row.entity_id, "room").map(buildRoom) };
   };
+  const rootRevisionId = overlay?.selectedRevisionIds.get(placeId);
+  const heroFileId = rootRevisionId ? overlay?.selectedMediaFileIds.get(rootRevisionId) : undefined;
+  const revisionGeography = overlay?.managedIds.has(placeId) ? parseGeography(overlay.geographies.get(placeId)) : null;
   const model: PlaceModel = {
     id: placeId,
     legacyEntityId: String(rootAttrs.legacyEntityId || ""),
     title: String(rootAttrs.title || root.entity_title || ""),
     subtitle: String(rootAttrs.subtitle || ""), district: String(rootAttrs.district || ""), address: String(rootAttrs.address || ""),
-    image: safeLocationImage(rootAttrs.image), summary: String(rootAttrs.summary || ""), atmosphere: String(rootAttrs.atmosphere || ""),
-    geography: projectLocationGeography(rootAttrs.geography, { gm: sl, known: discoveryOrder.indexOf(fullDiscovery(root)) >= discoveryOrder.indexOf("known"), groupGrant, playerGrant, target }),
+    image: heroFileId && rootRevisionId
+      ? `/api/cms/media?id=${encodeURIComponent(heroFileId)}&entityId=${encodeURIComponent(placeId)}&revisionId=${encodeURIComponent(rootRevisionId)}${overlay?.previewRevisionIds.has(rootRevisionId) ? "&preview=1" : ""}`
+      : safeLocationImage(rootAttrs.image),
+    summary: String(rootAttrs.summary || ""), atmosphere: String(rootAttrs.atmosphere || ""),
+    geography: overlay?.managedIds.has(placeId)
+      ? (revisionGeography ?? { status: "unknown" })
+      : projectLocationGeography(rootAttrs.geography, { gm: sl, known: discoveryOrder.indexOf(fullDiscovery(root)) >= discoveryOrder.indexOf("known"), groupGrant, playerGrant, target }),
     discovery: fullDiscovery(root), worldState: worldVisible(root) ? worldState(root.world_state) : "active",
     markers: worldVisible(root) ? parseMarkers(root.markers) : [],
     factionSignals: Array.isArray(rootAttrs.factionSignals) ? rootAttrs.factionSignals as PlaceModel["factionSignals"] : [],
     areas: byParent(placeId, "area").map(buildArea),
-    knownInformation: byParent(placeId, "information").filter(row => sl || fullDiscovery(row) !== "hidden").map((row): PlaceNote => {
-      const data = attrs(row);
+    knownInformation: byParent(placeId, "information").map((row): PlaceNote => {
+      const data = attrsFor(row);
       return { id: row.entity_id, title: String(data.title || row.entity_title || "Information"), text: String(data.text || ""),
         noteType: (data.noteType as PlaceNote["noteType"]) || "note", pinned: data.pinned === true,
         visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), targetId: placeId };
@@ -152,10 +183,10 @@ function buildPersistedProjection(
     sourceLabel: String(rootAttrs.sourceLabel || ""),
   };
   if (sl) return projectLocationForSl(Object.fromEntries(model.preparedActions.map(action => [action.id, action.status])), model);
-  return projectLocationForPlayer(actor.gm ? "gm" : "player", target, model);
+  return projectLocationForPlayer("player", target, model);
 }
 
-async function selectLocationData(db: D1Database, actor: Actor, placeIds: string[], target: "group" | "player"): Promise<LoadedRows> {
+async function selectLocationData(db: D1Database, actor: Actor, placeIds: string[], target: "group" | "player", viewerId = actor.id): Promise<LoadedRows> {
   const rows: NodeRow[] = [];
   const grants: KnowledgeRow[] = [];
   const actions: ActionRow[] = [];
@@ -176,7 +207,7 @@ async function selectLocationData(db: D1Database, actor: Actor, placeIds: string
     if (!batch.length) continue;
     const placeholders = batch.map(() => "?").join(",");
     const result = await db.prepare(`SELECT entity_id,audience,subject_id,discovery_state FROM knowledge WHERE campaign_id=? AND entity_id IN (${placeholders}) AND state<>'UNKNOWN' AND (audience='public' OR (audience='group' AND subject_id=?) OR (audience='player' AND subject_id=?))`)
-      .bind(actor.campaignId, ...batch, actor.campaignId, target === "player" ? actor.id : "").all<KnowledgeRow>();
+      .bind(actor.campaignId, ...batch, actor.campaignId, target === "player" ? viewerId : "").all<KnowledgeRow>();
     grants.push(...result.results);
   }
   return { rows, actions, grants };
@@ -184,14 +215,25 @@ async function selectLocationData(db: D1Database, actor: Actor, placeIds: string
 
 const nodeSelect = "SELECT n.*,e.canon_status,e.content AS entity_content,e.title AS entity_title FROM location_nodes n JOIN entities e ON e.id=n.entity_id AND e.campaign_id=n.campaign_id";
 
-export async function loadPersistedLocation(db: D1Database, actor: Actor, placeId: string, requestedView: "sl" | "player" = actor.gm ? "sl" : "player", target: "group" | "player" = "group") {
-  const data = await selectLocationData(db, actor, [placeId], target);
+export async function loadPersistedLocation(
+  db: D1Database,
+  actor: Actor,
+  placeId: string,
+  requestedView: "sl" | "player" = actor.gm ? "sl" : "player",
+  target: "group" | "player" = "group",
+  options: { viewerId?: string; preview?: PreviewRevision } = {},
+) {
+  const viewerId = options.viewerId ?? actor.id;
+  const data = await selectLocationData(db, actor, [placeId], target, viewerId);
   const rows = data.rows.filter(row => row.location_id === placeId);
   if (!rows.length) return null;
-  return buildPersistedProjection(actor, placeId, {
+  if (requestedView === "player") data.overlay = await loadRevisionOverlay(db, actor, rows, data.grants, target, viewerId, options.preview);
+  const projectionActor = viewerId === actor.id ? actor : { ...actor, id: viewerId, role: "player" as const, gm: false };
+  return buildPersistedProjection(projectionActor, placeId, {
     rows,
     actions: data.actions.filter((row) => (row as ActionRow & { location_id?: string }).location_id === placeId),
     grants: data.grants,
+    overlay: data.overlay,
   }, requestedView, target);
 }
 
@@ -202,12 +244,13 @@ export async function loadLocationHub(db: D1Database, actor: Actor, requestedVie
   const placeIds = roots.results.map(root => root.entity_id);
   if (!placeIds.length) return [];
   const loaded = await selectLocationData(db, actor, placeIds, target);
+  if (requestedView === "player") loaded.overlay = await loadRevisionOverlay(db, actor, loaded.rows, loaded.grants, target);
   const byPlace = new Map<string, NodeRow[]>();
   const actionsByPlace = new Map<string, ActionRow[]>();
   for (const row of loaded.rows) byPlace.set(row.location_id, [...(byPlace.get(row.location_id) ?? []), row]);
   for (const row of loaded.actions as (ActionRow & { location_id: string })[]) actionsByPlace.set(row.location_id, [...(actionsByPlace.get(row.location_id) ?? []), row]);
   return placeIds.flatMap(placeId => {
-    const projection = buildPersistedProjection(actor, placeId, { rows: byPlace.get(placeId) ?? [], actions: actionsByPlace.get(placeId) ?? [], grants: loaded.grants }, requestedView, target);
+    const projection = buildPersistedProjection(actor, placeId, { rows: byPlace.get(placeId) ?? [], actions: actionsByPlace.get(placeId) ?? [], grants: loaded.grants, overlay: loaded.overlay }, requestedView, target);
     return projection ? [projection] : [];
   });
 }

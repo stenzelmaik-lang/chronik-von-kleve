@@ -1,34 +1,79 @@
 import assert from 'node:assert/strict';
+import {createHash,pbkdf2Sync} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {basename,dirname,resolve} from 'node:path';
 // Run only against an isolated local Wrangler worker. No production writes.
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8791';
 assert.ok(['127.0.0.1','localhost'].includes(new URL(base).hostname),'Tests require localhost');
-const ids={gm:{'oai-authenticated-user-id':'sprint1-gm','oai-authenticated-user-email':'gm@sprint.invalid'},a:{'oai-authenticated-user-id':'sprint1-a','oai-authenticated-user-email':'a@sprint.invalid'},b:{'oai-authenticated-user-id':'sprint1-b','oai-authenticated-user-email':'b@sprint.invalid'}};
-ids.blockedGm={'oai-authenticated-user-id':'sprint1-blocked-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
-ids.pendingGm={'oai-authenticated-user-id':'sprint1-pending-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
-ids.explicitBlockedGm={'oai-authenticated-user-id':'sprint1-explicit-blocked-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
-ids.explicitPendingGm={'oai-authenticated-user-id':'sprint1-explicit-pending-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
-ids.platformOnly={'oai-authenticated-user-id':'sprint1-platform-only','oai-authenticated-user-email':'platform@sprint.invalid'};
-ids.otherCampaign={'oai-authenticated-user-id':'sprint1-other-campaign','oai-authenticated-user-email':'other@sprint.invalid'};
+const fixtureAccounts=[
+ {key:'gm',memberId:'sprint1-gm',memberEmail:'gm@sprint.invalid',memberName:'Test GM',memberStatus:'active',campaign:'chronik-von-kleve',authEmail:'alpha-gm@sprint.invalid',linked:true},
+ {key:'a',memberId:'sprint1-a',memberEmail:'a@sprint.invalid',memberName:'Player A',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'alpha-a@sprint.invalid',linked:true,password:true},
+ {key:'b',memberId:'sprint1-b',memberEmail:'b@sprint.invalid',memberName:'Player B',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'alpha-b@sprint.invalid',linked:true,password:true},
+ {key:'editor',memberId:'sprint1-editor',memberEmail:'editor@sprint.invalid',memberName:'Phase C Editor',memberStatus:'active',campaign:'chronik-von-kleve',authEmail:'alpha-editor@sprint.invalid',linked:false},
+ {key:'blockedPlayer',memberId:'sprint1-blocked-player',memberEmail:'blocked-player@sprint.invalid',memberName:'Blocked Phase C Player',memberStatus:'blocked',campaign:'chronik-von-kleve',authEmail:'alpha-blocked@sprint.invalid',linked:false},
+ {key:'blockedGm',memberId:'sprint1-blocked-gm',memberEmail:'gm@sprint.invalid',memberName:'Blocked GM test',memberStatus:'blocked',campaign:'chronik-von-kleve',authEmail:'alpha-blocked-gm@sprint.invalid',linked:true},
+ {key:'pendingGm',memberId:'sprint1-pending-gm',memberEmail:'gm@sprint.invalid',memberName:'Pending GM test',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'alpha-pending-gm@sprint.invalid',linked:true},
+ {key:'explicitBlockedGm',memberId:'sprint1-explicit-blocked-gm',memberEmail:'gm@sprint.invalid',memberName:'Explicit blocked GM test',memberStatus:'blocked',campaign:'chronik-von-kleve',authEmail:'alpha-explicit-blocked-gm@sprint.invalid',linked:true},
+ {key:'explicitPendingGm',memberId:'sprint1-explicit-pending-gm',memberEmail:'gm@sprint.invalid',memberName:'Explicit pending GM test',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'alpha-explicit-pending-gm@sprint.invalid',linked:true},
+ {key:'platformOnly',memberId:'sprint1-platform-only',memberEmail:'platform@sprint.invalid',memberName:'Platform-only test',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'alpha-platform@sprint.invalid',linked:true},
+ {key:'unlinkedEmail',authEmail:'platform@sprint.invalid',linked:false,password:true},
+ {key:'unverified',memberId:'sprint1-unverified',memberEmail:'unverified@sprint.invalid',memberName:'Unverified synthetic account',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'unverified@sprint.invalid',linked:true,password:true,verified:false},
+ {key:'otherCampaign',memberId:'sprint1-other-campaign',memberEmail:'other@sprint.invalid',memberName:'Other campaign owner',memberStatus:'active',campaign:'phase-b-other-campaign',authEmail:'alpha-other@sprint.invalid',linked:true},
+];
+const testPassword='ChroniPlay-Alpha-Test-2026!';
+const testSalt='isolated-auth-test-salt';
+const testPasswordHash=`pbkdf2_sha256$600000$${testSalt}$${pbkdf2Sync(testPassword,testSalt,600000,32,'sha256').toString('base64url')}`;
+const sessionTokens=Object.fromEntries(fixtureAccounts.map(account=>[account.key,`isolated-session-${account.key}`]));
+const ids=Object.fromEntries(fixtureAccounts.map(account=>[account.key,{Cookie:`chroniplay_session=${sessionTokens[account.key]}`} ]));
 let checks=0;
 function check(value,message){assert.ok(value,message);checks++;console.log('PASS '+message)}
-async function req(path,who,method='GET',body,extra={}){const r=await fetch(base+path,{method,headers:{...ids[who],...(body?{'Content-Type':'application/json'}:{}),...extra},body:body?JSON.stringify(body):undefined});const d=await r.json();return {s:r.status,d}}
-localSql(`INSERT INTO members(id,email,name,status,created_at) VALUES
-('sprint1-blocked-gm','gm@sprint.invalid','Blocked GM test','blocked','phase-b'),
-('sprint1-pending-gm','gm@sprint.invalid','Pending GM test','pending','phase-b'),
-('sprint1-explicit-blocked-gm','gm@sprint.invalid','Explicit blocked GM test','blocked','phase-b'),
-('sprint1-explicit-pending-gm','gm@sprint.invalid','Explicit pending GM test','pending','phase-b'),
-('sprint1-platform-only','platform@sprint.invalid','Platform-only test','pending','phase-b');
+async function req(path,who,method='GET',body,extra={}){const r=await fetch(base+path,{method,headers:{...(who&&ids[who]?ids[who]:{}),...(body?{'Content-Type':'application/json'}:{}),...extra},body:body?JSON.stringify(body):undefined});const d=await r.json();return {s:r.status,d}}
+function localSqlFails(sql) { const state=resolve(process.env.CVK_TEST_STATE||''); assert.equal(dirname(state),tmpdir()); assert.match(basename(state),/^cvk-phase-c-tests-[a-f0-9-]+$/); const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true}); assert.notEqual(r.status,0,'Expected isolated D1 constraint or trigger to reject the write'); }
+const sqlQuote=value=>`'${String(value).replaceAll("'","''")}'`;
+const now='2026-09-26T12:00:00.000Z';
+const memberRows=fixtureAccounts.filter(a=>a.memberId).map(a=>`INSERT INTO members(campaign_id,id,email,name,status,version,created_at) VALUES(${sqlQuote(a.campaign)},${sqlQuote(a.memberId)},${sqlQuote(a.memberEmail)},${sqlQuote(a.memberName)},${sqlQuote(a.memberStatus)},1,${sqlQuote(now)});`).join('\n');
+const accountRows=fixtureAccounts.map(a=>{
+ const userId=`auth-${a.key}`; const passwordHash=a.password?sqlQuote(testPasswordHash):'NULL'; const email=a.authEmail.toLowerCase();
+ return `INSERT INTO auth_users(id,email,email_normalized,display_name,password_hash,email_verified_at,status,created_at,updated_at) VALUES(${sqlQuote(userId)},${sqlQuote(email)},${sqlQuote(email)},${sqlQuote(a.memberName||'Unlinked test')},${passwordHash},${a.verified===false?'NULL':sqlQuote(now)},'active',${sqlQuote(now)},${sqlQuote(now)});\nINSERT INTO auth_identities(id,user_id,provider,provider_subject,provider_email,created_at,updated_at) VALUES(${sqlQuote(`identity-${a.key}`)},${sqlQuote(userId)},'local',${sqlQuote(`subject-${a.key}`)},${sqlQuote(email)},${sqlQuote(now)},${sqlQuote(now)});\nINSERT INTO auth_sessions(session_hash,user_id,created_at,expires_at,last_seen_at) VALUES(${sqlQuote(createHash('sha256').update(sessionTokens[a.key]).digest('hex'))},${sqlQuote(userId)},${sqlQuote(now)},'2099-01-01T00:00:00.000Z',${sqlQuote(now)});${a.linked?`\nINSERT INTO auth_member_links(auth_user_id,member_id,approved_by,approval_reference,linked_at) VALUES(${sqlQuote(userId)},${sqlQuote(a.memberId)},'isolated-test-operator',${sqlQuote(`TEST_DATA:${a.key}`)},${sqlQuote(now)});`:''}`;
+}).join('\n');
+localSql(`INSERT INTO campaigns(id,name,created_at) VALUES('phase-b-other-campaign','Isolated Phase B other campaign',${sqlQuote(now)});
+${memberRows}
+${accountRows}
 INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES
 ('chronik-von-kleve','sprint1-explicit-blocked-gm','campaign_gm','blocked','manual',1,'phase-b','phase-b'),
 ('chronik-von-kleve','sprint1-explicit-pending-gm','campaign_gm','pending','manual',1,'phase-b','phase-b');
-INSERT INTO campaigns(id,name,created_at) VALUES('phase-b-other-campaign','Isolated Phase B other campaign','phase-b');
-INSERT INTO members(id,email,name,status,campaign_id,created_at) VALUES
-('sprint1-other-campaign','other@sprint.invalid','Other campaign owner','active','phase-b-other-campaign','phase-b');
 `);
-check((await req('/api/entities')).s===401,'Anonymous denied');
+check((await req('/api/entities')).s===401,'Anonymous denied without an Auth 2.0 session');
+check((await req('/api/cms/locations',undefined,'GET',undefined,{'oai-authenticated-user-id':'sprint1-gm','oai-authenticated-user-email':'gm@sprint.invalid'})).s===401,'Unsigned legacy OAI headers cannot authenticate a CMS request');
+for(const [method,path] of [['GET','/api/cms/locations'],['POST','/api/cms/locations'],['GET','/api/cms/drafts?entityId=place.electric-taberna'],['POST','/api/cms/drafts'],['PATCH','/api/cms/drafts'],['GET','/api/cms/media?id=test'],['POST','/api/cms/media'],['POST','/api/cms/preview'],['GET','/api/cms/releases?entityId=place.electric-taberna&scope=group'],['POST','/api/cms/releases'],['POST','/api/cms/transitions']]) {
+  check((await req(path,undefined,method,method==='GET'?undefined:{})).s===401,`${method} ${path.split('?')[0]} denies requests without an Auth session`);
+}
+for(const [method,path] of [['GET','/api/members'],['POST','/api/members'],['GET','/api/recovery'],['POST','/api/recovery']]) {
+  check((await req(path,undefined,method,method==='GET'?undefined:{})).s===401,`${method} ${path} administrative route denies requests without an Auth session`);
+}
+const openRegister=await req('/api/auth/register',undefined,'POST',{email:'new-player@sprint.invalid',password:testPassword,displayName:'Uninvited'});
+check(openRegister.s===404,'Public self-registration is disabled for the closed alpha');
+const linkedLogin=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'alpha-a@sprint.invalid',password:testPassword})});
+const linkedLoginCookie=linkedLogin.headers.get('set-cookie')?.split(';')[0];
+check(linkedLogin.status===200&&Boolean(linkedLoginCookie)&&linkedLogin.headers.get('set-cookie').includes('HttpOnly'),'Pre-provisioned linked account can sign in with an HttpOnly session cookie');
+const linkedSessionUse=await fetch(base+'/api/members',{headers:{Cookie:linkedLoginCookie}});
+const linkedSessionData=await linkedSessionUse.json();
+check(linkedSessionUse.status===200&&linkedSessionData.actor.id==='sprint1-a','Auth session resolves to the existing member ID, not a new account ID');
+const unlinkedLogin=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'platform@sprint.invalid',password:testPassword})});
+check(unlinkedLogin.status===401,'Matching email without an explicit crosswalk cannot sign in');
+const unknownLogin=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'missing@sprint.invalid',password:testPassword})});
+const [unlinkedError,unknownError]=await Promise.all([unlinkedLogin.json(),unknownLogin.json()]);
+check(unknownLogin.status===401&&JSON.stringify(unlinkedError)===JSON.stringify(unknownError),'Unknown and unlinked login attempts return the same generic rejection');
+const unverifiedLogin=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'unverified@sprint.invalid',password:testPassword})});
+check(unverifiedLogin.status===401,'Correct password is insufficient when a pre-provisioned account lacks verified email');
+check((await req('/api/auth/session','unverified')).s===401,'An existing session is rejected if email verification is absent');
+const oversizedPasswordLogin=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'alpha-a@sprint.invalid',password:'x'.repeat(201)})});
+check(oversizedPasswordLogin.status===401&&JSON.stringify(await oversizedPasswordLogin.json())===JSON.stringify({error:'E-Mail-Adresse oder Passwort ist nicht korrekt.'}),'Oversized password is rejected generically before PBKDF2');
+check((await req('/api/auth/session','unlinkedEmail')).s===401,'Unlinked account session is rejected even when its email matches an existing member');
+localSqlFails("INSERT INTO auth_member_links(auth_user_id,member_id,approved_by,approval_reference,linked_at) VALUES('auth-unlinkedEmail','sprint1-a','operator','must-not-duplicate','now')");
+localSqlFails("UPDATE auth_member_links SET member_id='sprint1-b' WHERE auth_user_id='auth-a'");
+check((await req('/api/cms/locations','editor')).s===401,'Unlinked account cannot reach CMS data');
 const gmActor=await req('/api/members','gm');
 check(gmActor.d.actor.gm&&gmActor.d.actor.role==='campaign_gm','GM identity resolves only to campaign_gm');
 const blockedGm=await req('/api/members','blockedGm');
@@ -194,7 +239,7 @@ check((await req('/api/knowledge','gm','POST',{entityId:entrance,audience:'group
 function localSql(sql) {
   const state=resolve(process.env.CVK_TEST_STATE||'');
   assert.equal(dirname(state),tmpdir());
-  assert.match(basename(state),/^cvk-phase-b-tests-[a-f0-9-]+$/);
+  assert.match(basename(state),/^cvk-phase-c-tests-[a-f0-9-]+$/);
   const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true});
   assert.equal(r.status,0,r.stderr);
 }
@@ -220,6 +265,11 @@ check(!(await locationJson('a')).includes('06 Personalflur'),'Hidden confirmatio
 check((await req('/api/entities?id='+hall,'a')).s===404,'Hidden confirmation does not release generic entity');
 check((await discover(hall,'known',1)).s===200,'Existing hidden grant advances to known');
 check((await locationJson('a')).includes('06 Personalflur'),'Explicit hidden-to-known transition releases to intended player');
+// The Phase-B discovery test intentionally grants this sibling to Player A; clear
+// that isolated fixture grant before proving that a later office release does not
+// itself reveal sibling rooms.
+localSql("DELETE FROM knowledge WHERE campaign_id='chronik-von-kleve' AND entity_id='room.electric-taberna.staff-hall' AND audience='player' AND subject_id='sprint1-a'");
+check(!(await locationJson('a')).includes('06 Personalflur'),'Personal projection fixture reset hides the earlier explicit sibling grant');
 const gmLocationAfterAction=await req('/api/locations?place=place.electric-taberna&view=sl','gm');
 check(JSON.stringify(gmLocationAfterAction.d).includes('"status":"triggered"'),'Prepared location action status persists');
 const shared=await req('/api/records','gm','POST',{kind:'schauplaetze',title:'QA hidden place',visibility:'group',body:{text:'LEGACY_HIDDEN',discovered:false},gmBody:'LEGACY_GM_ONLY'});
@@ -524,4 +574,269 @@ check(backup.records.some(r=>r.id===note.d.id),'Campaign export includes other o
 check(backup.binaries.included===false,'Separate R2 binary handling explicit');
 for(const kind of ['charaktere','inventar','wirtschaft','gefallen','sitzungen','chronik','schauplaetze','nscs','archiv','regelwerk','haendler','termine','neuigkeiten'])check((await req('/api/records?kind='+kind,'gm')).s===200,'Existing API '+kind);
 await req('/api/files','a','DELETE',{id:file.id});await req('/api/records','a','DELETE',{id:note.d.id,version:2});await req('/api/records','gm','DELETE',{id:shared.d.id,version:1});
+
+// Phase C editorial workflow: all records below live only in this disposable Test-D1 and Test-R2.
+localSql(`INSERT INTO members(id,campaign_id,email,name,status,created_at) VALUES
+('sprint1-editor','chronik-von-kleve','editor@sprint.invalid','Phase C Editor','active','phase-c-test'),
+('sprint1-blocked-player','chronik-von-kleve','blocked-player@sprint.invalid','Blocked Phase C Player','blocked','phase-c-test')
+ON CONFLICT(id) DO UPDATE SET status=excluded.status;
+INSERT INTO auth_member_links(auth_user_id,member_id,approved_by,approval_reference,linked_at) VALUES
+('auth-editor','sprint1-editor','isolated-test-operator','TEST_DATA:phase-c-editor','phase-c-test'),
+('auth-blockedPlayer','sprint1-blocked-player','isolated-test-operator','TEST_DATA:phase-c-blocked-player','phase-c-test');
+UPDATE members SET status='active' WHERE id IN ('sprint1-a','sprint1-b');
+INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES
+('chronik-von-kleve','sprint1-a','player','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-b','player','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-editor','campaign_editor','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-blocked-player','player','blocked','manual',1,'phase-c-test','phase-c-test')
+ON CONFLICT(campaign_id,user_id) DO UPDATE SET role=excluded.role,status=excluded.status,version=campaign_memberships.version+1,updated_at=excluded.updated_at;`);
+check((await req('/api/cms/locations','a')).s===403,'Phase C editor APIs deny ordinary players');
+const cmsCatalog=await req('/api/cms/locations','editor');
+check(cmsCatalog.s===200&&cmsCatalog.d.locations.some(place=>place.id==='place.electric-taberna'),'Campaign editor can open existing Electric Taberna without creating a new location');
+const forbiddenEditorCreate=await req('/api/cms/locations','editor','POST',{level:'location',title:'TEST_DATA editor forbidden place'});
+check(forbiddenEditorCreate.s===403,'Campaign editor cannot create new stable world identities');
+const createdCmsPlace=await req('/api/cms/locations','gm','POST',{level:'location',title:'TEST_DATA Etappe 2 Hauptort'});
+check(createdCmsPlace.s===201&&createdCmsPlace.d.id.startsWith('place.')&&createdCmsPlace.d.locationId===createdCmsPlace.d.id,'GM creates a new stable main-place identity');
+const createdCmsArea=await req('/api/cms/locations','gm','POST',{level:'area',parentId:createdCmsPlace.d.id,title:'TEST_DATA Etappe 2 Bereich'});
+check(createdCmsArea.s===201&&createdCmsArea.d.locationId===createdCmsPlace.d.id&&createdCmsArea.d.parentId===createdCmsPlace.d.id,'GM creates an area under its selected main place');
+const createdCmsRoom=await req('/api/cms/locations','gm','POST',{level:'room',parentId:createdCmsArea.d.id,title:'TEST_DATA Etappe 2 Raum'});
+check(createdCmsRoom.s===201&&createdCmsRoom.d.locationId===createdCmsPlace.d.id&&createdCmsRoom.d.parentId===createdCmsArea.d.id,'GM creates a room under its selected area');
+check((await req('/api/cms/locations','gm','POST',{level:'room',parentId:createdCmsPlace.d.id,title:'TEST_DATA wrong parent'})).s===400,'CMS rejects a room placed directly under a main place');
+check((await req('/api/cms/locations','gm','POST',{level:'location',title:'TEST_DATA extra fields',visibility:'public'})).s===400,'CMS creation rejects unknown visibility or payload fields');
+const createdCmsTree=await req('/api/cms/locations?place='+encodeURIComponent(createdCmsPlace.d.id),'gm');
+const createdNodesById=new Map((createdCmsTree.d.nodes||[]).map(item=>[item.id,item]));
+check(createdCmsTree.s===200&&createdNodesById.get(createdCmsPlace.d.id)?.level==='location'&&createdNodesById.get(createdCmsArea.d.id)?.parentId===createdCmsPlace.d.id&&createdNodesById.get(createdCmsRoom.d.id)?.parentId===createdCmsArea.d.id,'New location hierarchy reloads from the existing location_nodes model');
+const createdRootDraft=await req('/api/cms/drafts?entityId='+encodeURIComponent(createdCmsPlace.d.id),'gm');
+const createdAreaDraft=await req('/api/cms/drafts?entityId='+encodeURIComponent(createdCmsArea.d.id),'gm');
+const createdRoomDraft=await req('/api/cms/drafts?entityId='+encodeURIComponent(createdCmsRoom.d.id),'gm');
+check([createdRootDraft,createdAreaDraft,createdRoomDraft].every(result=>result.s===200&&result.d.drafts.length===1&&result.d.drafts[0].status==='draft'&&result.d.drafts[0].audience_scope==='group'),'Each new identity starts with a saved but unpublished group draft');
+check((await req('/api/locations?place='+encodeURIComponent(createdCmsPlace.d.id)+'&view=player&target=player','a')).s===404&&!JSON.stringify((await req('/api/locations?view=player&target=player','a')).d).includes('TEST_DATA Etappe 2'),'New place remains absent from player detail and hub until explicitly released');
+check((await req('/api/cms/releases?entityId=place.electric-taberna&scope=group','editor')).s===403,'Campaign editor cannot read protected publisher controls');
+check((await req('/api/cms/locations','blockedPlayer')).s===403,'Blocked campaign membership cannot open the CMS or campaign APIs');
+check((await req('/api/cms/locations','otherCampaign')).s===403,'A different campaign membership does not grant access to Kleve CMS');
+localSql(`INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at)
+VALUES('info.phase-c-gm-secret','chronik-von-kleve','INFORMATION','WORKING','sprint1-gm','sl','TEST_DATA_SL_ONLY_TITLE',
+'{"locationLevel":"information","title":"TEST_DATA_SL_ONLY_TITLE","text":"TEST_DATA_SL_ONLY_BODY"}','',1,'phase-c-test','phase-c-test');
+INSERT INTO location_nodes(entity_id,campaign_id,location_id,parent_id,level,position,world_state,world_visibility,world_subject_id,markers,attributes,revision,updated_at)
+VALUES('info.phase-c-gm-secret','chronik-von-kleve','place.electric-taberna','place.electric-taberna','information',999,'active','gm',NULL,'[]',
+'{"title":"TEST_DATA_SL_ONLY_TITLE","text":"TEST_DATA_SL_ONLY_BODY","visibility":"gm","discovery":"hidden"}',1,'phase-c-test');
+INSERT INTO knowledge(id,campaign_id,entity_id,audience,subject_id,state,discovery_state,version,granted_by,created_at,updated_at)
+VALUES('knowledge.phase-c-known-root','chronik-von-kleve','place.electric-taberna','player','sprint1-a','DISCOVERED','known',1,'sprint1-gm','phase-c-test','phase-c-test');`);
+const editorLocationTree=await req('/api/cms/locations?place=place.electric-taberna','editor');
+const editorTreeWire=JSON.stringify(editorLocationTree.d);
+check(editorLocationTree.s===200&&!editorTreeWire.includes('TEST_DATA_SL_ONLY_TITLE')&&!editorTreeWire.includes('TEST_DATA_SL_ONLY_BODY'),'Campaign editor location tree omits SL-only information node and its metadata');
+check((await req('/api/cms/drafts?entityId=info.phase-c-gm-secret','editor')).s===404,'Campaign editor cannot address an SL-only information node by its stable ID');
+check(editorLocationTree.s===200&&editorLocationTree.d.nodes.some(item=>item.id==='area.electric-taberna.staff-back'&&item.visibility==='gm')&&editorLocationTree.d.nodes.some(item=>item.id==='room.electric-taberna.office'&&item.visibility==='gm'),'Campaign editor tree clearly labels SL-only areas and rooms without exposing their private revision payloads');
+const gmLocationTree=await req('/api/cms/locations?place=place.electric-taberna','gm');
+check(gmLocationTree.s===200&&gmLocationTree.d.nodes.some(item=>item.id==='info.phase-c-gm-secret'&&item.visibility==='gm')&&gmLocationTree.d.nodes.some(item=>item.id==='area.electric-taberna.staff-back'&&item.visibility==='gm')&&gmLocationTree.d.nodes.some(item=>item.id==='room.electric-taberna.office'&&item.visibility==='gm'),'Spielleitung can identify SL-only information, areas and rooms in the location tree');
+const playerLocationWithGmNote=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+check(playerLocationWithGmNote.s===200&&!JSON.stringify(playerLocationWithGmNote.d).includes('TEST_DATA_SL_ONLY_BODY'),'Known player location projection excludes GM-only information even when its parent is known');
+
+const cmsCreate=(entityId,scope,who='gm',playerId)=>req('/api/cms/drafts',who,'POST',{entityId,audience:scope,...(playerId?{playerId}:{})});
+const cmsSave=(revisionId,expectedVersion,payload,extra={},who='gm')=>req('/api/cms/drafts',who,'PATCH',{revisionId,expectedVersion,payload,...extra});
+const cmsTransition=(who,action,revisionId,expectedVersion,reason='Phase C isolated review')=>req('/api/cms/transitions',who,'POST',{action,revisionId,expectedVersion,reason});
+const cmsRelease=(who,action,entityId,scope,expectedReleaseVersion,revisionId,extra={})=>req('/api/cms/releases',who,'POST',{action,entityId,scope,expectedReleaseVersion,...(revisionId?{revisionId}:{}),...extra,reason:'Phase C isolated Test-D1 release QA'});
+const newPlaceDraft=createdRootDraft.d.drafts[0];
+const newPlacePayload=JSON.parse(newPlaceDraft.player_payload_json);
+const savedNewPlace=await cmsSave(newPlaceDraft.id,newPlaceDraft.version,{...newPlacePayload,title:'TEST_DATA Etappe 2 freigegebener Hauptort'});
+const submittedNewPlace=savedNewPlace.s===200?await cmsTransition('gm','submit',newPlaceDraft.id,savedNewPlace.d.version,'Direktfreigabe im SL-CMS'):null;
+const approvedNewPlace=submittedNewPlace?.s===200?await cmsTransition('gm','approve',newPlaceDraft.id,submittedNewPlace.d.version,'Direktfreigabe im SL-CMS'):null;
+const publishedNewPlace=approvedNewPlace?.s===200?await req('/api/cms/releases','gm','POST',{action:'publish',entityId:createdCmsPlace.d.id,scope:'group',revisionId:newPlaceDraft.id,expectedReleaseVersion:0,discoveryState:'known',reason:'Direktfreigabe im SL-CMS'}):null;
+const newPlacePlayerView=publishedNewPlace?.s===200?await req('/api/locations?place='+encodeURIComponent(createdCmsPlace.d.id)+'&view=player&target=player','a'):null;
+const newPlaceReleaseLog=publishedNewPlace?.s===200?await req('/api/cms/releases?entityId='+encodeURIComponent(createdCmsPlace.d.id)+'&scope=group','gm'):null;
+check(savedNewPlace.s===200&&submittedNewPlace?.s===200&&approvedNewPlace?.s===200&&publishedNewPlace?.s===200&&newPlacePlayerView?.d.projection.location.title==='TEST_DATA Etappe 2 freigegebener Hauptort'&&newPlaceReleaseLog?.d.history[0]?.reason==='Direktfreigabe im SL-CMS','New location group draft completes save, submit, approve, publish, player projection, and auditable default note');
+const publicDraft=await cmsCreate('place.electric-taberna','public','gm');
+check(publicDraft.s===201&&publicDraft.d.geography.status==='unknown','Existing Electric Taberna can start an explicit public draft with unknown geodata');
+const gmNoteDraft=await cmsCreate('info.phase-c-gm-secret','gm','gm');
+check(gmNoteDraft.s===201&&gmNoteDraft.d.gmSecret.text==='TEST_DATA_SL_ONLY_BODY','Spielleitung receives the existing protected note only in its internal draft payload');
+check((await cmsCreate('info.phase-c-gm-secret','group','gm')).s===404,'GM-only information cannot be opened as a group/player draft');
+check((await req('/api/cms/drafts','editor','POST',{entityId:'recovery.synthetic-secret',audience:'group'})).s===404,'Recovery-only or unknown IDs cannot be opened as CMS locations');
+const cmsPng=new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,1,2,3]);
+const cmsForm=new FormData();cmsForm.set('file',new Blob([cmsPng],{type:'image/png'}),'phase-c-test.png');
+const mediaResponse=await fetch(base+'/api/cms/media',{method:'POST',headers:ids.gm,body:cmsForm});const media=await mediaResponse.json();
+check(mediaResponse.status===201&&media.id,'Spielleitung can place a synthetic image into private Test-R2 through the CMS uploader');
+localSql(`INSERT INTO members(id,email,name,status,campaign_id,created_at) VALUES
+('sprint1-helena','helena@phase-c.invalid','Helena test target','active','chronik-von-kleve','phase-c-test'),
+('sprint1-doro','doro@phase-c.invalid','Doro test target','active','chronik-von-kleve','phase-c-test');
+INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES
+('chronik-von-kleve','sprint1-helena','player','active','manual',1,'phase-c-test','phase-c-test'),
+('chronik-von-kleve','sprint1-doro','player','active','manual',1,'phase-c-test','phase-c-test');`);
+const personalHelena=await cmsCreate('room.electric-taberna.office','player','gm','sprint1-helena');
+const personalDoro=await cmsCreate('room.electric-taberna.office','player','gm','sprint1-doro');
+const publicOfficeDraft=await cmsCreate('room.electric-taberna.office','public','gm');
+check(personalHelena.s===201&&personalDoro.s===201&&publicOfficeDraft.s===201,'Isolated editor-scope fixtures create two personal drafts and one public draft');
+const savedHelena=await cmsSave(personalHelena.d.id,1,{...personalHelena.d.payload,title:'TEST_DATA_HELENA_PERSONAL_PRIVATE'},{heroFileId:media.id});
+const savedDoro=await cmsSave(personalDoro.d.id,1,{...personalDoro.d.payload,title:'TEST_DATA_DORO_PERSONAL_PRIVATE'},{heroFileId:media.id});
+const savedPublicOffice=await cmsSave(publicOfficeDraft.d.id,1,{...publicOfficeDraft.d.payload,title:'TEST_DATA_PUBLIC_OFFICE_PRIVATE'},{heroFileId:media.id});
+check(savedHelena.s===200&&savedDoro.s===200&&savedPublicOffice.s===200,'Personal and public test revisions contain distinct private content and image metadata');
+const editorCmsForm=new FormData();editorCmsForm.set('file',new Blob([cmsPng],{type:'image/png'}),'phase-c-editor-test.png');
+const editorMediaResponse=await fetch(base+'/api/cms/media',{method:'POST',headers:ids.editor,body:editorCmsForm});const editorMedia=await editorMediaResponse.json();
+check(editorMediaResponse.status===201&&editorMedia.id,'Campaign editor can upload an image into isolated private Test-R2');
+const editorOfficeGroupDraft=await cmsCreate('room.electric-taberna.office','group','editor');
+const editorMediaLibrary=await fetch(base+`/api/cms/media?library=1&entityId=room.electric-taberna.office&revisionId=${editorOfficeGroupDraft.d.id}`,{headers:ids.editor});
+const editorMediaLibraryBody=await editorMediaLibrary.json();
+check(editorMediaLibrary.status===200&&editorMediaLibraryBody.files.some(item=>item.id===editorMedia.id)&&!editorMediaLibraryBody.files.some(item=>item.id===media.id),`CMS media picker returns only owned campaign images (HTTP ${editorMediaLibrary.status}; ${JSON.stringify(editorMediaLibraryBody)})`);
+const mediaPreviewUrl=(fileId,revisionId,entityId='room.electric-taberna.office')=>base+'/api/cms/media?id='+encodeURIComponent(fileId)+'&entityId='+encodeURIComponent(entityId)+'&revisionId='+encodeURIComponent(revisionId)+'&preview=1';
+const candidateImagePreview=await fetch(mediaPreviewUrl(editorMedia.id,editorOfficeGroupDraft.d.id)+'&candidate=1',{headers:ids.editor});
+const foreignCandidateImagePreview=await fetch(mediaPreviewUrl(media.id,editorOfficeGroupDraft.d.id)+'&candidate=1',{headers:ids.editor});
+check(candidateImagePreview.status===200&&foreignCandidateImagePreview.status===404,'Unattached image selection preview requires an exact allowed draft and file ownership');
+const savedEditorOfficeGroup=await cmsSave(editorOfficeGroupDraft.d.id,1,{...editorOfficeGroupDraft.d.payload,title:'TEST_DATA_GROUP_OFFICE_ALLOWED'},{heroFileId:editorMedia.id},'editor');
+check(savedEditorOfficeGroup.s===200,'Campaign editor can save the allowed group draft and its owned image');
+const editorOfficeDraftList=await req('/api/cms/drafts?entityId=room.electric-taberna.office','editor');
+const editorOfficeDraftWire=JSON.stringify(editorOfficeDraftList.d);
+check(editorOfficeDraftList.s===200&&editorOfficeDraftList.d.drafts.length===1&&editorOfficeDraftList.d.drafts[0].id===editorOfficeGroupDraft.d.id&&editorOfficeDraftList.d.drafts[0].audience_scope==='group'&&editorOfficeDraftList.d.drafts[0].audience_key==='@group','Campaign editor draft listing is server-filtered to the exact @group revision');
+check([personalHelena.d.id,personalDoro.d.id,publicOfficeDraft.d.id,'sprint1-helena','sprint1-doro',media.id,'TEST_DATA_HELENA_PERSONAL_PRIVATE','TEST_DATA_DORO_PERSONAL_PRIVATE','TEST_DATA_PUBLIC_OFFICE_PRIVATE'].every(marker=>!editorOfficeDraftWire.includes(marker)),'Editor draft response contains no personal/public revision IDs, content, player IDs or private image metadata');
+const guessedPersonalPreview=await req('/api/cms/preview','editor','POST',{revisionId:personalHelena.d.id});
+const guessedPublicPreview=await req('/api/cms/preview','editor','POST',{revisionId:publicOfficeDraft.d.id});
+check(guessedPersonalPreview.s===404&&guessedPublicPreview.s===404&&!JSON.stringify(guessedPersonalPreview.d).includes('TEST_DATA')&&!JSON.stringify(guessedPublicPreview.d).includes('TEST_DATA'),'Guessed personal/public revision IDs return opaque not-found from the preview API');
+const guessedPersonalImage=await fetch(mediaPreviewUrl(media.id,personalHelena.d.id),{headers:ids.editor});
+const guessedPublicImage=await fetch(mediaPreviewUrl(media.id,publicOfficeDraft.d.id),{headers:ids.editor});
+check(guessedPersonalImage.status===404&&guessedPublicImage.status===404,'Editor cannot fetch personal or public revision images through CMS preview');
+const editorGroupImagePreview=await fetch(mediaPreviewUrl(editorMedia.id,editorOfficeGroupDraft.d.id),{headers:ids.editor});
+check(editorGroupImagePreview.status===200&&editorGroupImagePreview.headers.get('cache-control')==='private, no-store','Editor can preview the image attached to the exact authorized group revision');
+const unattachedGroupImage=await fetch(mediaPreviewUrl(media.id,editorOfficeGroupDraft.d.id),{headers:ids.editor});
+check(unattachedGroupImage.status===404,'Editor cannot combine an authorized group revision with a different unattached image ID');
+const guessedPersonalSave=await req('/api/cms/drafts','editor','PATCH',{revisionId:personalHelena.d.id,expectedVersion:2,payload:personalHelena.d.payload});
+check(guessedPersonalSave.s===404&&!JSON.stringify(guessedPersonalSave.d).includes('TEST_DATA'),'Guessed personal revision cannot be read or changed through the draft save API');
+const submittedHelenaPrivate=await cmsTransition('gm','submit',personalHelena.d.id,savedHelena.d.version);
+check(submittedHelenaPrivate.s===200,'Private Helena test revision leaves draft state without exposing it to the editor');
+localSql(`INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at) VALUES
+('phase-c-foreign-place','phase-b-other-campaign','PLACE','WORKING','sprint1-other-campaign','sl','TEST_FOREIGN_CMS_ONLY','{}','',1,'phase-c-test','phase-c-test');
+INSERT INTO location_nodes(entity_id,campaign_id,location_id,parent_id,level,position,world_state,world_visibility,world_subject_id,markers,attributes,revision,updated_at)
+VALUES('phase-c-foreign-place','phase-b-other-campaign','phase-c-foreign-place',NULL,'location',0,'active','gm',NULL,'[]','{"title":"TEST_FOREIGN_CMS_ONLY"}',1,'phase-c-test');
+INSERT INTO files(id,campaign_id,owner_id,visibility,name,mime,size,key,created_at)
+VALUES('media.foreign-phase-c','phase-b-other-campaign','sprint1-other-campaign','sl','foreign.png','image/png',1,'phase-c/foreign-image','phase-c-test');
+INSERT INTO entity_revisions(id,campaign_id,entity_id,revision_no,parent_revision_id,audience_scope,audience_key,audience_user_id,status,base_entity_version,version,player_payload_json,gm_secret_json,geography_json,author_id,created_at,updated_at)
+VALUES('revision.foreign-phase-c','phase-b-other-campaign','phase-c-foreign-place',1,NULL,'group','@group',NULL,'draft',1,1,'{"title":"TEST_FOREIGN_REVISION_PRIVATE"}','{}','{"status":"unknown"}','sprint1-other-campaign','phase-c-test','phase-c-test');
+INSERT INTO entity_revision_media(id,campaign_id,entity_id,revision_id,file_id,audience_scope,audience_key,purpose,alt_text,position,created_at)
+VALUES('attachment.foreign-phase-c','phase-b-other-campaign','phase-c-foreign-place','revision.foreign-phase-c','media.foreign-phase-c','group','@group','hero','',0,'phase-c-test');`);
+const foreignCampaignImage=await fetch(mediaPreviewUrl('media.foreign-phase-c','revision.foreign-phase-c','phase-c-foreign-place'),{headers:ids.editor});
+check(foreignCampaignImage.status===404,'Campaign editor cannot address a real revision or media row belonging to another campaign');
+const foreignCampaignDraftList=await req('/api/cms/drafts?entityId=phase-c-foreign-place','editor');
+check(foreignCampaignDraftList.s===404&&!JSON.stringify(foreignCampaignDraftList.d).includes('TEST_FOREIGN'),'Campaign editor cannot list drafts from a foreign campaign');
+const editorDirectMedia=await fetch(base+'/api/files?id='+media.id,{headers:ids.editor});
+check(editorDirectMedia.status===404,'Private CMS media has no generic direct-file URL for campaign editors');
+const publicPayload={...publicDraft.d.payload,title:'TEST_DATA Electric Taberna public release',summary:'TEST_DATA freigegebene öffentliche Zusammenfassung'};
+const firstSave=await cmsSave(publicDraft.d.id,1,publicPayload,{geography:{status:'unknown'},heroFileId:media.id});
+check(firstSave.s===200&&firstSave.d.version===2,'Draft save uses expectedVersion and can attach private campaign media');
+const invalidCmsPayload=await cmsSave(publicDraft.d.id,2,{...publicPayload,gm_body:'MUST_NOT_PERSIST'});
+check(invalidCmsPayload.s===400,'Strict player-content schema rejects unknown secret fields');
+const cmsRace=await Promise.all([
+  cmsSave(publicDraft.d.id,2,{...publicPayload,title:'TEST_DATA parallel A'},{geography:{status:'unknown'},heroFileId:media.id}),
+  cmsSave(publicDraft.d.id,2,{...publicPayload,title:'TEST_DATA parallel B'},{geography:{status:'unknown'},heroFileId:media.id}),
+]);
+check(cmsRace.filter(result=>result.s===200).length===1&&cmsRace.filter(result=>result.s===409).length===1,'Two simultaneous draft saves from the same version yield one success and one 409');
+const savedDrafts=await req('/api/cms/drafts?entityId=place.electric-taberna','gm');
+const savedPublic=savedDrafts.d.drafts.find(item=>item.id===publicDraft.d.id);
+check(savedPublic.version===3&&savedPublic.hero_file_id===media.id,'Draft reload preserves its winning content version and attached image');
+const previewImage=await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}&preview=1`,{headers:ids.gm});
+check(previewImage.status===200&&previewImage.headers.get('cache-control')==='private, no-store','Authorized CMS preview streams image bytes through the private proxy');
+check((await fetch(base+'/api/files?id='+media.id,{headers:ids.a})).status===404,'Player cannot read an unpublished SL-only R2 media object');
+check((await req('/api/files','gm','DELETE',{id:media.id})).s===409,'Existing file delete API refuses a referenced editorial image');
+check((await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a})).status===404,'Player cannot request an unpublished draft media URL');
+const submitted=await cmsTransition('gm','submit',publicDraft.d.id,savedPublic.version);
+check(submitted.s===200&&submitted.d.status==='in_review','Draft can be submitted into the review queue');
+check((await cmsTransition('editor','approve',publicDraft.d.id,submitted.d.version)).s===403,'Campaign editor cannot self-approve submitted material');
+const approved=await cmsTransition('gm','approve',publicDraft.d.id,submitted.d.version);
+check(approved.s===200&&approved.d.status==='approved','Campaign GM approves the reviewed revision');
+const publicRaces=await Promise.all([
+  cmsRelease('gm','publish','place.electric-taberna','public',0,publicDraft.d.id),
+  cmsRelease('gm','publish','place.electric-taberna','public',0,publicDraft.d.id),
+]);
+check(publicRaces.filter(result=>result.s===200).length===1&&publicRaces.filter(result=>result.s===409).length===1,'Parallel publication for the same target version allows only one writer');
+const publicHistory=await req('/api/cms/releases?entityId=place.electric-taberna&scope=public','gm');
+check(publicHistory.s===200&&publicHistory.d.currentVersion===1,'Release ledger starts at target-specific version 1');
+const approvedButUnreleased=await cmsCreate('place.electric-taberna','public','gm');
+const unreleasedPayload={...approvedButUnreleased.d.payload,title:'TEST_DATA approved but never released'};
+const unreleasedSaved=await cmsSave(approvedButUnreleased.d.id,1,unreleasedPayload,{geography:{status:'unknown'} });
+const unreleasedSubmitted=await cmsTransition('gm','submit',approvedButUnreleased.d.id,unreleasedSaved.d.version);
+const unreleasedApproved=await cmsTransition('gm','approve',approvedButUnreleased.d.id,unreleasedSubmitted.d.version);
+const stillPublishedDuringUnreleased=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+check(unreleasedApproved.s===200&&stillPublishedDuringUnreleased.d.projection.location.title.startsWith('TEST_DATA parallel')&&!JSON.stringify(stillPublishedDuringUnreleased.d).includes('TEST_DATA approved but never released'),'Approving an unreleased revision does not change the live player projection');
+const nextPublicRevision=await cmsCreate('place.electric-taberna','public','gm');
+check(nextPublicRevision.s===201&&nextPublicRevision.d.revisionNo===3&&nextPublicRevision.d.payload.title.startsWith('TEST_DATA parallel')&&!nextPublicRevision.d.payload.title.includes('never released')&&nextPublicRevision.d.geography.status==='unknown'&&nextPublicRevision.d.heroFileId===media.id,`A new draft starts from the exact released payload, geography and image, not a newer approved-but-unreleased revision (${JSON.stringify(nextPublicRevision.d)})`);
+const nextPublicDraftList=await req('/api/cms/drafts?entityId=place.electric-taberna','gm');
+check(nextPublicDraftList.d.drafts.find(item=>item.id===nextPublicRevision.d.id)?.hero_file_id===media.id,'The new draft persists its inherited released image attachment for reload');
+const publicPlayer=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+const publicHub=await req('/api/locations?view=player&target=player','b');
+const anonymousPublicReader=await fetch(base+'/api/locations?place=place.electric-taberna&view=player');
+const anonymousPublicReaderBody=await anonymousPublicReader.text();
+check(anonymousPublicReader.status===401&&!anonymousPublicReaderBody.includes('TEST_DATA parallel'),'Public-target content is not anonymously readable through the authenticated-only location reader');
+check(publicPlayer.s===200&&publicPlayer.d.projection.location.title.startsWith('TEST_DATA parallel'),'Published content reaches player detail through the shared projector');
+check(publicHub.s===200&&publicHub.d.places.some(place=>place.id==='place.electric-taberna'&&place.title.startsWith('TEST_DATA parallel')),'Published title feeds the same safe hub/search/map tile source');
+check(publicPlayer.d.projection.location.geography.status==='unknown'&&!publicHub.d.places.find(place=>place.id==='place.electric-taberna').geography.coordinates,'Unknown Electric Taberna geodata produces no player coordinates or marker');
+const liveMedia=await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a});
+check(liveMedia.status===200&&liveMedia.headers.get('content-type')==='image/png','Player can stream the published target image only via the authorized R2 proxy');
+check((await fetch(base+'/api/files?id='+media.id,{headers:ids.a})).status===404,'Published editorial image never becomes a direct generic file URL');
+
+const groupDraft=await cmsCreate('place.electric-taberna','group','editor');
+check(groupDraft.s===201&&groupDraft.d.payload.title===publicPlayer.d.projection.location.title&&groupDraft.d.heroFileId===media.id,'A new group draft inherits the effective public player projection when no group release exists');
+const groupPayload={...groupDraft.d.payload,title:'TEST_DATA Electric Taberna group release',summary:'TEST_DATA freigegebener Gruppentext'};
+const groupSaved=await cmsSave(groupDraft.d.id,1,groupPayload,{geography:{status:'unknown'},heroFileId:editorMedia.id},'editor');
+check(groupSaved.s===200,'Campaign editor can save a group-scoped draft');
+const groupMediaPreview=await fetch(mediaPreviewUrl(editorMedia.id,groupDraft.d.id,'place.electric-taberna'),{headers:ids.editor});
+check(groupMediaPreview.status===200,'Campaign editor can preview a media file attached to its concrete group revision');
+const groupSubmitted=await cmsTransition('editor','submit',groupDraft.d.id,groupSaved.d.version);
+check(groupSubmitted.s===200,'Campaign editor can submit group draft for review');
+const groupApproved=await cmsTransition('gm','approve',groupDraft.d.id,groupSubmitted.d.version);
+check(groupApproved.s===200,'Campaign GM can approve group draft');
+const groupPreview=await req('/api/cms/preview','editor','POST',{revisionId:groupDraft.d.id});
+check(groupPreview.s===200&&groupPreview.d.projection.location.title==='TEST_DATA Electric Taberna group release','Editor preview uses the shared player-safe projector for its actual target');
+check(groupPreview.d.projection.location.image?.includes(`revisionId=${groupDraft.d.id}&preview=1`),'Draft dossier projection marks its attached hero image for the protected preview route');
+check((await fetch(base+groupPreview.d.projection.location.image,{headers:ids.editor})).status===200,'Authorized CMS draft dossier streams its attached private hero image through the protected preview route');
+check((await fetch(base+groupPreview.d.projection.location.image.replace('&preview=1',''),{headers:ids.a})).status===404,'An unpublished draft hero image remains unavailable through the ordinary player media route');
+const groupPublished=await cmsRelease('gm','publish','place.electric-taberna','group',0,groupDraft.d.id,{discoveryState:'known'});
+check(groupPublished.s===200,'Approved group revision publishes to the exact group target');
+const groupImageLiveUrl=mediaPreviewUrl(editorMedia.id,groupDraft.d.id,'place.electric-taberna').replace('&preview=1','');
+check((await fetch(groupImageLiveUrl,{headers:ids.a})).status===200,'Published group revision image is served to an entitled player through the live projection');
+const areaGroupDraft=await cmsCreate('area.electric-taberna.public-guests','group','editor');
+const areaGroupSaved=await cmsSave(areaGroupDraft.d.id,1,{...areaGroupDraft.d.payload,playerHint:'TEST_DATA freigegebener Bereichshinweis'},{heroFileId:editorMedia.id},'editor');
+const areaDraftPreview=await req('/api/cms/preview','editor','POST',{revisionId:areaGroupDraft.d.id});
+const areaDraftImage=areaDraftPreview.d.projection.location.areas.find(area=>area.viewKey==='area.electric-taberna.public-guests'||area.title==='Öffentlicher Gästebereich');
+check(areaDraftPreview.s===200&&areaDraftImage?.image?.includes(`revisionId=${areaGroupDraft.d.id}&preview=1`),'Draft area image uses a revision-bound protected preview URL');
+check((await fetch(base+areaDraftImage.image,{headers:ids.editor})).status===200,'Authorized CMS preview streams the private draft area image');
+const areaGroupSubmitted=await cmsTransition('editor','submit',areaGroupDraft.d.id,areaGroupSaved.d.version);
+const areaGroupApproved=await cmsTransition('gm','approve',areaGroupDraft.d.id,areaGroupSubmitted.d.version);
+check(areaGroupApproved.s===200&&(await cmsRelease('gm','publish','area.electric-taberna.public-guests','group',0,areaGroupDraft.d.id,{discoveryState:'known'})).s===200,'Area image revision passes review and targeted release on the existing area identity');
+const playerAreaProjection=(await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d.projection.location.areas.find(area=>area.title==='Öffentlicher Gästebereich');
+check(playerAreaProjection?.image===`/api/cms/media?id=${encodeURIComponent(editorMedia.id)}&entityId=${encodeURIComponent('area.electric-taberna.public-guests')}&revisionId=${encodeURIComponent(areaGroupDraft.d.id)}`,'Player projection includes the released image only on its matching known area');
+check((await fetch(base+playerAreaProjection.image,{headers:ids.a})).status===200,'Entitled player can retrieve an area image through the protected CMS media proxy');
+check((await fetch(base+playerAreaProjection.image,{headers:ids.b})).status===200,'Group release grants the same area image to another member of that target group');
+check((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d.projection.location.title==='TEST_DATA Electric Taberna group release','Group release supersedes lower public release for Player A');
+const blockedRelease=await cmsRelease('gm','block','place.electric-taberna','group',1,null);
+check((await fetch(groupImageLiveUrl,{headers:ids.editor})).status===404,'Group image is not live-readable to the editor after the target is blocked');
+check(blockedRelease.s===200&&(await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).s===404,'A group block suppresses both that release and lower public/legacy fallback');
+check((await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a})).status===404,'Blocking higher-priority content also blocks lower-priority media');
+const revokedBlock=await cmsRelease('gm','revoke','place.electric-taberna','group',2,null);
+check((await fetch(groupImageLiveUrl,{headers:ids.editor})).status===404,'Revoked group image remains unavailable when the player projection falls through to a different release');
+check(revokedBlock.s===200,'A later revoke may remove a previous explicit block');
+const fallbackPlayer=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+check(fallbackPlayer.s===200&&fallbackPlayer.d.projection.location.title.startsWith('TEST_DATA parallel'),'Revoke falls through only to the explicit lower public release, never old entity fields');
+check((await fetch(base+`/api/cms/media?id=${media.id}&entityId=place.electric-taberna&revisionId=${publicDraft.d.id}`,{headers:ids.a})).status===200,'Authorized media follows the same lower public release after a group revoke');
+
+const personalArea=await cmsCreate('area.electric-taberna.staff-back','player','gm','sprint1-a');
+check(personalArea.s===201,'Spielleitung can draft for one explicitly selected active player');
+const areaSubmitted=await cmsTransition('gm','submit',personalArea.d.id,personalArea.d.version);
+const areaApproved=await cmsTransition('gm','approve',personalArea.d.id,areaSubmitted.d.version);
+check(areaApproved.s===200,'Personal-area revision goes through the same review transition');
+check((await cmsRelease('gm','publish','area.electric-taberna.staff-back','player',0,personalArea.d.id,{playerId:'sprint1-a',discoveryState:'known'})).s===200,'Personal release is bound to Player A and creates matching discovery');
+const playerAAfterArea=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d);
+const playerBAfterArea=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','b')).d);
+const groupAfterArea=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=group','gm')).d);
+check(playerAAfterArea.includes('Personal-/Hinterbereich'),'Player A sees the personally granted area');
+check(!playerBAfterArea.includes('Personal-/Hinterbereich')&&!groupAfterArea.includes('Personal-/Hinterbereich'),'Player B and group preview do not see Player A personal area');
+const personalOffice=await cmsCreate('room.electric-taberna.office','player','gm','sprint1-a');
+const officeSubmit=await cmsTransition('gm','submit',personalOffice.d.id,personalOffice.d.version);
+const officeApprove=await cmsTransition('gm','approve',personalOffice.d.id,officeSubmit.d.version);
+check(officeApprove.s===200,'Personal room draft can be reviewed');
+check((await cmsRelease('gm','publish','room.electric-taberna.office','player',0,personalOffice.d.id,{playerId:'sprint1-a',discoveryState:'known'})).s===200,'Personal office release creates Player A discovery');
+const officeA=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d);
+const officeB=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','b')).d);
+const officeGroup=JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=group','gm')).d);
+check(officeA.includes('07 Büro'),'Player A sees their personally released office');
+check(!officeB.includes('07 Büro')&&!officeGroup.includes('07 Büro'),'Player B and group do not see the personal office');
+for(const secretSibling of ['06 Personalflur','08 Hof & Anlieferung','Keller & Service','legacy-1bf8cd98','Elysium / Camarilla'])check(!officeA.includes(secretSibling),'Personal office grant does not reveal sibling or legacy secret '+secretSibling);
+check((await req('/api/cms/drafts?entityId=room.electric-taberna.office','b')).s===403,'A player cannot read other users’ drafts');
+check((await req('/api/locations?view=player&target=player','blockedPlayer')).s===403,'Blocked player identity cannot read player hub');
+check((await req('/api/cms/drafts','gm','POST',{entityId:'recovery.synthetic-secret',audience:'public'})).s===404,'Recovery entities cannot be drafted or published through location CMS');
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');

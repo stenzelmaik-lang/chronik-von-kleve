@@ -339,6 +339,7 @@ function projectAreaForPlayer(area: PlaceArea): ProjectedArea[] {
       {
         order: area.order,
         title: area.title,
+        image: area.image,
         discovery: area.discovery,
         worldState: area.worldState,
         markers: area.markers,

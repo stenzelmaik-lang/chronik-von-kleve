@@ -9,9 +9,10 @@ export type WorldMapPlace = Pick<WorldHubPlace, "id" | "title" | "discovery" | "
 
 export type WorldMapMarker = WorldMapPlace & {
   coordinates: [longitude: number, latitude: number];
-  precision: "exact" | "approximate";
+  precision: "exact" | "approximate" | "candidate";
   source: string;
   accuracyMeters?: number;
+  editorDraft?: boolean;
 };
 
 const MAP_KNOWLEDGE = new Set<DiscoveryState>(["known", "visited", "investigated"]);
@@ -43,4 +44,15 @@ export function mapMarkersForPlaces(places: readonly WorldHubPlace[], includeUnr
       ...(place.geography.status === "approximate" ? { accuracyMeters: place.geography.accuracyMeters } : {}),
     }];
   });
+}
+
+/** Keep the map focused on the one place currently selected in the tile list. */
+export function activeMapMarkersForPlace(
+  places: readonly WorldHubPlace[],
+  activePlaceId: string | null | undefined,
+  includeUnrevealed = false,
+): WorldMapMarker[] {
+  if (!activePlaceId) return [];
+  const activePlace = places.find((place) => place.id === activePlaceId);
+  return activePlace ? mapMarkersForPlaces([activePlace], includeUnrevealed) : [];
 }

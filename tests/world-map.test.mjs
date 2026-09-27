@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { mapMarkersForPlaces, playerMapPlaces, visibleWorldPlaces } from "../app/spielbereich/modules/world-map-contract.ts";
+import { activeMapMarkersForPlace, mapMarkersForPlaces, playerMapPlaces, visibleWorldPlaces } from "../app/spielbereich/modules/world-map-contract.ts";
 import { parseStoredLocationGeography, projectLocationGeography } from "../server/location-geography.ts";
 
 const exact = (coordinates, visibility = "group") => ({
@@ -46,6 +46,9 @@ test("tiles and markers are generated generically for multiple released places",
   assert.deepEqual(playerMapPlaces(places).map(item => item.id), places.map(item => item.id));
   assert.deepEqual(mapMarkersForPlaces(places).map(item => item.id), ["place.synthetic-second", "place.synthetic-third"]);
   assert.deepEqual(mapMarkersForPlaces(places).map(item => item.coordinates), [[6.2, 51.8], [6.3, 51.9]]);
+  assert.deepEqual(activeMapMarkersForPlace(places, "place.synthetic-third").map(item => item.id), ["place.synthetic-third"]);
+  assert.deepEqual(activeMapMarkersForPlace(places, "place.electric-taberna"), []);
+  assert.deepEqual(activeMapMarkersForPlace(places, null), []);
 });
 
 test("hidden and rumored places cannot produce player tiles or markers", () => {
@@ -53,6 +56,8 @@ test("hidden and rumored places cannot produce player tiles or markers", () => {
   assert.deepEqual(visibleWorldPlaces(places), []);
   assert.deepEqual(playerMapPlaces(places), []);
   assert.deepEqual(mapMarkersForPlaces(places), []);
+  assert.deepEqual(activeMapMarkersForPlace(places, "place.hidden"), []);
+  assert.deepEqual(activeMapMarkersForPlace(places, "place.hidden", true).map(item => item.id), ["place.hidden"]);
   assert.deepEqual(visibleWorldPlaces(places, true).map(item => item.id), ["place.hidden", "place.rumored"]);
 });
 
@@ -70,7 +75,8 @@ test("MapLibre retains its regional start frame and manages a generic marker col
   assert.match(experience, /import\("\.\/world-maplibre"\)/);
   assert.match(experience, /visibleWorldPlaces\(mapHub, view === "sl"\)/);
   assert.match(experience, /return safeMapPlaces\.filter/);
-  assert.match(experience, /mapMarkersForPlaces\(safeMapPlaces, view === "sl"\)/);
+  assert.match(experience, /activeMapMarkersForPlace\(matchingMapPlaces, selected\?\.id, view === "sl"\)/);
+  assert.match(experience, /useState<"player" \| "sl">\(a\.gm \? "sl" : "player"\)/);
   assert.doesNotMatch(experience, /place\.electric-taberna|prototype-test-coordinate|6\.13827/);
   assert.match(mapModule, /https:\/\/tiles\.openfreemap\.org\/styles\/dark/);
   assert.match(mapModule, /new Map<string/);

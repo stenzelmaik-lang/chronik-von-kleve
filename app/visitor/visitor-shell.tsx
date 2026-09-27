@@ -1,170 +1,19 @@
-/* eslint-disable @next/next/no-html-link-for-pages -- Native Home links guarantee a full document transition between independent shells. */
-/* eslint-disable @next/next/no-img-element -- Existing project assets are served from the public folder and used as authored page imagery. */
-import {
-  ArrowRight,
-  BookOpen,
-  ChevronRight,
-  LogIn,
-  Map,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
-
+/* eslint-disable @next/next/no-img-element */
+import { ArrowRight, BookOpen, Compass, LockKeyhole, MapPin, Menu, Milestone, ShieldCheck, Sparkles, Users } from "lucide-react";
 import type { VisitorContent } from "./content";
-
 import styles from "./visitor-shell.module.css";
-
-type VisitorShellProps = {
-  content: VisitorContent;
-  entryHref: string;
-  isSignedIn: boolean;
-};
-
-const navItems = [
-  { label: "Chronik", href: "#chronik" },
-  { label: "Welt", href: "#welt" },
-  { label: "Mitspieler", href: "#mitspieler" },
-];
-
-const icons = [BookOpen, Map, Users];
-
-export function VisitorShell({
-  content,
-  entryHref,
-  isSignedIn,
-}: VisitorShellProps) {
-  return (
-    <main className={styles.visitorShell}>
-      <header className={styles.navbar} aria-label="Oeffentliche Navigation">
-        <a href="/" className={styles.brand} aria-label="Zur Startseite">
-          <span className={styles.brandMark}>CVK</span>
-          <span className={styles.brandText}>Chronik von Kleve</span>
-        </a>
-
-        <nav className={styles.desktopNav} aria-label="Startseitenbereiche">
-          {navItems.map((item) => (
-            <a href={item.href} key={item.href}>
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <a className={styles.navEntry} href={entryHref} target="_top">
-          {isSignedIn ? "Spielbereich" : "Anmelden"}
-          <LogIn aria-hidden="true" size={16} />
-        </a>
-
-        <details className={styles.mobileNav}>
-          <summary>Menue</summary>
-          <div>
-            {navItems.map((item) => (
-              <a href={item.href} key={item.href}>
-                {item.label}
-              </a>
-            ))}
-            <a href={entryHref} target="_top">
-              {isSignedIn ? "Spielbereich" : "Anmelden"}
-            </a>
-          </div>
-        </details>
-      </header>
-
-      <section className={styles.hero} aria-labelledby="visitor-title">
-        <div className={styles.heroBackdrop} aria-hidden="true">
-          <img src={content.heroImage} alt="" />
-        </div>
-        <div className={styles.heroGrid}>
-          <div className={styles.heroCopy}>
-            <p className={styles.kicker}>{content.system}</p>
-            <h1 id="visitor-title">{content.title}</h1>
-            <p>{content.intro}</p>
-            <div className={styles.heroActions}>
-              <a className={styles.primaryAction} href={entryHref} target="_top">
-                {isSignedIn ? "Spielbereich betreten" : "Mit ChatGPT anmelden"}
-                <ArrowRight aria-hidden="true" size={18} />
-              </a>
-              <a className={styles.secondaryAction} href="#chronik">
-                Oeffentliche Seite ansehen
-              </a>
-            </div>
-          </div>
-
-          <aside className={styles.signalPanel} aria-label="Chronik Signal">
-            <span>V20</span>
-            <strong>Story Companion</strong>
-            <p>Eine Stadt. Eine Runde. Eine gemeinsame Chronik.</p>
-          </aside>
-        </div>
-      </section>
-
-      <section className={styles.introBand} id="chronik">
-        <div>
-          <p className={styles.kicker}>Chronik von Kleve</p>
-          <h2>Unsere Chronik beginnt in Kleve.</h2>
-        </div>
-        <p>
-          Ein gemeinsamer Ort zwischen den Spielabenden: fuer die Runde,
-          ihre Erinnerungen und die naechsten Schritte in der Chronik.
-        </p>
-      </section>
-
-      <section className={styles.storySection} id="welt">
-        <div className={styles.storyMedia}>
-          <img src={content.cityImage} alt="Bestehendes Titelmotiv der Chronik von Kleve" />
-        </div>
-
-        <div className={styles.storyCopy}>
-          {content.sections.map((section, index) => {
-            const Icon = icons[index] ?? ShieldCheck;
-            return (
-              <article className={styles.storyBlock} key={section.label}>
-                <div className={styles.storyIcon}>
-                  <Icon aria-hidden="true" size={20} />
-                </div>
-                <div>
-                  <p className={styles.kicker}>{section.label}</p>
-                  <h3>{section.title}</h3>
-                  <p>{section.text}</p>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={styles.accessBand} id="mitspieler">
-        <div>
-          <p className={styles.kicker}>Zugang</p>
-          <h2>Bereit fuer die Runde.</h2>
-          <p>
-            Der Spielbereich bleibt der Ort fuer Charaktere, Notizen, Orte,
-            Dateien und freigegebene Inhalte. Besucher sehen diese Daten erst,
-            wenn sie sich anmelden und freigegeben wurden.
-          </p>
-        </div>
-
-        <div className={styles.accessList} aria-label="Oeffentliche Hinweise">
-          {content.previewItems.map((item) => (
-            <span key={item}>
-              <ChevronRight aria-hidden="true" size={16} />
-              {item}
-            </span>
-          ))}
-        </div>
-
-        <a className={styles.primaryAction} href={entryHref} target="_top">
-          {isSignedIn ? "Zum Spielbereich" : "Anmelden und Zugang anfragen"}
-          <ArrowRight aria-hidden="true" size={18} />
-        </a>
-      </section>
-
-      <footer className={styles.footer}>
-        <a href="/" aria-label="Zur Startseite">
-          CVK
-        </a>
-        <span>Chronik von Kleve</span>
-        <span>{content.system}</span>
-      </footer>
-    </main>
-  );
+type VisitorShellProps = { content: VisitorContent; entryHref: string; isSignedIn: boolean };
+const navItems = [{ label: "Start", href: "#start" }, { label: "Projekt", href: "#projekt" }, { label: "Funktionen", href: "#funktionen" }, { label: "Entwicklungsstand", href: "#status" }, { label: "Erste Kampagne", href: "#kampagne" }, { label: "FAQ", href: "#faq" }];
+const features = [[BookOpen, "Chronik von Kleve", "Die erste gemeinsame Spielwelt von ChroniPlay."], [Users, "Charaktere & Inventar", "Charaktere und Ausrüstung im geschützten Spielbereich."], [MapPin, "Orte & Karten", "Interaktive Karten und lebendige Spielorte."], [Sparkles, "Hinweise & Handouts", "Wissen, Dokumente und Geheimnisse."], [Compass, "Werkzeuge für Spielleitungen", "Planung, Verwaltung und Kontrolle."], [LockKeyhole, "Sicherer Spielbereich", "Geschützte Kampagnen für deine Runde."]] as const;
+export function VisitorShell({ content, entryHref, isSignedIn }: VisitorShellProps) {
+  const entryLabel = isSignedIn ? "Spielbereich" : "Anmelden";
+  return <main className={styles.visitorShell}>
+    <header className={styles.navbar} aria-label="Öffentliche Navigation"><a href="#start" className={styles.brand} aria-label="ChroniPlay Startseite"><img className={styles.brandLogo} src="/images/chroniplay-wordmark.png" alt="ChroniPlay" /></a><nav className={styles.desktopNav} aria-label="Startseitenbereiche">{navItems.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}</nav><div className={styles.navActions}><a className={styles.navLogin} href={entryHref}>{entryLabel}</a><a className={styles.navCta} href="/kampagne">Zur Kampagnenseite <ArrowRight aria-hidden="true" size={15} /></a></div><details className={styles.mobileNav}><summary aria-label="Navigation öffnen"><Menu aria-hidden="true" size={21} /></summary><div>{navItems.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}<a href={entryHref}>{entryLabel}</a></div></details></header>
+    <section className={styles.hero} id="start" aria-labelledby="visitor-title"><div className={styles.heroBackdrop} aria-hidden="true"><img src={content.heroImage} alt="" /></div><div className={styles.heroGrid}><div className={styles.heroCopy}><div className={styles.logoLockup}><img className={styles.heroLogo} src="/images/chroniplay-main-logo.png" alt="ChroniPlay" /></div><p className={styles.kicker}>{content.system}</p><h1 id="visitor-title" className={styles.srOnly}>{content.title}</h1><p className={styles.heroIntro}>{content.intro}</p><div className={styles.heroActions}><a className={styles.primaryAction} href="#projekt">Projekt entdecken <ArrowRight aria-hidden="true" size={18} /></a><a className={styles.secondaryAction} href={entryHref}>{isSignedIn ? "Spielbereich öffnen" : "Geschlossene Alpha"}</a></div><div className={styles.heroSignals}><span><Users aria-hidden="true" />Für Spieler<br />und Spielleitungen</span><span><Compass aria-hidden="true" />Eine gemeinsame<br />Spielwelt</span><span><Sparkles aria-hidden="true" />Modular<br />erweiterbar</span><span><ShieldCheck aria-hidden="true" />Sicher<br />und privat</span></div></div><div className={styles.heroVisual}><span className={styles.die}>10</span><div className={styles.routeLine}><i /><i /><i /><i /></div></div></div></section>
+    <section className={styles.projectSection} id="projekt"><div className={styles.projectCopy}><p className={styles.kicker}>Was ist ChroniPlay?</p><h2>Eine Plattform für gemeinsame Geschichten.</h2><p>ChroniPlay ist eine moderne Plattform für Pen-&-Paper-Rollenspiele. Hier entstehen Kampagnen, Charaktere, Orte und Geschichten – übersichtlich, sicher und flexibel.</p><a className={styles.outlineAction} href="#funktionen">Mehr über das Projekt erfahren <ArrowRight aria-hidden="true" size={17} /></a></div><div className={styles.featureWrap} id="funktionen"><p className={styles.kicker}>Das bietet ChroniPlay</p><div className={styles.featureGrid}>{features.map(([Icon, title, text]) => <article className={styles.featureCard} key={title}><Icon aria-hidden="true" size={28} /><div><h3>{title}</h3><p>{text}</p></div></article>)}</div></div></section>
+    <section className={styles.campaignSection} id="kampagne"><div className={styles.campaignImage}><img src={content.cityImage} alt="Nächtliche Straße der Chronik von Kleve" /></div><div className={styles.campaignCopy}><p className={styles.kicker}>Unsere erste Kampagne</p><h2>Chronik von Kleve</h2><p className={styles.campaignMeta}>Vampire: The Masquerade V20</p><p>Eine düstere Chronik, politische Intrigen und uralte Geheimnisse. Die Chronik von Kleve ist unsere erste Kampagne. Der geschützte Spielbereich ist für freigegebene Konten vorgesehen.</p><a className={styles.primaryAction} href="/kampagne">Zur Kampagnenseite <ArrowRight aria-hidden="true" size={18} /></a></div></section>
+    <section className={styles.statusSection} id="status"><div><p className={styles.kicker}>Entwicklungsstand</p><h2>ChroniPlay wird gebaut.</h2><p>Unsere erste spielbare Alpha ist für den Oktober 2026 geplant. Hier findest du den aktuellen Stand und die nächsten Schritte.</p><a className={styles.outlineAction} href="#status">Aktuellen Stand ansehen <ArrowRight aria-hidden="true" size={17} /></a></div><div className={styles.timeline}>{[["Konzept", "Abgeschlossen"], ["Entwicklung", "Aktuell"], ["Alpha", "Oktober 2026"], ["Weitere Kampagnen", "In Planung"]].map(([title, state], index) => <div className={`${styles.timelineStep} ${index < 2 ? styles.timelineDone : ""}`} key={title}><span><Milestone aria-hidden="true" size={19} /></span><strong>{title}</strong><small>{state}</small></div>)}</div></section>
+    <section className={styles.faqSection} id="faq"><p className={styles.kicker}>FAQ</p><div><h2>Fragen zur geschlossenen Alpha?</h2><p>ChroniPlay befindet sich in aktiver Entwicklung. Öffentliche Registrierung und externe Anmeldedienste sind noch nicht freigeschaltet.</p><a className={styles.navLogin} href={entryHref}>Zur Anmeldung <ArrowRight aria-hidden="true" size={15} /></a></div></section>
+    <footer className={styles.footer}><a href="#start" className={styles.brand}><img className={styles.brandLogo} src="/images/chroniplay-wordmark.png" alt="ChroniPlay" /></a><span>Eine Plattform für gemeinsame Geschichten.</span><span>Geschlossene Alpha · 2026</span></footer>
+  </main>;
 }

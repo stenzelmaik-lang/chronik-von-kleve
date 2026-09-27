@@ -109,6 +109,21 @@
   margin-left: 8px;
 }
 
+.cmsNavLinks { display: flex; flex: 1 1 auto; align-items: center; gap: 6px; min-width: 0; }
+.cmsNavActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid rgba(205, 166, 107, .42);
+  border-radius: 5px;
+  color: #f1e8d7;
+  background: linear-gradient(180deg, rgba(205, 166, 107, .14), rgba(205, 166, 107, .055));
+  box-shadow: inset 0 -2px #cda66b;
+  font-size: 13px;
+}
+
 :global(.player-shell:not(.worldShell)) .tableWorldSwitch .nav-label-long { display: inline; }
 :global(.player-shell:not(.worldShell)) .tableWorldSwitch .nav-label-short { display: none; }
 

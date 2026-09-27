@@ -35,6 +35,7 @@ import type { Actor } from "@/domain/types";
 import { api } from "./modules/api-client";
 import { ChroniclePanel } from "./modules/chronicle";
 import { CMSPanel } from "./modules/cms";
+import { LocationCMS } from "./modules/location-cms";
 import { DashboardPanel } from "./modules/dashboard";
 import { DicePanel } from "./modules/dice";
 import { EconomyPanel } from "./modules/economy";
@@ -97,6 +98,7 @@ export default function Workspace({
     a.gm,
     initialSection,
     resetEditor,
+    a.status === "active" && ["campaign_owner", "campaign_gm", "campaign_editor"].includes(a.role),
   );
   const { entries, files, members, catalog, loading, refreshing, hasData, error, reload } =
     useWorkspaceData(section, active, dataScope);
@@ -231,7 +233,7 @@ export default function Workspace({
     );
   return (
     <WorkspaceShell a={a} section={section} navigate={navigate}>
-      {!worldExperienceActive && section !== "inventar" && <div className="section-title">
+      {!worldExperienceActive && section !== "inventar" && section !== "ortscms" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -271,6 +273,8 @@ export default function Workspace({
       )}
       {worldExperienceActive ? (
         <WorldExperience a={a} dataScope={dataScope} />
+      ) : section === "ortscms" ? (
+        <LocationCMS a={a} dataScope={dataScope} />
       ) : loading ? (
         <div className="entry-grid">
           {[1, 2, 3].map((i) => (

@@ -1,17 +1,18 @@
 import {spawnSync,spawn} from 'node:child_process';
+import assert from 'node:assert/strict';
 import {mkdirSync,readdirSync,readFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {once} from 'node:events';
 import {tmpdir} from 'node:os';
 import {dirname,join,relative,resolve} from 'node:path';
 import {createServer} from 'node:http';
-import {Log,Miniflare} from 'miniflare';
+import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 
 // Isolated local test worker: never reuse .wrangler production/preview state.
-const state=join(tmpdir(),'cvk-phase-b-tests-'+randomUUID());mkdirSync(state,{recursive:true});
+const state=join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:8793',CVK_TEST_STATE:state};
-for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql']){
+for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql']){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
  if(result.status!==0)throw new Error('Local migration failed: '+result.stderr);
 }
@@ -27,7 +28,7 @@ function findModules(directory){
 const moduleFiles=findModules(serverRoot).map(path=>relative(serverRoot,path).replaceAll('\\','/'));
 const entry=relative(serverRoot,resolve(serverRoot,wrangler.main)).replaceAll('\\','/');
 const modules=[{type:'ESModule',path:resolve(serverRoot,entry)},...moduleFiles.filter(path=>path!==entry).map(path=>({type:'ESModule',path:resolve(serverRoot,path)}))];
-const mf=new Miniflare({
+const mf=new Miniflare(convertV4MiniflareOptions({
  name:wrangler.name,
  modules,
  modulesRoot:serverRoot,
@@ -37,15 +38,15 @@ const mf=new Miniflare({
  d1Databases:Object.fromEntries(wrangler.d1_databases.map(binding=>[binding.binding,binding.database_id])),
  r2Buckets:Object.fromEntries(wrangler.r2_buckets.map(binding=>[binding.binding,binding.bucket_name])),
  assets:{directory:resolve(dirname(config),wrangler.assets.directory),binding:'ASSETS',routerConfig:{has_user_worker:true,invoke_user_worker_ahead_of_assets:true}},
- d1Persist:join(state,'v3','d1'),
- r2Persist:false,
+ resourcePersistencePath:join(state,'v3'),
  log:new Log('ERROR'),
-});
+}));
 let server;
+let localDb;
 try{
- const localDb=await mf.getD1Database('DB');
- const schema=await localDb.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='campaign_memberships'").first();
- if(schema?.n!==1)throw new Error('The direct local Worker did not open the migrated isolated Test-D1.');
+ localDb=await mf.getD1Database('DB');
+ const schema=await localDb.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name IN ('entity_revision_releases','auth_member_links')").first();
+ if(schema?.n!==2)throw new Error('The direct local Worker did not open the migrated isolated Test-D1 with migrations 0005 and 0006.');
  server=createServer(async(req,res)=>{
   try{
    const headers=new Headers();
@@ -70,11 +71,30 @@ try{
  const suite=spawn(process.execPath,['tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});
  const [code]=await once(suite,'exit');
  process.exitCode=code??1;
+ if(process.exitCode===0){
+  const atomicKey='phase-c-atomic-'+randomUUID();let rejected=false;
+  try{await localDb.batch([
+   localDb.prepare('INSERT INTO settings(key,value) VALUES(?,?)').bind(atomicKey,'must roll back'),
+   localDb.prepare("INSERT INTO platform_roles(user_id,role,status,granted_by,created_at,updated_at,version) VALUES('nobody','invalid-role','active','test','now','now',1)"),
+  ]);}catch{rejected=true;}
+  assert.ok(rejected,'A failing D1 batch must reject');
+  const partial=await localDb.prepare('SELECT value FROM settings WHERE key=?').bind(atomicKey).first();
+  assert.equal(partial,null,'D1 batch failure rolls back earlier statements atomically');
+  console.log('PASS isolated Test-D1 atomic batch rollback');
+ }
 }finally{
  if(server)await new Promise(resolveClose=>server.close(()=>resolveClose()));
  await mf.dispose();
 }
 if(process.exitCode===0){
- const maintenance=spawnSync(process.execPath,['--experimental-strip-types','tests/role-foundation-local.mjs'],{env,stdio:'inherit',windowsHide:true});
+ // Role backfill tests need a genuinely empty migrated database. Reusing the
+ // integration DB would correctly report conflicts from its active test users.
+ const roleState=join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());mkdirSync(roleState,{recursive:true});
+ const roleEnv={...env,CVK_TEST_STATE:roleState,WRANGLER_LOG_PATH:join(roleState,'wrangler.log')};
+ for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql']){
+  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',roleState,'--config',config,'--file',migration],{env:roleEnv,encoding:'utf8',windowsHide:true});
+  if(result.status!==0)throw new Error('Role foundation isolated migration failed: '+result.stderr);
+ }
+ const maintenance=spawnSync(process.execPath,['--experimental-strip-types','tests/role-foundation-local.mjs'],{env:roleEnv,stdio:'inherit',windowsHide:true});
  if(maintenance.status!==0)process.exitCode=maintenance.status??1;
 }
