@@ -826,6 +826,36 @@ const slEditorialArea=slEditorialLocation.areas.find(area=>area.id==='area.elect
 check(slEditorialLocation.title==='TEST_DATA Electric Taberna group release'&&slEditorialLocation.summary==='TEST_DATA freigegebener Gruppentext','SL dossier reflects the same published root text as the active group');
 check(slEditorialArea?.image===playerAreaProjection.image&&slEditorialArea.playerHint==='TEST_DATA freigegebener Bereichshinweis','SL dossier reflects the published image and description of their matching area');
 check(slEditorialLocation.preparedActions.length>0&&slEditorialLocation.areas.some(area=>area.id==='area.electric-taberna.cellar-service'),'Published overlays preserve the SL-only actions and hidden location hierarchy');
+
+// Saved confidential content remains a separate, publisher-only projection.
+const confidentialFixtures=[];
+for(const entityId of ['place.electric-taberna','area.electric-taberna.public-guests','room.electric-taberna.office']){
+  const draft=await cmsCreate(entityId,'gm','gm');
+  const saved=await cmsSave(draft.d.id,draft.d.version,draft.d.payload,{gmSecret:{text:'TEST_DATA_CONFIDENTIAL_'+entityId,source:'Synthetic SL fixture'},heroFileId:media.id});
+  check(saved.s===200,'SL-only saved text and image persist for '+entityId);
+  confidentialFixtures.push({entityId,revisionId:draft.d.id});
+}
+const confidentialSl=(await req('/api/locations?place=place.electric-taberna&view=sl&target=group','gm')).d.projection.location;
+for(const fixture of confidentialFixtures){
+  const note=confidentialSl.slNotes.find(item=>item.entityId===fixture.entityId);
+  check(note?.text==='TEST_DATA_CONFIDENTIAL_'+fixture.entityId&&note.image?.includes('revisionId='+fixture.revisionId+'&preview=1'),'Actual SL dossier reads latest saved confidential text/image for '+fixture.entityId);
+  check((await fetch(base+note.image,{headers:ids.gm})).status===200,'SL can retrieve the revision-bound confidential image');
+  for(const who of ['a','b','editor'])check((await fetch(base+note.image,{headers:ids[who]})).status===403||(await fetch(base+note.image,{headers:ids[who]})).status===404,'Confidential image denies '+who);
+}
+for(const who of ['a','b','gm']){
+  const playerOutput=await req('/api/locations?place=place.electric-taberna&view=player&target=group',who);
+  check(!JSON.stringify(playerOutput.d).includes('TEST_DATA_CONFIDENTIAL_')&&!JSON.stringify(playerOutput.d).includes('slNotes')&&!JSON.stringify(playerOutput.d).includes('slGroupReleases'),'Player/group switch excludes confidential text, media and control metadata for '+who);
+}
+const areaControl=confidentialSl.slGroupReleases.find(item=>item.entityId==='area.electric-taberna.public-guests');
+check(areaControl.version===1&&areaControl.lastPublishedRevisionId===areaGroupDraft.d.id,'SL quick control refers to exact approved group revision');
+const hideArea=await cmsRelease('gm','block',areaControl.entityId,'group',areaControl.version,null);
+check(hideArea.s===200,'SL quick control can block the area');
+check(!JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d).includes('TEST_DATA freigegebener Bereichshinweis'),'Blocked area content disappears from real player dossier');
+check((await fetch(base+playerAreaProjection.image,{headers:ids.a})).status===404,'Blocked area image disappears with its content');
+check((await cmsRelease('gm','publish',areaControl.entityId,'group',areaControl.version,areaControl.lastPublishedRevisionId,{discoveryState:areaControl.discoveryState})).s===409,'Stale quick-control version is rejected');
+const restoreArea=await cmsRelease('gm','publish',areaControl.entityId,'group',2,areaControl.lastPublishedRevisionId,{discoveryState:areaControl.discoveryState});
+check(restoreArea.s===200&&JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d).includes('TEST_DATA freigegebener Bereichshinweis'),'Reactivation restores only the approved group content');
+check((await fetch(base+playerAreaProjection.image,{headers:ids.a})).status===200,'Reactivation restores matching released media');
 const slEditorialHub=await req('/api/locations?view=sl&target=group','gm');
 check(slEditorialHub.s===200&&slEditorialHub.d.places.some(place=>place.id==='place.electric-taberna'&&place.title===slEditorialLocation.title&&place.image===slEditorialLocation.image),'SL hub tiles and dossier share the actual published editorial content');
 check((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d.projection.location.title==='TEST_DATA Electric Taberna group release','Group release supersedes lower public release for Player A');

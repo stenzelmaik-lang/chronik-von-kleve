@@ -18,7 +18,7 @@ import {
 } from "@/domain/location-model";
 import { projectLocationGeography } from "@/server/location-geography";
 import { parseGeography } from "@/domain/location-cms";
-import { loadRevisionOverlay, type PreviewRevision, type RevisionOverlay } from "@/server/location-revision-projector";
+import { loadSlDossierExtras, loadRevisionOverlay, type PreviewRevision, type RevisionOverlay } from "@/server/location-revision-projector";
 
 type NodeRow = {
   entity_id: string;
@@ -230,16 +230,21 @@ export async function loadPersistedLocation(
   const rows = data.rows.filter(row => row.location_id === placeId);
   if (!rows.length) return null;
   // The live SL dossier also displays the audience's published content. Drafts
-  // remain restricted to the explicit CMS preview; hidden SL nodes retain their
+  // for player-facing content remain restricted to the explicit CMS preview; hidden SL nodes retain their
   // original data when no matching release exists.
   data.overlay = await loadRevisionOverlay(db, actor, rows, data.grants, target, viewerId, options.preview);
   const projectionActor = viewerId === actor.id ? actor : { ...actor, id: viewerId, role: "player" as const, gm: false };
-  return buildPersistedProjection(projectionActor, placeId, {
+  const projection = buildPersistedProjection(projectionActor, placeId, {
     rows,
     actions: data.actions.filter((row) => (row as ActionRow & { location_id?: string }).location_id === placeId),
     grants: data.grants,
     overlay: data.overlay,
   }, requestedView, target);
+  if (projection?.view === "sl" && actor.status === "active" && ["campaign_owner", "campaign_gm"].includes(actor.role)) {
+    const visibleIds = [projection.location.id, ...projection.location.areas.flatMap(area => [area.viewKey, ...area.rooms.map(room => room.viewKey)]), ...projection.location.knownInformation.map(info => info.id)];
+    Object.assign(projection.location, await loadSlDossierExtras(db, actor, visibleIds));
+  }
+  return projection;
 }
 
 /** Read all root IDs, nodes, grants, and actions in bounded batches. This is the
