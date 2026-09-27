@@ -351,6 +351,7 @@ export default function Workspace({
                         await api("/api/members", "POST", {
                           id: m.id,
                           status: m.status === "active" ? "blocked" : "active",
+                          expectedVersion: m.version,
                         });
                         await reload();
                       } catch (e) {

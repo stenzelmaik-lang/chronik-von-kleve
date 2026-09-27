@@ -1,19 +1,78 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
+import {tmpdir} from 'node:os';
+import {basename,dirname,resolve} from 'node:path';
 // Run only against an isolated local Wrangler worker. No production writes.
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8791';
 assert.ok(['127.0.0.1','localhost'].includes(new URL(base).hostname),'Tests require localhost');
 const ids={gm:{'oai-authenticated-user-id':'sprint1-gm','oai-authenticated-user-email':'gm@sprint.invalid'},a:{'oai-authenticated-user-id':'sprint1-a','oai-authenticated-user-email':'a@sprint.invalid'},b:{'oai-authenticated-user-id':'sprint1-b','oai-authenticated-user-email':'b@sprint.invalid'}};
+ids.blockedGm={'oai-authenticated-user-id':'sprint1-blocked-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
+ids.pendingGm={'oai-authenticated-user-id':'sprint1-pending-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
+ids.explicitBlockedGm={'oai-authenticated-user-id':'sprint1-explicit-blocked-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
+ids.explicitPendingGm={'oai-authenticated-user-id':'sprint1-explicit-pending-gm','oai-authenticated-user-email':'gm@sprint.invalid'};
+ids.platformOnly={'oai-authenticated-user-id':'sprint1-platform-only','oai-authenticated-user-email':'platform@sprint.invalid'};
+ids.otherCampaign={'oai-authenticated-user-id':'sprint1-other-campaign','oai-authenticated-user-email':'other@sprint.invalid'};
 let checks=0;
 function check(value,message){assert.ok(value,message);checks++;console.log('PASS '+message)}
 async function req(path,who,method='GET',body,extra={}){const r=await fetch(base+path,{method,headers:{...ids[who],...(body?{'Content-Type':'application/json'}:{}),...extra},body:body?JSON.stringify(body):undefined});const d=await r.json();return {s:r.status,d}}
+localSql(`INSERT INTO members(id,email,name,status,created_at) VALUES
+('sprint1-blocked-gm','gm@sprint.invalid','Blocked GM test','blocked','phase-b'),
+('sprint1-pending-gm','gm@sprint.invalid','Pending GM test','pending','phase-b'),
+('sprint1-explicit-blocked-gm','gm@sprint.invalid','Explicit blocked GM test','blocked','phase-b'),
+('sprint1-explicit-pending-gm','gm@sprint.invalid','Explicit pending GM test','pending','phase-b'),
+('sprint1-platform-only','platform@sprint.invalid','Platform-only test','pending','phase-b');
+INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES
+('chronik-von-kleve','sprint1-explicit-blocked-gm','campaign_gm','blocked','manual',1,'phase-b','phase-b'),
+('chronik-von-kleve','sprint1-explicit-pending-gm','campaign_gm','pending','manual',1,'phase-b','phase-b');
+INSERT INTO campaigns(id,name,created_at) VALUES('phase-b-other-campaign','Isolated Phase B other campaign','phase-b');
+INSERT INTO members(id,email,name,status,campaign_id,created_at) VALUES
+('sprint1-other-campaign','other@sprint.invalid','Other campaign owner','active','phase-b-other-campaign','phase-b');
+`);
 check((await req('/api/entities')).s===401,'Anonymous denied');
-check((await req('/api/members','gm')).d.actor.gm,'GM identity recognized');
+const gmActor=await req('/api/members','gm');
+check(gmActor.d.actor.gm&&gmActor.d.actor.role==='campaign_gm','GM identity resolves only to campaign_gm');
+const blockedGm=await req('/api/members','blockedGm');
+check(blockedGm.d.actor.status==='blocked'&&blockedGm.d.members.length===0,'blocked legacy GM email cannot bypass membership status');
+check((await req('/api/entities','blockedGm')).s===403,'blocked legacy GM cannot use campaign APIs');
+check((await req('/api/entities','pendingGm')).s===403,'pending legacy GM cannot use campaign APIs');
+const explicitBlocked=await req('/api/members','explicitBlockedGm');
+check(explicitBlocked.d.actor.status==='blocked'&&explicitBlocked.d.actor.role==='campaign_gm','explicit blocked campaign membership overrides GM email');
+check((await req('/api/entities','explicitBlockedGm')).s===403,'explicitly blocked GM role is denied');
+const explicitPending=await req('/api/members','explicitPendingGm');
+check(explicitPending.d.actor.status==='pending'&&explicitPending.d.actor.role==='campaign_gm','explicit pending campaign GM role retains its status');
+check((await req('/api/entities','explicitPendingGm')).s===403,'explicit pending campaign GM membership is denied');
+const platformOnly=await req('/api/members','platformOnly');
+check(platformOnly.d.actor.role==='player'&&platformOnly.d.actor.status==='pending'&&!platformOnly.d.actor.gm,'unregistered user does not acquire a campaign role');
+check((await req('/api/entities','platformOnly')).s===403,'user without active campaign membership has no campaign API access');
+const otherCampaign=await req('/api/members','otherCampaign');
+check(otherCampaign.d.actor.status==='pending'&&!otherCampaign.d.actor.gm,'campaign owner role does not cross into Kleve');
+check((await req('/api/entities','otherCampaign')).s===403,'another campaign membership grants no Kleve access');
 for(const who of ['a','b']){
  const m=await req('/api/members',who);check(m.s===200,'Player registers');
  if(m.d.actor.status!=='active')check((await req('/api/entities',who)).s===403,'Pending player denied');
- check((await req('/api/members','gm','POST',{id:m.d.actor.id,status:'active'})).s===200,'GM activates player');
+ const pendingMember=(await req('/api/members','gm')).d.members.find(member=>member.id===m.d.actor.id);
+ check(Number.isInteger(pendingMember?.version),'GM member list includes the revision needed for status changes');
+ check((await req('/api/members','gm','POST',{id:m.d.actor.id,status:'active',expectedVersion:pendingMember.version})).s===200,'GM activates player using the listed revision');
 }
+localSql("INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,version,created_at,updated_at) VALUES('chronik-von-kleve','sprint1-b','player','active','manual',1,'phase-b','phase-b')");
+const bMembership=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked'})).s===428,'Old management UI without a revision cannot change a member');
+const freshUiWrite=await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:bMembership.version});
+const staleUiWrite=await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:bMembership.version});
+const afterStaleUi=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check(freshUiWrite.s===200&&staleUiWrite.s===409&&afterStaleUi.status==='blocked'&&afterStaleUi.version===bMembership.version+1,'Stale management UI snapshot returns 409 and cannot overwrite the newer status');
+const memberRaceRevision=afterStaleUi.version;
+const memberRaces=await Promise.all([
+ req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:memberRaceRevision}),
+ req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:memberRaceRevision}),
+]);
+check(memberRaces.filter(result=>result.s===200).length===1&&memberRaces.filter(result=>result.s===409).length===1,'two concurrent membership changes from one revision yield one success and one 409');
+const afterMemberRace=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check(afterMemberRace.version===memberRaceRevision+1,'successful membership mutation advances its revision once');
+const staleRevisionWrite=await req('/api/members','gm','POST',{id:'sprint1-b',status:afterMemberRace.status==='active'?'blocked':'active',expectedVersion:bMembership.version});
+check(staleRevisionWrite.s===409,'stale membership revision is rejected after a later write');
+const resetMember=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:resetMember.version})).s===200,'membership concurrency fixture is restored to active');
 check((await req('/api/entities','a','POST',{type:'CLUE',title:'test',text:'test'})).s===403,'Player cannot author core entity');
 const created=await req('/api/entities','gm','POST',{type:'CLUE',title:'QA isolated clue',text:'SPRINT_PROTECTED',gmBody:'SPRINT_GM_ONLY'});
 check(created.s===201&&created.d.campaignId==='chronik-von-kleve','Entity has stable ID and campaignId');
@@ -25,9 +84,11 @@ const read=await req('/api/entities?id='+id,'a');check(JSON.stringify(read.d).in
 check((await req('/api/entities?id='+id,'b')).s===404,'Player B cannot obtain player A knowledge');
 check((await req('/api/knowledge','gm','POST',{entityId:id,audience:'group',state:'OBSERVED'})).s===200,'GM grants to group');
 check((await req('/api/entities?id='+id,'b')).s===200,'Active group member receives content');
-await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked'});
+let bCurrent=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+await req('/api/members','gm','POST',{id:'sprint1-b',status:'blocked',expectedVersion:bCurrent.version});
 check((await req('/api/entities?id='+id,'b')).s===403,'Blocked member cannot use group grant');
-await req('/api/members','gm','POST',{id:'sprint1-b',status:'active'});
+bCurrent=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
+await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:bCurrent.version});
 await req('/api/knowledge','gm','POST',{entityId:id,audience:'group',state:'UNKNOWN'});
 check((await req('/api/entities?id='+id,'b')).s===404,'Group grant revoked');
 const secret=await req('/api/entities','gm','POST',{type:'CLUE',canonStatus:'GM_SECRET',title:'QA GM SECRET',text:'HIDDEN_CANON'});
@@ -131,7 +192,9 @@ check((await req('/api/knowledge','gm','POST',{entityId:entrance,audience:'group
 
 // Direct mutations are restricted to this runner's disposable LOCAL test database.
 function localSql(sql) {
-  assert.match(process.env.CVK_TEST_STATE||'',/^work\/tests\/[a-f0-9-]+$/);
+  const state=resolve(process.env.CVK_TEST_STATE||'');
+  assert.equal(dirname(state),tmpdir());
+  assert.match(basename(state),/^cvk-phase-b-tests-[a-f0-9-]+$/);
   const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true});
   assert.equal(r.status,0,r.stderr);
 }

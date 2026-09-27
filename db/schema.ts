@@ -1,13 +1,17 @@
 import {
+  check,
   sqliteTable,
   text,
   integer,
   index,
   uniqueIndex,
   foreignKey,
+  primaryKey,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import {
   KLEVE_CAMPAIGN_ID,
+  campaignRoleSchema,
   canonStatusSchema,
   entityTypeSchema,
   knowledgeStateSchema,
@@ -24,8 +28,64 @@ export const members = sqliteTable("members", {
   email: text("email").notNull(),
   name: text("name").notNull(),
   status: text("status").notNull().default("pending"),
+  version: integer("version").notNull().default(1),
   createdAt: text("created_at").notNull(),
-});
+}, (t) => [
+  check("members_version_check", sql`${t.version} >= 1`),
+]);
+export const platformRoles = sqliteTable("platform_roles", {
+  userId: text("user_id").notNull(),
+  role: text("role", { enum: ["platform_admin"] }).notNull(),
+  status: text("status", { enum: ["active", "revoked"] }).notNull(),
+  grantedBy: text("granted_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  version: integer("version").notNull().default(1),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.role] }),
+  index("idx_platform_roles_status").on(t.role, t.status),
+  check("platform_roles_role_check", sql`${t.role} = 'platform_admin'`),
+  check("platform_roles_status_check", sql`${t.status} IN ('active', 'revoked')`),
+  check("platform_roles_version_check", sql`${t.version} >= 1`),
+]);
+export const campaignMemberships = sqliteTable("campaign_memberships", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  userId: text("user_id").notNull().references(() => members.id),
+  role: text("role", { enum: campaignRoleSchema.options }).notNull(),
+  status: text("status", { enum: ["pending", "active", "blocked"] }).notNull(),
+  source: text("source", { enum: ["legacy_backfill", "manual"] }).notNull(),
+  grantedBy: text("granted_by"),
+  version: integer("version").notNull().default(1),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+  primaryKey({ columns: [t.campaignId, t.userId] }),
+  index("idx_campaign_memberships_campaign_status").on(t.campaignId, t.status),
+  index("idx_campaign_memberships_user_status").on(t.userId, t.status),
+  check("campaign_memberships_role_check", sql`${t.role} IN ('campaign_owner', 'campaign_gm', 'campaign_editor', 'player')`),
+  check("campaign_memberships_status_check", sql`${t.status} IN ('pending', 'active', 'blocked')`),
+  check("campaign_memberships_source_check", sql`${t.source} IN ('legacy_backfill', 'manual')`),
+  check("campaign_memberships_version_check", sql`${t.version} >= 1`),
+]);
+export const roleAuditEvents = sqliteTable("role_audit_events", {
+  id: text("id").primaryKey(),
+  actorId: text("actor_id").notNull(),
+  actorKind: text("actor_kind", { enum: ["user", "system"] }).notNull(),
+  action: text("action").notNull(),
+  subjectUserId: text("subject_user_id").notNull(),
+  campaignId: text("campaign_id"),
+  beforeState: text("before_state").notNull().default("{}"),
+  afterState: text("after_state").notNull().default("{}"),
+  reason: text("reason").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+  index("idx_role_audit_subject_time").on(t.subjectUserId, t.createdAt),
+  index("idx_role_audit_campaign_time").on(t.campaignId, t.createdAt),
+  check("role_audit_events_actor_kind_check", sql`${t.actorKind} IN ('user', 'system')`),
+  check("role_audit_events_action_check", sql`${t.action} IN ('campaign_membership.backfilled', 'campaign_membership.status_changed', 'platform_admin.bootstrapped')`),
+  check("role_audit_events_before_state_check", sql`json_valid(${t.beforeState})`),
+  check("role_audit_events_after_state_check", sql`json_valid(${t.afterState})`),
+]);
 export const records = sqliteTable(
   "records",
   {

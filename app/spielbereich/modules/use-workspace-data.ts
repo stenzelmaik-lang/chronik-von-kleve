@@ -10,10 +10,12 @@ import {
   requestPlayerData,
 } from "./player-data-cache";
 
+type MemberManagementActor = Actor & { version: number };
+
 type Data = {
   entries: Entry[];
   files: Upload[];
-  members: Actor[];
+  members: MemberManagementActor[];
   catalog: { available: number; imported: number };
 };
 
@@ -45,7 +47,7 @@ async function fetchSection(section: string): Promise<Data> {
     return { ...empty, files: (await api<{ files: Upload[] }>("/api/files")).files };
   if (section === "verwaltung") {
     const [members, catalog] = await Promise.all([
-      api<{ members: Actor[] }>("/api/members"),
+      api<{ members: MemberManagementActor[] }>("/api/members"),
       api<{ available: number; imported: number }>("/api/catalog"),
     ]);
     return { ...empty, members: members.members, catalog };
