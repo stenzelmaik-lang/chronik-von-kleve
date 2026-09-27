@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createHash,pbkdf2Sync} from 'node:crypto';
+import {createHash,pbkdf2Sync,randomBytes} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {basename,dirname,resolve} from 'node:path';
@@ -21,10 +21,10 @@ const fixtureAccounts=[
  {key:'unverified',memberId:'sprint1-unverified',memberEmail:'unverified@sprint.invalid',memberName:'Unverified synthetic account',memberStatus:'pending',campaign:'chronik-von-kleve',authEmail:'unverified@sprint.invalid',linked:true,password:true,verified:false},
  {key:'otherCampaign',memberId:'sprint1-other-campaign',memberEmail:'other@sprint.invalid',memberName:'Other campaign owner',memberStatus:'active',campaign:'phase-b-other-campaign',authEmail:'alpha-other@sprint.invalid',linked:true},
 ];
-const testPassword='ChroniPlay-Alpha-Test-2026!';
-const testSalt='isolated-auth-test-salt';
+const testPassword=randomBytes(24).toString('base64url');
+const testSalt=randomBytes(16).toString('base64url');
 const testPasswordHash=`pbkdf2_sha256$600000$${testSalt}$${pbkdf2Sync(testPassword,testSalt,600000,32,'sha256').toString('base64url')}`;
-const sessionTokens=Object.fromEntries(fixtureAccounts.map(account=>[account.key,`isolated-session-${account.key}`]));
+const sessionTokens=Object.fromEntries(fixtureAccounts.map(account=>[account.key,randomBytes(32).toString('base64url')]));
 const ids=Object.fromEntries(fixtureAccounts.map(account=>[account.key,{Cookie:`chroniplay_session=${sessionTokens[account.key]}`} ]));
 let checks=0;
 function check(value,message){assert.ok(value,message);checks++;console.log('PASS '+message)}
