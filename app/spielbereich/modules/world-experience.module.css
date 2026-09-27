@@ -331,7 +331,7 @@
 .areaDetail h3 { margin: 18px 0 9px; font: normal clamp(23px,2.7vw,31px)/1.1 Georgia,serif; }
 .areaHint { max-width: 48ch; margin: 0; color: #d4cdbd; font: italic 16px/1.7 Georgia,serif; }
 .areaHint p { margin: 0; }
-.areaImage { display: block; width: 100%; max-height: 360px; margin: 14px 0; border: 1px solid rgba(190,177,143,.18); object-fit: cover; }
+.areaImage { display: block; width: 100%; height: auto; margin: 14px 0; border: 1px solid rgba(190,177,143,.18); object-fit: contain; background: #080c0d; }
 .areaContext { margin: 0; color: #a0aaa2; font-size: 12px; line-height: 1.6; }
 .roomList { display: grid; margin-top: 18px; border-top: 1px solid rgba(190,177,143,.15); }
 .roomRow { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 55px; border-bottom: 1px solid rgba(190,177,143,.1); }

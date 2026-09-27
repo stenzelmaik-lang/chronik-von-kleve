@@ -78,7 +78,7 @@ export async function requireActivePlayer(db: D1Database, campaignId: string, us
 
 /** Create a stable location identity and its first unpublished group draft atomically. */
 export async function createLocationNode(db: D1Database, actor: Actor, input: {
-  level: "location" | "area" | "room"; title: string; parentId?: string;
+  level: "location" | "area" | "room" | "information"; title: string; parentId?: string;
 }) {
   requireCmsPublisher(actor);
   const title=input.title.trim();
@@ -90,10 +90,10 @@ export async function createLocationNode(db: D1Database, actor: Actor, input: {
   }else{
     if(!input.parentId)throw new HttpError(400,"Wähle zuerst den übergeordneten Ortseintrag.");
     parent=await getLocationNode(db,actor,input.parentId);
-    const validParent=input.level==="area"
+    const validParent=input.level==="area"||input.level==="information"
       ? parent.level==="location"&&parent.location_id===parent.entity_id
       : parent.level==="area";
-    if(!validParent)throw new HttpError(400,input.level==="area"?"Ein Bereich muss direkt in einem Hauptort liegen.":"Ein Raum muss in einem bestehenden Bereich liegen.");
+    if(!validParent)throw new HttpError(400,input.level==="information"?"Eine Erkenntnis muss zu einem bestehenden Hauptort gehören.":input.level==="area"?"Ein Bereich muss direkt in einem Hauptort liegen.":"Ein Raum muss in einem bestehenden Bereich liegen.");
   }
 
   const entityId=`${input.level==="location"?"place":input.level}.${crypto.randomUUID()}`;
@@ -109,7 +109,7 @@ export async function createLocationNode(db: D1Database, actor: Actor, input: {
   if(!payload)throw new HttpError(400,"Der neue Eintrag konnte nicht als Ortsinhalt vorbereitet werden.");
   const statements=[
     db.prepare(`INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at)
-      VALUES(?,?,'PLACE','WORKING',?,'sl',?,'{}','',1,?,?)`).bind(entityId,actor.campaignId,actor.id,title,now,now),
+      VALUES(?,?,?,'WORKING',?,'sl',?,'{}','',1,?,?)`).bind(entityId,actor.campaignId,input.level==="information"?"INFORMATION":"PLACE",actor.id,title,now,now),
     db.prepare(`INSERT INTO location_nodes(entity_id,campaign_id,location_id,parent_id,level,position,world_state,world_visibility,world_subject_id,markers,attributes,revision,updated_at)
       VALUES(?,?,?,?,?,?,'active','group',NULL,'[]',?,1,?)`).bind(entityId,actor.campaignId,locationId,parentId,input.level,Number(position?.position??0),JSON.stringify({title,visibility:"group"}),now),
     db.prepare(`INSERT INTO entity_revisions(id,campaign_id,entity_id,revision_no,parent_revision_id,audience_scope,audience_key,audience_user_id,status,base_entity_version,version,player_payload_json,gm_secret_json,geography_json,author_id,created_at,updated_at)

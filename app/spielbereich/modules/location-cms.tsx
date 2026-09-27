@@ -21,7 +21,7 @@ type PlayerOption={id:string;name:string};
 type MediaItem={id:string;name:string;mime:string;size:number};
 type Draft={id:string;revision_no:number;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string;version:number;player_payload_json:string;gm_secret_json?:string;geography_json:string;hero_file_id?:string|null};
 type ReleaseEntry={revision_id:string|null;transition:string;release_version:number};
-type NewNodeDraft={level:"location"|"area"|"room";parentId:string|null;title:string};
+type NewNodeDraft={level:"location"|"area"|"room"|"information";parentId:string|null;title:string};
 type Geography={status:"unknown"}|{status:"exact";coordinates:[number,number];source:string;reference?:string;reviewedAt:string}|{status:"approximate";coordinates:[number,number];accuracyMeters:number;source:string;reference?:string;reviewedAt:string};
 type Preview={projection:PlaceProjection;preview:{scope:string;viewerId:string}};
 type CmsState={locations:LocationOption[];players:PlayerOption[]};
@@ -119,7 +119,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     if(!publisher||!canLeaveEditor())return;
     if(level==="area"&&node?.level!=="location")return;
     if(level==="room"&&node?.level!=="area")return;
-    setNewNode({level,parentId:level==="location"?null:node?.id||null,title:""});
+    setNewNode({level,parentId:level==="location"?null:level==="information"?placeId:node?.id||null,title:""});
   }
 
   async function submitNodeCreation(event:FormEvent<HTMLFormElement>){
@@ -143,7 +143,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
       setGeo(initialDraft?parse(initialDraft.geography_json) as unknown as Geography:{status:"unknown"});
       setPickedCoordinates(null);setHeroFileId(initialDraft?.hero_file_id||null);setPendingImageUrl(null);
       setPreview(null);setPublishedProjection(null);setPreviewMode(null);setActiveSection("content");setDirectorySearch("");setNewNode(null);
-      const kind=created.level==="location"?"Hauptort":created.level==="area"?"Bereich":"Raum";
+      const kind=created.level==="location"?"Hauptort":created.level==="area"?"Bereich":created.level==="information"?"Erkenntnis":"Raum";
       toast.success(`${kind} gespeichert. Der erste Entwurf bleibt unveröffentlicht.`);
     }catch(error){toast.error((error as Error).message);}
     finally{setBusy(false);}
@@ -320,10 +320,10 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         {publisher&&<div className={cmsStyles.directoryActions}>
           <button type="button" className="button" onClick={()=>beginNodeCreation("location")} disabled={busy||loading}><Plus size={14}/> Neuer Hauptort</button>
           {node?.level==="location"&&<button type="button" className="button" onClick={()=>beginNodeCreation("area")} disabled={busy||loading}><Plus size={14}/> Bereich</button>}
-          {node?.level==="area"&&<button type="button" className="button" onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={14}/> Raum</button>}
+          {node?.level==="area"&&<button type="button" className="button" onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={14}/> Raum</button>}{placeId&&<button type="button" className="button" onClick={()=>beginNodeCreation("information")} disabled={busy||loading}><Plus size={14}/> Neue Erkenntnis</button>}
         </div>}
         {newNode&&<form className={cmsStyles.createNodeForm} onSubmit={event=>void submitNodeCreation(event)}>
-          <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":"Zum Beispiel: Empfang"}/></label>
+          <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":"Zum Beispiel: Empfang"}/></label>
           <p>{newNode.level==="location"?"Wird als eigener Hauptort angelegt.":`Wird unter „${nodes.find(item=>item.id===newNode.parentId)?.title||"ausgewähltem Eintrag"}“ angelegt.`} Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</p>
           <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()}><Plus size={14}/> Anlegen</button></div>
         </form>}
@@ -371,7 +371,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
                   <label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label>
                   {node.level==="area"&&<RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Freigegebener Bereichshinweis" maximumPlainLength={1200} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
                   {node.level==="room"&&<RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Kurze freigegebene Beschreibung" maximumPlainLength={1000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
-                  {node.level==="information"&&<><RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={3000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{["note","suspicion","insight","question","task","memory","theory"].map(item=><option key={item}>{item}</option>)}</select></label></>}
+                  {node.level==="information"&&<><RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={3000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
                 </div>}
               </fieldset>
               {!editable&&<p className={cmsStyles.readOnlyNote}>Dieser Stand ist {selectedDraft.status==="approved"?"genehmigt":"nicht mehr bearbeitbar"}. Lege eine neue Revision an, wenn du Änderungen vornehmen möchtest.</p>}
