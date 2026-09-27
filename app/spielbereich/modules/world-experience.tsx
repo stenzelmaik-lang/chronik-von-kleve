@@ -318,7 +318,7 @@ export function WorldExperience({
   async function changeGroupVisibility(entityId: string, reopen: boolean) {
     const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
     if(!a.gm||view!=="sl"||busy||!state||embeddedDossier)return;
-    if(reopen&&!state.lastPublishedRevisionId){toast.error("Für diesen Eintrag gibt es noch keinen genehmigten Gruppenstand. Bitte zuerst im SL-CMS veröffentlichen.");return;}
+    if(!state.lastPublishedRevisionId){toast.error("Für diesen Eintrag gibt es noch keinen genehmigten Gruppenstand. Bitte zuerst im SL-CMS veröffentlichen.");return;}
     if(!window.confirm(reopen?"Den zuletzt genehmigten Gruppenstand wieder anzeigen? Ungespeicherte und unveröffentlichte Entwürfe bleiben verborgen.":"Diesen Eintrag für die aktive Spielgruppe sperren? Untergeordnete Inhalte bleiben ebenfalls verborgen. Das bereits erworbene Wissen wird nicht zurückgestuft."))return;
     setBusy(true);
     try{
@@ -338,7 +338,7 @@ export function WorldExperience({
   function groupVisibilityFor(entityId: string) {
     const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
     if(projection?.view!=="sl"||!state||embeddedDossier)return null;
-    return <div className={styles.slVisibility}><span>Gruppenfreigabe dieses Eintrags: {state.transition==="block"?"gesperrt":state.transition==="publish"?"freigegeben":"kein direkter Gruppenstand"}</span><button type="button" className={styles.secondaryButton} disabled={busy||state.transition==="block"} onClick={()=>changeGroupVisibility(entityId,false)}>Für Gruppe sperren</button><button type="button" className={styles.secondaryButton} disabled={busy||!state.lastPublishedRevisionId||state.transition==="publish"} onClick={()=>changeGroupVisibility(entityId,true)}>Gruppenstand aktivieren</button>{!state.lastPublishedRevisionId&&<small>Erste Freigabe im SL-CMS vornehmen.</small>}</div>;
+    return <div className={styles.slVisibility}><span>Gruppenfreigabe dieses Eintrags: {state.transition==="block"?"gesperrt":state.transition==="publish"?"freigegeben":"kein direkter Gruppenstand"}</span><button type="button" className={styles.secondaryButton} disabled={busy||state.transition==="block"||!state.lastPublishedRevisionId} onClick={()=>changeGroupVisibility(entityId,false)}>Für Gruppe sperren</button><button type="button" className={styles.secondaryButton} disabled={busy||!state.lastPublishedRevisionId||state.transition==="publish"} onClick={()=>changeGroupVisibility(entityId,true)}>Gruppenstand aktivieren</button>{!state.lastPublishedRevisionId&&<small>Erste Freigabe im SL-CMS vornehmen.</small>}</div>;
   }
 
   function closeOverlay() {
