@@ -242,7 +242,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     if(!selectedDraft||!node||!editable)return;
     if(isRoot&&!geographyValid){toast.error("Geodaten fehlen: ergänze eine nachvollziehbare Quelle und bei einem ungefähren Gebiet die Genauigkeit in Metern.");return;}
     setBusy(true);
-    try{await api('/api/cms/drafts','PATCH',{revisionId:selectedDraft.id,expectedVersion:selectedDraft.version,payload,gmSecret,...(isRoot?{geography:geo}:{}),heroFileId});setPendingImageUrl(null);toast.success("Entwurf gespeichert und erneut aus der lokalen Datenbank geladen. Spieler sehen weiterhin nur den freigegebenen Stand.");clearDossierViews();await refreshDrafts(true);await refreshRelease();}
+    try{await api('/api/cms/drafts','PATCH',{revisionId:selectedDraft.id,expectedVersion:selectedDraft.version,payload,gmSecret,...(isRoot?{geography:geo}:{}),heroFileId});setPendingImageUrl(null);toast.success("Entwurf gespeichert und erneut aus der Datenbank geladen. Spieler sehen weiterhin nur den freigegebenen Stand.");clearDossierViews();await refreshDrafts(true);await refreshRelease();}
     catch(error){toast.error((error as Error).message);if((error as {status?:number}).status===409)await refreshDrafts(true);}finally{setBusy(false);}
   }
   async function transition(action:"submit"|"approve"|"reject"){
@@ -283,7 +283,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     if(isRoot&&!geographyValid){toast.error("Die Ortsposition ist nicht prüfbar. Lass sie unbekannt oder ergänze nachvollziehbare Genauigkeit und Herkunft.");return;}
     const auditReason=reason.trim()||"Direktfreigabe im SL-CMS";
     const audience=scope==="group"?"die aktive Spielgruppe":scope==="public"?"das angemeldete Public-Lesemodell":catalog.players.find(item=>item.id===playerTarget)?.name||"den ausgewählten Spieler";
-    if(!window.confirm(`Den aktuellen Inhalt für ${audience} speichern, zur Prüfung einreichen, genehmigen und gezielt freigeben? Das wirkt ausschließlich in der lokalen Testumgebung.`))return;
+    if(!window.confirm(`Den aktuellen Inhalt für ${audience} speichern, zur Prüfung einreichen, genehmigen und gezielt freigeben? Zielumgebung: ${window.location.origin}. Dort sehen berechtigte Spieler anschließend diesen freigegebenen Stand.`))return;
     setBusy(true);
     try{
       let version=selectedDraft.version;
@@ -310,7 +310,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const visibleDrafts=drafts.filter(item=>item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerTarget));
 
   return <div className={cmsStyles.cmsWorkspace} data-location-cms="phase-c">
-    <header className={cmsStyles.cmsHero}><div><p className="eyebrow">CHRONIK VON KLEVE · SPIELLEITUNG · SL-CMS</p><h1>Ortsredaktion</h1><p>Orte, Bereiche und Freigaben in einer nachvollziehbaren Redaktion. Entwürfe werden erst nach Prüfung und gezielter Freigabe im lokalen Spielbereich sichtbar.</p></div><span className={cmsStyles.campaignSeal}>AKTIVE CHRONIK<strong>DOMÄNE KLEVE</strong></span></header>
+    <header className={cmsStyles.cmsHero}><div><p className="eyebrow">CHRONIK VON KLEVE · SPIELLEITUNG · SL-CMS</p><h1>Ortsredaktion</h1><p>Orte, Bereiche und Freigaben in einer nachvollziehbaren Redaktion. Entwürfe werden erst nach Prüfung und gezielter Freigabe im aktuellen Spielbereich sichtbar.</p></div><span className={cmsStyles.campaignSeal}>AKTIVE CHRONIK<strong>DOMÄNE KLEVE</strong></span></header>
 
     <div className={cmsStyles.redactionLayout}>
       <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis">
@@ -404,19 +404,19 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
             </section>}
 
             {activeSection==="release"&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
-              <div className={cmsStyles.panelIntro}><p className="eyebrow">VORSCHAU & VERÖFFENTLICHUNG</p><h3>{scope==="gm"?"Interne SL-Prüfung":"Das echte Ortsdossier prüfen"}</h3><p>Beide Ansichten verwenden dasselbe Ortsdossier wie Spielwelt → Orte. Der Entwurf ist nur für berechtigte Spielleitung sichtbar; die Spieleransicht liest ausschließlich den tatsächlich freigegebenen Stand. Freigaben wirken nur lokal, nicht auf chroniplay.cc.</p></div>
+              <div className={cmsStyles.panelIntro}><p className="eyebrow">VORSCHAU & VERÖFFENTLICHUNG</p><h3>{scope==="gm"?"Interne SL-Prüfung":"Das echte Ortsdossier prüfen"}</h3><p>Beide Ansichten verwenden dasselbe Ortsdossier wie Spielwelt → Orte. Der Entwurf ist nur für berechtigte Spielleitung sichtbar; die Spieleransicht liest ausschließlich den tatsächlich freigegebenen Stand. Freigaben gelten in der aktuell geöffneten Umgebung und für die ausdrücklich ausgewählte Zielgruppe.</p></div>
               {scope!=="gm"&&<fieldset className={cmsStyles.editorFieldset} disabled={!editable||busy}><label className="field"><span>Discovery bei dieser Freigabe</span><select value={discoveryState} onChange={event=>setDiscoveryState(event.target.value as DiscoveryState)}>{discovery.map(state=><option key={state} value={state}>{state}</option>)}</select></label></fieldset>}
               <label className="field"><span>Prüf- oder Veröffentlichungsnotiz (optional)</span><input value={reason} maxLength={500} onChange={event=>setReason(event.target.value)} placeholder="Optionaler Zusatz für das Freigabeprotokoll"/><small>Ohne eigene Notiz wird „Direktfreigabe im SL-CMS“ protokolliert.</small></label>
               <div className={cmsStyles.releaseSummary}><span data-status={selectedDraft.status}>{selectedDraft.status.replaceAll("_"," ")}</span><strong>{scope==="gm"?"Nur Spielleitung":scope==="group"?"Aktive Spielgruppe":scope==="public"?"Public · Anmeldung erforderlich":catalog.players.find(item=>item.id===playerId)?.name||"Spieler wählen"}</strong><small>Freigabeversion {release.currentVersion} · {release.currentTransition||"noch keine Freigabe"} · {release.history.length} protokollierte Schritte</small></div>
               <div className={cmsStyles.releaseActions}>
                 {scope!=="gm"&&<><button type="button" className="button" disabled={busy||!selectedDraft||dirty} onClick={()=>void inspectPreview()}><Eye size={16}/> Entwurf ansehen</button><button type="button" className="button" disabled={busy||!node||scope==="player"&&!playerTarget} onClick={()=>void inspectPublished()}><Eye size={16}/> Veröffentlichte Spieleransicht</button></>}
-                {publisher&&scope!=="gm"&&<><button type="button" className="button primary" disabled={busy||!selectedDraft||selectedDraft.status!=="approved"||!reason.trim()||scope==="player"&&!playerId||dirty} onClick={()=>void changeRelease("publish")}><Check size={16}/> Genehmigten Stand lokal freigeben</button><button type="button" className="button" disabled={busy||release.currentVersion===0||!reason.trim()||scope==="player"&&!playerId||dirty} onClick={()=>void changeRelease("revoke")}><Slash size={16}/> Freigabe zurückziehen</button><button type="button" className="button" disabled={busy||release.currentVersion===0||!reason.trim()||scope==="player"&&!playerId||dirty} onClick={()=>void changeRelease("block")}><ShieldCheck size={16}/> Zielgruppe sperren</button></>}
+                {publisher&&scope!=="gm"&&<><button type="button" className="button primary" disabled={busy||!selectedDraft||selectedDraft.status!=="approved"||!reason.trim()||scope==="player"&&!playerId||dirty} onClick={()=>void changeRelease("publish")}><Check size={16}/> Genehmigten Stand freigeben</button><button type="button" className="button" disabled={busy||release.currentVersion===0||!reason.trim()||scope==="player"&&!playerId||dirty} onClick={()=>void changeRelease("revoke")}><Slash size={16}/> Freigabe zurückziehen</button><button type="button" className="button" disabled={busy||release.currentVersion===0||!reason.trim()||scope==="player"&&!playerId||dirty} onClick={()=>void changeRelease("block")}><ShieldCheck size={16}/> Zielgruppe sperren</button></>}
               </div>
               {previewMode&&scope!=="gm"&&<section className={cmsStyles.dossierPreview} aria-live="polite" aria-label={previewMode==="draft"?"Entwurf im echten Ortsdossier":"Veröffentlichte Spieleransicht im echten Ortsdossier"}>
                 <div className={cmsStyles.dossierPreviewLabel}><span>{previewMode==="draft"?"ENTWURF ANSEHEN · NUR SPIELLEITUNG":"VERÖFFENTLICHTE SPIELERANSICHT · FREIGEGEBENER STAND"}</span><button type="button" className="button" onClick={()=>setPreviewMode(null)}>Ansicht schließen</button></div>
                 <WorldExperience a={a} dataScope={dataScope} projectionOverride={previewMode==="draft"?preview?.projection:publishedProjection} embeddedLabel={previewMode==="draft"?"SL-Entwurf · nicht veröffentlicht":"Tatsächliche Spielerprojektion · veröffentlichter Stand"} onDossierBack={()=>setPreviewMode(null)}/>
               </section>}
-              {publisher&&scope!=="gm"&&<p className={cmsStyles.inlineNotice}>Lokale Freigabeversionen wirken nur in dieser lokalen Testumgebung. Sie veröffentlichen nichts im Internet.</p>}
+              {publisher&&scope!=="gm"&&<p className={cmsStyles.inlineNotice}>Die Freigabe aktualisiert den Spielerstand in dieser Umgebung. Unveröffentlichte Entwürfe bleiben geschützt.</p>}
             </section>}
 
             <div className={cmsStyles.saveBar}>

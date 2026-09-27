@@ -752,6 +752,8 @@ const unreleasedSaved=await cmsSave(approvedButUnreleased.d.id,1,unreleasedPaylo
 const unreleasedSubmitted=await cmsTransition('gm','submit',approvedButUnreleased.d.id,unreleasedSaved.d.version);
 const unreleasedApproved=await cmsTransition('gm','approve',approvedButUnreleased.d.id,unreleasedSubmitted.d.version);
 const stillPublishedDuringUnreleased=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
+const slDuringUnreleased=await req('/api/locations?place=place.electric-taberna&view=sl&target=group','gm');
+check(slDuringUnreleased.s===200&&slDuringUnreleased.d.projection.location.title===stillPublishedDuringUnreleased.d.projection.location.title&&!JSON.stringify(slDuringUnreleased.d).includes('TEST_DATA approved but never released'),'Live SL dossier uses the actual release, never an approved but unpublished revision');
 check(unreleasedApproved.s===200&&stillPublishedDuringUnreleased.d.projection.location.title.startsWith('TEST_DATA parallel')&&!JSON.stringify(stillPublishedDuringUnreleased.d).includes('TEST_DATA approved but never released'),'Approving an unreleased revision does not change the live player projection');
 const nextPublicRevision=await cmsCreate('place.electric-taberna','public','gm');
 check(nextPublicRevision.s===201&&nextPublicRevision.d.revisionNo===3&&nextPublicRevision.d.payload.title.startsWith('TEST_DATA parallel')&&!nextPublicRevision.d.payload.title.includes('never released')&&nextPublicRevision.d.geography.status==='unknown'&&nextPublicRevision.d.heroFileId===media.id,`A new draft starts from the exact released payload, geography and image, not a newer approved-but-unreleased revision (${JSON.stringify(nextPublicRevision.d)})`);
@@ -802,6 +804,13 @@ const playerAreaProjection=(await req('/api/locations?place=place.electric-taber
 check(playerAreaProjection?.image===`/api/cms/media?id=${encodeURIComponent(editorMedia.id)}&entityId=${encodeURIComponent('area.electric-taberna.public-guests')}&revisionId=${encodeURIComponent(areaGroupDraft.d.id)}`,'Player projection includes the released image only on its matching known area');
 check((await fetch(base+playerAreaProjection.image,{headers:ids.a})).status===200,'Entitled player can retrieve an area image through the protected CMS media proxy');
 check((await fetch(base+playerAreaProjection.image,{headers:ids.b})).status===200,'Group release grants the same area image to another member of that target group');
+const slEditorialLocation=(await req('/api/locations?place=place.electric-taberna&view=sl&target=group','gm')).d.projection.location;
+const slEditorialArea=slEditorialLocation.areas.find(area=>area.id==='area.electric-taberna.public-guests');
+check(slEditorialLocation.title==='TEST_DATA Electric Taberna group release'&&slEditorialLocation.summary==='TEST_DATA freigegebener Gruppentext','SL dossier reflects the same published root text as the active group');
+check(slEditorialArea?.image===playerAreaProjection.image&&slEditorialArea.playerHint==='TEST_DATA freigegebener Bereichshinweis','SL dossier reflects the published image and description of their matching area');
+check(slEditorialLocation.preparedActions.length>0&&slEditorialLocation.areas.some(area=>area.id==='area.electric-taberna.cellar-service'),'Published overlays preserve the SL-only actions and hidden location hierarchy');
+const slEditorialHub=await req('/api/locations?view=sl&target=group','gm');
+check(slEditorialHub.s===200&&slEditorialHub.d.places.some(place=>place.id==='place.electric-taberna'&&place.title===slEditorialLocation.title&&place.image===slEditorialLocation.image),'SL hub tiles and dossier share the actual published editorial content');
 check((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d.projection.location.title==='TEST_DATA Electric Taberna group release','Group release supersedes lower public release for Player A');
 const blockedRelease=await cmsRelease('gm','block','place.electric-taberna','group',1,null);
 check((await fetch(groupImageLiveUrl,{headers:ids.editor})).status===404,'Group image is not live-readable to the editor after the target is blocked');

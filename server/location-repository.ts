@@ -106,7 +106,9 @@ function buildPersistedProjection(
   const availableRows = sl ? rows : rows.filter(row => !blocked.has(row.entity_id));
   const root = availableRows.find(row => row.level === "location" && row.entity_id === placeId);
   if (!root) return null;
-  const attrsFor = (row: NodeRow) => overlay?.managedIds.has(row.entity_id)
+  const attrsFor = (row: NodeRow) => sl
+    ? { ...attrs(row), ...overlay?.playerPayloads.get(row.entity_id) }
+    : overlay?.managedIds.has(row.entity_id)
     ? overlay.playerPayloads.get(row.entity_id) ?? {}
     : attrs(row);
   const rootAttrs = attrsFor(root);
@@ -227,7 +229,10 @@ export async function loadPersistedLocation(
   const data = await selectLocationData(db, actor, [placeId], target, viewerId);
   const rows = data.rows.filter(row => row.location_id === placeId);
   if (!rows.length) return null;
-  if (requestedView === "player") data.overlay = await loadRevisionOverlay(db, actor, rows, data.grants, target, viewerId, options.preview);
+  // The live SL dossier also displays the audience's published content. Drafts
+  // remain restricted to the explicit CMS preview; hidden SL nodes retain their
+  // original data when no matching release exists.
+  data.overlay = await loadRevisionOverlay(db, actor, rows, data.grants, target, viewerId, options.preview);
   const projectionActor = viewerId === actor.id ? actor : { ...actor, id: viewerId, role: "player" as const, gm: false };
   return buildPersistedProjection(projectionActor, placeId, {
     rows,
@@ -244,7 +249,7 @@ export async function loadLocationHub(db: D1Database, actor: Actor, requestedVie
   const placeIds = roots.results.map(root => root.entity_id);
   if (!placeIds.length) return [];
   const loaded = await selectLocationData(db, actor, placeIds, target);
-  if (requestedView === "player") loaded.overlay = await loadRevisionOverlay(db, actor, loaded.rows, loaded.grants, target);
+  loaded.overlay = await loadRevisionOverlay(db, actor, loaded.rows, loaded.grants, target);
   const byPlace = new Map<string, NodeRow[]>();
   const actionsByPlace = new Map<string, ActionRow[]>();
   for (const row of loaded.rows) byPlace.set(row.location_id, [...(byPlace.get(row.location_id) ?? []), row]);
