@@ -46,6 +46,12 @@ test("live creation summary reports V20 limits and rejects an overfilled attribu
   assert.equal(creationBudgetSummary(tooMany).attributes.physical.exceeded, true);
 });
 
+test("an enrolled draft keeps incomplete choices saveable but rejects an overfilled group", () => {
+  const draft = { engineVersion: 1, characterState: "draft", creationAllocations: base.creationAllocations, freebiePurchases: [], attributes: {}, skills: {}, virtues: {} };
+  assert.equal(validateCharacterDraft(campaign, draft).ok, true);
+  assert.equal(validateCharacterDraft(campaign, { ...draft, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } }).ok, false);
+});
+
 test("review and confirmed states lock permanent changes but leave runtime values out of the lock", () => {
   const confirmed = { ...base, characterState: "confirmed", blood: 10, health: { current: "gesund" }, willpowerTemporary: 3 };
   assert.equal(validateCharacterDraft(campaign, { ...confirmed, blood: 8, health: { current: "verletzt" }, willpowerTemporary: 2 }, confirmed).ok, true);

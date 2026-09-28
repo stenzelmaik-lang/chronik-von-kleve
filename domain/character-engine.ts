@@ -195,12 +195,12 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
     return { ok: true, state, freebieSpent: 0, freebieAvailable: freebieCapacity(body), xpAvailable: xpBalance(body) };
   if (body.characterState && (!body.engineVersion || !body.creationAllocations || !body.freebiePurchases))
     return { ok: false, error: "Ein Engine-Charakter benötigt die vollständige Erschaffungsgrundlage." };
+  const allowIncompleteDraft = body.characterState === "draft";
   const clan = availableClanForCampaign(campaignId, body.clan);
-  if (!clan) return { ok: false, error: "Ein bestätigter Engine-Charakter benötigt einen freigegebenen Clan." };
   const allocations = (body.creationAllocations ?? {}) as CharacterLike;
-  if (allocations.attributes && JSON.stringify(Object.values(allocations.attributes).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.attributes].sort((a, b) => b - a)))
+  if (!allowIncompleteDraft && allocations.attributes && JSON.stringify(Object.values(allocations.attributes).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.attributes].sort((a, b) => b - a)))
     return { ok: false, error: "Attribute müssen nach 7/5/3 verteilt werden." };
-  if (allocations.abilities && JSON.stringify(Object.values(allocations.abilities).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.abilities].sort((a, b) => b - a)))
+  if (!allowIncompleteDraft && allocations.abilities && JSON.stringify(Object.values(allocations.abilities).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.abilities].sort((a, b) => b - a)))
     return { ok: false, error: "Fähigkeiten müssen nach 13/9/5 verteilt werden." };
   const budget = creationBudgetSummary(body);
   const exceeded = [
@@ -213,14 +213,17 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
     ["Tugenden", budget.virtues],
   ].find(([, current]) => (current as CreationBudgetLine).exceeded);
   if (exceeded) return { ok: false, error: `${exceeded[0]} überschreiten das V20-Erschaffungsbudget (${(exceeded[1] as CreationBudgetLine).spent}/${(exceeded[1] as CreationBudgetLine).limit}).` };
-  if (sum(body.disciplines) !== creationBudgets.disciplines) return { ok: false, error: "Die anfänglichen Disziplinen benötigen drei Punkte." };
-  if (sum(body.backgrounds) !== creationBudgets.backgrounds) return { ok: false, error: "Die Hintergründe benötigen fünf Punkte." };
-  if (body.virtues && sum(body.virtues) - Object.keys(body.virtues as object).length !== creationBudgets.virtues)
-    return { ok: false, error: "Die Tugenden benötigen sieben zusätzliche Punkte." };
   const spent = freebieTotal(body);
   if (spent > freebieCapacity(body)) return { ok: false, error: "Das freie Zusatzpunktebudget reicht nicht aus." };
   const xp = xpBalance(body);
   if (xp < 0) return { ok: false, error: "Das XP-Ledger darf nicht negativ werden." };
+  if (allowIncompleteDraft)
+    return { ok: true, state, freebieSpent: spent, freebieAvailable: freebieCapacity(body) - spent, xpAvailable: xp };
+  if (!clan) return { ok: false, error: "Ein bestätigter Engine-Charakter benötigt einen freigegebenen Clan." };
+  if (sum(body.disciplines) !== creationBudgets.disciplines) return { ok: false, error: "Die anfänglichen Disziplinen benötigen drei Punkte." };
+  if (sum(body.backgrounds) !== creationBudgets.backgrounds) return { ok: false, error: "Die Hintergründe benötigen fünf Punkte." };
+  if (body.virtues && sum(body.virtues) - Object.keys(body.virtues as object).length !== creationBudgets.virtues)
+    return { ok: false, error: "Die Tugenden benötigen sieben zusätzliche Punkte." };
   return { ok: true, state, freebieSpent: spent, freebieAvailable: freebieCapacity(body) - spent, xpAvailable: xp };
 }
 

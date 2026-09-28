@@ -113,7 +113,20 @@ export default function Workspace({
     setFormError("");
     const body =
       kind === "charaktere"
-        ? { attributes: {}, skills: {}, virtues: {}, health: {} }
+        ? {
+            engineVersion: 1,
+            characterState: "draft",
+            creationAllocations: {
+              attributes: { physical: 7, social: 5, mental: 3 },
+              abilities: { talents: 13, skills: 9, knowledges: 5 },
+            },
+            freebiePurchases: [],
+            xpLedger: [],
+            attributes: {},
+            skills: {},
+            virtues: {},
+            health: {},
+          }
         : { text: "" };
     setEdit({
       kind,
