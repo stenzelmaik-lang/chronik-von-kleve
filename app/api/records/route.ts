@@ -16,6 +16,7 @@ import {
 } from "@/server/access";
 import { locationReferenceIsVisible } from "@/server/location-repository";
 import { validateCharacterClanSelection } from "@/domain/clan-config";
+import { validateCharacterDraft } from "@/domain/character-engine";
 export const dynamic = "force-dynamic";
 const listItem = z.object({ name: z.string().trim().min(1).max(120), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional() });
 const bodySchema = z
@@ -156,6 +157,10 @@ export async function POST(req: Request) {
         previousDisciplines: previous?.disciplines,
       });
       if (!clanSelection.ok) throw new HttpError(400, clanSelection.error);
+      const engine = validateCharacterDraft(a.campaignId, d.body, previous);
+      if (!engine.ok) throw new HttpError(400, engine.error);
+      if (old && previous && JSON.stringify(previous.xpLedger ?? null) !== JSON.stringify(d.body.xpLedger ?? null))
+        throw new HttpError(403, "XP dürfen nur über die zentrale Regel-Engine verändert werden.");
     }
     const body = JSON.stringify(d.body);
     if (d.kind === "notizen" && typeof d.body.locationId === "string") {
