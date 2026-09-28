@@ -12,7 +12,7 @@ export type ClanDefinition = {
   availability: ClanAvailability;
 };
 
-type CharacterDiscipline = { name?: unknown; value?: unknown };
+type CharacterDiscipline = { name?: unknown; value?: unknown; source?: unknown; slApproved?: unknown };
 
 const classicV20Clans = [
   { id: "assamiten", label: "Assamiten", disciplines: ["Auspex", "Geschwindigkeit", "Verdunkelung"] },
@@ -129,11 +129,14 @@ export function validateCharacterClanSelection(input: {
   if (new Set(names).size !== names.length)
     return { ok: false, error: "Eine Disziplin kann nur einmal ausgewählt werden." };
 
-  const unsupported = names.find((name) => !configuredClan.disciplines.includes(name));
-  if (unsupported)
-    return {
-      ok: false,
-      error: `${unsupported} ist keine freigegebene Clan-Disziplin für ${configuredClan.label}.`,
-    };
+  const unsupportedIndex = names.findIndex((name, index) => {
+    if (configuredClan.disciplines.includes(name)) return false;
+    const row = input.disciplines[index] as CharacterDiscipline;
+    return row.source !== "foreign" || row.slApproved !== true;
+  });
+  if (unsupportedIndex >= 0) {
+    const unsupported = names[unsupportedIndex];
+    return { ok: false, error: `${unsupported} benötigt eine dokumentierte SL-Ausnahme.` };
+  }
   return { ok: true };
 }

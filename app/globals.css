@@ -376,6 +376,11 @@ body{background:#101418;color:#ece5d8;font-family:Arial,sans-serif;font-size:16p
 .character-budget-groups > .budget-line small { color: #8ec5a1; }
 .character-budget-groups > .budget-line em { color: #ff9f9f; }
 .character-budget-groups > .budget-line.exceeded { border-color: rgba(224, 93, 93, .72); background: rgba(120, 29, 36, .24); }
+.freebie-purchase-editor, .foreign-discipline-section { display: grid; gap: .55rem; }
+.foreign-discipline-section { margin-top: .65rem; padding-top: .65rem; border-top: 1px solid rgba(255,255,255,.1); }
+.inline-check { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted, #b4b0a7); font-size: .78rem; }
+.inline-check input { width: auto; }
+.field output { display: block; min-height: 2.25rem; padding: .55rem .7rem; border: 1px solid rgba(255,255,255,.12); border-radius: .45rem; color: var(--gold, #e1b36a); }
 .character-budget-groups b { color: var(--gold, #e1b36a); }
 .character-budget-error { margin: 0; color: #ff9f9f; font-size: .85rem; }
 .preset-field { min-width: 0; }

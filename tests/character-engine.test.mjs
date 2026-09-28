@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyXpPurchase, creationBudgetSummary, creationBudgets, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft, xpBalance, xpCost } from "../domain/character-engine.ts";
+import { applyXpPurchase, creationBudgetSummary, creationBudgets, derivedV20Values, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft, xpBalance, xpCost } from "../domain/character-engine.ts";
 
 const campaign = "chronik-von-kleve";
 const base = {
@@ -26,7 +26,7 @@ test("B1a uses the approved creation budgets", () => {
 
 test("freebie prices and the optional flaw bonus are capped", () => {
   assert.deepEqual(freebieCosts, { attribute: 5, ability: 2, discipline: 7, background: 1, virtue: 2, humanity: 2, willpower: 1 });
-  const body = { ...base, flaws: [{ name: "Schwäche", cost: 10 }], freebiePurchases: [{ category: "attribute", points: 1 }, { category: "ability", points: 1 }] };
+  const body = { ...base, flaws: [{ name: "Schwäche", cost: 10 }], freebiePurchases: [{ category: "attribute", target: "Geschick", points: 1 }, { category: "ability", target: "Diebstahl", points: 1 }] };
   assert.equal(freebieCapacity(body), 22);
   assert.equal(freebieTotal(body), 7);
   assert.equal(validateCharacterDraft(campaign, body).freebieAvailable, 15);
@@ -50,6 +50,32 @@ test("an enrolled draft keeps incomplete choices saveable but rejects an overfil
   const draft = { engineVersion: 1, characterState: "draft", creationAllocations: base.creationAllocations, freebiePurchases: [], attributes: {}, skills: {}, virtues: {} };
   assert.equal(validateCharacterDraft(campaign, draft).ok, true);
   assert.equal(validateCharacterDraft(campaign, { ...draft, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } }).ok, false);
+});
+
+test("base dots stay separate from an explicit targeted attribute Freebie", () => {
+  const over = { ...base, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } };
+  assert.equal(creationBudgetSummary(over).attributes.physical.exceeded, true);
+  const purchased = { ...over, freebiePurchases: [{ category: "attribute", target: "Körperkraft", points: 1 }] };
+  assert.deepEqual(creationBudgetSummary(purchased).attributes.physical, { spent: 7, limit: 7, remaining: 0, exceeded: false });
+  assert.equal(validateCharacterDraft(campaign, purchased).ok, true);
+});
+
+test("regular ability values above three require a targeted ability Freebie", () => {
+  const high = { ...base, skills: { Diebstahl: 4 } };
+  assert.equal(validateCharacterDraft(campaign, high).ok, false);
+  const purchased = { ...high, freebiePurchases: [{ category: "ability", target: "Diebstahl", points: 1 }] };
+  assert.equal(validateCharacterDraft(campaign, purchased).ok, true);
+});
+
+test("foreign disciplines require SL approval and a targeted discipline Freebie", () => {
+  const foreign = { ...base, disciplines: [...base.disciplines, { name: "Potenz", value: 1, source: "foreign", slApproved: false }], freebiePurchases: [{ category: "discipline", target: "Potenz", points: 1 }] };
+  assert.equal(validateCharacterDraft(campaign, foreign).ok, false);
+  assert.equal(validateCharacterDraft(campaign, { ...foreign, disciplines: foreign.disciplines.map((row) => row.name === "Potenz" ? { ...row, slApproved: true } : row) }).ok, true);
+});
+
+test("derived humanity and willpower use free virtue dots only as base values", () => {
+  const body = { virtues: { Gewissen: 3, Selbstbeherrschung: 2, Mut: 4 }, freebiePurchases: [{ category: "virtue", target: "Mut", points: 1 }, { category: "humanity", points: 1 }, { category: "willpower", points: 1 }] };
+  assert.deepEqual(derivedV20Values(body), { humanity: 6, willpower: 4 });
 });
 
 test("review and confirmed states lock permanent changes but leave runtime values out of the lock", () => {

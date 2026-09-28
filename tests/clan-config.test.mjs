@@ -63,6 +63,28 @@ test("New and changed selections accept only approved clan disciplines", () => {
   );
 });
 
+test("A foreign discipline requires the documented SL exception marker", () => {
+  assert.equal(validateCharacterClanSelection({
+    campaignId,
+    clan: "Tremere",
+    disciplines: [{ name: "Auspex", value: 1 }, { name: "Potenz", value: 1, source: "foreign", slApproved: false }],
+  }).ok, false);
+  assert.equal(validateCharacterClanSelection({
+    campaignId,
+    clan: "Tremere",
+    disciplines: [
+      { name: "Auspex", value: 1 },
+      { name: "Potenz", value: 1, source: "foreign", slApproved: true },
+      { name: "Seelenstärke", value: 1, source: "foreign", slApproved: false },
+    ],
+  }).ok, false);
+  assert.deepEqual(validateCharacterClanSelection({
+    campaignId,
+    clan: "Tremere",
+    disciplines: [{ name: "Auspex", value: 1 }, { name: "Potenz", value: 1, source: "foreign", slApproved: true }],
+  }), { ok: true });
+});
+
 test("Unchanged legacy clan values remain preserved without opening new choices", () => {
   const legacy = validateCharacterClanSelection({
     campaignId,

@@ -136,6 +136,7 @@ export function RecordEditor({
                   patchBody={patchBody}
                   field={field}
                   campaignId={a.campaignId}
+                  isGm={a.gm}
                 />
               ) : (
                 <>
