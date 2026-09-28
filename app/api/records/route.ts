@@ -15,6 +15,7 @@ import {
   canEdit,
 } from "@/server/access";
 import { locationReferenceIsVisible } from "@/server/location-repository";
+import { validateCharacterClanSelection } from "@/domain/clan-config";
 export const dynamic = "force-dynamic";
 const listItem = z.object({ name: z.string().trim().min(1).max(120), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional() });
 const bodySchema = z
@@ -59,6 +60,17 @@ const schema = z.object({
   body: bodySchema,
   gmBody: z.string().max(100000).optional(),
 });
+
+function legacyBody(raw: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
 export async function GET(req: Request) {
   try {
     const a = await actor();
@@ -134,6 +146,17 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Du darfst diesen Eintrag nicht ändern.");
     if (old && old.kind !== d.kind)
       throw new HttpError(400, "Der Bereich darf nicht geändert werden.");
+    if (d.kind === "charaktere") {
+      const previous = old ? legacyBody(old.body) : undefined;
+      const clanSelection = validateCharacterClanSelection({
+        campaignId: a.campaignId,
+        clan: d.body.clan,
+        disciplines: d.body.disciplines,
+        previousClan: previous?.clan,
+        previousDisciplines: previous?.disciplines,
+      });
+      if (!clanSelection.ok) throw new HttpError(400, clanSelection.error);
+    }
     const body = JSON.stringify(d.body);
     if (d.kind === "notizen" && typeof d.body.locationId === "string") {
       if (!(await locationReferenceIsVisible(db, a, d.body.locationId)))
