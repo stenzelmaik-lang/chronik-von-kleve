@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import type { Entry, LegacyBody } from "@/domain/legacy";
 import { availableClanForCampaign, clansForCampaign, type ClanDefinition } from "@/domain/clan-config";
-import { creationBudgets, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft } from "@/domain/character-engine";
+import { creationBudgetSummary, validateCharacterDraft, type CreationBudgetLine } from "@/domain/character-engine";
 import { v20Archetypes, v20Backgrounds, v20Flaws, v20Merits, type CharacterOption } from "@/domain/character-options";
 
 const attrsGroups = [
@@ -53,14 +53,10 @@ function ClanDisciplines({ value, onChange, clan, disabled }: { value: unknown; 
 
 function BudgetPanel({ body, campaignId }: { body: LegacyBody; campaignId: string }) {
   const source = body as Record<string, unknown>;
-  const capacity = freebieCapacity(source);
-  const spent = freebieTotal(source);
+  const budget = creationBudgetSummary(source);
   const validation = validateCharacterDraft(campaignId, source);
-  const attributes = Object.values(numericRecord(body.attributes)).reduce((sum, value) => sum + value, 0);
-  const abilities = Object.values(numericRecord(body.skills)).reduce((sum, value) => sum + value, 0);
-  const disciplines = rows(body.disciplines).reduce((sum, item) => sum + Number(item.value || 0), 0);
-  const backgrounds = rows(body.backgrounds).reduce((sum, item) => sum + Number(item.value || 0), 0);
-  return <section className="wide character-budget-panel"><div><p className="eyebrow">V20 ERSCHAFFUNGSBUDGET</p><h3>Punkteübersicht</h3></div><div className="character-budget-groups"><span>Attribute <b>{attributes}</b></span><span>Fähigkeiten <b>{abilities}</b></span><span>Disziplinen <b>{disciplines}/{creationBudgets.disciplines}</b></span><span>Hintergründe <b>{backgrounds}/{creationBudgets.backgrounds}</b></span><span>Freebies <b>{spent}/{capacity}</b></span></div>{validation.ok ? <p className="v20-note">{validation.state === "draft" ? "Entwurf · Änderungen bleiben bis zur Bestätigung offen." : `Freie Punkte verfügbar: ${validation.freebieAvailable}`}</p> : <p className="character-budget-error">{validation.error}</p>}<small className="muted">Freebie-Kosten: Attribut {freebieCosts.attribute}, Fähigkeit {freebieCosts.ability}, Disziplin {freebieCosts.discipline}, Hintergrund {freebieCosts.background}. Schwächen geben höchstens {creationBudgets.flawFreebiesMaximum} bestätigte Zusatzpunkte.</small></section>;
+  const line = (label: string, value: CreationBudgetLine) => <span className={value.exceeded ? "budget-line exceeded" : "budget-line"}><span>{label}</span><b>{value.spent}/{value.limit}</b>{value.exceeded ? <em>zu viele Punkte</em> : <small>{value.remaining} frei</small>}</span>;
+  return <section className="wide character-budget-panel"><div><p className="eyebrow">V20 ERSCHAFFUNGSREGELN</p><h3>Punkteübersicht</h3><p className="muted">Attribute: 7/5/3 · Fähigkeiten: 13/9/5 · Disziplinen: 3 · Hintergründe: 5 · Tugenden: 7 · Freebies: 15 (+ bis zu 7 durch bestätigte Schwächen)</p></div><div className="character-budget-groups">{line("Attribute körperlich", budget.attributes.physical)}{line("Attribute sozial", budget.attributes.social)}{line("Attribute mental", budget.attributes.mental)}{line("Talente", budget.abilities.talents)}{line("Fertigkeiten", budget.abilities.skills)}{line("Kenntnisse", budget.abilities.knowledges)}{line("Disziplinen", budget.disciplines)}{line("Hintergründe", budget.backgrounds)}{line("Tugenden", budget.virtues)}{line("Freebies", budget.freebies)}</div>{validation.ok ? <p className="v20-note">{validation.state === "draft" ? "Entwurf · Änderungen bleiben bis zur Bestätigung offen. Eine Überschreitung wird sofort markiert und serverseitig abgewiesen." : `Freie Punkte verfügbar: ${validation.freebieAvailable}`}</p> : <p className="character-budget-error">{validation.error}</p>}<small className="muted">Attribute zählen über dem Grundwert 1, Fähigkeiten ab 0. Freebie-Kosten: Attribut 5 · Fähigkeit 2 · Disziplin 7 · Hintergrund 1 · Tugend 2 · Menschlichkeit 2 · permanente Willenskraft 1.</small></section>;
 }
 
 export function CharacterCreationFields({ edit, patchBody, field, campaignId }: { edit: Entry; patchBody: (key: string, value: unknown) => void; field: (label: string, key: string, large?: boolean, type?: string) => ReactNode; campaignId: string }) {

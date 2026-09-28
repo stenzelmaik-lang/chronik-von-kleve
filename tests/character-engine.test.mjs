@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyXpPurchase, creationBudgets, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft, xpBalance, xpCost } from "../domain/character-engine.ts";
+import { applyXpPurchase, creationBudgetSummary, creationBudgets, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft, xpBalance, xpCost } from "../domain/character-engine.ts";
 
 const campaign = "chronik-von-kleve";
 const base = {
@@ -36,6 +36,14 @@ test("freebie prices and the optional flaw bonus are capped", () => {
 test("draft validation rejects invalid creation budgets and overdrawn freebies", () => {
   assert.equal(validateCharacterDraft(campaign, { ...base, creationAllocations: { attributes: { physical: 6, social: 5, mental: 3 }, abilities: { talents: 13, skills: 9, knowledges: 5 } } }).ok, false);
   assert.equal(validateCharacterDraft(campaign, { ...base, freebiePurchases: [{ category: "discipline", points: 3 }] }).ok, false);
+});
+
+test("live creation summary reports V20 limits and rejects an overfilled attribute group", () => {
+  const summary = creationBudgetSummary({ attributes: { Körperkraft: 5, Geschick: 4, Widerstandsfähigkeit: 1 }, skills: {} });
+  assert.deepEqual(summary.attributes.physical, { spent: 7, limit: 7, remaining: 0, exceeded: false });
+  const tooMany = { ...base, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } };
+  assert.equal(validateCharacterDraft(campaign, tooMany).ok, false);
+  assert.equal(creationBudgetSummary(tooMany).attributes.physical.exceeded, true);
 });
 
 test("review and confirmed states lock permanent changes but leave runtime values out of the lock", () => {

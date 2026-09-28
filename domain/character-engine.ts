@@ -23,6 +23,27 @@ export const creationBudgets = {
   flawFreebiesMaximum: 7,
 } as const;
 
+const attributeGroups = {
+  physical: ["Körperkraft", "Geschick", "Widerstandsfähigkeit"],
+  social: ["Charisma", "Manipulation", "Erscheinungsbild"],
+  mental: ["Wahrnehmung", "Intelligenz", "Geistesschärfe"],
+} as const;
+const abilityGroups = {
+  talents: ["Aufmerksamkeit", "Ausdruck", "Ausflüchte", "Einschüchtern", "Empathie", "Führungsqualitäten", "Handgemenge", "Magiegespür", "Sportlichkeit", "Szenekenntnis"],
+  skills: ["Diebstahl", "Etikette", "Fahren", "Handwerk", "Heimlichkeit", "Nahkampf", "Schusswaffen", "Tierkunde", "Überleben", "Vortrag"],
+  knowledges: ["Akademisches Wissen", "Computer", "Finanzen", "Gesetzeskenntnis", "Medizin", "Nachforschungen", "Naturwissenschaften", "Okkultismus", "Politik", "Technologie"],
+} as const;
+
+export type CreationBudgetLine = { spent: number; limit: number; remaining: number; exceeded: boolean };
+export type CreationBudgetSummary = {
+  attributes: { physical: CreationBudgetLine; social: CreationBudgetLine; mental: CreationBudgetLine };
+  abilities: { talents: CreationBudgetLine; skills: CreationBudgetLine; knowledges: CreationBudgetLine };
+  disciplines: CreationBudgetLine;
+  backgrounds: CreationBudgetLine;
+  virtues: CreationBudgetLine;
+  freebies: CreationBudgetLine;
+};
+
 export type XpLedgerEntry = {
   id: string;
   kind: "grant" | "spend";
@@ -52,6 +73,38 @@ function numbers(value: unknown): number[] {
 
 function sum(value: unknown) { return numbers(value).reduce((total, current) => total + current, 0); }
 function integer(value: unknown, fallback = 0) { return typeof value === "number" && Number.isInteger(value) ? value : fallback; }
+function line(spent: number, limit: number): CreationBudgetLine { return { spent, limit, remaining: limit - spent, exceeded: spent > limit }; }
+function groupedSpent(value: unknown, names: readonly string[], base: number) {
+  const map = value && typeof value === "object" && !Array.isArray(value) ? value as NumericMap : {};
+  return names.reduce((total, name) => total + Math.max(0, integer(map[name]) - base), 0);
+}
+
+/**
+ * Returns the live V20 creation budget state used by the editor and by draft
+ * validation. Attribute values are measured above their base 1 dot; abilities
+ * start at 0. This function deliberately has no UI dependencies.
+ */
+export function creationBudgetSummary(body: CharacterLike): CreationBudgetSummary {
+  const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
+  const virtueSpent = ["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, name) => total + Math.max(0, integer(virtues[name], 1) - 1), 0);
+  const freebieSpent = freebieTotal(body);
+  return {
+    attributes: {
+      physical: line(groupedSpent(body.attributes, attributeGroups.physical, 1), 7),
+      social: line(groupedSpent(body.attributes, attributeGroups.social, 1), 5),
+      mental: line(groupedSpent(body.attributes, attributeGroups.mental, 1), 3),
+    },
+    abilities: {
+      talents: line(groupedSpent(body.skills, abilityGroups.talents, 0), 13),
+      skills: line(groupedSpent(body.skills, abilityGroups.skills, 0), 9),
+      knowledges: line(groupedSpent(body.skills, abilityGroups.knowledges, 0), 5),
+    },
+    disciplines: line(sum(body.disciplines), creationBudgets.disciplines),
+    backgrounds: line(sum(body.backgrounds), creationBudgets.backgrounds),
+    virtues: line(virtueSpent, creationBudgets.virtues),
+    freebies: line(freebieSpent, freebieCapacity(body)),
+  };
+}
 function samePermanent(left: CharacterLike, right: CharacterLike) {
   const runtime = new Set(["blood", "health", "willpowerTemporary"]);
   const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
@@ -149,6 +202,17 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
     return { ok: false, error: "Attribute müssen nach 7/5/3 verteilt werden." };
   if (allocations.abilities && JSON.stringify(Object.values(allocations.abilities).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.abilities].sort((a, b) => b - a)))
     return { ok: false, error: "Fähigkeiten müssen nach 13/9/5 verteilt werden." };
+  const budget = creationBudgetSummary(body);
+  const exceeded = [
+    ["Attribute körperlich", budget.attributes.physical],
+    ["Attribute sozial", budget.attributes.social],
+    ["Attribute mental", budget.attributes.mental],
+    ["Talente", budget.abilities.talents],
+    ["Fertigkeiten", budget.abilities.skills],
+    ["Kenntnisse", budget.abilities.knowledges],
+    ["Tugenden", budget.virtues],
+  ].find(([, current]) => (current as CreationBudgetLine).exceeded);
+  if (exceeded) return { ok: false, error: `${exceeded[0]} überschreiten das V20-Erschaffungsbudget (${(exceeded[1] as CreationBudgetLine).spent}/${(exceeded[1] as CreationBudgetLine).limit}).` };
   if (sum(body.disciplines) !== creationBudgets.disciplines) return { ok: false, error: "Die anfänglichen Disziplinen benötigen drei Punkte." };
   if (sum(body.backgrounds) !== creationBudgets.backgrounds) return { ok: false, error: "Die Hintergründe benötigen fünf Punkte." };
   if (body.virtues && sum(body.virtues) - Object.keys(body.virtues as object).length !== creationBudgets.virtues)
