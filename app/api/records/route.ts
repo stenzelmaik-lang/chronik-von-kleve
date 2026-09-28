@@ -18,7 +18,7 @@ import { locationReferenceIsVisible } from "@/server/location-repository";
 import { validateCharacterClanSelection } from "@/domain/clan-config";
 import { validateCharacterDraft } from "@/domain/character-engine";
 export const dynamic = "force-dynamic";
-const listItem = z.object({ name: z.string().trim().min(1).max(120), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional() });
+const listItem = z.object({ name: z.string().trim().min(1, "Bitte gib für jeden Eintrag einen Namen ein oder lösche die leere Zeile.").max(120, "Der Eintragsname darf höchstens 120 Zeichen enthalten."), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional() });
 const bodySchema = z
   .object({
     text: z.string().max(90000).optional(),

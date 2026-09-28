@@ -3,7 +3,7 @@ import { actor, canEdit, database, failure, HttpError, input, json, sameOrigin }
 import type { LegacyRecordRow } from "@/domain/legacy";
 
 export const dynamic = "force-dynamic";
-const health = ["Blaue Flecken", "Verletzt", "Schwer verletzt", "Verwundet", "Schwer verwundet", "Verkrüppelt", "Außer Gefecht"] as const;
+const health = ["Gesund", "Blaue Flecken", "Verletzt", "Schwer verletzt", "Verwundet", "Schwer verwundet", "Verkrüppelt", "Außer Gefecht"] as const;
 const schema = z.object({ id: z.string().min(1).max(100), version: z.number().int().positive(), field: z.enum(["blood", "willpowerTemporary", "health"]), value: z.union([z.number(), z.string()]) });
 
 export async function PATCH(req: Request) {

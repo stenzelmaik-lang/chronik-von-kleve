@@ -350,6 +350,8 @@ runtimeResult=await runtime(charProjection.d.revision.version,'willpowerTemporar
 charProjection=await characterDetail('a');check(charProjection.d.sheet.willpower.temporary===3,'CHAR-R02 temporary willpower reload persists');
 runtimeResult=await runtime(charProjection.d.revision.version,'health','Verwundet');check(runtimeResult.s===200,'CHAR-R03 health update succeeds');
 charProjection=await characterDetail('a');check(charProjection.d.sheet.health.current==='Verwundet'&&charProjection.d.sheet.health.legacy===true,'CHAR-R03 health reload preserves legacy fields');
+runtimeResult=await runtime(charProjection.d.revision.version,'health','Gesund');check(runtimeResult.s===200,'CHAR-R03A health reset succeeds');
+charProjection=await characterDetail('a');check(charProjection.d.sheet.health.current==='Gesund'&&charProjection.d.sheet.health.legacy===true,'CHAR-R03A health reset preserves other health fields');
 check((await runtime(charProjection.d.revision.version,'blood',-1)).s===400,'CHAR-R04 negative blood rejected');
 check((await runtime(charProjection.d.revision.version,'blood',14)).s===400,'CHAR-R05 blood above maximum rejected');
 check((await runtime(charProjection.d.revision.version,'health','Invalid')).s===400,'CHAR-R06 invalid health rejected');

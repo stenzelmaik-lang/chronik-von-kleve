@@ -64,7 +64,12 @@ function samePermanent(left: CharacterLike, right: CharacterLike) {
 
 export function freebieCapacity(body: CharacterLike) {
   const flaws = Array.isArray(body.flaws) ? body.flaws : [];
-  const bonus = Math.min(creationBudgets.flawFreebiesMaximum, flaws.reduce((total, flaw) => total + integer((flaw as CharacterLike).cost), 0));
+  const bonus = Math.min(creationBudgets.flawFreebiesMaximum, flaws.reduce((total, flaw) => {
+    const item = flaw as CharacterLike;
+    // New catalog/custom rows are explicitly marked unapproved until the SL
+    // confirms their cost. Legacy rows without the marker remain compatible.
+    return total + (item.approved === false ? 0 : integer(item.cost));
+  }, 0));
   return creationBudgets.freebies + bonus;
 }
 

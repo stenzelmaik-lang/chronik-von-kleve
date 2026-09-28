@@ -3,6 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   BookOpen,
   CalendarDays,
   Camera,
@@ -82,6 +92,7 @@ export function CharacterDetail({
   const [mediaType, setMediaType] = useState("portrait");
   const [mediaVisibility, setMediaVisibility] = useState("private");
   const [companionBusy, setCompanionBusy] = useState(false);
+  const [healthResetOpen, setHealthResetOpen] = useState(false);
   const portraitInput = useRef<HTMLInputElement>(null);
   const mediaInput = useRef<HTMLInputElement>(null);
   const selected = activeCharacterId;
@@ -190,6 +201,11 @@ export function CharacterDetail({
         setLoadError(e instanceof Error ? e : new Error(describeDataError(e).detail));
       }
     }
+  }
+
+  async function resetHealth() {
+    setHealthResetOpen(false);
+    await runtime("health", "Gesund");
   }
 
   function beginRoleEdit(which: "story" | "play") {
@@ -602,6 +618,9 @@ export function CharacterDetail({
               <span>Gesundheit</span>
               <small>Aktueller Zustand auswählen</small>
             </div>
+            <button type="button" className="button health-reset" disabled={!canRuntime || health.current === "Gesund"} onClick={() => setHealthResetOpen(true)}>
+              Gesundheit zurücksetzen
+            </button>
             {healthLevels.map((level) => (
               <button
                 type="button"
@@ -906,6 +925,22 @@ export function CharacterDetail({
           </article>
         </div>
       </section>
+      <AlertDialog open={healthResetOpen} onOpenChange={setHealthResetOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gesundheit vollständig zurücksetzen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nur der aktuelle vorübergehende Gesundheitszustand wird auf „Gesund“ gesetzt. Permanente Charakterwerte, Blut, Willenskraft und andere Zustände bleiben unverändert.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void resetHealth(); }}>
+              Auf Gesund setzen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -30,6 +30,7 @@ test("freebie prices and the optional flaw bonus are capped", () => {
   assert.equal(freebieCapacity(body), 22);
   assert.equal(freebieTotal(body), 7);
   assert.equal(validateCharacterDraft(campaign, body).freebieAvailable, 15);
+  assert.equal(freebieCapacity({ ...body, flaws: [{ name: "Noch nicht bestätigt", cost: 7, approved: false }] }), 15);
 });
 
 test("draft validation rejects invalid creation budgets and overdrawn freebies", () => {

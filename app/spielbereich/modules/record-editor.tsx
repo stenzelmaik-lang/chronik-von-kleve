@@ -74,7 +74,7 @@ export function RecordEditor({
       }}
     >
       <DialogContent
-        className="!max-w-5xl max-h-[90vh] overflow-y-auto"
+        className={`!max-w-5xl max-h-[90vh] overflow-y-auto ${edit?.kind === "charaktere" ? "character-editor-dialog" : ""}`}
         onInteractOutside={(e) => {
           if (edit?.canEdit) e.preventDefault();
         }}
@@ -91,6 +91,7 @@ export function RecordEditor({
         </DialogHeader>
         {edit && (
           <form
+            className={edit.kind === "charaktere" ? "character-editor-form" : undefined}
             onSubmit={(e) => {
               e.preventDefault();
               void save();
