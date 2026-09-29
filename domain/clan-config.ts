@@ -131,7 +131,7 @@ export function validateCharacterClanSelection(input: {
 
   const unsupportedIndex = names.findIndex((name, index) => {
     if (configuredClan.disciplines.includes(name)) return false;
-    const row = input.disciplines[index] as CharacterDiscipline;
+    const row = (input.disciplines as unknown[])[index] as CharacterDiscipline;
     return row.source !== "foreign" || row.slApproved !== true;
   });
   if (unsupportedIndex >= 0) {

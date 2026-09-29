@@ -18,7 +18,9 @@ import { locationReferenceIsVisible } from "@/server/location-repository";
 import { validateCharacterClanSelection } from "@/domain/clan-config";
 import { validateCharacterDraft } from "@/domain/character-engine";
 export const dynamic = "force-dynamic";
-const listItem = z.object({ name: z.string().trim().min(1, "Bitte gib für jeden Eintrag einen Namen ein oder lösche die leere Zeile.").max(120, "Der Eintragsname darf höchstens 120 Zeichen enthalten."), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional() });
+// Rule markers are accepted only for the GM-owned campaign character route;
+// POST below rejects marked character payloads before persisting for anyone else.
+const listItem = z.object({ name: z.string().trim().min(1, "Bitte gib für jeden Eintrag einen Namen ein oder lösche die leere Zeile.").max(120, "Der Eintragsname darf höchstens 120 Zeichen enthalten."), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional(), source: z.string().max(40).optional(), slApproved: z.boolean().optional(), approved: z.boolean().optional() });
 const bodySchema = z
   .object({
     text: z.string().max(90000).optional(),
@@ -128,6 +130,11 @@ export async function POST(req: Request) {
       throw new HttpError(400, parsed.error.issues[0].message);
     const d = parsed.data;
     const db = database();
+    if (d.kind === "charaktere" && !a.gm) {
+      const markedRows = [...(Array.isArray(d.body.disciplines) ? d.body.disciplines : []), ...(Array.isArray(d.body.merits) ? d.body.merits : []), ...(Array.isArray(d.body.flaws) ? d.body.flaws : [])];
+      if (markedRows.some((row) => row.source !== undefined || row.slApproved !== undefined || row.approved !== undefined))
+        throw new HttpError(403, "Regel- und Freigabemarker dürfen nur von der Spielleitung gesetzt werden.");
+    }
     if (campaignKinds.includes(d.kind) && !a.gm)
       throw new HttpError(
         403,

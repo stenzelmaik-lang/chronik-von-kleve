@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { applyXpPurchase, creationBudgetSummary, creationBudgets, derivedV20Values, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft, xpBalance, xpCost } from "../domain/character-engine.ts";
+import { applyXpPurchase, attributeBase, automaticFreebieBreakdown, creationBudgetSummary, creationBudgets, derivedV20Values, freebieCapacity, freebieCosts, freebieTotal, validateCharacterDraft, xpBalance, xpCost } from "../domain/character-engine.ts";
 
 const campaign = "chronik-von-kleve";
 const base = {
@@ -38,39 +38,54 @@ test("draft validation rejects invalid creation budgets and overdrawn freebies",
   assert.equal(validateCharacterDraft(campaign, { ...base, freebiePurchases: [{ category: "discipline", points: 3 }] }).ok, false);
 });
 
-test("live creation summary reports V20 limits and rejects an overfilled attribute group", () => {
+test("live creation summary reports V20 limits and converts an overfilled attribute group to Freebies", () => {
   const summary = creationBudgetSummary({ attributes: { Körperkraft: 5, Geschick: 4, Widerstandsfähigkeit: 1 }, skills: {} });
-  assert.deepEqual(summary.attributes.physical, { spent: 7, limit: 7, remaining: 0, exceeded: false });
+  assert.deepEqual(summary.attributes.physical, { spent: 7, limit: 7, remaining: 0, exceeded: false, freebieDots: 0, freebieCost: 0 });
   const tooMany = { ...base, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } };
-  assert.equal(validateCharacterDraft(campaign, tooMany).ok, false);
+  assert.equal(validateCharacterDraft(campaign, tooMany).ok, true);
   assert.equal(creationBudgetSummary(tooMany).attributes.physical.exceeded, true);
+  assert.equal(freebieTotal(tooMany), 5);
 });
 
-test("an enrolled draft keeps incomplete choices saveable but rejects an overfilled group", () => {
+test("an enrolled draft keeps incomplete choices saveable and charges an overfilled group automatically", () => {
   const draft = { engineVersion: 1, characterState: "draft", creationAllocations: base.creationAllocations, freebiePurchases: [], attributes: {}, skills: {}, virtues: {} };
   assert.equal(validateCharacterDraft(campaign, draft).ok, true);
-  assert.equal(validateCharacterDraft(campaign, { ...draft, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } }).ok, false);
+  assert.equal(validateCharacterDraft(campaign, { ...draft, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } }).ok, true);
 });
 
 test("base dots stay separate from an explicit targeted attribute Freebie", () => {
   const over = { ...base, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 } };
   assert.equal(creationBudgetSummary(over).attributes.physical.exceeded, true);
   const purchased = { ...over, freebiePurchases: [{ category: "attribute", target: "Körperkraft", points: 1 }] };
-  assert.deepEqual(creationBudgetSummary(purchased).attributes.physical, { spent: 7, limit: 7, remaining: 0, exceeded: false });
+  assert.deepEqual(creationBudgetSummary(purchased).attributes.physical, { spent: 7, limit: 7, remaining: 0, exceeded: true, freebieDots: 0, freebieCost: 0 });
   assert.equal(validateCharacterDraft(campaign, purchased).ok, true);
 });
 
-test("regular ability values above three require a targeted ability Freebie", () => {
+test("regular ability values above three become automatic ability Freebies", () => {
   const high = { ...base, skills: { Diebstahl: 4 } };
-  assert.equal(validateCharacterDraft(campaign, high).ok, false);
+  assert.equal(validateCharacterDraft(campaign, high).ok, true);
+  assert.equal(freebieTotal(high), 2);
   const purchased = { ...high, freebiePurchases: [{ category: "ability", target: "Diebstahl", points: 1 }] };
   assert.equal(validateCharacterDraft(campaign, purchased).ok, true);
+});
+
+test("automatic Freebies are calculated per category after normal dots", () => {
+  const body = { ...base, attributes: { Körperkraft: 5, Geschick: 5, Widerstandsfähigkeit: 1 }, skills: { Diebstahl: 4 } };
+  assert.deepEqual(automaticFreebieBreakdown(body).map((item) => [item.category, item.dots, item.total]), [["attribute", 1, 5], ["ability", 1, 2]]);
+});
+
+test("Nosferatu appearance starts at zero and cannot be raised without a separate exception", () => {
+  const body = { ...base, clan: "Nosferatu", attributes: { Erscheinungsbild: 0 } };
+  assert.equal(attributeBase(body, "Erscheinungsbild"), 0);
+  assert.equal(validateCharacterDraft(campaign, { ...body, attributes: { Erscheinungsbild: 1 } }).ok, false);
 });
 
 test("foreign disciplines require SL approval and a targeted discipline Freebie", () => {
   const foreign = { ...base, disciplines: [...base.disciplines, { name: "Potenz", value: 1, source: "foreign", slApproved: false }], freebiePurchases: [{ category: "discipline", target: "Potenz", points: 1 }] };
   assert.equal(validateCharacterDraft(campaign, foreign).ok, false);
-  assert.equal(validateCharacterDraft(campaign, { ...foreign, disciplines: foreign.disciplines.map((row) => row.name === "Potenz" ? { ...row, slApproved: true } : row) }).ok, true);
+  const approved = { ...foreign, freebiePurchases: [], disciplines: foreign.disciplines.map((row) => row.name === "Potenz" ? { ...row, slApproved: true } : row) };
+  assert.equal(validateCharacterDraft(campaign, approved).ok, true);
+  assert.equal(freebieTotal(approved), 7);
 });
 
 test("derived humanity and willpower use free virtue dots only as base values", () => {

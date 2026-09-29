@@ -34,7 +34,14 @@ const abilityGroups = {
   knowledges: ["Akademisches Wissen", "Computer", "Finanzen", "Gesetzeskenntnis", "Medizin", "Nachforschungen", "Naturwissenschaften", "Okkultismus", "Politik", "Technologie"],
 } as const;
 
-export type CreationBudgetLine = { spent: number; limit: number; remaining: number; exceeded: boolean };
+export type CreationBudgetLine = { spent: number; limit: number; remaining: number; exceeded: boolean; freebieDots?: number; freebieCost?: number };
+export type AutomaticFreebieLine = {
+  category: keyof typeof freebieCosts;
+  target: string;
+  dots: number;
+  cost: number;
+  total: number;
+};
 export type CreationBudgetSummary = {
   attributes: { physical: CreationBudgetLine; social: CreationBudgetLine; mental: CreationBudgetLine };
   abilities: { talents: CreationBudgetLine; skills: CreationBudgetLine; knowledges: CreationBudgetLine };
@@ -68,9 +75,12 @@ type CharacterRow = CharacterLike & { name?: unknown; value?: unknown; source?: 
 function integer(value: unknown, fallback = 0) { return typeof value === "number" && Number.isInteger(value) ? value : fallback; }
 function line(spent: number, limit: number): CreationBudgetLine { return { spent, limit, remaining: limit - spent, exceeded: spent > limit }; }
 function rows(value: unknown): CharacterRow[] { return Array.isArray(value) ? value.filter((item): item is CharacterRow => !!item && typeof item === "object") : []; }
-function groupedSpent(value: unknown, names: readonly string[], base: number, body: CharacterLike, category: keyof typeof freebieCosts) {
-  const map = value && typeof value === "object" && !Array.isArray(value) ? value as NumericMap : {};
-  return names.reduce((total, name) => total + Math.max(0, integer(map[name]) - base - freebiePointsForTarget(body, category, name)), 0);
+function numericValue(value: unknown, fallback = 0) { return Math.max(0, integer(value, fallback)); }
+/** The free V20 attribute dot is visible in the editor and is not a spendable point. */
+export function attributeBase(body: CharacterLike, name: string) {
+  const clan = String(body.clan ?? "").trim().toLocaleLowerCase();
+  if (name === "Erscheinungsbild" && clan === "nosferatu") return 0;
+  return 1;
 }
 
 /** Explicitly targeted Freebie dots can cover an extra value; no surplus is inferred. */
@@ -96,6 +106,65 @@ export function derivedV20Values(body: CharacterLike) {
   };
 }
 
+function explicitFreebieDots(body: CharacterLike, category: keyof typeof freebieCosts) {
+  return freebiePointsForTarget(body, category);
+}
+
+function automaticLine(category: keyof typeof freebieCosts, target: string, rawDots: number, explicitDots: number): AutomaticFreebieLine | null {
+  const dots = Math.max(0, rawDots - explicitDots);
+  return dots > 0 ? { category, target, dots, cost: freebieCosts[category], total: dots * freebieCosts[category] } : null;
+}
+
+function groupOverflow(value: unknown, names: readonly string[], limit: number, base: (name: string) => number, perValueMaximum?: number) {
+  const map = value && typeof value === "object" && !Array.isArray(value) ? value as NumericMap : {};
+  let regularSpent = 0;
+  let aboveIndividualMaximum = 0;
+  for (const name of names) {
+    const dots = Math.max(0, numericValue(map[name]) - base(name));
+    const regularDots = perValueMaximum === undefined ? dots : Math.min(dots, Math.max(0, perValueMaximum - base(name)));
+    regularSpent += regularDots;
+    if (perValueMaximum !== undefined) aboveIndividualMaximum += Math.max(0, dots - Math.max(0, perValueMaximum - base(name)));
+  }
+  const rawOverflow = Math.max(0, regularSpent - limit) + aboveIndividualMaximum;
+  return { regularSpent, standardSpent: Math.min(limit, regularSpent), rawOverflow };
+}
+
+/**
+ * Freebies are inferred from creation values. The editor never asks players
+ * to create purchase rows for ordinary attribute/ability/discipline/etc.
+ * overflow; this function is the single server/UI calculation for that rule.
+ */
+export function automaticFreebieBreakdown(body: CharacterLike): AutomaticFreebieLine[] {
+  const lines: AutomaticFreebieLine[] = [];
+  const explicitRemaining: Record<string, number> = Object.fromEntries(Object.keys(freebieCosts).map((category) => [category, explicitFreebieDots(body, category as keyof typeof freebieCosts)]));
+  const push = (category: keyof typeof freebieCosts, target: string, rawDots: number) => {
+    const covered = Math.min(rawDots, explicitRemaining[category] ?? 0);
+    explicitRemaining[category] = Math.max(0, (explicitRemaining[category] ?? 0) - covered);
+    const line = automaticLine(category, target, rawDots, covered);
+    if (line) lines.push(line);
+  };
+  const attributeLimits = { physical: 7, social: 5, mental: 3 } as const;
+  for (const [group, names] of Object.entries(attributeGroups) as Array<[keyof typeof attributeLimits, readonly string[]]>) {
+    const result = groupOverflow(body.attributes, names, attributeLimits[group], (name) => attributeBase(body, name));
+    push("attribute", `Attribute ${group === "physical" ? "körperlich" : group === "social" ? "sozial" : "mental"}`, result.rawOverflow);
+  }
+  const abilityLimits = { talents: 13, skills: 9, knowledges: 5 } as const;
+  for (const [group, names] of Object.entries(abilityGroups) as Array<[keyof typeof abilityLimits, readonly string[]]>) {
+    const result = groupOverflow(body.skills, names, abilityLimits[group], () => 0, 3);
+    push("ability", `${group === "talents" ? "Talente" : group === "skills" ? "Fertigkeiten" : "Kenntnisse"}`, result.rawOverflow);
+  }
+  const disciplineRows = rows(body.disciplines);
+  const clanDots = disciplineRows.filter((item) => item.source !== "foreign").reduce((total, item) => total + numericValue(item.value), 0);
+  const foreignDots = disciplineRows.filter((item) => item.source === "foreign").reduce((total, item) => total + numericValue(item.value), 0);
+  push("discipline", "Disziplinen", Math.max(0, clanDots - creationBudgets.disciplines) + foreignDots);
+  const backgroundDots = rows(body.backgrounds).reduce((total, item) => total + numericValue(item.value), 0);
+  push("background", "Hintergründe", Math.max(0, backgroundDots - creationBudgets.backgrounds));
+  const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
+  const virtueDots = ["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, name) => total + Math.max(0, numericValue(virtues[name], 1) - 1), 0);
+  push("virtue", "Tugenden", Math.max(0, virtueDots - creationBudgets.virtues));
+  return lines;
+}
+
 /**
  * Returns the live V20 creation budget state used by the editor and by draft
  * validation. Attribute values are measured above their base 1 dot; abilities
@@ -104,20 +173,37 @@ export function derivedV20Values(body: CharacterLike) {
 export function creationBudgetSummary(body: CharacterLike): CreationBudgetSummary {
   const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
   const freebieSpent = freebieTotal(body);
+  const attributeLimits = { physical: 7, social: 5, mental: 3 } as const;
+  const abilityLimits = { talents: 13, skills: 9, knowledges: 5 } as const;
+  const automatic = automaticFreebieBreakdown(body);
+  const autoFor = (category: keyof typeof freebieCosts, target: string) => automatic.find((item) => item.category === category && item.target === target);
+  const attributeLine = (group: keyof typeof attributeLimits, names: readonly string[]) => {
+    const result = groupOverflow(body.attributes, names, attributeLimits[group], (name) => attributeBase(body, name));
+    const auto = autoFor("attribute", `Attribute ${group === "physical" ? "körperlich" : group === "social" ? "sozial" : "mental"}`);
+    return { spent: result.standardSpent, limit: attributeLimits[group], remaining: attributeLimits[group] - result.standardSpent, exceeded: result.rawOverflow > 0, freebieDots: auto?.dots ?? 0, freebieCost: auto?.total ?? 0 };
+  };
+  const abilityLine = (group: keyof typeof abilityLimits, names: readonly string[]) => {
+    const result = groupOverflow(body.skills, names, abilityLimits[group], () => 0, 3);
+    const auto = autoFor("ability", group === "talents" ? "Talente" : group === "skills" ? "Fertigkeiten" : "Kenntnisse");
+    return { spent: result.standardSpent, limit: abilityLimits[group], remaining: abilityLimits[group] - result.standardSpent, exceeded: result.rawOverflow > 0, freebieDots: auto?.dots ?? 0, freebieCost: auto?.total ?? 0 };
+  };
+  const disciplineSpent = rows(body.disciplines).filter((item) => item.source !== "foreign").reduce((total, item) => total + numericValue(item.value), 0);
+  const backgroundSpent = rows(body.backgrounds).reduce((total, item) => total + numericValue(item.value), 0);
+  const virtueSpent = ["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, name) => total + Math.max(0, numericValue(virtues[name], 1) - 1), 0);
   return {
     attributes: {
-      physical: line(groupedSpent(body.attributes, attributeGroups.physical, 1, body, "attribute"), 7),
-      social: line(groupedSpent(body.attributes, attributeGroups.social, 1, body, "attribute"), 5),
-      mental: line(groupedSpent(body.attributes, attributeGroups.mental, 1, body, "attribute"), 3),
+      physical: attributeLine("physical", attributeGroups.physical),
+      social: attributeLine("social", attributeGroups.social),
+      mental: attributeLine("mental", attributeGroups.mental),
     },
     abilities: {
-      talents: line(groupedSpent(body.skills, abilityGroups.talents, 0, body, "ability"), 13),
-      skills: line(groupedSpent(body.skills, abilityGroups.skills, 0, body, "ability"), 9),
-      knowledges: line(groupedSpent(body.skills, abilityGroups.knowledges, 0, body, "ability"), 5),
+      talents: abilityLine("talents", abilityGroups.talents),
+      skills: abilityLine("skills", abilityGroups.skills),
+      knowledges: abilityLine("knowledges", abilityGroups.knowledges),
     },
-    disciplines: line(rows(body.disciplines).reduce((total, item) => item.source === "foreign" ? total : total + Math.max(0, integer(item.value) - freebiePointsForTarget(body, "discipline", String(item.name ?? "").trim())), 0), creationBudgets.disciplines),
-    backgrounds: line(rows(body.backgrounds).reduce((total, item) => total + Math.max(0, integer(item.value) - freebiePointsForTarget(body, "background", String(item.name ?? "").trim())), 0), creationBudgets.backgrounds),
-    virtues: line(["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, name) => total + Math.max(0, integer(virtues[name], 1) - 1 - freebiePointsForTarget(body, "virtue", name)), 0), creationBudgets.virtues),
+    disciplines: { ...line(Math.min(creationBudgets.disciplines, disciplineSpent), creationBudgets.disciplines), freebieDots: automatic.filter((item) => item.category === "discipline").reduce((total, item) => total + item.dots, 0), freebieCost: automatic.filter((item) => item.category === "discipline").reduce((total, item) => total + item.total, 0) },
+    backgrounds: { ...line(Math.min(creationBudgets.backgrounds, backgroundSpent), creationBudgets.backgrounds), freebieDots: automatic.filter((item) => item.category === "background").reduce((total, item) => total + item.dots, 0), freebieCost: automatic.filter((item) => item.category === "background").reduce((total, item) => total + item.total, 0) },
+    virtues: { ...line(Math.min(creationBudgets.virtues, virtueSpent), creationBudgets.virtues), freebieDots: automatic.filter((item) => item.category === "virtue").reduce((total, item) => total + item.dots, 0), freebieCost: automatic.filter((item) => item.category === "virtue").reduce((total, item) => total + item.total, 0) },
     freebies: line(freebieSpent, freebieCapacity(body)),
   };
 }
@@ -144,11 +230,12 @@ export function freebieCapacity(body: CharacterLike) {
 
 export function freebieTotal(body: CharacterLike) {
   const purchases = Array.isArray(body.freebiePurchases) ? body.freebiePurchases : [];
-  return purchases.reduce((total, purchase) => {
+  const explicit = purchases.reduce((total, purchase) => {
     const item = purchase as CharacterLike;
     const category = String(item.category) as keyof typeof freebieCosts;
     return total + (freebieCosts[category] ?? 0) * integer(item.points);
   }, 0);
+  return explicit + automaticFreebieBreakdown(body).reduce((total, item) => total + item.total, 0);
 }
 
 export function xpBalance(body: CharacterLike) {
@@ -222,31 +309,22 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
   if (invalidPurchase) return { ok: false, error: "Jeder Freebie-Kauf benötigt eine gültige Kategorie, Punktzahl und ein konkretes Ziel." };
   const attributeValues = body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as NumericMap : {};
   const skillValues = body.skills && typeof body.skills === "object" && !Array.isArray(body.skills) ? body.skills as NumericMap : {};
+  const belowBase = Object.entries(attributeGroups).flatMap(([, names]) => names).find((name) => Object.prototype.hasOwnProperty.call(attributeValues, name) && numericValue(attributeValues[name]) < attributeBase(body, name));
+  if (belowBase) return { ok: false, error: `${belowBase} beginnt mit ${attributeBase(body, belowBase)} kostenlosem Grundpunkt.` };
   const overFive = [...Object.entries(attributeValues), ...Object.entries(skillValues)].find(([, value]) => integer(value) > 5);
   if (overFive) return { ok: false, error: `${overFive[0]} darf regulär höchstens 5 Punkte haben.` };
-  const overThreeAbility = [...abilityGroups.talents, ...abilityGroups.skills, ...abilityGroups.knowledges].find((name) => integer(skillValues[name]) - freebiePointsForTarget(body, "ability", name) > 3);
-  if (overThreeAbility) return { ok: false, error: `${overThreeAbility} benötigt für Werte über 3 eine gezielte Fähigkeit-Freebie-Ausgabe.` };
+  if (String(body.clan ?? "").trim().toLocaleLowerCase() === "nosferatu" && numericValue(attributeValues.Erscheinungsbild) > 0)
+    return { ok: false, error: "Nosferatu beginnen mit Erscheinungsbild 0. Eine höhere Stufe benötigt eine separat dokumentierte SL-Ausnahme." };
   const foreignWithoutApproval = rows(body.disciplines).find((item) => {
     const name = String(item.name ?? "").trim();
-    return !!name && !!clan && !clan.disciplines.includes(name) && !(item.source === "foreign" && item.slApproved === true && freebiePointsForTarget(body, "discipline", name) >= Math.max(1, integer(item.value)));
+    return !!name && !!clan && !clan.disciplines.includes(name) && !(item.source === "foreign" && item.slApproved === true);
   });
-  if (foreignWithoutApproval) return { ok: false, error: `${String(foreignWithoutApproval.name)} benötigt eine dokumentierte SL-Ausnahme und gezielte Disziplin-Freebies.` };
+  if (foreignWithoutApproval) return { ok: false, error: `${String(foreignWithoutApproval.name)} benötigt eine dokumentierte SL-Ausnahme; die Freebie-Kosten werden danach automatisch berechnet.` };
   const allocations = (body.creationAllocations ?? {}) as CharacterLike;
   if (!allowIncompleteDraft && allocations.attributes && JSON.stringify(Object.values(allocations.attributes).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.attributes].sort((a, b) => b - a)))
     return { ok: false, error: "Attribute müssen nach 7/5/3 verteilt werden." };
   if (!allowIncompleteDraft && allocations.abilities && JSON.stringify(Object.values(allocations.abilities).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.abilities].sort((a, b) => b - a)))
     return { ok: false, error: "Fähigkeiten müssen nach 13/9/5 verteilt werden." };
-  const budget = creationBudgetSummary(body);
-  const exceeded = [
-    ["Attribute körperlich", budget.attributes.physical],
-    ["Attribute sozial", budget.attributes.social],
-    ["Attribute mental", budget.attributes.mental],
-    ["Talente", budget.abilities.talents],
-    ["Fertigkeiten", budget.abilities.skills],
-    ["Kenntnisse", budget.abilities.knowledges],
-    ["Tugenden", budget.virtues],
-  ].find(([, current]) => (current as CreationBudgetLine).exceeded);
-  if (exceeded) return { ok: false, error: `${exceeded[0]} überschreiten das V20-Erschaffungsbudget (${(exceeded[1] as CreationBudgetLine).spent}/${(exceeded[1] as CreationBudgetLine).limit}).` };
   const spent = freebieTotal(body);
   if (spent > freebieCapacity(body)) return { ok: false, error: "Das freie Zusatzpunktebudget reicht nicht aus." };
   const xp = xpBalance(body);
@@ -254,12 +332,12 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
   if (allowIncompleteDraft)
     return { ok: true, state, freebieSpent: spent, freebieAvailable: freebieCapacity(body) - spent, xpAvailable: xp };
   if (!clan) return { ok: false, error: "Ein bestätigter Engine-Charakter benötigt einen freigegebenen Clan." };
-  const disciplineSpent = rows(body.disciplines).reduce((total, item) => item.source === "foreign" ? total : total + Math.max(0, integer(item.value) - freebiePointsForTarget(body, "discipline", String(item.name ?? "").trim())), 0);
+  const disciplineSpent = Math.min(creationBudgets.disciplines, rows(body.disciplines).filter((item) => item.source !== "foreign").reduce((total, item) => total + numericValue(item.value), 0));
   if (disciplineSpent !== creationBudgets.disciplines) return { ok: false, error: "Die anfänglichen Clan-Disziplinen benötigen drei Punkte." };
-  const backgroundSpent = rows(body.backgrounds).reduce((total, item) => total + Math.max(0, integer(item.value) - freebiePointsForTarget(body, "background", String(item.name ?? "").trim())), 0);
+  const backgroundSpent = Math.min(creationBudgets.backgrounds, rows(body.backgrounds).reduce((total, item) => total + numericValue(item.value), 0));
   if (backgroundSpent !== creationBudgets.backgrounds) return { ok: false, error: "Die Hintergründe benötigen fünf Punkte." };
   const virtueSpent = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues)
-    ? ["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, name) => total + Math.max(0, integer((body.virtues as NumericMap)[name], 1) - 1 - freebiePointsForTarget(body, "virtue", name)), 0)
+    ? Math.min(creationBudgets.virtues, ["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, name) => total + Math.max(0, numericValue((body.virtues as NumericMap)[name], 1) - 1), 0))
     : 0;
   if (virtueSpent !== creationBudgets.virtues)
     return { ok: false, error: "Die Tugenden benötigen sieben zusätzliche Punkte." };
