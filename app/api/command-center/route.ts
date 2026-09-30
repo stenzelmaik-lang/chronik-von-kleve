@@ -25,7 +25,11 @@ export async function GET(req: Request) {
         const projected=projectEntity(viewer,e,grants.results as GrantRow[]);
         return projected?[{id:projected.id,kind:'sitzungen',title:projected.title,visibility:projected.visibility,body:projected.content,version:projected.version}]:[];
       });
-      return json({sessions});
+      const handouts=entities.filter(e=>e.type==='HANDOUT').flatMap(e=>{
+        const projected=projectEntity(viewer,e,grants.results as GrantRow[]);
+        return projected?[{id:projected.id,title:projected.title,text:typeof projected.content.text==='string'?projected.content.text:''}]:[];
+      });
+      return json({sessions,handouts});
     }
     return json({
       campaignId:a.campaignId,

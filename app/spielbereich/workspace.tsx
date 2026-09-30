@@ -246,7 +246,7 @@ export default function Workspace({
     );
   return (
     <WorkspaceShell a={a} section={section} navigate={navigate}>
-      {!worldExperienceActive && section !== "inventar" && section !== "ortscms" && <div className="section-title">
+      {!worldExperienceActive && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}

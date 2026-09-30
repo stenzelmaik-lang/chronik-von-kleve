@@ -19,16 +19,19 @@ import type { Actor } from "@/domain/types";
 
 import { api } from "./api-client";
 import { Choice } from "./shared";
+import { SessionStage } from "./session-stage";
 export function SessionPanel({
   entries,
   a,
   onRefresh,
   compact = false,
+  onDraftChange,
 }: {
   entries: Entry[];
   a: Actor;
   onRefresh: () => void;
   compact?: boolean;
+  onDraftChange?: (dirty: boolean) => void;
 }) {
   const existing = entries.find((e) => e.kind === "sitzungen");
   const initial = existing?.body || {};
@@ -57,6 +60,7 @@ export function SessionPanel({
       initiative,
       log,
     },
+    publishScene = false,
   ) {
     if (!a.gm) return;
     setSaving(true);
@@ -65,12 +69,13 @@ export function SessionPanel({
         id: existing?.id,
         version: existing?.version,
         kind: "sitzungen",
-        title: next.scene || "Nachtwache",
+        title: (publishScene?next.scene:initial.scene) || "Nachtwache",
         visibility: "group",
-        body: {...initial,...next},
+        body: {...initial,...next,...(!publishScene?{scene:initial.scene||"",subtitle:initial.subtitle||""}:{})},
         gmBody: existing?.gmBody || "",
       });
       toast.success("Sitzung aktualisiert");
+      if(publishScene)onDraftChange?.(false);
       onRefresh();
     } catch (e) {
       toast.error((e as Error).message);
@@ -144,34 +149,9 @@ export function SessionPanel({
     );
   return (
     <div className="session-stack">
-      {!compact && <section className="session-hero">
-        <div className="session-glow" />
-        <div className="session-hero-copy">
-          <p className="eyebrow">
-            <span className="status-dot" /> LIVE-SITZUNG · RUNDE {round}
-          </p>
-          <h2>{scene || "Neue Nachtwache"}</h2>
-          <p>
-            {subtitle ||
-              "Die Spielleitung hat noch keine Szenenbeschreibung hinterlegt."}
-          </p>
-        </div>
-        <div className="session-status">
-          <span className="status-label">STATUS</span>
-          <strong>{status}</strong>
-          {a.gm && (
-            <Choice
-              label="Sitzungsstatus"
-              value={status}
-              onChange={setStatus}
-              options={["Bereit", "Läuft", "Pause", "Abgeschlossen"].map(
-                (x) => [x, x] as [string, string],
-              )}
-            />
-          )}
-        </div>
-      </section>
-      }<div className="session-grid">
+      <SessionStage scene={String(initial.scene||"")} subtitle={String(initial.subtitle||"")} status={String(initial.status||"Bereit")} round={Number(initial.round||1)}/>
+      {a.gm&&<div className="session-control"><Choice label="Sitzungsstatus" value={status} onChange={next=>{setStatus(next);void save({scene,subtitle,status:next,round,turn,initiative,log});}} options={["Bereit","Läuft","Pause","Abgeschlossen"].map(x=>[x,x] as [string,string])}/></div>}
+      <div className="session-grid">
         <details className="panel initiative-panel" open={compact ? undefined : true}><summary>Initiative · {initiative.length} Beteiligte</summary>
           <div className="panel-heading">
             <div>
@@ -230,7 +210,7 @@ export function SessionPanel({
               <Zap size={16} /> Nächster Zug
             </button>
           )}
-        </details><section className="panel scene-panel">
+        </details>{a.gm&&<details className="panel scene-panel" open={compact?undefined:true}><summary>Szene bearbeiten</summary>
           {a.gm ? (
             <>
               <div className="panel-heading">
@@ -240,13 +220,13 @@ export function SessionPanel({
                 </div>
                 <Activity size={23} className="text-primary" />
               </div>
-              <div className="stack-form">
-                {compact&&<Choice label="Sitzungsstatus" value={status} onChange={next=>{setStatus(next);void save({scene,subtitle,status:next,round,turn,initiative,log});}} options={["Bereit","Läuft","Pause","Abgeschlossen"].map(x=>[x,x] as [string,string])}/>}
+              <div className="stack-form"><p role="status">{scene!==String(initial.scene||"")||subtitle!==String(initial.subtitle||"")?"Ungespeicherter Szenentext · noch nicht veröffentlicht":"Veröffentlichter Stand"}</p>
+
                 <label className="field">
                   <span>Szene</span>
                   <input
                     value={scene}
-                    onChange={(e) => setScene(e.target.value)}
+                    onChange={(e) => {setScene(e.target.value);onDraftChange?.(e.target.value!==String(initial.scene||"")||subtitle!==String(initial.subtitle||""));}}
                     placeholder="z. B. Rückwärtsblutung"
                   />
                 </label>
@@ -255,16 +235,16 @@ export function SessionPanel({
                   <textarea
                     rows={3}
                     value={subtitle}
-                    onChange={(e) => setSubtitle(e.target.value)}
+                    onChange={(e) => {setSubtitle(e.target.value);onDraftChange?.(scene!==String(initial.scene||"")||e.target.value!==String(initial.subtitle||""));}}
                     placeholder="Was steht für die Charaktere auf dem Spiel?"
                   />
                 </label>
                 <button
                   className="button primary"
                   disabled={saving}
-                  onClick={() => save()}
+                  onClick={() => save(undefined,true)}
                 >
-                  <Save size={16} /> Szene veröffentlichen
+                  <Save size={16} /> Für die Gruppe veröffentlichen
                 </button>
               </div>
             </>
@@ -278,7 +258,7 @@ export function SessionPanel({
               </p>
             </>
           )}
-        </section>
+        </details>}
       </div>
       <details className="panel session-log" open={compact ? undefined : true}><summary>Protokoll · {log.length} Einträge</summary>
         <div className="panel-heading">
@@ -317,6 +297,3 @@ export function SessionPanel({
     </div>
   );
 }
-
-
-

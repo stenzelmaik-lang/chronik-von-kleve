@@ -1,0 +1,609 @@
+PASS Anonymous denied without an Auth 2.0 session
+PASS Unsigned legacy OAI headers cannot authenticate a CMS request
+PASS GET /api/cms/locations denies requests without an Auth session
+PASS POST /api/cms/locations denies requests without an Auth session
+PASS GET /api/cms/drafts denies requests without an Auth session
+PASS POST /api/cms/drafts denies requests without an Auth session
+PASS PATCH /api/cms/drafts denies requests without an Auth session
+PASS GET /api/cms/media denies requests without an Auth session
+PASS POST /api/cms/media denies requests without an Auth session
+PASS POST /api/cms/preview denies requests without an Auth session
+PASS GET /api/cms/releases denies requests without an Auth session
+PASS POST /api/cms/releases denies requests without an Auth session
+PASS POST /api/cms/transitions denies requests without an Auth session
+PASS GET /api/members administrative route denies requests without an Auth session
+PASS POST /api/members administrative route denies requests without an Auth session
+PASS GET /api/recovery administrative route denies requests without an Auth session
+PASS POST /api/recovery administrative route denies requests without an Auth session
+PASS Public self-registration is disabled for the closed alpha
+PASS Pre-provisioned linked account can sign in with an HttpOnly session cookie
+PASS Auth session resolves to the existing member ID, not a new account ID
+PASS Matching email without an explicit crosswalk cannot sign in
+PASS Unknown and unlinked login attempts return the same generic rejection
+PASS Correct password is insufficient when a pre-provisioned account lacks verified email
+PASS An existing session is rejected if email verification is absent
+PASS Oversized password is rejected generically before PBKDF2
+PASS Unlinked account session is rejected even when its email matches an existing member
+PASS Unlinked account cannot reach CMS data
+PASS GM identity resolves only to campaign_gm
+PASS blocked legacy GM email cannot bypass membership status
+PASS blocked legacy GM cannot use campaign APIs
+PASS pending legacy GM cannot use campaign APIs
+PASS explicit blocked campaign membership overrides GM email
+PASS explicitly blocked GM role is denied
+PASS explicit pending campaign GM role retains its status
+PASS explicit pending campaign GM membership is denied
+PASS unregistered user does not acquire a campaign role
+PASS user without active campaign membership has no campaign API access
+PASS campaign owner role does not cross into Kleve
+PASS another campaign membership grants no Kleve access
+PASS Player registers
+PASS Pending player denied
+PASS GM member list includes the revision needed for status changes
+PASS GM activates player using the listed revision
+PASS Player registers
+PASS Pending player denied
+PASS GM member list includes the revision needed for status changes
+PASS GM activates player using the listed revision
+PASS Old management UI without a revision cannot change a member
+PASS Stale management UI snapshot returns 409 and cannot overwrite the newer status
+PASS two concurrent membership changes from one revision yield one success and one 409
+PASS successful membership mutation advances its revision once
+PASS stale membership revision is rejected after a later write
+PASS membership concurrency fixture is restored to active
+PASS Player cannot author core entity
+PASS Entity has stable ID and campaignId
+PASS Unreleased entity hidden
+PASS Unreleased entity hidden
+PASS Player cannot grant knowledge
+PASS GM grants to player A
+PASS Player A receives released content only
+PASS Player B cannot obtain player A knowledge
+PASS GM grants to group
+PASS Active group member receives content
+PASS Blocked member cannot use group grant
+PASS Group grant revoked
+PASS GM_SECRET cannot be released
+PASS GM_SECRET hidden by server
+PASS Location dossier denies anonymous
+PASS Unknown Chronicle place yields no player map data or coordinates
+location migration failed n [Error]: Nur für die Spielleitung.
+    at ot (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/_next/static/access-CpZC03OO.js:1:58835)
+    at Object.h [as handlerFn] (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/_next/static/route-BdXIN0K82.js:1:313)
+    at async Q (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/_next/static/app-route-handler-dispatch-ZBT5vX_A.js:1:18345)
+    at async ot (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/_next/static/app-route-handler-dispatch-ZBT5vX_A.js:1:18631)
+    at async Eo.route (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/index.js:2:26401)
+    at async t (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/index.js:2:26610)
+    at async $m (file:///C:/Users/Stenz/Documents/Codex/cvk-phase-c-remote-test/.review-work/live-release-git/dist/server/index.js:14:180949) {
+  status: 403
+}
+PASS Player cannot migrate location data
+PASS GM migrates Electric Taberna fixture once
+PASS Location migration is idempotent
+PASS GM opens Electric Taberna dossier
+PASS Electric Taberna keeps permanent ID through API
+PASS GM sees all Electric Taberna areas
+PASS GM sees all Electric Taberna rooms
+PASS Player opens projected Electric Taberna dossier
+PASS Electric Taberna test coordinate is not silently treated as a verified canon position
+PASS GM-only dossier response does not expose player map markers
+PASS Player projection hides unreleased Electric Taberna room names
+PASS Player projection hides internal room, area, info and legacy IDs
+PASS Generic world hub returns Electric Taberna and isolated second place
+PASS World hub tiles use each location’s released content
+PASS Unreleased location and its coordinates never enter the player hub
+PASS GM_SECRET synthetic sibling is absent from player hub and tiles
+PASS World hub does not disclose a count of unknown locations
+PASS Generic detail route opens a different persisted place
+PASS Synthetic known coordinates project a marker through the shared contract
+PASS Existing root without grant is not player knowledge
+PASS Player cannot request a generic GM dossier
+PASS Prepared actions work through the generic place ID
+PASS World state uses the same generic place ID contract
+PASS Location note is linked to the selected stable place ID
+PASS GM player preview uses the safe player projection
+PASS Player cannot switch to SL location view
+PASS Player cannot trigger prepared location actions
+PASS GM triggers prepared location action
+PASS World-State and marker persist with revision
+PASS World-State rejects stale revision
+PASS Per-player discovery persists
+PASS Player projection remains server-side after persistent state
+PASS Personal office grant controls player A projection
+PASS Player B cannot see personal office
+PASS Group preview excludes personal office
+PASS Explicit group view excludes own personal office
+PASS Personal room grant does not release Personal-/Hinterbereich
+PASS Personal room grant does not release Gesprächsraum
+PASS Personal room grant does not release Personalflur
+PASS Personal room grant does not release Keller & Service
+PASS Personal room grant does not release Getränkevorrat
+PASS Personal room grant does not release legacy-1bf8cd98
+PASS Personal room grant does not release Elysium / Camarilla
+PASS Personal discovery permits own office note
+PASS Unknown office note reference denied
+PASS Other player cannot read personal office note
+PASS Exactly one parallel discovery writer succeeds; other receives 409
+PASS Losing writer appends no discovery event
+PASS Visited or investigated cannot downgrade to known
+PASS Advance or confirm investigated
+PASS Investigated cannot downgrade to hidden
+PASS Same discovery state may be confirmed
+PASS Discovery requires explicit expected version
+PASS Concurrent initial grants also allow exactly one writer
+PASS Known to visited allowed
+PASS Visited to known rejected
+PASS Personal area grant exposes area
+PASS Personal area grant does not expose area to B
+PASS Area grant does not release sibling rooms
+PASS Personal area absent from group preview
+PASS Group grant can be revoked through existing knowledge controls
+PASS Revoked grant cannot fall back to fixture visited
+PASS Restore isolated fixture grant
+PASS Node exists with fixture visited but no grant: no player knowledge
+PASS Explicit public content rule remains visible without group grant
+PASS Location API refuses GM_SECRET discovery grant
+PASS GM_SECRET overrides existing personal grant
+PASS GM still sees GM_SECRET office
+PASS Secret parent blocks descendant grants
+PASS Knowledge revocation invalidates stale discovery revision
+PASS Revoked personal grant stays hidden
+PASS Initial hidden confirmation allowed
+PASS Hidden confirmation does not release location
+PASS Hidden confirmation does not release generic entity
+PASS Existing hidden grant advances to known
+PASS Explicit hidden-to-known transition releases to intended player
+PASS Personal projection fixture reset hides the earlier explicit sibling grant
+PASS Prepared location action status persists
+PASS Legacy write creates identity adapter
+PASS Legacy map content hidden in records API
+PASS Legacy grant uses protected projection
+PASS Legacy grant does not leak to player B
+PASS Player creates private note
+PASS Private note remains private
+PASS Owner edits legacy record
+PASS Optimistic version conflict preserved
+PASS Cross-origin write rejected
+PASS Campaign export GM only
+PASS Personal export has no GM text
+PASS CHAR-P01 attribute character is created
+PASS CHAR-C01 locked classic V20 clan is rejected server-side
+PASS CHAR-C02 discipline outside the selected clan is rejected server-side
+PASS CHAR-C03 unchanged legacy clan values remain writable with unrelated edits
+PASS CHAR-C04 legacy clan values cannot be changed outside the configured catalogue
+PASS B1A-01 engine draft is created (200: {"id":"d0b0f9e5-d3fd-4d25-b926-97ebc7e0607b","version":1})
+PASS B1A-02 draft enters confirmation review
+PASS B1A-03 character confirmation is explicit
+PASS B1A-04 XP purchase changes value and ledger atomically
+PASS B1A-S01 direct XP ledger edits are rejected
+PASS B1A-S02 confirmed permanent edits are rejected
+PASS B1A cleanup removes only the isolated engine fixture
+PASS DASH-01 sole owned character is selected in dashboard projection
+PASS DASH-02 multiple owned characters require an explicit selection
+PASS DASH-03 selected character is returned by stable ID
+PASS DASH-S01 another player cannot select a foreign character
+PASS DASH-S02 private characters are absent from another player dashboard
+PASS DASH-S03 character-list projection keeps private ownership filter
+PASS CHAR-P01 attribute reload persists
+PASS CHAR-P02 fixed skill reload persists
+PASS CHAR-P03/P04/P05 custom talent, skill and knowledge CRUD reload
+PASS CHAR-P06 discipline CRUD reload
+PASS CHAR-P07 background CRUD reload
+PASS CHAR-P08 merit cost reload
+PASS CHAR-P09 flaw cost reload
+PASS CHAR-P10 humanity persists
+PASS CHAR-P11 path and name persist
+PASS CHAR-P12 permanent willpower persists
+PASS CHAR-P13 temporary willpower persists
+PASS CHAR-P14 health persists
+PASS CHAR-P15 current blood persists
+PASS CHAR-P16 blood maximum persists
+PASS CHAR-P17 blood per round persists
+PASS CHAR-P18 free XP persists
+PASS CHAR-P19 clan weakness persists
+PASS CHAR-R01 blood update succeeds
+PASS CHAR-R01 blood reload persists
+PASS CHAR-R02 temporary willpower update succeeds
+PASS CHAR-R02 temporary willpower reload persists
+PASS CHAR-R03 health update succeeds
+PASS CHAR-R03 health reload preserves legacy fields
+PASS CHAR-R03A health reset succeeds
+PASS CHAR-R03A health reset preserves other health fields
+PASS CHAR-R04 negative blood rejected
+PASS CHAR-R05 blood above maximum rejected
+PASS CHAR-R06 invalid health rejected
+PASS CHAR-R07 runtime cannot alter permanent willpower
+PASS CHAR-R08 runtime increments revision
+PASS CHAR-R09/R10 stale runtime is a conflict without overwrite
+PASS CHAR-R10 conflicting write did not overwrite server state
+PASS CHAR-S01 owner can change runtime
+PASS CHAR-S02 other player cannot change runtime
+PASS CHAR-S03 other player cannot read character detail
+PASS CHAR-S04 private character not listed to other player
+PASS CHAR-S07 GM does not automatically read private player character
+PASS R2 upload works
+PASS Private R2 file protected
+PASS Owner reads R2 file
+PASS COMP-S03 no session has clean empty state
+PASS COMP-P01 owner saves background and play guide
+PASS COMP-P02 companion roleplay reload persists
+PASS COMP-M01 owner attaches character portrait
+PASS COMP-M01 owner sees Character Portrait
+PASS COMP-M03 invalid image is rejected
+PASS COMP-M04 foreign File-ID cannot be attached
+PASS COMP-N01 owner creates own private Character Note
+PASS COMP-N01 owner sees own private Character Note
+PASS COMP-N02 other player cannot read private Character Note
+PASS COMP-N06 owner edits Character Note
+PASS COMP-N06 edited Character Note reloads
+PASS COMP-N07 owner archives Character Note
+PASS COMP-N07 archived Character Note leaves active companion
+PASS COMP-N03 owner creates private note on readable shared character
+PASS COMP-N03/COMP-N04 GM/admin path does not automatically read private Player Note
+PASS COMP-N05 explicitly shared SL note saved
+PASS COMP-N05 explicitly shared note is visible to allowed role
+PASS COMP-R01 allowed Character Relationship visible
+PASS COMP-R02 GM_SECRET Relationship not in Player Companion
+PASS COMP-R03 unknown Relationship remains hidden
+PASS COMP-R04 relationship keeps stable IDs
+PASS COMP-S01 player-safe session fixture saved
+PASS COMP-S01 last player-safe session visible
+PASS COMP-S02 GM internal session text hidden
+PASS CHAR-POS-01 inventory ownership does not appear as a social relationship
+PASS INV-C01 Unknown create action is rejected
+PASS INV-C02 Unknown Item field is rejected
+PASS INV-C03 Invalid category is rejected
+PASS INV-C04 Invalid quantity is rejected
+PASS INV-01 Owner sees own Inventory
+PASS INV-02 foreign PLAYER cannot see Inventory
+PASS INV-03 foreign PLAYER cannot open Item
+PASS INV-04 foreign PLAYER cannot change Item
+PASS INV-05 PRIVATE Item remains private, including from GM
+PASS INV-06 SL_SHARED follows existing GM policy
+PASS INV-07 Item creation returns stable Item ID
+PASS INV-08 Reload keeps created TEST_DATA Item
+PASS INV-09 Owner edits own Item
+PASS INV-10 Reload keeps Item edit
+PASS INV-11 Quantity update persists
+PASS INV-12 Status update persists
+PASS INV-13 Visibility update persists
+PASS INV-14 Owner archives Item without hard delete
+PASS INV-15 Archived Item leaves active Bag but remains retrievable
+PASS INV-16 Weapon Profile persists structurally
+PASS INV-C05 Protective equipment create and reload work
+PASS INV-17 Only schema Weapon fields are stored
+PASS INV-18 Invalid Weapon values are rejected server-side
+PASS INV-19 Own secure image file can be linked
+PASS INV-20 Foreign File ID is rejected
+PASS INV-21 Non-image MIME type is rejected for Item image
+PASS INV-22 Update increments Item revision
+PASS INV-23 Stale Item revision returns HTTP 409
+PASS INV-24 Conflict does not overwrite server data
+PASS INV-25 Item remains bound to stable Character ID
+PASS INV-26 Character A Item does not appear for Character B
+PASS INV-27 Multiple own Character inventories remain separated
+PASS INV-28 Archived Character is never silently selected as active context
+PASS INV-B02 Legacy/default Character resolves to BODY_ONLY
+PASS INV-B01 exactly one active Carry Profile is stored per Character
+PASS INV-B03 BODY_ONLY derives capacity 4
+PASS INV-B03 BACKPACK_SMALL derives capacity 8
+PASS INV-B03 BACKPACK_MEDIUM derives capacity 12
+PASS INV-B03 BACKPACK_LARGE derives capacity 20
+PASS INV-B04 larger Carry Profile can be selected
+PASS INV-B05 smaller profile is blocked with a clear capacity conflict
+PASS INV-B06 profile conflict neither deletes nor moves Items
+PASS INV-B setup: large load can be stored
+PASS INV-B07 capacity admits exactly 4 slots
+PASS INV-B07 rejects capacity overflow server-side
+PASS INV-B08 capacity admits exactly 8 slots
+PASS INV-B08 rejects capacity overflow server-side
+PASS INV-B09 capacity admits exactly 12 slots
+PASS INV-B09 rejects capacity overflow server-side
+PASS INV-B10 capacity admits exactly 20 slots
+PASS INV-B10 rejects capacity overflow server-side
+PASS INV-B11 STORED items do not count against carry capacity
+PASS INV-B12 BODY and BACKPACK both count against capacity
+PASS INV-B14 Item can be assigned to BODY and a Body Slot
+PASS INV-B15 Body Placement survives a fresh request/reload
+PASS INV-B16 occupied Body Slot returns the occupying Item name
+PASS INV-B13 server rejects capacity overflow
+PASS INV-B17 BODY to BACKPACK placement works
+PASS INV-B18 BACKPACK to STORED frees capacity
+PASS INV-B19 V20 concealment accepts T/J/M/N and null
+PASS INV-B20 N weapon on open Body placement raises attention warning
+PASS INV-B21 arbitrary concealment values are rejected
+PASS INV-B22 legacy Weapon Profile without concealment remains valid
+PASS INV-B23 weightKg stays optional
+PASS INV-B24 armorClass accepts boundary values 1 through 5
+PASS INV-B24 armorClass outside 1 through 5 is rejected
+PASS INV-B25 armorValue range is validated
+PASS INV-B26 dexterityPenalty range is validated
+PASS INV-B27 weightKg does not activate load or movement penalties
+PASS INV-B-C01 unknown Carry Profile is rejected
+PASS INV-B-C02 unknown Body Slot is rejected
+PASS INV-B-C03 BODY without a Body Slot is rejected
+PASS INV-B-C04 BACKPACK with Body Slot is rejected
+PASS INV-B-C05 STORED with Body Slot is rejected
+PASS INV-B-C06 foreign Player cannot change Carry Profile
+PASS INV-B-C07 foreign Player cannot change Item Placement
+PASS INV-B-C08 stale Carry Profile revision returns 409
+PASS INV-B-C08 stale Placement revision returns 409
+PASS INV-B-C08 concurrent placements with same Carry revision allow exactly one writer
+PASS INV-B-C01 concurrent saves retain exactly one Carry Profile record
+PASS INV-B-C09 Version 30 Create Item contract remains functional
+PASS Legacy catalogue import works
+PASS Legacy catalogue reimport is idempotent
+PASS Recovery denies anonymous
+PASS Recovery denies players
+PASS Players cannot import recovery
+PASS Recovery rejects cross-origin writes
+PASS Recovery requires explicit import confirmation
+PASS Recovery imports every source and indexed claim
+PASS Recovery does not overwrite legacy records
+PASS Recovery grants no knowledge
+PASS Recovery invents no world events
+PASS Campaign export includes recovery
+PASS GM reads checksum-verified original
+PASS Player cannot read original by ID
+PASS New recovery entities are GM_SECRET
+PASS Player cannot read recovery entity
+PASS Unreviewed recovery entity cannot be granted
+PASS Recovery repeat is safe
+PASS Recovery repeat creates no duplicate claims
+PASS Backup contains campaigns
+PASS Backup contains entities
+PASS Backup contains relationships
+PASS Backup contains knowledge
+PASS Backup contains world_events
+PASS Backup contains records
+PASS Backup contains files
+PASS Backup contains members
+PASS All 67 imported records included
+PASS Backup contains R2 metadata
+PASS Campaign export includes other owner records
+PASS Separate R2 binary handling explicit
+PASS Existing API charaktere
+PASS Existing API inventar
+PASS Existing API wirtschaft
+PASS Existing API gefallen
+PASS Existing API sitzungen
+PASS Existing API chronik
+PASS Existing API schauplaetze
+PASS Existing API nscs
+PASS Existing API archiv
+PASS Existing API regelwerk
+PASS Existing API haendler
+PASS Existing API termine
+PASS Existing API neuigkeiten
+PASS Phase C editor APIs deny ordinary players
+PASS Campaign editor can open existing Electric Taberna without creating a new location
+PASS Campaign editor cannot create new stable world identities
+PASS GM creates a new stable main-place identity
+PASS GM creates an area under its selected main place
+PASS GM creates a room under its selected area
+PASS CMS rejects a room placed directly under a main place
+PASS CMS creation rejects unknown visibility or payload fields
+PASS New location hierarchy reloads from the existing location_nodes model
+PASS Each new identity starts with a saved but unpublished group draft
+PASS New place remains absent from player detail and hub until explicitly released
+PASS Campaign editor cannot read protected publisher controls
+PASS Blocked campaign membership cannot open the CMS or campaign APIs
+PASS A different campaign membership does not grant access to Kleve CMS
+PASS Campaign editor location tree omits SL-only information node and its metadata
+PASS Campaign editor cannot address an SL-only information node by its stable ID
+PASS Campaign editor tree clearly labels SL-only areas and rooms without exposing their private revision payloads
+PASS Spielleitung can identify SL-only information, areas and rooms in the location tree
+PASS Known player location projection excludes GM-only information even when its parent is known
+PASS New location group draft completes save, submit, approve, publish, player projection, and auditable default note
+PASS GM creates a stable information node in the existing location model
+PASS Editor cannot create new information identities
+PASS Player cannot create new information identities
+PASS Information creation rejects unsupported room nesting
+PASS Information creation rejects unavailable or foreign parent
+PASS Information text, type and importance persist after reload
+PASS Unreleased information remains absent from actual player dossier
+PASS Explicit group release exposes only the matching new information
+PASS Existing Electric Taberna can start an explicit public draft with unknown geodata
+PASS Spielleitung receives the existing protected note only in its internal draft payload
+PASS GM-only information cannot be opened as a group/player draft
+PASS Recovery-only or unknown IDs cannot be opened as CMS locations
+PASS Spielleitung can place a synthetic image into private Test-R2 through the CMS uploader
+PASS Isolated editor-scope fixtures create two personal drafts and one public draft
+PASS Personal and public test revisions contain distinct private content and image metadata
+PASS Campaign editor can upload an image into isolated private Test-R2
+PASS CMS media picker returns only owned campaign images (HTTP 200; {"files":[{"id":"bac3f00e-28d8-4abc-ada2-f8b6103c5301","name":"phase-c-editor-test.png","mime":"image/png","size":15}]})
+PASS Unattached image selection preview requires an exact allowed draft and file ownership
+PASS Campaign editor can save the allowed group draft and its owned image
+PASS Campaign editor draft listing is server-filtered to the exact @group revision
+PASS Editor draft response contains no personal/public revision IDs, content, player IDs or private image metadata
+PASS Guessed personal/public revision IDs return opaque not-found from the preview API
+PASS Editor cannot fetch personal or public revision images through CMS preview
+PASS Editor can preview the image attached to the exact authorized group revision
+PASS Editor cannot combine an authorized group revision with a different unattached image ID
+PASS Guessed personal revision cannot be read or changed through the draft save API
+PASS Private Helena test revision leaves draft state without exposing it to the editor
+PASS Campaign editor cannot address a real revision or media row belonging to another campaign
+PASS Campaign editor cannot list drafts from a foreign campaign
+PASS Private CMS media has no generic direct-file URL for campaign editors
+PASS Draft save uses expectedVersion and can attach private campaign media
+PASS Strict player-content schema rejects unknown secret fields
+PASS Two simultaneous draft saves from the same version yield one success and one 409
+PASS Draft reload preserves its winning content version and attached image
+PASS Authorized CMS preview streams image bytes through the private proxy
+PASS Player cannot read an unpublished SL-only R2 media object
+PASS Existing file delete API refuses a referenced editorial image
+PASS Player cannot request an unpublished draft media URL
+PASS Draft can be submitted into the review queue
+PASS Campaign editor cannot self-approve submitted material
+PASS Campaign GM approves the reviewed revision
+PASS Parallel publication for the same target version allows only one writer
+PASS Release ledger starts at target-specific version 1
+PASS Live SL dossier uses the actual release, never an approved but unpublished revision
+PASS Approving an unreleased revision does not change the live player projection
+PASS A new draft starts from the exact released payload, geography and image, not a newer approved-but-unreleased revision ({"id":"87c9fd7f-3bf2-4d74-bcf0-d36fac8e3943","entityId":"place.electric-taberna","revisionNo":3,"version":1,"status":"draft","audienceScope":"public","audienceKey":"@public","payload":{"title":"TEST_DATA parallel A","subtitle":"Neon & Schatten","district":"Innenstadt","address":"Kavarinerstraße 30, 47533 Kleve","summary":"TEST_DATA freigegebene öffentliche Zusammenfassung","atmosphere":"Ein elektronischer Nachtknoten in der Innenstadt: oben lebendige Bar, darunter kontrollierte Schatten. Die Electric Taberna klingt heller als der Rest der Domäne und bleibt trotzdem ein Ort, an dem jedes Gespräch Gewicht bekommt.","image":"/images/edf112ec863d6cd02b1a.jpg","factionSignals":[{"label":"Sterbliche Öffentlichkeit","mode":"observation","visibility":"group"}],"activity":[{"id":"activity.electric-taberna.visited","label":"Electric Taberna besucht","targetLabel":"Öffentlicher Gästebereich","targetId":"area.electric-taberna.public-guests","time":"Letzter Spielstand","visibility":"group"},{"id":"activity.electric-taberna.info","label":"Information erhalten","targetLabel":"Atmosphäre","targetId":"info.electric-taberna.public-signal","time":"Vorbereitet","visibility":"group"}]},"gmSecret":{},"geography":{"status":"unknown"},"heroFileId":"9efeb715-3dc6-4449-a0b9-68f4213bd10d"})
+PASS The new draft persists its inherited released image attachment for reload
+PASS Public-target content is not anonymously readable through the authenticated-only location reader
+PASS Published content reaches player detail through the shared projector
+PASS Published title feeds the same safe hub/search/map tile source
+PASS Unknown Electric Taberna geodata produces no player coordinates or marker
+PASS Player can stream the published target image only via the authorized R2 proxy
+PASS Published editorial image never becomes a direct generic file URL
+PASS A new group draft inherits the effective public player projection when no group release exists
+PASS Campaign editor can save a group-scoped draft
+PASS Campaign editor can preview a media file attached to its concrete group revision
+PASS Campaign editor can submit group draft for review
+PASS Campaign GM can approve group draft
+PASS Editor preview uses the shared player-safe projector for its actual target
+PASS Draft dossier projection marks its attached hero image for the protected preview route
+PASS Authorized CMS draft dossier streams its attached private hero image through the protected preview route
+PASS An unpublished draft hero image remains unavailable through the ordinary player media route
+PASS Approved group revision publishes to the exact group target
+PASS Published group revision image is served to an entitled player through the live projection
+PASS Draft area image uses a revision-bound protected preview URL
+PASS Authorized CMS preview streams the private draft area image
+PASS Area image revision passes review and targeted release on the existing area identity
+PASS Player projection includes the released image only on its matching known area
+PASS Entitled player can retrieve an area image through the protected CMS media proxy
+PASS Group release grants the same area image to another member of that target group
+PASS SL dossier reflects the same published root text as the active group
+PASS SL dossier reflects the published image and description of their matching area
+PASS Published overlays preserve the SL-only actions and hidden location hierarchy
+PASS SL-only saved text and image persist for place.electric-taberna
+PASS SL-only saved text and image persist for area.electric-taberna.public-guests
+PASS SL-only saved text and image persist for room.electric-taberna.office
+PASS Actual SL dossier reads latest saved confidential text/image for place.electric-taberna
+PASS SL can retrieve the revision-bound confidential image
+PASS Confidential image denies a
+PASS Confidential image denies b
+PASS Confidential image denies editor
+PASS Actual SL dossier reads latest saved confidential text/image for area.electric-taberna.public-guests
+PASS SL can retrieve the revision-bound confidential image
+PASS Confidential image denies a
+PASS Confidential image denies b
+PASS Confidential image denies editor
+PASS Actual SL dossier reads latest saved confidential text/image for room.electric-taberna.office
+PASS SL can retrieve the revision-bound confidential image
+PASS Confidential image denies a
+PASS Confidential image denies b
+PASS Confidential image denies editor
+PASS Player/group switch excludes confidential text, media and control metadata for a
+PASS Player/group switch excludes confidential text, media and control metadata for b
+PASS Player/group switch excludes confidential text, media and control metadata for gm
+PASS SL quick control refers to exact approved group revision
+PASS SL quick control can block the area
+PASS Blocked area content disappears from real player dossier
+PASS Blocked area image disappears with its content
+PASS Stale quick-control version is rejected
+PASS Reactivation restores only the approved group content
+PASS Reactivation restores matching released media
+PASS SL hub tiles and dossier share the actual published editorial content
+PASS Group release supersedes lower public release for Player A
+PASS Group image is not live-readable to the editor after the target is blocked
+PASS A group block suppresses both that release and lower public/legacy fallback
+PASS Blocking higher-priority content also blocks lower-priority media
+PASS Revoked group image remains unavailable when the player projection falls through to a different release
+PASS A later revoke may remove a previous explicit block
+PASS Revoke falls through only to the explicit lower public release, never old entity fields
+PASS Authorized media follows the same lower public release after a group revoke
+PASS Spielleitung can draft for one explicitly selected active player
+PASS Personal-area revision goes through the same review transition
+PASS Personal release is bound to Player A and creates matching discovery
+PASS Player A sees the personally granted area
+PASS Player B and group preview do not see Player A personal area
+PASS Personal room draft can be reviewed
+PASS Personal office release creates Player A discovery
+PASS Player A sees their personally released office
+PASS Player B and group do not see the personal office
+PASS Personal office grant does not reveal sibling or legacy secret 06 Personalflur
+PASS Personal office grant does not reveal sibling or legacy secret 08 Hof & Anlieferung
+PASS Personal office grant does not reveal sibling or legacy secret Keller & Service
+PASS Personal office grant does not reveal sibling or legacy secret legacy-1bf8cd98
+PASS Personal office grant does not reveal sibling or legacy secret Elysium / Camarilla
+PASS A player cannot read other users’ drafts
+PASS Blocked player identity cannot read player hub
+PASS Recovery entities cannot be drafted or published through location CMS
+PASS Command center denies anonymous
+PASS Command center denies a
+PASS Command center denies b
+PASS Command center denies editor
+PASS Command center denies blockedGm
+PASS Command center denies pendingGm
+PASS Command center denies otherCampaign
+PASS Command center denies platformOnly
+PASS SL player preview is projected server-side without confidential session data
+PASS Player preview response contains no roster or private grant metadata
+PASS SL command center resolves the existing campaign
+PASS Command roster does not expose member emails
+PASS Command roster contains only active campaign members
+PASS Command character roster does not leak private foreign character metadata
+PASS Command context keeps existing private-character permission restriction
+PASS Existing entity API authors command handout
+PASS Existing knowledge API grants command handout to A
+PASS Player A receives released command handout
+PASS Player B cannot read A command handout
+PASS Group preview excludes personal handout grants
+PASS Command handout never leaks GM text
+PASS Command handout withdrawal uses existing API
+PASS Command handout withdrawal is enforced server-side
+PASS Command handout group release uses existing knowledge system
+PASS Group preview includes actually released handout text
+PASS Group preview handouts exclude confidential GM data
+PASS Group preview handouts expose only whitelisted fields
+PASS Command group release can be withdrawn
+PASS Group preview immediately respects withdrawal
+PASS Regie persists existing place reference in session
+PASS Regie place survives fresh server read
+PASS Player session projection strips confidential location association
+PASS Regie rejects nonexistent place
+PASS Player cannot change regie association
+PASS Scene update with preserved location succeeds
+PASS Stale session revision cannot overwrite regie association
+550 integration checks passed. All writes were confined to the isolated local test database.
+PASS isolated Test-D1 atomic batch rollback
+PASS no platform administrator is pre-provisioned in Test-D1
+PASS backfill preflight exposes role/status conflicts
+PASS a backfill conflict stops every write
+PASS backfill deterministically imports every legacy membership
+PASS backfill is idempotent on rerun
+PASS Kleve GM email maps only to the campaign_gm role
+PASS backfill preserves blocked status for the legacy GM identity
+PASS backfill preserves pending status for the legacy GM identity
+PASS different campaign legacy member maps to player
+PASS each inserted backfill membership has one audit event
+PASS role audit events reject update and delete
+PASS synthetic second-campaign identity was retained
+PASS backfill retains the source campaign ID
+PASS Kleve GM assignment resolves as a campaign role
+PASS same identity does not gain GM rights in another campaign
+PASS explicit campaign role takes precedence over the legacy GM email adapter
+PASS campaign_owner with pending remains inactive
+PASS campaign_owner with blocked remains inactive
+PASS campaign_gm with pending remains inactive
+PASS campaign_gm with blocked remains inactive
+PASS campaign_editor with pending remains inactive
+PASS campaign_editor with blocked remains inactive
+PASS player with pending remains inactive
+PASS player with blocked remains inactive
+PASS campaign owner rights stay within their own campaign
+PASS production role maintenance exposes no platform-admin bootstrap mutation
+PASS future bootstrap requires independent verification and a signed approval gate
+PASS direct synthetic fixture exists only in the isolated Test-D1
+PASS platform admin does not imply campaign access
+PASS synthetic platform-admin fixture has one immutable audit record
+PASS backfill writes one matching immutable audit event per migrated membership
+PASS rollback retained campaigns
+PASS rollback retained members
+PASS rollback retained records
+PASS rollback retained files
+PASS rollback retained entities
+PASS rollback retained relationships
+PASS rollback retained knowledge
+PASS rollback retained world_events
+PASS rollback retained recovery_sources
+PASS rollback retained recovery_records
+PASS rollback retained recovery_conflicts
+PASS rollback retained location_nodes
+PASS rollback retained location_actions
+PASS physical rollback probe removes only the additive revision column
+PASS physical rollback probe leaves legacy foreign keys valid
+Role foundation Test-D1 checks passed: 46; 4 deterministic backfill rows; no production database was used.
