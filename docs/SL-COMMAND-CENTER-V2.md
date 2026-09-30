@@ -78,3 +78,10 @@ Browsernachweis: Electric Taberna auswählen → speichern → vollständiger Re
 69 Fachtests, 543 Integrationstests, 46 Rollenprüfungen und atomarer Rollback bestanden. Typecheck, Lint und Build bestanden. Neue Tests: Ortszuordnung persistiert, vertrauliche ID fehlt im Player-Response, ungültiger Ort abgewiesen, Spieler-Schreiben verweigert und stale Revision HTTP 409. Bekannte Buildwarnungen unverändert.
 
 Geändert: command-place.tsx (neu), command-center.tsx, session.tsx, app/api/records/route.ts, tests/integration.mjs und Browsernachweis docs/qa/command-session-place.jpg. Keine Migration oder Produktivänderung. Vergleichsansicht und direkte Freigabesteuerung sind noch nicht ergänzt.
+## Kompakte Spielabend-Regie
+
+Die Regie zeigt Schnellinformationen statt vollständiger Orts-/Charakterseiten. Bereiche, private Hinweise, Charakterwerte, Initiative und Protokoll sind bei Bedarf aufklappbar; Arbeitsflächen scrollen unabhängig. Der vollständige Bogen und das vollständige Ortsdossier bleiben über Links erreichbar. Keine Rollen-/Benutzerverwaltung oder technische Adminsteuerung ergänzt. CMS-Inhaltserstellung und Administration bleiben eigenständige Bereiche; deren bestehende Oberflächen sind durch diesen Patch nicht umfassend umgebaut.
+
+Automatisierung: Ortswahl speichert unmittelbar, private Notizen beim Verlassen des Feldes, Sitzungsstatus bei Auswahl. Veröffentlichungen/Widerruf bleiben ausdrückliche SL-Aktionen. Fehler werden angezeigt; vorhandener Versionsschutz bleibt aktiv. Browser: automatische Ortswahl, Notiz und Statuswechsel nach vollständigem Reload erhalten. 69 Fachtests, 543 isolierte Integrationstests und 46 Rollenprüfungen sowie Typecheck, Lint, Build bestanden; bekannte Buildwarnungen unverändert.
+
+Geändert: command-center.module.css, command-center.tsx, command-character.tsx, command-place.tsx, session.tsx und dieser Bericht. Screenshot: docs/qa/regie-compact.jpg. Keine Migration, kein Push, kein Deployment.

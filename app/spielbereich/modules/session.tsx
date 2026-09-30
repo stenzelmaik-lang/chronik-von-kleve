@@ -23,10 +23,12 @@ export function SessionPanel({
   entries,
   a,
   onRefresh,
+  compact = false,
 }: {
   entries: Entry[];
   a: Actor;
   onRefresh: () => void;
+  compact?: boolean;
 }) {
   const existing = entries.find((e) => e.kind === "sitzungen");
   const initial = existing?.body || {};
@@ -142,7 +144,7 @@ export function SessionPanel({
     );
   return (
     <div className="session-stack">
-      <section className="session-hero">
+      {!compact && <section className="session-hero">
         <div className="session-glow" />
         <div className="session-hero-copy">
           <p className="eyebrow">
@@ -169,8 +171,8 @@ export function SessionPanel({
           )}
         </div>
       </section>
-      <div className="session-grid">
-        <section className="panel initiative-panel">
+      }<div className="session-grid">
+        <details className="panel initiative-panel" open={compact ? undefined : true}><summary>Initiative · {initiative.length} Beteiligte</summary>
           <div className="panel-heading">
             <div>
               <p className="eyebrow">KAMPF UND DRUCK</p>
@@ -228,8 +230,7 @@ export function SessionPanel({
               <Zap size={16} /> Nächster Zug
             </button>
           )}
-        </section>
-        <section className="panel scene-panel">
+        </details><section className="panel scene-panel">
           {a.gm ? (
             <>
               <div className="panel-heading">
@@ -240,6 +241,7 @@ export function SessionPanel({
                 <Activity size={23} className="text-primary" />
               </div>
               <div className="stack-form">
+                {compact&&<Choice label="Sitzungsstatus" value={status} onChange={next=>{setStatus(next);void save({scene,subtitle,status:next,round,turn,initiative,log});}} options={["Bereit","Läuft","Pause","Abgeschlossen"].map(x=>[x,x] as [string,string])}/>}
                 <label className="field">
                   <span>Szene</span>
                   <input
@@ -278,7 +280,7 @@ export function SessionPanel({
           )}
         </section>
       </div>
-      <section className="panel session-log">
+      <details className="panel session-log" open={compact ? undefined : true}><summary>Protokoll · {log.length} Einträge</summary>
         <div className="panel-heading">
           <div>
             <p className="eyebrow">LIVE-PROTOKOLL</p>
@@ -311,8 +313,10 @@ export function SessionPanel({
             ))}
           </div>
         )}
-      </section>
+      </details>
     </div>
   );
 }
+
+
 
