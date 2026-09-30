@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Lock } from "lucide-react";
+import studio from "./character-studio.module.css";
 
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
@@ -74,14 +75,14 @@ export function RecordEditor({
       }}
     >
       <DialogContent
-        className={`!max-w-5xl max-h-[90vh] overflow-y-auto ${edit?.kind === "charaktere" ? "character-editor-dialog" : ""}`}
+        className={`!max-w-5xl max-h-[90vh] overflow-y-auto ${edit?.kind === "charaktere" ? `character-editor-dialog ${studio.editor}` : ""}`}
         onInteractOutside={(e) => {
           if (edit?.canEdit) e.preventDefault();
         }}
       >
         <DialogHeader>
           <DialogTitle className="!font-serif !text-3xl">
-            {edit?.id ? edit.title : "Neuer Eintrag"}
+            {edit?.id ? edit.title : edit?.kind === "charaktere" ? "Charakter erschaffen" : "Neuer Eintrag"}
           </DialogTitle>
           <DialogDescription>
             {edit?.canEdit

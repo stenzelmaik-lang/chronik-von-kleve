@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api-client';
 import { RatingGroup, attrsGroups, CharacterListReadout, type CharacterDetailProjection } from './character';
+import { CharacterProgression } from './character-progression';
 
 // Read-only context: all authorization and values come from the existing projector.
 export function CommandCharacter({id}:{id:string}) {
@@ -22,10 +23,10 @@ export function CommandCharacter({id}:{id:string}) {
   const object=(v:unknown)=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,number>:{};
   const blood=object(p.sheet.blood),willpower=object(p.sheet.willpower);
   return <div>
-    <p className="eyebrow">GESCHÜTZTER CHARAKTERKONTEXT · NUR LESEN</p>
+    <p className="eyebrow">GESCHÜTZTER CHARAKTERKONTEXT</p>
     <h3>{text(p.identity.name)}</h3>
     <p>{text(p.identity.clan)} · Generation {text(p.identity.generation)}</p>
-    <div className="actions"><button className="button" onClick={()=>setReload(n=>n+1)}>Werte aktualisieren</button><a className="button" href="/spielbereich?bereich=charaktere" target="_blank" rel="noopener noreferrer">Ganzen Charakterbogen öffnen ↗</a></div>
+    <div className="actions"><button className="button" onClick={()=>setReload(n=>n+1)}>Werte aktualisieren</button><a className="button" href={"/spielbereich?bereich=charaktere&character="+encodeURIComponent(id)} target="_blank" rel="noopener noreferrer">Ganzen Charakterbogen öffnen ↗</a></div>
     <dl className="command-vitals">
       <div><dt>Blut</dt><dd>{text(blood.current)} / {text(blood.max)}</dd></div>
       <div><dt>Willenskraft aktuell / permanent</dt><dd>{text(willpower.temporary)} / {text(willpower.permanent)}</dd></div>
@@ -33,7 +34,7 @@ export function CommandCharacter({id}:{id:string}) {
     </dl>
     <details><summary>Attribute und Disziplinen</summary>{attrsGroups.map(([title,names])=><RatingGroup key={title} title={title} names={names} values={object(p.sheet.attributes)} disabled/>)}
     <CharacterListReadout label="Disziplinen" value={p.sheet.disciplines}/>
-    </details><p>Änderungen erfolgen weiterhin über den vorhandenen Charakterbogen. Private Spieleraufzeichnungen werden hier nicht dargestellt.</p>
+    </details><details><summary>Charakter prüfen, XP vergeben & Anträge bearbeiten</summary><CharacterProgression id={id} revision={p.revision.version} manage onChanged={()=>setReload(n=>n+1)}/></details>
   </div>;
 }
 

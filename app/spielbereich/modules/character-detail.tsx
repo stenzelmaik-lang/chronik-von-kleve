@@ -2,6 +2,10 @@
 /* eslint-disable @next/next/no-img-element, react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
+import type { Actor } from "@/domain/types";
+import { RichTextEditor, RichTextView } from "./rich-text";
+import { CharacterProgression } from "./character-progression";
+import studio from "./character-studio.module.css";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +58,7 @@ const mediaLabels: Record<string, string> = {
 };
 
 export function CharacterDetail({
+  a,
   entries,
   dataScope,
   activeCharacterId,
@@ -62,6 +67,7 @@ export function CharacterDetail({
   onEdit,
   onRefresh,
 }: {
+  a: Actor;
   entries: Entry[];
   dataScope: string;
   activeCharacterId: string | null;
@@ -70,6 +76,7 @@ export function CharacterDetail({
   onEdit: (e: Entry) => void;
   onRefresh?: () => void;
 }) {
+  const [view, setView] = useState("sheet");
   const [projectionState, setProjection] = useState<CharacterDetailProjection | null>(
     null,
   );
@@ -331,13 +338,14 @@ export function CharacterDetail({
 
   if (!active)
     return (
-      <section className="panel character-empty">
+      <section className={`panel character-empty ${studio.studio}`}>
         <h2>{entries.length ? "Charakter auswählen" : "Noch kein Charakter"}</h2>
         <p className="muted">
           {entries.length
-            ? "Wähle einen deiner Charaktere aus."
+            ? a.gm ? "Wähle einen für dich freigegebenen Charakter der Kampagne aus." : "Wähle einen deiner Charaktere aus."
             : "Lege deinen ersten Charakter an."}
         </p>
+        <button className="button primary" onClick={onCreate}><Plus size={16}/>Charakter erschaffen</button>
         {entries.length ? (
           <div className="character-picker">
             {entries.map((e) => (
@@ -355,14 +363,10 @@ export function CharacterDetail({
               </button>
             ))}
           </div>
-        ) : (
-          <button className="button primary" onClick={onCreate}>
-            <Plus size={16} /> Charakter erstellen
-          </button>
-        )}
+        ) : null}
       </section>
     );
-  if (loading && !projection)
+  if (!projection && (loading || !loadError || loadedCharacterId !== active.id))
     return (
       <section className="panel">
         <p>Charakterbogen wird geladen …</p>
@@ -406,7 +410,7 @@ export function CharacterDetail({
   ];
 
   return (
-    <div className="character-detail-page">
+    <div className={`character-detail-page ${studio.studio}`}>
       {refreshing && <p className="muted" role="status">Charakterbogen wird aktualisiert …</p>}
       {loadError && <div role="alert" className="error-box"><strong>{describeDataError(loadError).title}</strong><p>{loadError.message}</p><button className="button" onClick={() => void reload(true)}>Erneut versuchen</button></div>}
       <header className="character-hero">
@@ -454,11 +458,14 @@ export function CharacterDetail({
           {permissions.canEdit === true && (
             <button
               className="button primary character-edit"
+              disabled={active.body.characterState === "confirmed" || active.body.characterState === "review"}
+              title={active.body.characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : undefined}
               onClick={() => onEdit(active)}
             >
               <Pencil size={16} /> Bogen bearbeiten
             </button>
           )}
+          <button className="button" onClick={onCreate}><Plus size={15}/>Neuer Charakter</button>
           {canCompanion && (
             <label className="button character-upload-trigger">
               <Camera size={16} /> Portrait ändern
@@ -473,8 +480,12 @@ export function CharacterDetail({
           )}
         </div>
       </header>
+      <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+      </nav>
+      {(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
 
-      <div className="character-layout">
+      <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
           <div className="sheet-heading">
             <p className="eyebrow">V20 CHARACTER SHEET</p>
@@ -512,7 +523,7 @@ export function CharacterDetail({
                   disabled
                 />
               ))}
-              <CharacterListReadout label="Freie Fähigkeiten" value={s.customAbilities} />
+              {((Array.isArray(s.customAbilities) && s.customAbilities.length > 0) || (typeof s.customAbilities === "string" && s.customAbilities.trim())) && <CharacterListReadout label="Freie Fähigkeiten (Legacy)" value={s.customAbilities} />}
             </div>
           </section>
           <section className="sheet-block">
@@ -664,7 +675,7 @@ export function CharacterDetail({
         </aside>
       </div>
 
-      <section className="character-companion">
+      <section className="character-companion" hidden={view!=="story"}>
         <div className="companion-column companion-column-left">
           <article className="companion-panel companion-story">
             <header>
@@ -683,11 +694,7 @@ export function CharacterDetail({
             </header>
             {roleEdit === "story" ? (
               <div className="companion-edit">
-                <textarea
-                  rows={9}
-                  value={storyDraft}
-                  onChange={(e) => setStoryDraft(e.target.value)}
-                />
+                <RichTextEditor placeholder="Erzähle die Vergangenheit deiner Figur …" label="Hintergrundgeschichte" value={storyDraft} onChange={setStoryDraft} maximumPlainLength={20000}/>
                 <div className="companion-actions">
                   <button className="button primary" disabled={companionBusy} onClick={() => void saveRoleplay()}>
                     <Save size={15} /> Speichern
@@ -698,9 +705,7 @@ export function CharacterDetail({
                 </div>
               </div>
             ) : (
-              <p className="preserve-lines">
-                {text(projection.roleplay.backgroundStory) || "Noch keine Hintergrundgeschichte hinterlegt."}
-              </p>
+              <RichTextView value={text(projection.roleplay.backgroundStory) || "Noch keine Hintergrundgeschichte hinterlegt."}/>
             )}
           </article>
 
@@ -721,11 +726,7 @@ export function CharacterDetail({
             </header>
             {roleEdit === "play" ? (
               <div className="companion-edit">
-                <textarea
-                  rows={9}
-                  value={playDraft}
-                  onChange={(e) => setPlayDraft(e.target.value)}
-                />
+                <RichTextEditor placeholder="Stimme, Haltung und Ziele …" label="Spielhilfe" value={playDraft} onChange={setPlayDraft} maximumPlainLength={20000}/>
                 <div className="companion-actions">
                   <button className="button primary" disabled={companionBusy} onClick={() => void saveRoleplay()}>
                     <Save size={15} /> Speichern
@@ -736,9 +737,7 @@ export function CharacterDetail({
                 </div>
               </div>
             ) : (
-              <p className="preserve-lines">
-                {text(projection.roleplay.playGuide) || "Noch keine Spielhilfe hinterlegt."}
-              </p>
+              <RichTextView value={text(projection.roleplay.playGuide) || "Noch keine Spielhilfe hinterlegt."}/>
             )}
           </article>
 
@@ -775,11 +774,7 @@ export function CharacterDetail({
                 />
                 <label className="field wide">
                   <span>Notiz</span>
-                  <textarea
-                    rows={6}
-                    value={noteDraft.text}
-                    onChange={(e) => setNoteDraft({ ...noteDraft, text: e.target.value })}
-                  />
+                  <RichTextEditor placeholder="Deine persönliche Aufzeichnung …" label="Persönliches Dokument" value={noteDraft.text} onChange={value=>setNoteDraft({...noteDraft,text:value})} maximumPlainLength={20000}/>
                 </label>
                 <div className="companion-actions wide">
                   <button className="button primary" disabled={companionBusy || !noteDraft.text.trim()} onClick={() => void saveNote()}>
@@ -798,7 +793,7 @@ export function CharacterDetail({
                     <div>
                       <span className="badge">{visibilityNames[note.visibility] || note.visibility}</span>
                       <h4>{note.title}</h4>
-                      <p className="preserve-lines">{note.text}</p>
+                      <RichTextView value={note.text}/>
                       <small>Geändert {new Date(note.updatedAt).toLocaleDateString("de-DE")}</small>
                     </div>
                     {note.canEdit && (

@@ -21,9 +21,10 @@ export async function campaignExport(db: D1Database, a: Actor) {
     names.map((name) =>
       db
         .prepare(
-          `SELECT * FROM ${name} WHERE ${name === "campaigns" ? "id" : "campaign_id"}=?`,
+          `SELECT * FROM ${name} WHERE ${name === "campaigns" ? "id" : "campaign_id"}=?` +
+            (name === "records" ? " AND (coalesce(json_extract(body,'$.context'),'')<>'sl-message' OR owner_id=? OR json_extract(body,'$.senderId')=?)" : ""),
         )
-        .bind(a.campaignId),
+        .bind(a.campaignId, ...(name === "records" ? [a.id, a.id] : [])),
     ),
   );
   return {
@@ -31,6 +32,7 @@ export async function campaignExport(db: D1Database, a: Actor) {
     formatVersion: 1,
     campaignId: a.campaignId,
     exportedAt: new Date().toISOString(),
+    privateMessages: "Nur selbst empfangene oder selbst gesendete Briefe. Die SL-Rolle gewährt keinen Zugriff auf fremde Korrespondenz. Eine vollständige technische Sicherung erfolgt administrativ außerhalb dieses Benutzerexports.",
     ...Object.fromEntries(names.map((name, i) => [name, data[i].results])),
     binaries: {
       included: false,

@@ -1,3 +1,5 @@
+import {engineFixture} from "./fixtures/engine-character.mjs";
+import {weekendIntegration} from "./weekend-integration.mjs";
 import assert from 'node:assert/strict';
 import {createHash,pbkdf2Sync,randomBytes} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -298,20 +300,25 @@ localSql(`INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body
 check((await req('/api/records','a','POST',{id:legacyClanId,version:1,kind:'charaktere',title:'Legacy Clan Character',visibility:'private',body:{...legacyClanBody,concept:'Unveränderte Clanwerte'}})).s===200,'CHAR-C03 unchanged legacy clan values remain writable with unrelated edits');
 check((await req('/api/records','a','POST',{id:legacyClanId,version:2,kind:'charaktere',title:'Legacy Clan Character',visibility:'private',body:{...legacyClanBody,disciplines:[{name:'Andere Legacy-Disziplin',value:2}]}})).s===400,'CHAR-C04 legacy clan values cannot be changed outside the configured catalogue');
 localSql(`DELETE FROM records WHERE id=${sqlQuote(legacyClanId)}`);
-const engineBody={...characterBody,engineVersion:1,characterState:'draft',attributes:{Geschick:2},disciplines:[{name:'Auspex',value:1},{name:'Beherrschung',value:1},{name:'Thaumaturgie',value:1}],backgrounds:[{name:'Kontakte',value:5}],virtues:{Gewissen:4,Selbstbeherrschung:3,Mut:3},creationAllocations:{attributes:{physical:7,social:5,mental:3},abilities:{talents:13,skills:9,knowledges:5}},freebiePurchases:[],xpLedger:[{id:'grant',kind:'grant',amount:10,reason:'TEST_DATA',createdAt:now}]};
+const engineBody=structuredClone(engineFixture);
+check((await req('/api/records','a','POST',{kind:'charaktere',title:'Forged initial XP',visibility:'private',body:{...engineBody,xpLedger:[{id:'forged',kind:'grant',amount:999,reason:'FORGED',createdAt:now}]}})).s===403,'B1A-S00 initial forged ledger is denied');
 const engineCharacter=await req('/api/records','a','POST',{kind:'charaktere',title:'B1a Engine Character',visibility:'private',body:engineBody});
 check(engineCharacter.s===200,`B1A-01 engine draft is created (${engineCharacter.s}: ${JSON.stringify(engineCharacter.d)})`);
+check((await req('/api/character-engine?id='+engineCharacter.d.id,'gm')).s===404,'B1A private draft is hidden from GM before submission');
 const reviewed=await req('/api/character-engine','a','POST',{id:engineCharacter.d.id,version:1,action:'review'});
 check(reviewed.s===200&&reviewed.d.state==='review','B1A-02 draft enters confirmation review');
-const confirmed=await req('/api/character-engine','a','POST',{id:engineCharacter.d.id,version:2,action:'confirm'});
-check(confirmed.s===200&&confirmed.d.state==='confirmed','B1A-03 character confirmation is explicit');
-const xpPurchase=await req('/api/character-engine','a','POST',{id:engineCharacter.d.id,version:3,action:'xp_purchase',purchase:{category:'attribute',target:'Geschick',from:2,to:3}});
+check((await req('/api/character-engine','a','POST',{id:engineCharacter.d.id,version:2,action:'confirm'})).s===403,'B1A owner cannot confirm own character');
+const confirmed=await req('/api/character-engine','gm','POST',{id:engineCharacter.d.id,version:2,action:'confirm'});
+check(confirmed.s===200&&confirmed.d.state==='confirmed','B1A-03 character confirmation is SL-only');
+check((await req('/api/character-engine','gm','POST',{id:engineCharacter.d.id,version:3,action:'xp_grant',amount:14,reason:'TEST_DATA'})).s===200,'B1A XP grant requires SL command');
+const xpPurchase=await req('/api/character-engine','a','POST',{id:engineCharacter.d.id,version:4,action:'xp_purchase',purchase:{category:'attribute',target:'Geschick',from:3,to:4}});
 check(xpPurchase.s===200&&xpPurchase.d.xpAvailable===2,'B1A-04 XP purchase changes value and ledger atomically');
-const directXp=await req('/api/records','a','POST',{id:engineCharacter.d.id,version:4,kind:'charaktere',title:'B1a Engine Character',visibility:'private',body:{...engineBody,characterState:'confirmed',attributes:{Geschick:3},xpLedger:[{id:'forged',kind:'grant',amount:999,reason:'FORGED',createdAt:now}]}});
+const currentEngine=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===engineCharacter.d.id);
+const directXp=await req('/api/records','a','POST',{id:currentEngine.id,version:5,kind:'charaktere',title:currentEngine.title,visibility:'sl',body:{...currentEngine.body,xpLedger:[{id:'forged',kind:'grant',amount:999,reason:'FORGED',createdAt:now}]}});
 check(directXp.s===403,'B1A-S01 direct XP ledger edits are rejected');
-const directPermanent=await req('/api/records','a','POST',{id:engineCharacter.d.id,version:4,kind:'charaktere',title:'B1a Engine Character',visibility:'private',body:{...engineBody,characterState:'confirmed',concept:'forged'}});
+const directPermanent=await req('/api/records','a','POST',{id:currentEngine.id,version:5,kind:'charaktere',title:currentEngine.title,visibility:'sl',body:{...currentEngine.body,concept:'forged'}});
 check(directPermanent.s===400,'B1A-S02 confirmed permanent edits are rejected');
-check((await req('/api/records','a','DELETE',{id:engineCharacter.d.id,version:4})).s===200,'B1A cleanup removes only the isolated engine fixture');
+check((await req('/api/records','a','DELETE',{id:engineCharacter.d.id,version:5})).s===200,'B1A cleanup removes only the isolated engine fixture');
 const charId=character.d.id;
 let dashboard=await req('/api/dashboard','a');
 check(dashboard.s===200&&dashboard.d.character?.id===charId&&dashboard.d.characterCount===1,'DASH-01 sole owned character is selected in dashboard projection');
@@ -959,6 +966,7 @@ check((await req('/api/records','a','POST',{id:regieStored.id,version:regieStore
 const regieUpdate={id:regieStored.id,version:regieStored.version,kind:'sitzungen',title:regieStored.title,visibility:'group',body:{...regieStored.body,scene:'Updated scene'}};
 check((await req('/api/records','gm','POST',regieUpdate)).s===200,'Scene update with preserved location succeeds');
 check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session revision cannot overwrite regie association');
+await weekendIntegration({req,check,localSql,sqlQuote,now});
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');
 
 

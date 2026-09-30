@@ -1,20 +1,29 @@
+import {engineFixture} from "../tests/fixtures/engine-character.mjs";
 import {spawnSync,spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
-import {mkdirSync,readdirSync,readFileSync} from 'node:fs';
-import {randomUUID,pbkdf2Sync,randomBytes} from 'node:crypto';
+import {existsSync,mkdirSync,readdirSync,readFileSync,writeFileSync} from 'node:fs';
+import {createHash,randomUUID,pbkdf2Sync,randomBytes} from 'node:crypto';
 import {once} from 'node:events';
 import {tmpdir} from 'node:os';
 import {dirname,join,relative,resolve} from 'node:path';
 import {createServer} from 'node:http';
 import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 
-// Isolated local test worker: never reuse .wrangler production/preview state.
-const state=join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());mkdirSync(state,{recursive:true});
+// Isolated local resources only. --weekend preserves synthetic acceptance
+// data across restarts; the full regression suite always uses a fresh store.
+const interactive=process.argv.includes('--command-center')||process.argv.includes('--weekend');
+const preserve=process.argv.includes('--weekend');
+const state=preserve?resolve('.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const marker=join(state,'synthetic-weekend.json');
+const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql'];
+const fingerprint=createHash('sha256').update(migrations.map(file=>readFileSync(file,'utf8')).join('\n')).digest('hex');
+const resumed=preserve&&existsSync(marker);
+if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose!=='synthetic-local-weekend'||saved.migrations!==fingerprint)throw new Error('Local demo store has an incompatible marker. Existing data are preserved; no migration was run.');}
+else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
+mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:8793',CVK_TEST_STATE:state};
-const interactive=process.argv.includes('--command-center');
-if(interactive)env.CVK_TEST_URL='http://127.0.0.1:8794';
-for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql']){
+const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:interactive?'http://127.0.0.1:8794':'http://127.0.0.1:8793',CVK_TEST_STATE:state};
+if(!resumed)for(const migration of migrations){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
  if(result.status!==0)throw new Error('Local migration failed: '+result.stderr);
 }
@@ -79,6 +88,7 @@ try{
  }
  if(!ready)throw new Error('Local Miniflare Worker did not become ready: '+lastHealth);
  if(interactive){
+  if(!resumed){
   // Synthetic accounts only in the freshly migrated local database above.
   // Never reused by any production or remote provisioning command.
   const stamp=new Date().toISOString(),salt=randomBytes(16).toString('base64url');
@@ -104,8 +114,15 @@ try{
   if(!playerLogin.ok||!playerCookie)throw new Error('Synthetic character owner login failed');
   const characterResponse=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Regiecharakter A',visibility:'group',body:{player:'Demo Spieler A',clan:'Tremere',generation:10,attributes:{Körperkraft:2,Geschick:3,Widerstandsfähigkeit:2,Charisma:2,Manipulation:2,Erscheinungsbild:2,Wahrnehmung:3,Intelligenz:3,Geistesschärfe:2},disciplines:[{name:'Auspex',value:1}],humanity:7,willpower:5,willpowerTemporary:4,blood:8,bloodMax:13}})});
   if(!characterResponse.ok)throw new Error('Synthetic character authoring failed '+characterResponse.status);
+  const engineDraft=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Character Engine A',visibility:'sl',body:{...engineFixture,player:'Demo Spieler A'}})});
+  if(!engineDraft.ok)throw new Error('Synthetic engine draft failed '+engineDraft.status);
+  const engineId=(await engineDraft.json()).id;
+  console.log('Synthetic engine character: '+engineId+'. Draft belongs to Player A and is shared only with SL.');
+
   // Existing accepted reference fixture, only in this fresh isolated local DB.
   await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
+  if(preserve)writeFileSync(marker,JSON.stringify({purpose:'synthetic-local-weekend',migrations:fingerprint}));
+  }
   console.log('Isolated application ready: http://127.0.0.1:8794/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
   await new Promise(resolveStop=>{process.once('SIGINT',resolveStop);process.once('SIGTERM',resolveStop);});
  }else{

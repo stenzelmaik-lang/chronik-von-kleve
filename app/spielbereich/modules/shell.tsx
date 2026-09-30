@@ -7,6 +7,8 @@ import type { Actor } from "@/domain/types";
 
 import { sections } from "./navigation";
 import shellStyles from "./world-shell.module.css";
+import { MessageCenter } from "./message-center";
+import { api } from "./api-client";
 
 const plannedWorldSections = [
   { title: "Persönlichkeiten", icon: Users },
@@ -31,6 +33,13 @@ export function WorkspaceShell({
   const canManageLocations=a.status==="active"&&["campaign_owner","campaign_gm","campaign_editor"].includes(a.role);
   const worldActive = sections.find((s) => s.id === section)?.group === "SPIELWELT";
   const cmsActive=section==="ortscms";
+  async function logout() {
+    try {
+      await api("/api/auth/logout","POST",{});
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- A full navigation discards all protected client state after logout.
+      window.location.assign("/anmelden");
+    } catch { window.alert("Abmeldung fehlgeschlagen. Bitte erneut versuchen."); }
+  }
   return <div className={`player-shell ${worldActive||cmsActive ? "worldShell" : ""}`}>
     <header className="player-topbar">
       <a href="/" className="brand" aria-label="Chronik von Kleve – Startseite">
@@ -38,13 +47,14 @@ export function WorkspaceShell({
         <span className="brand-copy">CHRONIK VON KLEVE</span>
       </a>
       <div className="player-top-actions">
+        {a.status === "active" && <MessageCenter key={a.campaignId + a.id} a={a}/>}
         <a href="/" className="workspace-home-link"><Home size={15} /><span>Startseite</span></a>
         {canManageLocations&&!cmsActive&&<a href="/spielbereich?bereich=ortscms" className="workspace-home-link" aria-label="SL-CMS öffnen" title="SL-CMS"><MapPinned size={15} /><span>SL-CMS</span></a>}
         <span className="player-identity">
           <span className="player-avatar">{a.name?.slice(0, 1).toUpperCase()}</span>
           <span className="player-identity-copy"><strong>{a.name}</strong><small>{a.gm ? "Spielleitung" : "Spielerbereich"}</small></span>
         </span>
-        <a href="/signout-with-chatgpt?return_to=/" target="_top" className="player-logout" aria-label="Abmelden"><LogOut size={16} /></a>
+        <button type="button" className="player-logout" aria-label="Abmelden" onClick={()=>void logout()}><LogOut size={16} /></button>
       </div>
     </header>
     {cmsActive ? <nav className={`player-nav ${shellStyles.worldNav} ${shellStyles.cmsNav}`} data-world-navigation="sl-cms" aria-label="SL-CMS-Navigation">

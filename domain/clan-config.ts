@@ -86,6 +86,7 @@ export function validateCharacterClanSelection(input: {
   disciplines: unknown;
   previousClan?: unknown;
   previousDisciplines?: unknown;
+  allowPending?: boolean;
 }): ClanSelectionValidation {
   const clanName = normalized(input.clan);
   const previousClan = normalized(input.previousClan);
@@ -132,7 +133,7 @@ export function validateCharacterClanSelection(input: {
   const unsupportedIndex = names.findIndex((name, index) => {
     if (configuredClan.disciplines.includes(name)) return false;
     const row = (input.disciplines as unknown[])[index] as CharacterDiscipline;
-    return row.source !== "foreign" || row.slApproved !== true;
+    return row.source !== "foreign" || !(row.slApproved === true || (input.allowPending && row.value === 0));
   });
   if (unsupportedIndex >= 0) {
     const unsupported = names[unsupportedIndex];

@@ -31,6 +31,7 @@ import { toast } from "sonner";
 
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
+import { withCreationBaseValues } from "@/domain/character-engine";
 
 import { api } from "./modules/api-client";
 import { ChroniclePanel } from "./modules/chronicle";
@@ -60,9 +61,11 @@ import {
 export default function Workspace({
   actor: a,
   initialSection = "dashboard",
+  initialCharacterId,
 }: {
   actor: Actor;
   initialSection?: string;
+  initialCharacterId?: string;
 }) {
   const [search, setSearch] = useState(""),
     [edit, setEdit] = useState<Entry | null>(null),
@@ -78,9 +81,14 @@ export default function Workspace({
   const uploadInput = useRef<HTMLInputElement>(null),
     active = a.status === "active";
   const dataScope = `${a.campaignId}:${a.id}:${a.gm ? "gm" : "player"}`;
-  const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope: dataScope, id: null });
+  const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope: dataScope, id: initialCharacterId || null });
   const activeCharacterId = selection.scope === dataScope ? selection.id : null;
-  const setActiveCharacterId = useCallback((id: string | null) => setSelection({ scope: dataScope, id }), [dataScope]);
+  const setActiveCharacterId = useCallback((id: string | null) => {
+    setSelection({ scope: dataScope, id });
+    const url = new URL(window.location.href);
+    if (id) url.searchParams.set("character", id); else url.searchParams.delete("character");
+    if (url.href !== window.location.href) history.replaceState(null, "", url);
+  }, [dataScope]);
   useEffect(() => {
     activatePlayerDataScope(dataScope);
     const clear = () => clearPlayerDataScope(dataScope);
@@ -102,6 +110,14 @@ export default function Workspace({
   );
   const { entries, files, members, catalog, loading, refreshing, hasData, error, reload } =
     useWorkspaceData(section, active, dataScope);
+  const pendingCharacterSelection = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingCharacterSelection.current;
+    if (id && entries.some(entry => entry.id === id)) {
+      pendingCharacterSelection.current = null;
+      setActiveCharacterId(id);
+    }
+  }, [entries, setActiveCharacterId]);
   const current = sections.find((s) => s.id === section) || {
     id: "verwaltung",
     name: "Spielleitung",
@@ -113,7 +129,7 @@ export default function Workspace({
     setFormError("");
     const body =
       kind === "charaktere"
-        ? {
+        ? withCreationBaseValues({
             engineVersion: 1,
             characterState: "draft",
             creationAllocations: {
@@ -122,11 +138,13 @@ export default function Workspace({
             },
             freebiePurchases: [],
             xpLedger: [],
+            player: a.name,
+            chronicle: a.campaignId === "chronik-von-kleve" ? "Chronik von Kleve" : a.campaignId,
             attributes: {},
             skills: {},
             virtues: {},
-            health: {},
-          }
+            health: { current: "Gesund" },
+          })
         : { text: "" };
     setEdit({
       kind,
@@ -148,7 +166,7 @@ export default function Workspace({
     setSaving(true);
     setFormError("");
     try {
-      await api("/api/records", "POST", edit);
+      const saved = await api<{ id: string }>("/api/records", "POST", edit);
       invalidatePlayerData(dataScope, "/api/dashboard");
       if (savedKind === "charaktere")
         invalidatePlayerData(dataScope, "/api/records?kind=charaktere");
@@ -156,7 +174,8 @@ export default function Workspace({
         invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(savedId)}`);
       setEdit(null);
       toast.success("Gespeichert");
-      await reload();
+      if (savedKind === "charaktere" && saved.id) pendingCharacterSelection.current = saved.id;
+      reload();
     } catch (e) {
       setFormError((e as Error).message);
       if (describeDataError(e).permission) await reload();
@@ -246,7 +265,7 @@ export default function Workspace({
     );
   return (
     <WorkspaceShell a={a} section={section} navigate={navigate}>
-      {!worldExperienceActive && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
+      {!worldExperienceActive && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -301,7 +320,7 @@ export default function Workspace({
           <button className="button" onClick={reload}>Erneut versuchen</button>
         </section>
       ) : section === "charaktere" ? (
-        <CharacterDetail key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
+        <CharacterDetail a={a} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
       ) : section === "inventar" ? (
         <InventoryPanel key={dataScope} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "verwaltung" ? (

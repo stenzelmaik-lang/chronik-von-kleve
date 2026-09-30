@@ -93,6 +93,12 @@ export function projectEntity(
   grants: GrantRow[],
 ): Entity | null {
   if (a.status !== "active" || a.campaignId !== e.campaignId) return null;
+  // Recipient privacy is stronger than knowledge grants and generic GM access.
+  if (e.content.context === "sl-message") {
+    if (e.ownerId !== a.id && !(a.gm && e.content.senderId === a.id)) return null;
+    return { ...e, content: { context: "sl-message", text: e.content.text ?? "", senderName: e.content.senderName ?? "", readAt: e.content.readAt ?? null } };
+  }
+  if (e.type === "CHARACTER" && e.ownerId !== a.id && (!a.gm || e.visibility === "private")) return null;
   if (a.gm) return e;
   if (e.content.recoveryOnly === true || e.canonStatus === "GM_SECRET" || e.content.canonStatus === "GM_SECRET" || e.content.canon_status === "GM_SECRET") return null;
   const granted = grants.some(

@@ -33,6 +33,7 @@ const abilityGroups = {
   skills: ["Diebstahl", "Etikette", "Fahren", "Handwerk", "Heimlichkeit", "Nahkampf", "Schusswaffen", "Tierkunde", "Überleben", "Vortrag"],
   knowledges: ["Akademisches Wissen", "Computer", "Finanzen", "Gesetzeskenntnis", "Medizin", "Nachforschungen", "Naturwissenschaften", "Okkultismus", "Politik", "Technologie"],
 } as const;
+export const v20AbilityNames: readonly string[] = Object.values(abilityGroups).flat();
 
 export type CreationBudgetLine = { spent: number; limit: number; remaining: number; exceeded: boolean; freebieDots?: number; freebieCost?: number };
 export type AutomaticFreebieLine = {
@@ -83,10 +84,26 @@ export function attributeBase(body: CharacterLike, name: string) {
   return 1;
 }
 
+/** Materialize free starting dots for explicit engine drafts only. Existing
+ * values are preserved, including invalid values for validation to reject. */
+export function withCreationBaseValues(body: CharacterLike): CharacterLike {
+  if (body.engineVersion !== 1 || body.characterState !== "draft") return body;
+  const attributes = body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as NumericMap : {};
+  const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
+  const next = {
+    ...body,
+    attributes: { ...Object.fromEntries(Object.values(attributeGroups).flat().map(name => [name, attributeBase(body, name)])), ...attributes },
+    virtues: { Gewissen: 1, Selbstbeherrschung: 1, Mut: 1, ...virtues },
+  };
+  const derived = derivedV20Values(next);
+  return { ...next, humanity: body.humanity ?? derived.humanity, willpower: body.willpower ?? derived.willpower };
+}
+
 /** Explicitly targeted Freebie dots can cover an extra value; no surplus is inferred. */
 export function freebiePointsForTarget(body: CharacterLike, category: keyof typeof freebieCosts, target?: string) {
   const expectedTarget = target?.trim();
   return (Array.isArray(body.freebiePurchases) ? body.freebiePurchases : []).reduce((total, purchase) => {
+    if (!purchase || typeof purchase !== "object" || Array.isArray(purchase)) return total;
     const item = purchase as CharacterLike;
     if (item.category !== category) return total;
     if (expectedTarget && String(item.target ?? "").trim() !== expectedTarget) return total;
@@ -104,6 +121,31 @@ export function derivedV20Values(body: CharacterLike) {
     humanity: conscience + selfControl + freebiePointsForTarget(body, "humanity"),
     willpower: courage + freebiePointsForTarget(body, "willpower"),
   };
+}
+
+/** Dots remain the only input. Targeted virtue Freebies retain the original
+ * derived starting values, even when a later click raises another virtue. */
+export function editCreationRating(body: CharacterLike, key: "attributes" | "skills" | "virtues", name: string, value: number): CharacterLike {
+  const values = body[key] && typeof body[key] === "object" ? body[key] as CharacterLike : {};
+  const next: CharacterLike = { ...body, [key]: { ...values, [name]: value } };
+  if (key !== "virtues") return next;
+  const previous = integer(values[name], 1), delta = value - previous;
+  const oldExtra = freebiePointsForTarget(body, "virtue", name);
+  const normalSpent = ["Gewissen", "Selbstbeherrschung", "Mut"].reduce((total, target) => total + Math.max(0, integer(values[target], 1) - 1 - freebiePointsForTarget(body, "virtue", target)), 0);
+  const extras = delta > 0 ? oldExtra + Math.max(0, delta - Math.max(0, creationBudgets.virtues - normalSpent)) : Math.max(0, oldExtra + delta);
+  const purchases = Array.isArray(body.freebiePurchases) ? body.freebiePurchases as CharacterLike[] : [];
+  next.freebiePurchases = [...purchases.filter(item => !(item.category === "virtue" && item.target === name)), ...(extras > 0 ? [{ category: "virtue", target: name, points: extras }] : [])];
+  return next;
+}
+
+/** Optional creation increases above the derived starting values use the
+ * same explicit Freebie ledger as virtue extras, never the XP ledger. */
+export function editDerivedCreationRating(body: CharacterLike, category: "humanity" | "willpower", value: number): CharacterLike {
+  const current = derivedV20Values(body)[category];
+  const points = freebiePointsForTarget(body, category) + value - current;
+  if (!Number.isInteger(value) || value > 10 || points < 0) return body;
+  const purchases = Array.isArray(body.freebiePurchases) ? body.freebiePurchases as CharacterLike[] : [];
+  return { ...body, freebiePurchases: [...purchases.filter(item => item.category !== category), ...(points ? [{category, points}] : [])] };
 }
 
 function explicitFreebieDots(body: CharacterLike, category: keyof typeof freebieCosts) {
@@ -129,6 +171,13 @@ function groupOverflow(value: unknown, names: readonly string[], limit: number, 
   return { regularSpent, standardSpent: Math.min(limit, regularSpent), rawOverflow };
 }
 
+function groupLimits(body: CharacterLike, category: "attributes" | "abilities") {
+  const allocations = body.creationAllocations as Record<string, Record<string, number>> | undefined;
+  const defaults = category === "attributes" ? { physical: 7, social: 5, mental: 3 } : { talents: 13, skills: 9, knowledges: 5 };
+  const selected = allocations?.[category];
+  return Object.fromEntries(Object.entries(defaults).map(([key, value]) => [key, Number.isInteger(selected?.[key]) ? selected![key] : value]));
+}
+
 /**
  * Freebies are inferred from creation values. The editor never asks players
  * to create purchase rows for ordinary attribute/ability/discipline/etc.
@@ -143,12 +192,12 @@ export function automaticFreebieBreakdown(body: CharacterLike): AutomaticFreebie
     const line = automaticLine(category, target, rawDots, covered);
     if (line) lines.push(line);
   };
-  const attributeLimits = { physical: 7, social: 5, mental: 3 } as const;
+  const attributeLimits = groupLimits(body, "attributes");
   for (const [group, names] of Object.entries(attributeGroups) as Array<[keyof typeof attributeLimits, readonly string[]]>) {
     const result = groupOverflow(body.attributes, names, attributeLimits[group], (name) => attributeBase(body, name));
     push("attribute", `Attribute ${group === "physical" ? "körperlich" : group === "social" ? "sozial" : "mental"}`, result.rawOverflow);
   }
-  const abilityLimits = { talents: 13, skills: 9, knowledges: 5 } as const;
+  const abilityLimits = groupLimits(body, "abilities");
   for (const [group, names] of Object.entries(abilityGroups) as Array<[keyof typeof abilityLimits, readonly string[]]>) {
     const result = groupOverflow(body.skills, names, abilityLimits[group], () => 0, 3);
     push("ability", `${group === "talents" ? "Talente" : group === "skills" ? "Fertigkeiten" : "Kenntnisse"}`, result.rawOverflow);
@@ -173,8 +222,8 @@ export function automaticFreebieBreakdown(body: CharacterLike): AutomaticFreebie
 export function creationBudgetSummary(body: CharacterLike): CreationBudgetSummary {
   const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
   const freebieSpent = freebieTotal(body);
-  const attributeLimits = { physical: 7, social: 5, mental: 3 } as const;
-  const abilityLimits = { talents: 13, skills: 9, knowledges: 5 } as const;
+  const attributeLimits = groupLimits(body, "attributes");
+  const abilityLimits = groupLimits(body, "abilities");
   const automatic = automaticFreebieBreakdown(body);
   const autoFor = (category: keyof typeof freebieCosts, target: string) => automatic.find((item) => item.category === category && item.target === target);
   const attributeLine = (group: keyof typeof attributeLimits, names: readonly string[]) => {
@@ -235,7 +284,8 @@ export function freebieTotal(body: CharacterLike) {
     const category = String(item.category) as keyof typeof freebieCosts;
     return total + (freebieCosts[category] ?? 0) * integer(item.points);
   }, 0);
-  return explicit + automaticFreebieBreakdown(body).reduce((total, item) => total + item.total, 0);
+  const merits = rows(body.merits).reduce((total, item) => total + (item.approved === false ? 0 : numericValue(item.cost)), 0);
+  return explicit + merits + automaticFreebieBreakdown(body).reduce((total, item) => total + item.total, 0);
 }
 
 export function xpBalance(body: CharacterLike) {
@@ -247,14 +297,15 @@ export function xpBalance(body: CharacterLike) {
 }
 
 export function xpCost(purchase: XpPurchase) {
-  if (!Number.isInteger(purchase.from) || !Number.isInteger(purchase.to) || purchase.to !== purchase.from + 1)
+  if (!Number.isInteger(purchase.from) || purchase.from < 0 || !Number.isInteger(purchase.to) || purchase.to !== purchase.from + 1)
     return { ok: false as const, error: "XP-Steigerungen müssen genau eine Stufe umfassen." };
   const categoryCost = purchase.category === "attribute" ? purchase.from * 4
     : purchase.category === "ability" ? (purchase.from === 0 ? 3 : purchase.from * 2)
       : purchase.category === "discipline" ? purchase.from * (purchase.inClan ? 5 : 7)
         : purchase.category === "background" ? purchase.from * 3
           : purchase.category === "humanity" ? purchase.from * 2
-            : 1;
+            : purchase.category === "willpower" ? 1 : NaN;
+  if (!Number.isFinite(categoryCost) || categoryCost <= 0) return { ok: false as const, error: "Dieses XP-Ziel benötigt eine gesonderte Regelentscheidung." };
   return { ok: true as const, cost: categoryCost };
 }
 
@@ -272,12 +323,16 @@ function withRaisedValue(body: CharacterLike, purchase: XpPurchase): CharacterLi
     if (!next.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target)) return null;
     return { ...body, [key]: next };
   }
+  if (purchase.category === "ability" && v20AbilityNames.includes(target))
+    return { ...body, skills: { ...(collection && typeof collection === "object" ? collection : {}), [target]: purchase.to } };
   if (collection && typeof collection === "object" && Object.prototype.hasOwnProperty.call(collection, target))
     return { ...body, [key]: { ...(collection as CharacterLike), [target]: purchase.to } };
   return null;
 }
 
 function currentValue(body: CharacterLike, purchase: XpPurchase) {
+  if (purchase.category === "ability" && v20AbilityNames.includes(purchase.target || ""))
+    return integer((body.skills as CharacterLike | undefined)?.[purchase.target || ""]);
   if (purchase.category === "humanity" || purchase.category === "willpower") return body[purchase.category];
   const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
   const collection = body[key];
@@ -298,17 +353,28 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
     return { ok: true, state, freebieSpent: 0, freebieAvailable: freebieCapacity(body), xpAvailable: xpBalance(body) };
   if (body.characterState && (!body.engineVersion || !body.creationAllocations || !body.freebiePurchases))
     return { ok: false, error: "Ein Engine-Charakter benötigt die vollständige Erschaffungsgrundlage." };
-  const allowIncompleteDraft = body.characterState === "draft";
+  const allowIncompleteDraft = state === "draft";
   const clan = availableClanForCampaign(campaignId, body.clan);
   const purchases = Array.isArray(body.freebiePurchases) ? body.freebiePurchases : [];
-  const invalidPurchase = purchases.find((purchase) => {
+  const invalidPurchase = purchases.some((purchase) => {
+    if (!purchase || typeof purchase !== "object" || Array.isArray(purchase)) return true;
     const item = purchase as CharacterLike;
     const category = item.category as keyof typeof freebieCosts;
-    return !(category in freebieCosts) || !Number.isInteger(item.points) || Number(item.points) <= 0 || (["attribute", "ability", "discipline", "background", "virtue"].includes(String(category)) && !String(item.target ?? "").trim());
+    return !Object.prototype.hasOwnProperty.call(freebieCosts, category) || !Number.isInteger(item.points) || Number(item.points) <= 0 || (["attribute", "ability", "discipline", "background", "virtue"].includes(String(category)) && (typeof item.target !== "string" || !item.target.trim()));
   });
   if (invalidPurchase) return { ok: false, error: "Jeder Freebie-Kauf benötigt eine gültige Kategorie, Punktzahl und ein konkretes Ziel." };
   const attributeValues = body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as NumericMap : {};
   const skillValues = body.skills && typeof body.skills === "object" && !Array.isArray(body.skills) ? body.skills as NumericMap : {};
+  const knownAttributes = new Set<string>(Object.values(attributeGroups).flat());
+  const knownAbilities = new Set<string>(Object.values(abilityGroups).flat());
+  if (Object.keys(attributeValues).some(name => !knownAttributes.has(name)) || Object.keys(skillValues).some(name => !knownAbilities.has(name)))
+    return { ok: false, error: "Für die reguläre Erschaffung sind nur die zentralen V20-Attribute und Fähigkeiten zulässig." };
+  if ([...Object.values(attributeValues), ...Object.values(skillValues)].some(value => !Number.isInteger(value) || Number(value) < 0))
+    return { ok: false, error: "Eigenschaftswerte müssen ganze, nicht negative Punkte sein." };
+  if (body.virtues && typeof body.virtues === "object" && Object.values(body.virtues).some(value => !Number.isInteger(value) || Number(value) < 1 || Number(value) > 5))
+    return { ok: false, error: "Tugenden beginnen mit einem Grundpunkt und liegen regulär zwischen 1 und 5." };
+  if (rows(body.disciplines).some(item => !Number.isInteger(item.value) || Number(item.value) < 0 || Number(item.value) > 5) || rows(body.backgrounds).some(item => !Number.isInteger(item.value) || Number(item.value) < 0 || Number(item.value) > 5))
+    return { ok: false, error: "Disziplinen und Hintergründe liegen regulär zwischen 0 und 5." };
   const belowBase = Object.entries(attributeGroups).flatMap(([, names]) => names).find((name) => Object.prototype.hasOwnProperty.call(attributeValues, name) && numericValue(attributeValues[name]) < attributeBase(body, name));
   if (belowBase) return { ok: false, error: `${belowBase} beginnt mit ${attributeBase(body, belowBase)} kostenlosem Grundpunkt.` };
   const overFive = [...Object.entries(attributeValues), ...Object.entries(skillValues)].find(([, value]) => integer(value) > 5);
@@ -317,21 +383,33 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
     return { ok: false, error: "Nosferatu beginnen mit Erscheinungsbild 0. Eine höhere Stufe benötigt eine separat dokumentierte SL-Ausnahme." };
   const foreignWithoutApproval = rows(body.disciplines).find((item) => {
     const name = String(item.name ?? "").trim();
-    return !!name && !!clan && !clan.disciplines.includes(name) && !(item.source === "foreign" && item.slApproved === true);
+    return !!name && !!clan && !clan.disciplines.includes(name) && !(item.source === "foreign" && (item.slApproved === true || (allowIncompleteDraft && numericValue(item.value) === 0)));
   });
   if (foreignWithoutApproval) return { ok: false, error: `${String(foreignWithoutApproval.name)} benötigt eine dokumentierte SL-Ausnahme; die Freebie-Kosten werden danach automatisch berechnet.` };
   const allocations = (body.creationAllocations ?? {}) as CharacterLike;
-  if (!allowIncompleteDraft && allocations.attributes && JSON.stringify(Object.values(allocations.attributes).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.attributes].sort((a, b) => b - a)))
+  if (allocations.attributes && JSON.stringify(Object.values(allocations.attributes).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.attributes].sort((a, b) => b - a)))
     return { ok: false, error: "Attribute müssen nach 7/5/3 verteilt werden." };
-  if (!allowIncompleteDraft && allocations.abilities && JSON.stringify(Object.values(allocations.abilities).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.abilities].sort((a, b) => b - a)))
+  if (allocations.abilities && JSON.stringify(Object.values(allocations.abilities).sort((a, b) => Number(b) - Number(a))) !== JSON.stringify([...creationBudgets.abilities].sort((a, b) => b - a)))
     return { ok: false, error: "Fähigkeiten müssen nach 13/9/5 verteilt werden." };
-  const spent = freebieTotal(body);
-  if (spent > freebieCapacity(body)) return { ok: false, error: "Das freie Zusatzpunktebudget reicht nicht aus." };
+  // XP advances never spend creation points again. The original creation body
+  // is captured once by the SL confirmation command, never by a generic write.
+  const creation = state === "confirmed" && body.creationSnapshot && typeof body.creationSnapshot === "object" ? body.creationSnapshot as CharacterLike : body;
+  const spent = freebieTotal(creation);
+  if (spent > freebieCapacity(creation)) return { ok: false, error: "Das freie Zusatzpunktebudget reicht nicht aus." };
   const xp = xpBalance(body);
   if (xp < 0) return { ok: false, error: "Das XP-Ledger darf nicht negativ werden." };
   if (allowIncompleteDraft)
     return { ok: true, state, freebieSpent: spent, freebieAvailable: freebieCapacity(body) - spent, xpAvailable: xp };
   if (!clan) return { ok: false, error: "Ein bestätigter Engine-Charakter benötigt einen freigegebenen Clan." };
+  if (state === "confirmed" && (body.creationSnapshot || previous?.characterState === "confirmed")) return { ok: true, state, freebieSpent: spent, freebieAvailable: freebieCapacity(creation) - spent, xpAvailable: xp };
+  if ([...rows(body.merits), ...rows(body.flaws)].some(item => item.approved === false))
+    return { ok: false, error: "Klärt zunächst die SL-Kostenfreigabe für die eingetragenen Vorzüge und Schwächen." };
+  const derived = derivedV20Values(body);
+  if (body.humanity !== derived.humanity || body.willpower !== derived.willpower || derived.humanity > 10 || derived.willpower > 10)
+    return { ok: false, error: "Menschlichkeit und Willenskraft müssen den abgeleiteten Ausgangswerten einschließlich ihrer Freebies entsprechen (maximal 10)." };
+  const summary = creationBudgetSummary(body);
+  if (Object.values(summary.attributes).some((line) => line.remaining > 0) || Object.values(summary.abilities).some((line) => line.remaining > 0))
+    return { ok: false, error: "Verteile zuerst alle regulären Attribut- und Fähigkeitspunkte. Unvollständige Entwürfe können gespeichert werden." };
   const disciplineSpent = Math.min(creationBudgets.disciplines, rows(body.disciplines).filter((item) => item.source !== "foreign").reduce((total, item) => total + numericValue(item.value), 0));
   if (disciplineSpent !== creationBudgets.disciplines) return { ok: false, error: "Die anfänglichen Clan-Disziplinen benötigen drei Punkte." };
   const backgroundSpent = Math.min(creationBudgets.backgrounds, rows(body.backgrounds).reduce((total, item) => total + numericValue(item.value), 0));
@@ -345,6 +423,10 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
 }
 
 export function applyXpPurchase(body: CharacterLike, purchase: XpPurchase, now = new Date().toISOString()): { ok: true; body: CharacterLike; cost: number } | { ok: false; error: string } {
+  const maximum = ["humanity", "willpower"].includes(purchase.category) ? 10 : 5;
+  if (purchase.to > maximum) return { ok: false, error: `Regulär sind höchstens ${maximum} Punkte erlaubt.` };
+  if (purchase.category === "attribute" && purchase.target === "Erscheinungsbild" && String(body.clan).toLowerCase() === "nosferatu")
+    return { ok: false, error: "Erscheinungsbild ist für Nosferatu gesperrt." };
   if (currentValue(body, purchase) !== purchase.from) return { ok: false, error: "Der aktuelle Charakterwert passt nicht zur XP-Anfrage." };
   const raised = withRaisedValue(body, purchase);
   if (!raised) return { ok: false, error: "Das angegebene XP-Ziel existiert nicht im Charakter." };
