@@ -65,7 +65,7 @@ export function SessionPanel({
         kind: "sitzungen",
         title: next.scene || "Nachtwache",
         visibility: "group",
-        body: next,
+        body: {...initial,...next},
         gmBody: existing?.gmBody || "",
       });
       toast.success("Sitzung aktualisiert");
@@ -315,3 +315,4 @@ export function SessionPanel({
     </div>
   );
 }
+

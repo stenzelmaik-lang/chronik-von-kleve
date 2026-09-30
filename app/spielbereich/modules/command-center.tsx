@@ -6,7 +6,7 @@ import type { Entry } from '@/domain/legacy';
 import { commandCenterAllowed } from '@/domain/command-center';
 import { api } from './api-client';
 import { SessionPanel } from './session';
-import { WorldExperience } from './world-experience';
+import { CommandPlace } from './command-place';
 import { DicePanel } from './dice';
 import { CommandCharacter } from './command-character';
 import styles from './command-center.module.css';
@@ -56,7 +56,7 @@ function GMCommandCenter({entries,a,onRefresh}:{entries:Entry[];a:Actor;onRefres
     {open.length===0&&<div className={styles.empty}><Radio size={42}/><h3>Raum für deine Geschichte</h3><p>Öffne links das Werkzeug, das du jetzt brauchst. Zwei Werkzeuge können parallel geöffnet sein.</p></div>}
     {tools.map(t=><section key={t.id} hidden={!open.includes(t.id)} className={styles.toolPanel}><div className={styles.heading}><h3>{t.label}</h3><button aria-label={t.label+' schließen'} onClick={()=>toggle(t.id)}>×</button></div>
       {t.id==='scene'&&<><label className="field"><span>Sitzung auswählen</span><select value={session?.id||''} onChange={e=>{if(dirty&&!confirm('Ungespeicherte private Notizen verwerfen?'))return;setNotes(null);setSessionId(e.target.value);}}>{entries.map(e=><option key={e.id} value={e.id}>{e.title}</option>)}</select></label><SessionPanel key={session?.id||'new'} entries={session?[session]:[]} a={a} onRefresh={onRefresh}/></>}
-      {t.id==='places'&&<WorldExperience a={a} dataScope={a.campaignId+':'+a.id+':gm'}/>}
+      {t.id==='places'&&<CommandPlace key={session?.id||'new'} session={session} a={a} onRefresh={onRefresh}/>}
       {t.id==='dice'&&<DicePanel/>}
       {t.id==='character'&&<>{!selected?<p>Wähle oben einen Spieler.</p>:snapshot?.characters.filter(c=>c.ownerId===selected).length?<>{snapshot.characters.filter(c=>c.ownerId===selected).map(c=><CommandCharacter key={c.id} id={c.id}/>)}</>:<p>Diesem Spieler ist noch kein Charakter zugeordnet.</p>}</>}
       {t.id==='notes'&&<><p>Nur für die Spielleitung · mit der gewählten Sitzung gespeichert</p><label className="field"><span>Private Regieinformationen</span><textarea rows={12} value={notes??savedNotes} onChange={e=>setNotes(e.target.value)}/></label><p>{dirty?'Ungespeicherte Änderungen':'Gespeicherter Stand'}</p><button className="button primary" disabled={saving||!dirty} onClick={()=>void saveNotes()}>Notizen speichern</button></>}
@@ -67,4 +67,5 @@ function GMCommandCenter({entries,a,onRefresh}:{entries:Entry[];a:Actor;onRefres
     </div>
   </div>;
 }
+
 

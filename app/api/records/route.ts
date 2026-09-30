@@ -169,6 +169,12 @@ export async function POST(req: Request) {
       if (old && previous && JSON.stringify(previous.xpLedger ?? null) !== JSON.stringify(d.body.xpLedger ?? null))
         throw new HttpError(403, "XP dürfen nur über die zentrale Regel-Engine verändert werden.");
     }
+    if (d.kind === "sitzungen" && d.body.slSecret !== undefined) {
+      const secret = z.object({activePlaceId:z.string().trim().min(1).max(160).nullable().optional()}).passthrough().safeParse(d.body.slSecret);
+      if (!secret.success) throw new HttpError(400,"Ungültiger Regie-Schauplatz.");
+      if (secret.data.activePlaceId && !(await locationReferenceIsVisible(db,a,secret.data.activePlaceId)))
+        throw new HttpError(404,"Schauplatz nicht verfügbar.");
+    }
     const body = JSON.stringify(d.body);
     if (d.kind === "notizen" && typeof d.body.locationId === "string") {
       if (!(await locationReferenceIsVisible(db, a, d.body.locationId)))
@@ -250,6 +256,7 @@ export async function DELETE(req: Request) {
     return failure(e, req);
   }
 }
+
 
 
 

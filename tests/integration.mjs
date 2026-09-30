@@ -940,5 +940,17 @@ check((await req('/api/entities?id='+commandHandout.d.id,'b')).s===404,'Player B
 check(!JSON.stringify((await req('/api/entities?id='+commandHandout.d.id,'a')).d).includes('COMMAND_PRIVATE_SECRET'),'Command handout never leaks GM text');
 check((await req('/api/knowledge','gm','POST',{entityId:commandHandout.d.id,audience:'player',playerId:'sprint1-a',state:'UNKNOWN'})).s===200,'Command handout withdrawal uses existing API');
 check((await req('/api/entities?id='+commandHandout.d.id,'a')).s===404,'Command handout withdrawal is enforced server-side');
+const regieSession=await req('/api/records','gm','POST',{kind:'sitzungen',title:'Regie place QA',visibility:'group',body:{scene:'QA',slSecret:{activePlaceId:'place.electric-taberna'}}});
+check(regieSession.s===200,'Regie persists existing place reference in session');
+const regieRows=await req('/api/records?kind=sitzungen','gm');
+const regieStored=regieRows.d.records.find(r=>r.id===regieSession.d.id);
+check(regieStored.body.slSecret.activePlaceId==='place.electric-taberna','Regie place survives fresh server read');
+check(!JSON.stringify((await req('/api/records?kind=sitzungen','a')).d).includes('activePlaceId'),'Player session projection strips confidential location association');
+check((await req('/api/records','gm','POST',{id:regieStored.id,version:regieStored.version,kind:'sitzungen',title:regieStored.title,visibility:'group',body:{...regieStored.body,slSecret:{activePlaceId:'missing-place'}}})).s===404,'Regie rejects nonexistent place');
+check((await req('/api/records','a','POST',{id:regieStored.id,version:regieStored.version,kind:'sitzungen',title:regieStored.title,visibility:'group',body:regieStored.body})).s===403,'Player cannot change regie association');
+const regieUpdate={id:regieStored.id,version:regieStored.version,kind:'sitzungen',title:regieStored.title,visibility:'group',body:{...regieStored.body,scene:'Updated scene'}};
+check((await req('/api/records','gm','POST',regieUpdate)).s===200,'Scene update with preserved location succeeds');
+check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session revision cannot overwrite regie association');
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');
+
 

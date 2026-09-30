@@ -41,7 +41,7 @@ Das sind keine produktiven Zugangsdaten. Normale Anmeldung und vorhandene Auth-2
 - Handout-Grants gelten **kampagnenweit**, nicht sitzungsgebunden. Keine behauptete Sitzungsisolation für Grants. Andere persönliche oder Gruppenfreigaben können weiterhin Zugriff gewähren. Bei dauerhaft sichtbaren Legacy-Inhalten wird kein scheinwirksamer Widerruf angeboten.
 - Medien/Dokument-Handouts verwenden weiterhin ihren bisherigen Datei-/CMS-Bereich; im neuen Werkzeug sind zunächst Text-Handouts verbunden. Keine neue Medienfreigabe oder ungeschützte URL.
 - Charaktere: direkter lesender Kontext mit vorhandener sicherer Detail-Projektion (Attribute, Disziplinen, Blut, Willenskraft und Menschlichkeit), Aktualisierung und Verwaltungseinstieg. Private fremde Charaktere werden bereits aus der Zuordnungsantwort ausgeschlossen. Keine eigenständige Schreib-/Porträtverwaltung innerhalb der Regie. Anwesenheit/Verbindungsstatus nicht verfügbar.
-- Ortsdossier integriert, aber keine neue Zuordnung eines Ortes zu einer Szene oder zweite Ortsverwaltung eingeführt.
+- Ortsdossier integriert; aktiver Schauplatz wird als private Regiezuordnung im bestehenden Sitzungsdatensatz gespeichert. Keine zweite Ortsverwaltung.
 - Verlauf zeigt das vorhandene Sitzungslog; kein neues vollständiges Regie-Audit oder Sitzungsarchiv.
 - Kein Voice/Video, Push, Phaser-Ausbau, XP-Verwaltung oder neue Regellogik.
 - Bekannte lokale Grenze: bestehender Abmeldelink `/signout-with-chatgpt` wird vom direkten lokalen Worker nicht aufgelöst (404). Kontowechsel bei der QA erfolgt durch erneute reguläre Anmeldung. Dieses Problem wurde nicht als funktionierend gemeldet und nicht durch einen Auth-Bypass umgangen.
@@ -68,3 +68,13 @@ Branch: codex/sl-command-center-v2. Der lokale Commit steht im Abschlussbericht.
 Browserprüfung: Demo Spieler A auswählen → vorhandener synthetischer Charakter aus regulärer API sichtbar; B auswählen → leerer Kontext, kein zuvor ausgewählter Charakter. Eine ungespeicherte Szeneneingabe blieb beim Wechsel erhalten. Werte aktualisieren verwendet ausschließlich /api/character-detail. Keine neue Engine und keine Character-Schreiboperation. Neue Negativtests prüfen private fremde Charaktermetadaten und die bestehende HTTP-404-Sperre. Tests erneut: 69 Fachtests, 536 Integrationstests, 46 Rollenprüfungen; Typecheck, vollständiger Lint und Build bestanden. Bekannte Buildwarnungen unverändert.
 
 Zusätzliche geänderte Dateien: command-character.tsx, command-center.tsx, app/api/command-center/route.ts, scripts/test-local.mjs (synthetischer Charakter über regulären Owner-Login), tests/integration.mjs, dieser Bericht und Browsernachweis docs/qa/command-character-context.jpg.
+
+## Erweiterung: aktiver Sitzungs-Schauplatz
+
+Das bestehende Orts-Hub liefert die Auswahl. Die Regie speichert die Orts-ID als body.slSecret.activePlaceId im bestehenden Sitzungsdatensatz über /api/records mit Versionsschutz. Die vorhandene Spielerprojektion entfernt slSecret vollständig. Eine Zuordnung gewährt kein Ortswissen und veröffentlicht keine Inhalte. Der vorhandene SessionPanel erhält beim Speichern zusätzliche Sitzungsfelder.
+
+Browsernachweis: Electric Taberna auswählen → speichern → vollständiger Reload → Auswahl und echtes SL-Ortsdossier erhalten. Anschließend Szene veröffentlichen → Reload → Ortszuordnung weiterhin vorhanden. Der lokale Testserver bleibt auf Port 8794 erreichbar. Neustart erzeugt weiterhin einen frischen isolierten Testbestand.
+
+69 Fachtests, 543 Integrationstests, 46 Rollenprüfungen und atomarer Rollback bestanden. Typecheck, Lint und Build bestanden. Neue Tests: Ortszuordnung persistiert, vertrauliche ID fehlt im Player-Response, ungültiger Ort abgewiesen, Spieler-Schreiben verweigert und stale Revision HTTP 409. Bekannte Buildwarnungen unverändert.
+
+Geändert: command-place.tsx (neu), command-center.tsx, session.tsx, app/api/records/route.ts, tests/integration.mjs und Browsernachweis docs/qa/command-session-place.jpg. Keine Migration oder Produktivänderung. Vergleichsansicht und direkte Freigabesteuerung sind noch nicht ergänzt.
