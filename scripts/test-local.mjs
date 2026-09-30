@@ -99,6 +99,11 @@ try{
   const author=async(path,body)=>{const response=await fetch(env.CVK_TEST_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:fixtureCookie},body:JSON.stringify(body)});if(!response.ok)throw new Error('Synthetic demo authoring failed: '+path+' '+response.status);};
   await author('/api/records',{kind:'sitzungen',title:'SYNTHETISCH – Regieabnahme',visibility:'group',body:{scene:'Lokale Demonstrationsszene',subtitle:'Ausschließlich synthetische Abnahmedaten.',status:'Bereit',log:[]},gmBody:'PRIVATE_QA: Diese Notiz gehört ausschließlich der Spielleitung.'});
   await author('/api/entities',{type:'HANDOUT',title:'SYNTHETISCH – Testhinweis',text:'PLAYER_QA: Gezielter Testhinweis.',gmBody:'PRIVATE_QA: Vertraulicher Handout-Kontext.'});
+  const playerLogin=await fetch(env.CVK_TEST_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL},body:JSON.stringify({email:'command-a@example.invalid',password:'ChroniPlay-Demo-2036!'})});
+  const playerCookie=playerLogin.headers.get('set-cookie')?.split(';')[0];
+  if(!playerLogin.ok||!playerCookie)throw new Error('Synthetic character owner login failed');
+  const characterResponse=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Regiecharakter A',visibility:'group',body:{player:'Demo Spieler A',clan:'Tremere',generation:10,attributes:{Körperkraft:2,Geschick:3,Widerstandsfähigkeit:2,Charisma:2,Manipulation:2,Erscheinungsbild:2,Wahrnehmung:3,Intelligenz:3,Geistesschärfe:2},disciplines:[{name:'Auspex',value:1}],humanity:7,willpower:5,willpowerTemporary:4,blood:8,bloodMax:13}})});
+  if(!characterResponse.ok)throw new Error('Synthetic character authoring failed '+characterResponse.status);
   // Existing accepted reference fixture, only in this fresh isolated local DB.
   await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
   console.log('Isolated application ready: http://127.0.0.1:8794/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
@@ -135,3 +140,5 @@ if(process.exitCode===0){
  const maintenance=spawnSync(process.execPath,['--experimental-strip-types','tests/role-foundation-local.mjs'],{env:roleEnv,stdio:'inherit',windowsHide:true});
  if(maintenance.status!==0)process.exitCode=maintenance.status??1;
 }
+
+

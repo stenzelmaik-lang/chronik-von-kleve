@@ -930,6 +930,8 @@ check(!('members' in commandPreview.d)&&!('grants' in commandPreview.d),'Player 
 check(commandSnapshot.s===200&&commandSnapshot.d.campaignId==='chronik-von-kleve','SL command center resolves the existing campaign');
 check(!JSON.stringify(commandSnapshot.d.members).includes('@'),'Command roster does not expose member emails');
 check(commandSnapshot.d.members.every(m=>m.status==='active'),'Command roster contains only active campaign members');
+check(!commandSnapshot.d.characters.some(c=>c.id===charId),'Command character roster does not leak private foreign character metadata');
+check((await req('/api/character-detail?id='+charId,'gm')).s===404,'Command context keeps existing private-character permission restriction');
 const commandHandout=await req('/api/entities','gm','POST',{type:'HANDOUT',title:'COMMAND synthetic handout',text:'COMMAND_PLAYER_SAFE',gmBody:'COMMAND_PRIVATE_SECRET'});
 check(commandHandout.s===201,'Existing entity API authors command handout');
 check((await req('/api/knowledge','gm','POST',{entityId:commandHandout.d.id,audience:'player',playerId:'sprint1-a',state:'DISCOVERED'})).s===200,'Existing knowledge API grants command handout to A');
@@ -939,3 +941,4 @@ check(!JSON.stringify((await req('/api/entities?id='+commandHandout.d.id,'a')).d
 check((await req('/api/knowledge','gm','POST',{entityId:commandHandout.d.id,audience:'player',playerId:'sprint1-a',state:'UNKNOWN'})).s===200,'Command handout withdrawal uses existing API');
 check((await req('/api/entities?id='+commandHandout.d.id,'a')).s===404,'Command handout withdrawal is enforced server-side');
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');
+

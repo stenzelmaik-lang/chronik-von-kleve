@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const a = await actor();
     gmOnly(a);
     const db = database();
-    const [entities, members, grants] = await Promise.all([
+    const [entities, members, grants, readableCharacters] = await Promise.all([
       loadEntities(db, a.campaignId),
       db.prepare(`SELECT m.id,m.name,COALESCE(cm.status,m.status) AS status
         FROM members m LEFT JOIN campaign_memberships cm ON cm.campaign_id=? AND cm.user_id=m.id
@@ -17,6 +17,7 @@ export async function GET(req: Request) {
         .bind(a.campaignId, a.campaignId).all<{id:string;name:string;status:string}>(),
       db.prepare('SELECT entity_id,audience,subject_id,state FROM knowledge WHERE campaign_id=?')
         .bind(a.campaignId).all(),
+      db.prepare("SELECT id FROM records WHERE campaign_id=? AND kind='charaktere' AND (visibility!='private' OR owner_id=?)").bind(a.campaignId,a.id).all<{id:string}>(),
     ]);
     if(new URL(req.url).searchParams.get('view')==='player') {
       const viewer={...a,id:'command-center-group-preview',gm:false,role:'player' as const};
@@ -29,9 +30,10 @@ export async function GET(req: Request) {
     return json({
       campaignId:a.campaignId,
       members:members.results,
-      characters:entities.filter(e=>e.type==='CHARACTER' && e.content.recoveryOnly!==true).map(e=>({id:e.id,title:e.title,ownerId:e.ownerId})),
+      characters:entities.filter(e=>e.type==='CHARACTER' && e.canonStatus!=='GM_SECRET' && e.content.recoveryOnly!==true && readableCharacters.results.some(r=>r.id===e.id)).map(e=>({id:e.id,title:e.title,ownerId:e.ownerId})),
       handouts:commandHandouts(entities,a.campaignId).map(e=>({id:e.id,title:e.title,text:typeof e.content.text==='string'?e.content.text:'',revocable:e.visibility==='sl',legacy:!!e.legacyRecordId})),
       grants:grants.results,
     });
   } catch(e) { return failure(e); }
 }
+
