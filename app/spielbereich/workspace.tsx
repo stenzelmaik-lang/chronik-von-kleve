@@ -43,7 +43,7 @@ import { FavorPanel } from "./modules/favors";
 import { MerchantPanel } from "./modules/merchant";
 import { personal, sections } from "./modules/navigation";
 import { RecordEditor } from "./modules/record-editor";
-import { SessionPanel } from "./modules/session";
+import { CommandCenter } from "./modules/command-center";
 import { Choice, safeImage, visibilityNames } from "./modules/shared";
 import { CharacterDetail } from "./modules/character-detail";
 import { InventoryPanel } from "./modules/inventory";
@@ -499,7 +499,7 @@ export default function Workspace({
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (
-        <SessionPanel entries={entries} a={a} onRefresh={reload} />
+        <CommandCenter entries={entries} a={a} onRefresh={reload} />
       ) : section === "wirtschaft" ? (
         <EconomyPanel entries={entries} onRefresh={reload} />
       ) : section === "haendler" ? (

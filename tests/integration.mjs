@@ -919,4 +919,23 @@ for(const secretSibling of ['06 Personalflur','08 Hof & Anlieferung','Keller & S
 check((await req('/api/cms/drafts?entityId=room.electric-taberna.office','b')).s===403,'A player cannot read other users’ drafts');
 check((await req('/api/locations?view=player&target=player','blockedPlayer')).s===403,'Blocked player identity cannot read player hub');
 check((await req('/api/cms/drafts','gm','POST',{entityId:'recovery.synthetic-secret',audience:'public'})).s===404,'Recovery entities cannot be drafted or published through location CMS');
+for(const who of [undefined,'a','b','editor','blockedGm','pendingGm','otherCampaign','platformOnly']) {
+ const denied=await req('/api/command-center',who);
+ check([401,403].includes(denied.s),'Command center denies '+(who||'anonymous'));
+}
+const commandSnapshot=await req('/api/command-center','gm');
+const commandPreview=await req('/api/command-center?view=player','gm');
+check(commandPreview.s===200&&!JSON.stringify(commandPreview.d).includes('GM_SESSION_SECRET'),'SL player preview is projected server-side without confidential session data');
+check(!('members' in commandPreview.d)&&!('grants' in commandPreview.d),'Player preview response contains no roster or private grant metadata');
+check(commandSnapshot.s===200&&commandSnapshot.d.campaignId==='chronik-von-kleve','SL command center resolves the existing campaign');
+check(!JSON.stringify(commandSnapshot.d.members).includes('@'),'Command roster does not expose member emails');
+check(commandSnapshot.d.members.every(m=>m.status==='active'),'Command roster contains only active campaign members');
+const commandHandout=await req('/api/entities','gm','POST',{type:'HANDOUT',title:'COMMAND synthetic handout',text:'COMMAND_PLAYER_SAFE',gmBody:'COMMAND_PRIVATE_SECRET'});
+check(commandHandout.s===201,'Existing entity API authors command handout');
+check((await req('/api/knowledge','gm','POST',{entityId:commandHandout.d.id,audience:'player',playerId:'sprint1-a',state:'DISCOVERED'})).s===200,'Existing knowledge API grants command handout to A');
+check(JSON.stringify((await req('/api/entities?id='+commandHandout.d.id,'a')).d).includes('COMMAND_PLAYER_SAFE'),'Player A receives released command handout');
+check((await req('/api/entities?id='+commandHandout.d.id,'b')).s===404,'Player B cannot read A command handout');
+check(!JSON.stringify((await req('/api/entities?id='+commandHandout.d.id,'a')).d).includes('COMMAND_PRIVATE_SECRET'),'Command handout never leaks GM text');
+check((await req('/api/knowledge','gm','POST',{entityId:commandHandout.d.id,audience:'player',playerId:'sprint1-a',state:'UNKNOWN'})).s===200,'Command handout withdrawal uses existing API');
+check((await req('/api/entities?id='+commandHandout.d.id,'a')).s===404,'Command handout withdrawal is enforced server-side');
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');

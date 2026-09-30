@@ -1,7 +1,7 @@
 import {spawnSync,spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {mkdirSync,readdirSync,readFileSync} from 'node:fs';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,pbkdf2Sync,randomBytes} from 'node:crypto';
 import {once} from 'node:events';
 import {tmpdir} from 'node:os';
 import {dirname,join,relative,resolve} from 'node:path';
@@ -12,6 +12,8 @@ import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 const state=join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:8793',CVK_TEST_STATE:state};
+const interactive=process.argv.includes('--command-center');
+if(interactive)env.CVK_TEST_URL='http://127.0.0.1:8794';
 for(const migration of ['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql']){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
  if(result.status!==0)throw new Error('Local migration failed: '+result.stderr);
@@ -49,6 +51,14 @@ try{
  if(schema?.n!==2)throw new Error('The direct local Worker did not open the migrated isolated Test-D1 with migrations 0005 and 0006.');
  server=createServer(async(req,res)=>{
   try{
+   // The direct dispatchFetch bridge bypasses Miniflare's HTTP asset router.
+   // Serve only built client chunks here; never project sources or state files.
+   const pathname=new URL(req.url||'/', 'http://127.0.0.1:8793').pathname;
+   if(pathname.startsWith('/_next/static/')) {
+    const clientRoot=resolve('dist/client'),assetPath=resolve(clientRoot,'.'+decodeURIComponent(pathname));
+    if(!assetPath.startsWith(clientRoot+'\\')&&!assetPath.startsWith(clientRoot+'/')){res.statusCode=403;return res.end();}
+    try{const data=readFileSync(assetPath);res.setHeader('Content-Type',assetPath.endsWith('.js')?'text/javascript':assetPath.endsWith('.css')?'text/css':'application/octet-stream');res.setHeader('X-Content-Type-Options','nosniff');return res.end(data);}catch{res.statusCode=404;return res.end('Asset not found');}
+   }
    const headers=new Headers();
    for(const [key,value] of Object.entries(req.headers))if(typeof value==='string')headers.set(key,value);
    const chunks=[];for await(const chunk of req)chunks.push(chunk);
@@ -60,7 +70,7 @@ try{
    res.end(Buffer.from(await response.arrayBuffer()));
   }catch(error){res.statusCode=500;res.end(String(error));}
  });
- await new Promise((resolveReady,reject)=>{server.once('error',reject);server.listen(8793,'127.0.0.1',resolveReady)});
+ await new Promise((resolveReady,reject)=>{server.once('error',reject);server.listen(interactive?8794:8793,'127.0.0.1',resolveReady)});
  let ready=false,lastHealth='no response';
  for(let attempt=0;attempt<60;attempt++){
   try{const response=await fetch(env.CVK_TEST_URL+'/api/members');ready=response.status===401;if(!ready)lastHealth=`HTTP ${response.status}: ${(await response.text()).slice(0,300)}`}catch(error){lastHealth=String(error)}
@@ -68,9 +78,36 @@ try{
   await new Promise(resolveWait=>setTimeout(resolveWait,250));
  }
  if(!ready)throw new Error('Local Miniflare Worker did not become ready: '+lastHealth);
- const suite=spawn(process.execPath,['tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});
- const [code]=await once(suite,'exit');
- process.exitCode=code??1;
+ if(interactive){
+  // Synthetic accounts only in the freshly migrated local database above.
+  // Never reused by any production or remote provisioning command.
+  const stamp=new Date().toISOString(),salt=randomBytes(16).toString('base64url');
+  const digest=pbkdf2Sync('ChroniPlay-Demo-2036!',salt,600000,32,'sha256').toString('base64url');
+  for(const [id,name,role] of [['command-gm','Demo Spielleitung','campaign_gm'],['command-a','Demo Spieler A','player'],['command-b','Demo Spieler B','player']]){
+   const email=id+'@example.invalid',authId='auth-'+id;
+   await localDb.batch([
+    localDb.prepare('INSERT INTO members(id,campaign_id,email,name,status,created_at) VALUES(?,?,?,?,?,?)').bind(id,'chronik-von-kleve',email,name,'active',stamp),
+    localDb.prepare('INSERT INTO campaign_memberships(campaign_id,user_id,role,status,source,created_at,updated_at) VALUES(?,?,?,?,?,?,?)').bind('chronik-von-kleve',id,role,'active','manual',stamp,stamp),
+    localDb.prepare('INSERT INTO auth_users(id,email,email_normalized,display_name,password_hash,email_verified_at,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)').bind(authId,email,email,name,'pbkdf2_sha256$600000$'+salt+'$'+digest,stamp,'active',stamp,stamp),
+    localDb.prepare('INSERT INTO auth_member_links(auth_user_id,member_id,approved_by,approval_reference,linked_at) VALUES(?,?,?,?,?)').bind(authId,id,'local-test-operator','SYNTHETIC_TEST_DATA',stamp),
+   ]);
+  }
+  const login=await fetch(env.CVK_TEST_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL},body:JSON.stringify({email:'command-gm@example.invalid',password:'ChroniPlay-Demo-2036!'})});
+  if(login.status!==200)throw new Error('Synthetic demo login failed');
+  const fixtureCookie=login.headers.get('set-cookie')?.split(';')[0];
+  if(!fixtureCookie)throw new Error('Synthetic demo session missing');
+  const author=async(path,body)=>{const response=await fetch(env.CVK_TEST_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:fixtureCookie},body:JSON.stringify(body)});if(!response.ok)throw new Error('Synthetic demo authoring failed: '+path+' '+response.status);};
+  await author('/api/records',{kind:'sitzungen',title:'SYNTHETISCH – Regieabnahme',visibility:'group',body:{scene:'Lokale Demonstrationsszene',subtitle:'Ausschließlich synthetische Abnahmedaten.',status:'Bereit',log:[]},gmBody:'PRIVATE_QA: Diese Notiz gehört ausschließlich der Spielleitung.'});
+  await author('/api/entities',{type:'HANDOUT',title:'SYNTHETISCH – Testhinweis',text:'PLAYER_QA: Gezielter Testhinweis.',gmBody:'PRIVATE_QA: Vertraulicher Handout-Kontext.'});
+  // Existing accepted reference fixture, only in this fresh isolated local DB.
+  await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
+  console.log('Isolated application ready: http://127.0.0.1:8794/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
+  await new Promise(resolveStop=>{process.once('SIGINT',resolveStop);process.once('SIGTERM',resolveStop);});
+ }else{
+  const suite=spawn(process.execPath,['tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});
+  const [code]=await once(suite,'exit');
+  process.exitCode=code??1;
+ }
  if(process.exitCode===0){
   const atomicKey='phase-c-atomic-'+randomUUID();let rejected=false;
   try{await localDb.batch([
