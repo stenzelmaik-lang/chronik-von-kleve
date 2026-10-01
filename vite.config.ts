@@ -30,6 +30,11 @@ const localBindingConfig = {
   ...(cloudflareRemoteTestConfig ?? {}),
   main: "vinext/server/fetch-handler",
   compatibility_flags: ["nodejs_compat"],
+  // Enable production-only invitation grants explicitly. Local and Preview
+  // builds stay closed unless their isolated runner supplies its own setting.
+  ...(cloudflareBuild && process.env.WORKERS_CI_BRANCH === "main"
+    ? { vars: { AUTH_ACCESS_ENVIRONMENT: "closed-alpha-production" } }
+    : {}),
   d1_databases: cloudflareRemoteTestConfig?.d1_databases ?? (d1
     ? [
         {

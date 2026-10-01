@@ -1,0 +1,16 @@
+"use client";
+/* eslint-disable @next/next/no-html-link-for-pages -- Auth transitions use full navigation. */
+import { FormEvent,useEffect,useState } from "react";
+import { accountApi } from "@/app/profil/account-ui";
+import styles from "@/app/profil/account.module.css";
+export default function AccessForm({purpose}:{purpose:'invite'|'reset'}){
+  const [token,setToken]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[done,setDone]=useState(false);
+  useEffect(()=>{let active=true;void Promise.resolve(window.location.hash.slice(1)).then(raw=>{if(active){if(/^[A-Za-z0-9_-]{43}$/.test(raw))setToken(raw);window.history.replaceState(null,'',window.location.pathname);}});return()=>{active=false;};},[]);
+  async function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setError('');const form=e.currentTarget,d=Object.fromEntries(new FormData(form));try{await accountApi(purpose==='invite'?'/api/auth/invitations/accept':'/api/auth/recovery','POST',{...d,token});form.reset();setToken('');setDone(true);}catch(err){setError(err instanceof Error?err.message:'Bitte erneut versuchen.');}finally{setBusy(false);}}
+  return <main className={styles.page}><header className={styles.topbar}><a href="/">ChroniPlay</a><strong>GESCHLOSSENE ALPHA</strong><a href="/anmelden">Anmelden</a></header><div className={styles.container} style={{maxWidth:620}}><header className={styles.hero}><p>PERSÖNLICHER ZUGANG</p><h1>{purpose==='invite'?'Deine Einladung':'Passwort wiederherstellen'}</h1><span>{purpose==='invite'?'Ein persönliches Konto für die freigegebene Kampagne.':'Nur mit einem persönlich freigegebenen, einmalig nutzbaren Link.'}</span></header><section className={styles.card}>
+    {error&&<p className={styles.error} role="alert">{error}</p>}{done?<><p className={styles.success} role="status">{purpose==='invite'?'Dein Konto wurde eingerichtet.':'Passwort geändert. Alle alten Sitzungen sind beendet.'}</p><a className={styles.linkButton} href="/anmelden">Jetzt anmelden</a></>:!token?<><p>{purpose==='invite'?'Für die geschlossene Alpha benötigst du eine persönliche Einladung deiner Spielleitung.':'Bitte die Projektleitung über den bereits bekannten vertraulichen Kontaktweg um Wiederherstellung bitten. Nach unabhängiger Prüfung erhältst du einen 30 Minuten gültigen Link.'}</p><p>Keine öffentliche Selbstregistrierung, kein automatischer E-Mail-Versand. Keine Passwörter im Chat versenden.</p></>:<form onSubmit={submit}>
+      {purpose==='invite'&&<><label>Eingeladene E-Mail<input name="email" type="email" required maxLength={320} autoComplete="username"/></label><label>Dein Anzeigename<input name="displayName" required maxLength={80} autoComplete="nickname"/></label></>}
+      <label>{purpose==='invite'?'Dein Passwort':'Neues Passwort'}<input name="password" type="password" minLength={12} maxLength={200} autoComplete="new-password" required/></label><label>Passwort wiederholen<input name="confirmation" type="password" minLength={12} maxLength={200} autoComplete="new-password" required/></label><small>12–200 Zeichen · anschließend normal anmelden</small><button className={styles.primary} disabled={busy}>{busy?'Bitte warten…':purpose==='invite'?'Persönliches Konto einrichten':'Passwort ändern'}</button>
+    </form>}
+    </section></div></main>;
+}

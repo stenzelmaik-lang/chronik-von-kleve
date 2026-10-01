@@ -1,8 +1,10 @@
 import {engineFixture} from "./fixtures/engine-character.mjs";
 import {weekendIntegration} from "./weekend-integration.mjs";
+import {accountAccessIntegration} from "./account-access-integration.mjs";
 import assert from 'node:assert/strict';
 import {createHash,pbkdf2Sync,randomBytes} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
+import {readdirSync,readFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {basename,dirname,resolve} from 'node:path';
 // Run only against an isolated local Wrangler worker. No production writes.
@@ -30,6 +32,13 @@ const sessionTokens=Object.fromEntries(fixtureAccounts.map(account=>[account.key
 const ids=Object.fromEntries(fixtureAccounts.map(account=>[account.key,{Cookie:`chroniplay_session=${sessionTokens[account.key]}`} ]));
 let checks=0;
 function check(value,message){assert.ok(value,message);checks++;console.log('PASS '+message)}
+// Exercise the emitted worker through the actual application asset route.
+// A bare ?url or relative SDK sibling silently leaves vector maps unloaded.
+const mapWorker=readdirSync('dist/client/_next/static').find(name=>/^maplibre-gl-worker-.*\.js$/.test(name));
+check(Boolean(mapWorker),'MapLibre v6 emits a bundled worker artifact');
+const mapWorkerResponse=await fetch(base+'/_next/static/'+mapWorker);
+check(mapWorkerResponse.status===200&&mapWorkerResponse.headers.get('content-type')?.includes('javascript'),'MapLibre worker is served as JavaScript, not an HTML fallback');
+check(Buffer.from(await mapWorkerResponse.arrayBuffer()).equals(readFileSync('dist/client/_next/static/'+mapWorker)),'MapLibre worker response matches the tested build artifact');
 async function req(path,who,method='GET',body,extra={}){const r=await fetch(base+path,{method,headers:{...(who&&ids[who]?ids[who]:{}),...(body?{'Content-Type':'application/json'}:{}),...extra},body:body?JSON.stringify(body):undefined});const d=await r.json();return {s:r.status,d}}
 function localSqlFails(sql) { const state=resolve(process.env.CVK_TEST_STATE||''); assert.equal(dirname(state),tmpdir()); assert.match(basename(state),/^cvk-phase-c-tests-[a-f0-9-]+$/); const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true}); assert.notEqual(r.status,0,'Expected isolated D1 constraint or trigger to reject the write'); }
 const sqlQuote=value=>`'${String(value).replaceAll("'","''")}'`;
@@ -967,6 +976,7 @@ const regieUpdate={id:regieStored.id,version:regieStored.version,kind:'sitzungen
 check((await req('/api/records','gm','POST',regieUpdate)).s===200,'Scene update with preserved location succeeds');
 check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session revision cannot overwrite regie association');
 await weekendIntegration({req,check,localSql,sqlQuote,now});
+await accountAccessIntegration({req,check,localSql,sqlQuote,base,testPassword,testPasswordHash});
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');
 
 
