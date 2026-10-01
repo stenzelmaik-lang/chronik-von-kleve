@@ -1,7 +1,8 @@
 "use client";
 
-import { Map as MapLibreMap, Marker } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { Compass, LocateFixed, Minus, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 
@@ -83,7 +84,12 @@ export function WorldMapLibre({
     const markerRegistry = markers.current;
     onStateChange("loading");
 
-    const instance = new MapLibreMap({
+    // v6 uses a separate module worker. Bundle its shared dependencies rather
+    // than resolving a nonexistent sibling of the application client chunk.
+    setWorkerUrl(workerUrl);
+    let instance: MapLibreMap;
+    try {
+      instance = new MapLibreMap({
       container,
       style: OPENFREEMAP_DARK_STYLE,
       center: [6.18, 51.78],
@@ -96,7 +102,12 @@ export function WorldMapLibre({
       dragRotate: false,
       pitchWithRotate: false,
       keyboard: true,
-    });
+      });
+    } catch {
+      // v6 requires WebGL2. Older devices retain the usable schematic view.
+      onStateChange("error");
+      return;
+    }
     map.current = instance;
 
     const handleLoad = () => {

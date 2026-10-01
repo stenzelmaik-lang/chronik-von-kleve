@@ -1,4 +1,11 @@
-# Profil und geschlossene Pre-Alpha: Rollout gestoppt
+# Archivierter Prüfpunkt: Rollout zunächst gestoppt
+
+**Historischer Stand vom 01.10.2026, keine aktuelle Abschlussaussage.**
+Dieser Prüfpunkt bleibt als Beleg der zunächst ausgelösten Sicherheitsstopps
+erhalten. Nach ausdrücklicher Fortsetzungsfreigabe wurden die betroffenen
+Abhängigkeiten korrigiert und erneut geprüft. Der aktuelle Veröffentlichungsschritt
+folgt dem [Release-Verfahren](closed-alpha-release-runbook.md); das abschließende
+Rollout-Protokoll benennt den tatsächlich veröffentlichten Commit und Deployment.
 
 Stand: 01.10.2026. **NICHT VERÖFFENTLICHT – SECURITY GATE NICHT BESTANDEN.**
 
