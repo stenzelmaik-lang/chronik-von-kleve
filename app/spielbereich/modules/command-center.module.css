@@ -12,3 +12,12 @@
 @media(max-width:950px){.bar{gap:14px;flex-wrap:wrap}.split{grid-template-columns:1fr}.split .toolPanel{max-height:none;padding-right:0}.toolbar{flex-wrap:wrap}.tools{width:100%}.parallel{margin-left:auto}.work{padding:18px}.roster{padding:12px 18px}}
 @media(max-width:600px){.bar{padding:18px}.bar h1,.playerTitle h1{font-size:28px}.toolbar{padding:8px}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.tools button{padding:10px 8px;justify-content:center}.work{padding:12px}.sessionChoice{flex-wrap:wrap}.sessionChoice select{flex-basis:100%}.root .player{padding:12px}.playerHandouts{padding:18px}.context{flex-wrap:wrap}.toolPanel :global(.command-vitals){gap:8px}.rosterLabel{display:none}.footer{padding:12px}.notice{padding:12px 18px}}
 @media(prefers-reduced-motion:reduce){.toolPanel{animation:none}}
+/* Compact character attention queue; platform administration remains outside. */
+.reviewQueue{border:1px solid #c9a26640;background:linear-gradient(120deg,#101c2b,#0b1420);border-radius:5px;margin:16px 0;color:#d8d6cf}
+.reviewQueue header{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 15px;font-size:13px;color:#e1c392}.reviewQueue header span{margin-left:auto;font-size:12px;color:#aab9c9}
+.reviewQueue>div{display:flex;gap:8px;padding:0 12px 12px;overflow-x:auto;max-height:160px;flex-wrap:wrap}
+.reviewQueue button{display:grid;gap:4px;text-align:left;background:#091321;border:1px solid #c9a26640;border-radius:4px;color:#e3d6c2;padding:9px 12px;cursor:pointer;min-width:160px;max-width:330px;overflow-wrap:anywhere}
+.reviewQueue button strong{font-size:13px;font-weight:500}.reviewQueue button small{color:#c9ad7f;font-size:11px}.reviewQueue>p{padding:0 15px 12px;margin:0;color:#8da99c;font-size:12px}
+.characterChoice{display:grid;gap:6px;margin:12px 0;font-size:12px;color:#d5bd91}.characterChoice select{width:100%;border:1px solid #c9a26650;border-radius:4px;color:#ede4d3;background:#091321;padding:10px;font-size:14px;min-width:0}
+.reviewQueue button:focus-visible,.characterChoice select:focus-visible{outline:2px solid #e7c58c;outline-offset:3px}
+@media(max-width:720px){.reviewQueue header span{margin-left:0;width:100%}.reviewQueue>div{flex-wrap:nowrap;max-height:none}.reviewQueue button{flex-shrink:0;width:230px}}

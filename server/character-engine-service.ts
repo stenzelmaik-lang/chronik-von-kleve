@@ -2,6 +2,7 @@ import type { Actor } from "@/domain/types";
 import type { LegacyRecordRow } from "@/domain/legacy";
 import { availableClanForCampaign } from "@/domain/clan-config";
 import { creationBudgetSummary, v20AbilityNames, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
+import { creationGuidance } from "@/domain/character-guidance";
 import { canEdit, database, HttpError } from "./access";
 
 export function characterBody(raw: string): Record<string, unknown> {
@@ -19,6 +20,7 @@ export async function editableCharacter(a: Actor, id: string) {
 export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<string, unknown>) {
   const enrolled = body.engineVersion === 1;
   const state = enrolled ? String(body.characterState || "draft") : "legacy";
+  const guidance = creationGuidance(a.campaignId, body);
   const clan = availableClanForCampaign(a.campaignId, body.clan);
   const targets: Array<XpPurchase & { label: string; cost: number; available: boolean; hint: string }> = [];
   const add = (category: XpPurchase["category"], target: string | undefined, from: unknown) => {
@@ -41,7 +43,7 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
   add("humanity", undefined, body.humanity); add("willpower", undefined, body.willpower);
   const ledger = Array.isArray(body.xpLedger) ? body.xpLedger as { kind: string; amount: number }[] : [];
   const creation = body.creationSnapshot && typeof body.creationSnapshot === "object" ? body.creationSnapshot as Record<string, unknown> : body;
-  return { id: row.id, version: row.version, state, enrolled, owner: row.owner_id === a.id, canManage: a.gm, canSubmit: row.owner_id === a.id && state === "draft", budget: creationBudgetSummary(creation), xp: { available: xpBalance(body), received: ledger.filter(e => e.kind === "grant").reduce((n, e) => n + e.amount, 0), spent: ledger.filter(e => e.kind === "spend").reduce((n, e) => n + e.amount, 0) }, ledger, targets, requests: Array.isArray(body.characterRequests) ? body.characterRequests : [], ...(a.gm ? { gmNotes: row.gm_body } : {}) };
+  return { id: row.id, ownerId: row.owner_id, readiness:{ready:guidance.reviewReady,reason:guidance.reviewReason,missing:guidance.missing}, version: row.version, state, enrolled, owner: row.owner_id === a.id, canManage: a.gm, canSubmit: row.owner_id === a.id && state === "draft", budget: creationBudgetSummary(creation), xp: { available: xpBalance(body), received: ledger.filter(e => e.kind === "grant").reduce((n, e) => n + e.amount, 0), spent: ledger.filter(e => e.kind === "spend").reduce((n, e) => n + e.amount, 0) }, ledger, targets, requests: Array.isArray(body.characterRequests) ? body.characterRequests : [], ...(a.gm ? { gmNotes: row.gm_body } : {}) };
 }
 // The operation token binds the audit to the winner of the compare-and-swap.
 export async function saveEngine(a: Actor, row: LegacyRecordRow, next: Record<string, unknown>, expectedVersion: number, action: string, reason: string, visibility = row.visibility, gmBody = row.gm_body) {

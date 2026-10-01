@@ -5,7 +5,7 @@ import { RatingGroup, attrsGroups, CharacterListReadout, type CharacterDetailPro
 import { CharacterProgression } from './character-progression';
 
 // Read-only context: all authorization and values come from the existing projector.
-export function CommandCharacter({id}:{id:string}) {
+export function CommandCharacter({id,version,onChanged}:{id:string;version?:number;onChanged?:()=>void}) {
   const [result,setResult]=useState<{id:string;data?:CharacterDetailProjection;error?:string}|null>(null);
   const [reload,setReload]=useState(0);
   useEffect(()=>{
@@ -14,7 +14,7 @@ export function CommandCharacter({id}:{id:string}) {
       .then(data=>{if(active)setResult({id,data});})
       .catch(e=>{if(active)setResult({id,error:e.message});});
     return()=>{active=false;};
-  },[id,reload]);
+  },[id,reload,version]);
   const current=result?.id===id?result:null;
   if(!current)return <p role="status">Charakter wird geladen …</p>;
   if(current.error)return <><p role="alert">{current.error}</p><button className="button" onClick={()=>setReload(n=>n+1)}>Erneut laden</button></>;
@@ -34,7 +34,7 @@ export function CommandCharacter({id}:{id:string}) {
     </dl>
     <details><summary>Attribute und Disziplinen</summary>{attrsGroups.map(([title,names])=><RatingGroup key={title} title={title} names={names} values={object(p.sheet.attributes)} disabled/>)}
     <CharacterListReadout label="Disziplinen" value={p.sheet.disciplines}/>
-    </details><details><summary>Charakter prüfen, XP vergeben & Anträge bearbeiten</summary><CharacterProgression id={id} revision={p.revision.version} manage onChanged={()=>setReload(n=>n+1)}/></details>
+    </details><CharacterProgression key={id} id={id} revision={p.revision.version} manage onChanged={()=>{setReload(n=>n+1);onChanged?.();}}/>
   </div>;
 }
 

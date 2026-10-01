@@ -11,18 +11,32 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check(created.s===200,'WEEKEND new character uses the existing record and identity');const id=created.d.id;
  const get=async(who='a')=>req('/api/character-engine?id='+id,who);
  const command=async(who,action,extra={})=>{const view=await get(who);return req('/api/character-engine',who,'POST',{id,version:view.d.version,action,...extra});};
+ const firstView=await get();
+ check(firstView.d.readiness.ready===true&&firstView.d.ownerId==='sprint1-a','LIVE ready-to-review projection follows central validation and authorized owner');
+ const minimalView=await req('/api/character-engine?id='+minimal.d.id,'b');
+ check(minimalView.d.readiness.ready===false&&minimalView.d.readiness.missing.some(m=>m.label==='Körperlich'&&m.remaining===7),'LIVE incomplete draft reports precise missing points');
  check((await get('b')).s===404,'WEEKEND foreign player cannot read engine');
  check((await req('/api/character-detail?id='+id,'b')).s===404,'WEEKEND foreign player cannot read shared character dossier');
  check((await req('/api/entities?id='+id,'b')).s===404,'WEEKEND generic entity knowledge does not bypass character ownership');
  check((await command('a','xp_grant',{amount:100,reason:'forged grant'})).s===403,'WEEKEND XP grants are SL-only');
  check((await command('a','request_change',{request:{category:'foreignDiscipline',target:'Potenz',reason:'Synthetic exception for cost test'}})).s===200,'WEEKEND owner submits exception request without granting themselves');
+ let queue=await req('/api/command-center','gm');
+ check(queue.d.characters.find(c=>c.id===id)?.pendingRequests===1,'LIVE fresh record request appears in SL attention queue');
+ check(!queue.d.characters.some(c=>c.id===minimal.d.id),'LIVE private foreign draft never appears in SL roster or queue');
+ check(!JSON.stringify(queue.d.characters).includes('Synthetic exception for cost test'),'LIVE roster omits confidential request content');
+ check((await req('/api/command-center','a')).s===403,'LIVE player cannot enumerate SL character queue');
  let view=await get('gm');const requestId=view.d.requests[0].id;
  check((await command('a','resolve_request',{requestId,approved:true,reason:'forged approval'})).s===403,'WEEKEND player cannot approve request');
  check((await command('gm','resolve_request',{requestId,approved:true,reason:'Synthetic documented clan exception'})).s===200,'WEEKEND SL approves foreign discipline as zero-rated creation choice');
  let record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
  check((await req('/api/records','a','POST',{id,version:record.version,kind:'charaktere',title:record.title,visibility:'sl',body:{...record.body,disciplines:record.body.disciplines.map(d=>d.name==='Potenz'?{...d,value:1}:d)}})).s===200,'WEEKEND owner can spend Freebies on an unchanged SL-approved foreign discipline');
  check((await command('a','review')).s===200,'WEEKEND creation with 7 Freebie discipline cost submits successfully');
+ queue=await req('/api/command-center','gm');
+ check(queue.d.characters.find(c=>c.id===id)?.state==='review'&&queue.d.characters.find(c=>c.id===id)?.pendingRequests===0,'LIVE queue follows submitted record state even when entity copy is stale');
+ check(!JSON.stringify((await req('/api/command-center?view=player','gm')).d).includes('pendingRequests'),'LIVE group preview has no character review metadata');
  check((await command('gm','confirm')).s===200,'WEEKEND SL confirms the complete existing character');
+ check((await req('/api/command-center','gm')).d.characters.find(c=>c.id===id)?.state==='confirmed','LIVE queue removes confirmed review immediately');
+ check((await req('/api/character-detail?id='+id,'a')).d.progression.characterState==='confirmed','LIVE owner dossier follows the confirmed server state, not the stale roster body');
  check((await command('gm','xp_grant',{amount:30,reason:'Synthetic session reward'})).s===200,'WEEKEND documented XP grant persists');
  view=await get();const expected=view.d.version;
  const attempts=await Promise.all([1,2].map(()=>req('/api/character-engine','a','POST',{id,version:expected,action:'xp_purchase',purchase:{category:'discipline',target:'Potenz',from:1,to:2,inClan:true}})));
@@ -32,6 +46,7 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check((await command('gm','gm_notes',{text:'PRIVATE_WEEKEND_SL_SECRET'})).s===200,'WEEKEND confidential SL character note persists');
  check(!(JSON.stringify((await get()).d).includes('PRIVATE_WEEKEND_SL_SECRET'))&&!JSON.stringify((await req('/api/character-detail?id='+id,'a')).d).includes('PRIVATE_WEEKEND_SL_SECRET'),'WEEKEND owner projection never receives confidential SL note');
  check(JSON.stringify((await get('gm')).d).includes('PRIVATE_WEEKEND_SL_SECRET'),'WEEKEND authorized SL can retrieve own confidential context');
+ check(!JSON.stringify((await req('/api/command-center','gm')).d.characters).includes('PRIVATE_WEEKEND_SL_SECRET'),'LIVE attention queue does not contain GM notes');
  check((await command('gm','correction',{field:'concept',value:'Synthetic corrected concept',reason:'Documented QA correction'})).s===200,'WEEKEND redactional correction is documented in central command path');
  check((await get('gm')).d.history.some(e=>e.action==='correction'&&e.reason==='Documented QA correction'),'WEEKEND correction audit is retrievable by authorized SL');
  check((await command('a','request_change',{request:{category:'identity',target:'demeanor',value:'Visionär',reason:'Synthetic requested demeanor'}})).s===200,'WEEKEND confirmed owner can request an identity change');
@@ -39,6 +54,19 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check((await command('gm','resolve_request',{requestId:identityId,approved:false,reason:'Synthetic rejection for QA'})).s===200,'WEEKEND SL can reject a request without changing value');
  record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
  check(record.body.demeanor==='Einzelgänger','WEEKEND rejected request leaves character value unchanged');
+ const concurrent=await Promise.all([
+  req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'blood',value:7}),
+  req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'willpowerTemporary',value:2})
+ ]);
+ check(concurrent.filter(r=>r.s===200).length===1&&concurrent.filter(r=>r.s===409).length===1,'LIVE simultaneous actions on the same character cannot silently overwrite');
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ const other=await req('/api/records','b','POST',{kind:'charaktere',title:'LIVE SECOND SYNTHETIC PLAYER',visibility:'sl',body:structuredClone(engineFixture)});
+ const parallel=await Promise.all([
+  req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'blood',value:8}),
+  req('/api/character-runtime','b','PATCH',{id:other.d.id,version:1,field:'blood',value:5})
+ ]);
+ check(parallel.every(r=>r.s===200),'LIVE independent simultaneous player actions both succeed');
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
  const permanentBefore=JSON.stringify(record.body.attributes);
  check((await req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'blood',value:6})).s===200,'WEEKEND runtime stays editable after confirmation');
  const rich='cvk-rich-v1:'+JSON.stringify({version:1,blocks:[{type:'heading2',children:[{text:'Synthetic history'}]},{type:'paragraph',children:[{text:'Private formatted story',bold:true}]}]});

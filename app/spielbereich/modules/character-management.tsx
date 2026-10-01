@@ -1,0 +1,35 @@
+"use client";
+import { useState } from 'react';
+import { Check, ShieldCheck, Sparkles, NotebookPen, Mail } from 'lucide-react';
+import type { CharacterEngineView } from '@/domain/character-live';
+import styles from './character-studio.module.css';
+
+const identityLabels:Record<string,string>={concept:'Konzept',nature:'Wesen',demeanor:'Verhalten',sire:'Erzeuger'};
+type Props={data:CharacterEngineView;busy:boolean;command:(action:string,extra?:Record<string,unknown>)=>Promise<void>;onConfirm:()=>void};
+export function CharacterManagement({data,busy,command,onConfirm}:Props) {
+  const [action,setAction]=useState('review');
+  const [amount,setAmount]=useState(5),[xpReason,setXpReason]=useState(''),[reviewReason,setReviewReason]=useState('');
+  const [decisionReason,setDecisionReason]=useState(''),[decisionCost,setDecisionCost]=useState(1);
+  const [noteDraft,setNotes]=useState<string|null>(null);
+  const notes=noteDraft??data.gmNotes??'', notesDirty=notes!==(data.gmNotes||'');
+  const [correctionField,setCorrectionField]=useState('concept'),[correctionValue,setCorrectionValue]=useState(''),[correctionReason,setCorrectionReason]=useState('');
+  const pending=data.requests.filter(r=>r.status==='pending');
+  const reviewCount=(data.state==='review'?1:0)+pending.length;
+  return <>
+    <nav className={styles.managementActions} aria-label="SL-Charakteraktionen">
+      <button type="button" aria-pressed={action==='review'} onClick={()=>setAction('review')}><ShieldCheck size={16}/>Prüfen {reviewCount>0&&<b>{reviewCount}</b>}</button>
+      <button type="button" aria-pressed={action==='xp'} onClick={()=>setAction('xp')}><Sparkles size={16}/>XP vergeben</button>
+      <button type="button" aria-pressed={action==='notes'} onClick={()=>setAction('notes')}><NotebookPen size={16}/>SL-Notiz{notesDirty&&<b>●</b>}</button>
+      <button type="button" onClick={()=>window.dispatchEvent(new CustomEvent('chroniplay:compose-message',{detail:data.ownerId}))}><Mail size={16}/>Persönlicher Brief</button>
+    </nav>
+    <div className={styles.managementPanel}>
+      {action==='review'&&<>
+        {data.state==='review'?<div className={styles.manageReview}><ShieldCheck size={22}/><p>Der Spieler hat diesen Bogen eingereicht. Prüfe Werte und Punkte vor der verbindlichen Bestätigung.</p><button disabled={busy} className="button primary" onClick={onConfirm}><Check size={15}/>Charakter bestätigen</button><label>Rückmeldung<input aria-label="SL-Rückmeldung" value={reviewReason} onChange={e=>setReviewReason(e.target.value)}/></label><button disabled={busy||reviewReason.trim().length<3} className="button" onClick={()=>void command('return_draft',{reason:reviewReason})}>Zur Überarbeitung zurückgeben</button></div>:<p>{data.state==='draft'?'Dieser Entwurf wurde noch nicht eingereicht. Der Spieler bearbeitet und reicht den Bogen selbst ein.':data.state==='confirmed'?'Der Charakter ist bestätigt. Laufende Anträge prüfst du hier.':'Bestehender Charakter · keine automatische Übernahme in die Erschaffungsprüfung.'}</p>}
+        {pending.length>0?<div className={styles.requests}><h4>{pending.length} {pending.length===1?'offener Antrag':'offene Anträge'}</h4>{pending.map(r=><article key={r.id}><h4>{identityLabels[r.target]||r.target}</h4><p>{r.reason}</p>{r.value&&<blockquote>{r.value}</blockquote>}<label>Begründung der Entscheidung<input aria-label={`Entscheidungsbegründung ${r.id}`} value={decisionReason} onChange={e=>setDecisionReason(e.target.value)}/></label>{(r.category==='merit'||r.category==='flaw')&&<label>Belegte Punktkosten<input aria-label="Genehmigte Punktkosten" type="number" min={0} max={7} value={decisionCost} onChange={e=>setDecisionCost(Number(e.target.value))}/></label>}<div className="actions"><button disabled={busy||decisionReason.trim().length<3} className="button primary" onClick={()=>void command('resolve_request',{requestId:r.id,approved:true,cost:decisionCost,reason:decisionReason})}>Genehmigen</button><button disabled={busy||decisionReason.trim().length<3} className="button" onClick={()=>void command('resolve_request',{requestId:r.id,approved:false,reason:decisionReason})}>Ablehnen</button></div></article>)}</div>:<p>Keine offenen Anträge.</p>}
+      </>}
+      {action==='xp'&&(data.state==='confirmed'?<div className={styles.form}><label>XP-Gutschrift<input aria-label="XP-Gutschrift" type="number" min={1} max={1000} value={amount} onChange={e=>setAmount(Number(e.target.value))}/></label><label>Begründung<input aria-label="Grund der XP-Gutschrift" value={xpReason} onChange={e=>setXpReason(e.target.value)}/></label><button className="button primary" disabled={busy||xpReason.trim().length<3||!Number.isInteger(amount)||amount<1||amount>1000} onClick={()=>void command('xp_grant',{amount,reason:xpReason})}>{amount} XP gutschreiben</button><p className={styles.explanation}>{data.xp.available} XP verfügbar · {data.xp.received} erhalten · {data.xp.spent} ausgegeben</p></div>:<p>XP können erst einem bestätigten Engine-Charakter gutgeschrieben werden. {data.state==='review'?'Prüfe und bestätige zuerst den eingereichten Bogen.':'Die Erschaffung ist noch nicht bestätigt.'}</p>)}
+      {action==='notes'&&<><p>Nur die berechtigte Spielleitung erhält diesen Text. Er wird weder Spielern noch als Brief ausgeliefert.</p><textarea aria-label="Vertrauliche SL-Notiz" value={notes} rows={5} maxLength={30000} onChange={e=>{setNotes(e.target.value);}}/><button className="button primary" disabled={busy||!notesDirty} onClick={async()=>{await command('gm_notes',{text:notes});}}>SL-Notiz speichern</button><span className={styles.explanation}>{notesDirty&&notes!==data.gmNotes?'Ungespeicherte Notiz':'Gespeicherte Notiz'}</span></>}
+    </div>
+    <details className={styles.fold}><summary>Seltene Korrektur · protokolliert</summary><p>Redaktionelle Texte korrigieren. Mechanische Werte und XP behalten ihre eigenen Regeln.</p><div className={styles.form}><label>Feld<select aria-label="Korrekturfeld" value={correctionField} onChange={e=>setCorrectionField(e.target.value)}>{Object.entries(identityLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label><label>Korrigierter Text<input aria-label="Korrigierter Text" value={correctionValue} onChange={e=>setCorrectionValue(e.target.value)}/></label><label>Begründung<input aria-label="Korrekturbegründung" value={correctionReason} onChange={e=>setCorrectionReason(e.target.value)}/></label><button className="button" disabled={busy||correctionReason.trim().length<3} onClick={()=>void command('correction',{field:correctionField,value:correctionValue,reason:correctionReason})}>Korrektur protokollieren</button></div></details>
+  </>;
+}

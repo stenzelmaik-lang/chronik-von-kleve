@@ -1,6 +1,7 @@
 import { actor, database, failure, gmOnly, json } from '@/server/access';
 import { loadEntities, projectEntity, type GrantRow } from '@/server/entities';
 import { commandHandouts } from '@/domain/command-center';
+import { commandCharacterSummary } from '@/domain/character-live';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
         .bind(a.campaignId, a.campaignId).all<{id:string;name:string;status:string}>(),
       db.prepare('SELECT entity_id,audience,subject_id,state FROM knowledge WHERE campaign_id=?')
         .bind(a.campaignId).all(),
-      db.prepare("SELECT id FROM records WHERE campaign_id=? AND kind='charaktere' AND (visibility!='private' OR owner_id=?)").bind(a.campaignId,a.id).all<{id:string}>(),
+      db.prepare("SELECT id,title,owner_id,body,version FROM records WHERE campaign_id=? AND kind='charaktere' AND (visibility!='private' OR owner_id=?)").bind(a.campaignId,a.id).all<{id:string;title:string;owner_id:string;body:string;version:number}>(),
     ]);
     if(new URL(req.url).searchParams.get('view')==='player') {
       const viewer={...a,id:'command-center-group-preview',gm:false,role:'player' as const};
@@ -34,7 +35,11 @@ export async function GET(req: Request) {
     return json({
       campaignId:a.campaignId,
       members:members.results,
-      characters:entities.filter(e=>e.type==='CHARACTER' && e.canonStatus!=='GM_SECRET' && e.content.recoveryOnly!==true && readableCharacters.results.some(r=>r.id===e.id)).map(e=>({id:e.id,title:e.title,ownerId:e.ownerId})),
+      characters:readableCharacters.results.flatMap(row=>{
+        const entity=entities.find(e=>e.id===row.id&&e.type==='CHARACTER'&&e.canonStatus!=='GM_SECRET'&&e.content.recoveryOnly!==true);
+        const summary=entity?commandCharacterSummary(row):null;
+        return summary?[summary]:[];
+      }),
       handouts:commandHandouts(entities,a.campaignId).map(e=>({id:e.id,title:e.title,text:typeof e.content.text==='string'?e.content.text:'',revocable:e.visibility==='sl',legacy:!!e.legacyRecordId})),
       grants:grants.results,
     });
