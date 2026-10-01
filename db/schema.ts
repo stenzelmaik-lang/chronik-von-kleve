@@ -451,9 +451,11 @@ export const authUsers = sqliteTable("auth_users", {
   status: text("status", { enum: ["active", "blocked"] }).notNull().default("active"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+  version: integer("version").notNull().default(1),
 }, (t) => [
   uniqueIndex("auth_users_email_normalized_unique").on(t.emailNormalized),
   check("auth_users_status_check", sql`${t.status} IN ('active', 'blocked')`),
+  check("auth_users_version_check", sql`${t.version} >= 1`),
 ]);
 
 export const authIdentities = sqliteTable("auth_identities", {
@@ -472,12 +474,14 @@ export const authIdentities = sqliteTable("auth_identities", {
 
 export const authSessions = sqliteTable("auth_sessions", {
   sessionHash: text("session_hash").primaryKey(),
+  sessionId: text("session_id"),
   userId: text("user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
   createdAt: text("created_at").notNull(),
   expiresAt: text("expires_at").notNull(),
   lastSeenAt: text("last_seen_at").notNull(),
   revokedAt: text("revoked_at"),
 }, (t) => [
+  uniqueIndex("auth_sessions_public_id_unique").on(t.sessionId),
   index("auth_sessions_user_idx").on(t.userId),
   index("auth_sessions_expiry_idx").on(t.expiresAt),
 ]);
@@ -500,4 +504,38 @@ export const authMemberLinks = sqliteTable("auth_member_links", {
   uniqueIndex("auth_member_links_member_unique").on(t.memberId),
   check("auth_member_links_approved_by_check", sql`length(trim(${t.approvedBy})) BETWEEN 1 AND 200`),
   check("auth_member_links_approval_reference_check", sql`length(trim(${t.approvalReference})) BETWEEN 1 AND 300`),
+]);
+
+// Extensions of the existing account identity; no parallel account/member store.
+export const authProfiles = sqliteTable("auth_profiles", {
+  userId: text("user_id").primaryKey().references(() => authUsers.id, { onDelete: "cascade" }),
+  avatarFileId: text("avatar_file_id").references(() => files.id, { onDelete: "set null" }),
+  preferences: text("preferences").notNull().default('{"reducedMotion":false,"compactView":false}'),
+}, t => [check("auth_profiles_preferences_check", sql`json_valid(${t.preferences})`)]);
+export const authAccessGrants = sqliteTable("auth_access_grants", {
+  id: text("id").primaryKey(), tokenHash: text("token_hash").notNull(),
+  purpose: text("purpose", { enum: ["invite", "reset"] }).notNull(),
+  environment: text("environment", { enum: ["local-test", "closed-alpha-production"] }).notNull(),
+  email: text("email_normalized").notNull(),
+  campaignId: text("campaign_id").references(() => campaigns.id),
+  memberId: text("member_id").references(() => members.id),
+  targetUserId: text("target_user_id").references(() => authUsers.id),
+  issuedBy: text("issued_by").notNull().references(() => authUsers.id),
+  approvalReference: text("approval_reference").notNull(),
+  createdAt: text("created_at").notNull(), expiresAt: text("expires_at").notNull(),
+  consumedAt: text("consumed_at"), consumedBy: text("consumed_by"), revokedAt: text("revoked_at"),
+}, t => [
+  uniqueIndex("auth_access_grants_token_unique").on(t.tokenHash),
+  index("auth_access_grants_campaign_time").on(t.campaignId, t.createdAt),
+  check("auth_access_grants_purpose_check", sql`${t.purpose} IN ('invite','reset')`),
+  check("auth_access_grants_environment_check", sql`${t.environment} IN ('local-test','closed-alpha-production')`),
+  check("auth_access_grants_target_check", sql`(${t.purpose}='invite' AND ${t.campaignId} IS NOT NULL AND ${t.targetUserId} IS NULL) OR (${t.purpose}='reset' AND ${t.targetUserId} IS NOT NULL AND ${t.campaignId} IS NULL AND ${t.memberId} IS NULL)`),
+]);
+export const authSecurityEvents = sqliteTable("auth_security_events", {
+  id: text("id").primaryKey(), actorId: text("actor_id").notNull(),
+  subjectUserId: text("subject_user_id"), action: text("action").notNull(),
+  metadata: text("metadata").notNull().default("{}"), createdAt: text("created_at").notNull(),
+}, t => [
+  index("auth_security_events_subject_time").on(t.subjectUserId, t.createdAt),
+  check("auth_security_events_metadata_check", sql`json_valid(${t.metadata})`),
 ]);

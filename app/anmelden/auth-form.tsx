@@ -26,5 +26,5 @@ export default function AuthForm() { const router = useRouter(); const [error, s
       setBusy(false);
     }
   }
-  return <form method="post" onSubmit={submit} className="auth-form"><label>E-Mail<input name="email" type="email" autoComplete="username" required /></label><label>Passwort<input name="password" type="password" autoComplete="current-password" required /></label>{error && <p role="alert" className="auth-error">{error}</p>}<button disabled={busy}>{busy ? "Bitte warten…" : "Anmelden"}</button><p className="auth-hint">Der Zugang ist geschlossen. Nur bereits eingerichtete und mit einem Spielmitglied verknüpfte Konten können sich anmelden.</p></form>;
+  return <form method="post" onSubmit={submit} className="auth-form"><label>E-Mail<input name="email" type="email" autoComplete="username" required /></label><label>Passwort<input name="password" type="password" autoComplete="current-password" required /></label>{error && <p role="alert" className="auth-error">{error}</p>}<button disabled={busy}>{busy ? "Bitte warten…" : "Anmelden"}</button><p className="auth-hint">Der Zugang ist geschlossen. Nur bereits eingerichtete und mit einem Spielmitglied verknüpfte Konten können sich anmelden.</p><p><a href="/passwort-zuruecksetzen">Passwort vergessen?</a></p></form>;
 }

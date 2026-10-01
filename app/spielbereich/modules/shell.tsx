@@ -9,6 +9,7 @@ import { sections } from "./navigation";
 import shellStyles from "./world-shell.module.css";
 import { MessageCenter } from "./message-center";
 import { api } from "./api-client";
+import { useEffect, useState } from "react";
 
 const plannedWorldSections = [
   { title: "Persönlichkeiten", icon: Users },
@@ -33,6 +34,8 @@ export function WorkspaceShell({
   const canManageLocations=a.status==="active"&&["campaign_owner","campaign_gm","campaign_editor"].includes(a.role);
   const worldActive = sections.find((s) => s.id === section)?.group === "SPIELWELT";
   const cmsActive=section==="ortscms";
+  const [profilePreferences,setProfilePreferences]=useState({reducedMotion:false,compactView:false});
+  useEffect(()=>{let active=true;void fetch('/api/profile',{cache:'no-store'}).then(async r=>r.ok?await r.json() as {preferences?:{reducedMotion:boolean;compactView:boolean}}:null).then(p=>{if(active&&p?.preferences)setProfilePreferences(p.preferences);}).catch(()=>{});return ()=>{active=false;};},[a.id]);
   async function logout() {
     try {
       await api("/api/auth/logout","POST",{});
@@ -40,7 +43,7 @@ export function WorkspaceShell({
       window.location.assign("/anmelden");
     } catch { window.alert("Abmeldung fehlgeschlagen. Bitte erneut versuchen."); }
   }
-  return <div className={`player-shell ${worldActive||cmsActive ? "worldShell" : ""}`}>
+  return <div className={`player-shell ${worldActive||cmsActive ? "worldShell" : ""} ${profilePreferences.reducedMotion?'user-reduced-motion':''} ${profilePreferences.compactView?'user-compact-view':''}`}>
     <header className="player-topbar">
       <a href="/" className="brand" aria-label="Chronik von Kleve – Startseite">
         <span className="brand-mark">CVK</span>
@@ -50,10 +53,10 @@ export function WorkspaceShell({
         {a.status === "active" && <MessageCenter key={a.campaignId + a.id} a={a}/>}
         <a href="/" className="workspace-home-link"><Home size={15} /><span>Startseite</span></a>
         {canManageLocations&&!cmsActive&&<a href="/spielbereich?bereich=ortscms" className="workspace-home-link" aria-label="SL-CMS öffnen" title="SL-CMS"><MapPinned size={15} /><span>SL-CMS</span></a>}
-        <span className="player-identity">
+        <a href="/profil" className="player-identity" aria-label="Mein Profil öffnen" title="Mein Profil">
           <span className="player-avatar">{a.name?.slice(0, 1).toUpperCase()}</span>
           <span className="player-identity-copy"><strong>{a.name}</strong><small>{a.gm ? "Spielleitung" : "Spielerbereich"}</small></span>
-        </span>
+        </a>
         <button type="button" className="player-logout" aria-label="Abmelden" onClick={()=>void logout()}><LogOut size={16} /></button>
       </div>
     </header>

@@ -5,7 +5,7 @@ import { hashPassword, verifyPassword } from "@/server/password-hash";
 const COOKIE = "chroniplay_session";
 const TTL = 30 * 24 * 60 * 60 * 1000;
 const enc = new TextEncoder();
-type AuthUserSessionRow = { id: string; email: string; display_name: string | null; email_verified_at: string | null; status: string; session_hash: string; member_id: string };
+type AuthUserSessionRow = { id: string; email: string; display_name: string | null; email_verified_at: string | null; status: string; session_hash: string; session_id: string | null; member_id: string };
 type RateLimitRow = { attempts: number; blocked_until: string | null; window_started_at: string };
 const bytes = (n: number) => crypto.getRandomValues(new Uint8Array(n));
 const b64 = (v: Uint8Array) => btoa(String.fromCharCode(...v)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -31,10 +31,10 @@ export async function createSession(userId: string) {
 export async function currentUser(request: Request) {
   const token = cookieValue(request); if (!token) return null;
   const now = new Date().toISOString();
-  const row = await database().prepare("SELECT u.id,u.email,u.display_name,u.email_verified_at,u.status,s.session_hash,l.member_id FROM auth_sessions s JOIN auth_users u ON u.id=s.user_id JOIN auth_member_links l ON l.auth_user_id=u.id WHERE s.session_hash=? AND s.revoked_at IS NULL AND s.expires_at>? LIMIT 1").bind(await sha(token), now).first<AuthUserSessionRow>();
+  const row = await database().prepare("SELECT u.id,u.email,u.display_name,u.email_verified_at,u.status,s.session_hash,l.member_id,s.session_id FROM auth_sessions s JOIN auth_users u ON u.id=s.user_id JOIN auth_member_links l ON l.auth_user_id=u.id WHERE s.session_hash=? AND s.revoked_at IS NULL AND s.expires_at>? LIMIT 1").bind(await sha(token), now).first<AuthUserSessionRow>();
   if (!row || row.status !== "active" || !row.email_verified_at) return null;
   await database().prepare("UPDATE auth_sessions SET last_seen_at=? WHERE session_hash=?").bind(now, row.session_hash).run();
-  return { id: row.id, memberId: row.member_id, email: row.email, displayName: row.display_name, emailVerifiedAt: row.email_verified_at };
+  return { id: row.id, memberId: row.member_id, email: row.email, displayName: row.display_name, emailVerifiedAt: row.email_verified_at, sessionId: row.session_id };
 }
 export async function currentUserFromContext() {
   const cookieStore = await cookies();
