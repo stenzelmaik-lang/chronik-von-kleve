@@ -1,0 +1,82 @@
+
+  vinext build  (Vite 8.0.13)
+
+[1/5] analyze client references...
+[2K
+transforming...✓ 326 modules transformed.
+rendering chunks...
+✓ built in 998ms
+[2/5] analyze server references...
+[2K
+transforming...✓ 361 modules transformed.
+rendering chunks...
+✓ built in 2.07s
+[3/5] build rsc environment...
+[2K
+transforming...✓ 323 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 1.02s
+[4/5] build client environment...
+[2K
+transforming...✓ 2093 modules transformed.
+rendering chunks...
+computing gzip size...
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.01s
+[5/5] build ssr environment...
+[2K
+transforming...✓ 363 modules transformed.
+rendering chunks...
+computing gzip size...
+✓ built in 1.47s
+[0m
+  Route (app)
+  ┌ ƒ /                       
+  ├ ? /anmelden               
+  ├ λ /api/auth/login         
+  ├ λ /api/auth/logout        
+  ├ λ /api/auth/register      
+  ├ λ /api/auth/session       
+  ├ λ /api/catalog            
+  ├ λ /api/character-companion
+  ├ λ /api/character-detail   
+  ├ λ /api/character-engine   
+  ├ λ /api/character-runtime  
+  ├ λ /api/cms/drafts         
+  ├ λ /api/cms/locations      
+  ├ λ /api/cms/media          
+  ├ λ /api/cms/preview        
+  ├ λ /api/cms/releases       
+  ├ λ /api/cms/transitions    
+  ├ λ /api/command-center     
+  ├ λ /api/dashboard          
+  ├ λ /api/entities           
+  ├ λ /api/export             
+  ├ λ /api/files              
+  ├ λ /api/inventory          
+  ├ λ /api/inventory/profile  
+  ├ λ /api/knowledge          
+  ├ λ /api/locations          
+  ├ λ /api/locations/actions  
+  ├ λ /api/locations/migrate  
+  ├ λ /api/locations/state    
+  ├ λ /api/members            
+  ├ λ /api/records            
+  ├ λ /api/recovery           
+  ├ ƒ /kampagne               
+  ├ ? /profil                 
+  └ ƒ /spielbereich           
+
+  λ API  ƒ Dynamic  ? Unknown
+
+  ? Some routes could not be classified. vinext currently uses static analysis
+    and cannot detect dynamic API usage (headers(), cookies(), etc.) at build time.
+    Automatic classification will be improved in a future release.
+
+  Build complete. Run `vinext start` to start the production server.
+

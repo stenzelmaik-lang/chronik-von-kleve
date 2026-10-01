@@ -2,6 +2,21 @@
 /* eslint-disable @next/next/no-img-element, react-hooks/exhaustive-deps */
 import { useEffect, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
+import type { Actor } from "@/domain/types";
+import { RichTextEditor, RichTextView } from "./rich-text";
+import { CharacterProgression } from "./character-progression";
+import { CharacterLiveVitals } from "./character-live-vitals";
+import studio from "./character-studio.module.css";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   BookOpen,
   CalendarDays,
@@ -22,10 +37,8 @@ import {
   CharacterCompanionNote,
   CharacterDetailProjection,
   CharacterListReadout,
-  Dots,
   RatingGroup,
   attrsGroups,
-  healthLevels,
   skillGroups,
 } from "./character";
 import { Choice, visibilityNames } from "./shared";
@@ -44,6 +57,7 @@ const mediaLabels: Record<string, string> = {
 };
 
 export function CharacterDetail({
+  a,
   entries,
   dataScope,
   activeCharacterId,
@@ -52,6 +66,7 @@ export function CharacterDetail({
   onEdit,
   onRefresh,
 }: {
+  a: Actor;
   entries: Entry[];
   dataScope: string;
   activeCharacterId: string | null;
@@ -60,6 +75,7 @@ export function CharacterDetail({
   onEdit: (e: Entry) => void;
   onRefresh?: () => void;
 }) {
+  const [view, setView] = useState("sheet");
   const [projectionState, setProjection] = useState<CharacterDetailProjection | null>(
     null,
   );
@@ -82,6 +98,9 @@ export function CharacterDetail({
   const [mediaType, setMediaType] = useState("portrait");
   const [mediaVisibility, setMediaVisibility] = useState("private");
   const [companionBusy, setCompanionBusy] = useState(false);
+  const [healthResetOpen, setHealthResetOpen] = useState(false);
+  const [runtimeBusy, setRuntimeBusy] = useState(false);
+  const runtimeLock = useRef(false);
   const portraitInput = useRef<HTMLInputElement>(null);
   const mediaInput = useRef<HTMLInputElement>(null);
   const selected = activeCharacterId;
@@ -98,17 +117,19 @@ export function CharacterDetail({
     }
   }, [activeCharacterId, entries, onActiveCharacterChange]);
 
-  async function reload(force = false) {
+  async function reload(force = false, quiet = false) {
     const characterId = active?.id;
     if (!characterId) return;
     const version = ++loadVersion.current;
     const key = `/api/character-detail?id=${encodeURIComponent(characterId)}`;
     const cached = readPlayerData<CharacterDetailProjection>(dataScope, key);
-    setProjection(cached?.value ?? null);
+    if (!quiet) setProjection(cached?.value ?? null);
     setLoadedCharacterId(characterId);
     setLoadError(null);
-    setLoading(!cached);
-    setRefreshing(!!cached && (force || !cached.fresh));
+    if (!quiet) {
+      setLoading(!cached);
+      setRefreshing(!!cached && (force || !cached.fresh));
+    }
     try {
       const next = await requestPlayerData(
         dataScope,
@@ -120,7 +141,7 @@ export function CharacterDetail({
       setProjection(next);
       setLoadedCharacterId(characterId);
       setLoadError(null);
-      setState("");
+      if (!quiet) setState("");
     } catch (e) {
       if (version !== loadVersion.current) return;
       const issue = describeDataError(e);
@@ -141,6 +162,21 @@ export function CharacterDetail({
     return () => { loadVersion.current += 1; };
   }, [selected, active?.version]);
 
+  useEffect(() => {
+    // Refresh only the selected dossier. Editing and local writes take priority;
+    // the existing version guards still protect concurrent updates.
+    if (!active?.id || roleEdit || noteDraft || companionBusy || runtimeBusy) return;
+    let running=false;
+    const sync=async()=>{
+      if(running||runtimeLock.current||document.visibilityState!=="visible")return;
+      running=true;
+      try { await reload(true,true); } finally { running=false; }
+    };
+    window.addEventListener("focus",sync);
+    const timer=window.setInterval(()=>void sync(),10000);
+    return()=>{window.removeEventListener("focus",sync);window.clearInterval(timer);loadVersion.current+=1;};
+  }, [selected, active?.version, roleEdit, noteDraft, companionBusy, runtimeBusy]);
+
   function invalidateCharacter() {
     if (!active?.id) return;
     invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(active.id)}`);
@@ -151,7 +187,9 @@ export function CharacterDetail({
     field: "blood" | "willpowerTemporary" | "health",
     value: unknown,
   ) {
-    if (!active?.id || !projection || loadedCharacterId !== active.id) return;
+    if (!active?.id || !projection || loadedCharacterId !== active.id || runtimeLock.current) return;
+    runtimeLock.current = true;
+    setRuntimeBusy(true);
     setState("SPEICHERT …");
     try {
       const r = await fetch("/api/character-runtime", {
@@ -170,6 +208,7 @@ export function CharacterDetail({
           setState("KONFLIKT – Serverstand wird geladen.");
           invalidateCharacter();
           await reload(true);
+          setState("KONFLIKT – Der aktuelle Stand ist geladen. Deine Änderung wurde nicht übernommen; bitte erneut prüfen.");
           return;
         }
         if ([401, 403, 404].includes(r.status)) {
@@ -189,7 +228,15 @@ export function CharacterDetail({
         setProjection(null);
         setLoadError(e instanceof Error ? e : new Error(describeDataError(e).detail));
       }
+    } finally {
+      runtimeLock.current = false;
+      setRuntimeBusy(false);
     }
+  }
+
+  async function resetHealth() {
+    setHealthResetOpen(false);
+    await runtime("health", "Gesund");
   }
 
   function beginRoleEdit(which: "story" | "play") {
@@ -315,13 +362,14 @@ export function CharacterDetail({
 
   if (!active)
     return (
-      <section className="panel character-empty">
+      <section className={`panel character-empty ${studio.studio}`}>
         <h2>{entries.length ? "Charakter auswählen" : "Noch kein Charakter"}</h2>
         <p className="muted">
           {entries.length
-            ? "Wähle einen deiner Charaktere aus."
+            ? a.gm ? "Wähle einen für dich freigegebenen Charakter der Kampagne aus." : "Wähle einen deiner Charaktere aus."
             : "Lege deinen ersten Charakter an."}
         </p>
+        <button className="button primary" onClick={onCreate}><Plus size={16}/>Charakter erschaffen</button>
         {entries.length ? (
           <div className="character-picker">
             {entries.map((e) => (
@@ -339,14 +387,10 @@ export function CharacterDetail({
               </button>
             ))}
           </div>
-        ) : (
-          <button className="button primary" onClick={onCreate}>
-            <Plus size={16} /> Charakter erstellen
-          </button>
-        )}
+        ) : null}
       </section>
     );
-  if (loading && !projection)
+  if (!projection && (loading || !loadError || loadedCharacterId !== active.id))
     return (
       <section className="panel">
         <p>Charakterbogen wird geladen …</p>
@@ -372,6 +416,7 @@ export function CharacterDetail({
   const permanent = n(will.permanent);
   const temporary = n(will.temporary);
   const canRuntime = permissions.canChangeRuntimeValues === true;
+  const characterState = String(projection.progression.characterState ?? active.body.characterState ?? "");
   const canCompanion = permissions.canEditCompanion === true;
   const companion = projection.companion || {
     media: [],
@@ -390,7 +435,7 @@ export function CharacterDetail({
   ];
 
   return (
-    <div className="character-detail-page">
+    <div className={`character-detail-page ${studio.studio}`}>
       {refreshing && <p className="muted" role="status">Charakterbogen wird aktualisiert …</p>}
       {loadError && <div role="alert" className="error-box"><strong>{describeDataError(loadError).title}</strong><p>{loadError.message}</p><button className="button" onClick={() => void reload(true)}>Erneut versuchen</button></div>}
       <header className="character-hero">
@@ -410,14 +455,14 @@ export function CharacterDetail({
           <p className="character-motto">
             {String(i.concept || "Keine Charakteraussage hinterlegt.")}
           </p>
-          <dl className="character-identity">
+          <details className={studio.identityFold}><summary>Identität & Hintergrund</summary><dl className="character-identity">
             {identityFields.map(([label, value]) => (
               <div key={label}>
                 <dt>{label}</dt>
                 <dd>{String(value ?? "Nicht angegeben")}</dd>
               </div>
             ))}
-          </dl>
+          </dl></details>
         </div>
         <div className="character-hero-actions">
           {entries.length > 1 && (
@@ -426,6 +471,7 @@ export function CharacterDetail({
               <select
                 aria-label="Aktiver Charakter"
                 value={active.id ?? ""}
+                disabled={runtimeBusy || companionBusy}
                 onChange={(event) => {
                   const id = event.target.value || null;
                   onActiveCharacterChange(id);
@@ -438,11 +484,15 @@ export function CharacterDetail({
           {permissions.canEdit === true && (
             <button
               className="button primary character-edit"
+              disabled={characterState === "confirmed" || characterState === "review"}
+              title={characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : characterState === "review" ? "Der eingereichte Bogen ist während der SL-Prüfung geschützt." : undefined}
               onClick={() => onEdit(active)}
             >
               <Pencil size={16} /> Bogen bearbeiten
             </button>
           )}
+          <details className={studio.heroUtilities}><summary>Weitere Aktionen</summary><div>
+          <button className="button" onClick={onCreate}><Plus size={15}/>Neuer Charakter</button>
           {canCompanion && (
             <label className="button character-upload-trigger">
               <Camera size={16} /> Portrait ändern
@@ -455,10 +505,16 @@ export function CharacterDetail({
               />
             </label>
           )}
+          </div></details>
         </div>
       </header>
+      <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>setView("development")}/>
+      <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+      </nav>
+      {(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
 
-      <div className="character-layout">
+      <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
           <div className="sheet-heading">
             <p className="eyebrow">V20 CHARACTER SHEET</p>
@@ -496,7 +552,7 @@ export function CharacterDetail({
                   disabled
                 />
               ))}
-              <CharacterListReadout label="Freie Fähigkeiten" value={s.customAbilities} />
+              {((Array.isArray(s.customAbilities) && s.customAbilities.length > 0) || (typeof s.customAbilities === "string" && s.customAbilities.trim())) && <CharacterListReadout label="Freie Fähigkeiten (Legacy)" value={s.customAbilities} />}
             </div>
           </section>
           <section className="sheet-block">
@@ -538,114 +594,10 @@ export function CharacterDetail({
           </section>
         </section>
 
-        <aside className="character-runtime">
-          <div className="runtime-heading">
-            <p className="eyebrow">AKTUELLER ZUSTAND</p>
-            <h3>Die heutige Nacht</h3>
-          </div>
-          <section className="runtime-block blood-block">
-            <div className="runtime-label">
-              <span>Blutvorrat</span>
-              <small>Blut pro Runde: {String(blood.perRound ?? "–")}</small>
-            </div>
-            <div className="blood-dots" aria-label={"Blutvorrat: " + current + " von " + max}>
-              {Array.from({ length: max }, (_, index) => (
-                <span className={index < current ? "filled" : ""} key={index} aria-hidden="true">
-                  ●
-                </span>
-              ))}
-            </div>
-            <div className="blood-controls">
-              <button
-                type="button"
-                aria-label="Blut verringern"
-                disabled={!canRuntime || current <= 0}
-                onClick={() => void runtime("blood", current - 1)}
-              >
-                −
-              </button>
-              <strong>
-                {current} / {max}
-              </strong>
-              <button
-                type="button"
-                aria-label="Blut erhöhen"
-                disabled={!canRuntime || current >= max}
-                onClick={() => void runtime("blood", current + 1)}
-              >
-                +
-              </button>
-            </div>
-          </section>
-          <section className="runtime-block">
-            <div className="runtime-label">
-              <span>Willenskraft</span>
-              <small>Permanent und aktuell</small>
-            </div>
-            <div className="willpower-row">
-              <span>Permanent</span>
-              <Dots value={permanent} max={10} disabled label="Willenskraft permanent" />
-            </div>
-            <div className="willpower-row">
-              <span>Aktuell</span>
-              <Dots
-                value={temporary}
-                max={10}
-                disabled={!canRuntime}
-                label="Willenskraft aktuell"
-                onChange={(v) => void runtime("willpowerTemporary", v)}
-              />
-            </div>
-          </section>
-          <section className="runtime-block health-block">
-            <div className="runtime-label">
-              <span>Gesundheit</span>
-              <small>Aktueller Zustand auswählen</small>
-            </div>
-            {healthLevels.map((level) => (
-              <button
-                type="button"
-                key={level.name}
-                disabled={!canRuntime}
-                className={health.current === level.name ? "health-choice active" : "health-choice"}
-                onClick={() => void runtime("health", level.name)}
-              >
-                <span className="health-marker" aria-hidden="true">
-                  {health.current === level.name ? "■" : "□"}
-                </span>
-                <span>{level.name}</span>
-                <small>{level.modifier === "0" ? "" : level.modifier}</small>
-              </button>
-            ))}
-          </section>
-          <section className="runtime-block experience-block">
-            <div className="runtime-label">
-              <span>Erfahrung</span>
-              <small>Fortschritt</small>
-            </div>
-            <div>
-              <strong>{String(projection.progression.freeXp ?? "–")}</strong>
-              <span>Freie XP</span>
-            </div>
-            <div>
-              <strong>{String(projection.progression.totalXp ?? "–")}</strong>
-              <span>Gesamt-XP</span>
-            </div>
-          </section>
-          <p
-            className={
-              state.startsWith("FEHLER") || state.startsWith("KONFLIKT")
-                ? "runtime-status error"
-                : "runtime-status"
-            }
-            aria-live="polite"
-          >
-            {state || "GESPEICHERT"}
-          </p>
-        </aside>
+
       </div>
 
-      <section className="character-companion">
+      <section className="character-companion" hidden={view!=="story"}>
         <div className="companion-column companion-column-left">
           <article className="companion-panel companion-story">
             <header>
@@ -664,11 +616,7 @@ export function CharacterDetail({
             </header>
             {roleEdit === "story" ? (
               <div className="companion-edit">
-                <textarea
-                  rows={9}
-                  value={storyDraft}
-                  onChange={(e) => setStoryDraft(e.target.value)}
-                />
+                <RichTextEditor placeholder="Erzähle die Vergangenheit deiner Figur …" label="Hintergrundgeschichte" value={storyDraft} onChange={setStoryDraft} maximumPlainLength={20000}/>
                 <div className="companion-actions">
                   <button className="button primary" disabled={companionBusy} onClick={() => void saveRoleplay()}>
                     <Save size={15} /> Speichern
@@ -679,9 +627,7 @@ export function CharacterDetail({
                 </div>
               </div>
             ) : (
-              <p className="preserve-lines">
-                {text(projection.roleplay.backgroundStory) || "Noch keine Hintergrundgeschichte hinterlegt."}
-              </p>
+              <RichTextView value={text(projection.roleplay.backgroundStory) || "Noch keine Hintergrundgeschichte hinterlegt."}/>
             )}
           </article>
 
@@ -702,11 +648,7 @@ export function CharacterDetail({
             </header>
             {roleEdit === "play" ? (
               <div className="companion-edit">
-                <textarea
-                  rows={9}
-                  value={playDraft}
-                  onChange={(e) => setPlayDraft(e.target.value)}
-                />
+                <RichTextEditor placeholder="Stimme, Haltung und Ziele …" label="Spielhilfe" value={playDraft} onChange={setPlayDraft} maximumPlainLength={20000}/>
                 <div className="companion-actions">
                   <button className="button primary" disabled={companionBusy} onClick={() => void saveRoleplay()}>
                     <Save size={15} /> Speichern
@@ -717,9 +659,7 @@ export function CharacterDetail({
                 </div>
               </div>
             ) : (
-              <p className="preserve-lines">
-                {text(projection.roleplay.playGuide) || "Noch keine Spielhilfe hinterlegt."}
-              </p>
+              <RichTextView value={text(projection.roleplay.playGuide) || "Noch keine Spielhilfe hinterlegt."}/>
             )}
           </article>
 
@@ -756,11 +696,7 @@ export function CharacterDetail({
                 />
                 <label className="field wide">
                   <span>Notiz</span>
-                  <textarea
-                    rows={6}
-                    value={noteDraft.text}
-                    onChange={(e) => setNoteDraft({ ...noteDraft, text: e.target.value })}
-                  />
+                  <RichTextEditor placeholder="Deine persönliche Aufzeichnung …" label="Persönliches Dokument" value={noteDraft.text} onChange={value=>setNoteDraft({...noteDraft,text:value})} maximumPlainLength={20000}/>
                 </label>
                 <div className="companion-actions wide">
                   <button className="button primary" disabled={companionBusy || !noteDraft.text.trim()} onClick={() => void saveNote()}>
@@ -779,7 +715,7 @@ export function CharacterDetail({
                     <div>
                       <span className="badge">{visibilityNames[note.visibility] || note.visibility}</span>
                       <h4>{note.title}</h4>
-                      <p className="preserve-lines">{note.text}</p>
+                      <RichTextView value={note.text}/>
                       <small>Geändert {new Date(note.updatedAt).toLocaleDateString("de-DE")}</small>
                     </div>
                     {note.canEdit && (
@@ -906,6 +842,22 @@ export function CharacterDetail({
           </article>
         </div>
       </section>
+      <AlertDialog open={healthResetOpen} onOpenChange={setHealthResetOpen}>
+        <AlertDialogContent className={studio.editor}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Gesundheit vollständig zurücksetzen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nur der aktuelle vorübergehende Gesundheitszustand wird auf „Gesund“ gesetzt. Permanente Charakterwerte, Blut, Willenskraft und andere Zustände bleiben unverändert.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={(event) => { event.preventDefault(); void resetHealth(); }}>
+              Auf Gesund setzen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

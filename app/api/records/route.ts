@@ -15,8 +15,12 @@ import {
   canEdit,
 } from "@/server/access";
 import { locationReferenceIsVisible } from "@/server/location-repository";
+import { validateCharacterClanSelection } from "@/domain/clan-config";
+import { validateCharacterDraft, withCreationBaseValues } from "@/domain/character-engine";
 export const dynamic = "force-dynamic";
-const listItem = z.object({ name: z.string().trim().min(1).max(120), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional() });
+// Rule markers are accepted only for the GM-owned campaign character route;
+// POST below rejects marked character payloads before persisting for anyone else.
+const listItem = z.object({ name: z.string().trim().min(1, "Bitte gib für jeden Eintrag einen Namen ein oder lösche die leere Zeile.").max(120, "Der Eintragsname darf höchstens 120 Zeichen enthalten."), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional(), source: z.string().max(40).optional(), slApproved: z.boolean().optional(), approved: z.boolean().optional() });
 const bodySchema = z
   .object({
     text: z.string().max(90000).optional(),
@@ -59,6 +63,17 @@ const schema = z.object({
   body: bodySchema,
   gmBody: z.string().max(100000).optional(),
 });
+
+function legacyBody(raw: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
 export async function GET(req: Request) {
   try {
     const a = await actor();
@@ -79,6 +94,7 @@ export async function GET(req: Request) {
     const entities = await loadEntitiesForIds(db, a.campaignId, rows.results.map((row) => row.id));
     const index = new Map(entities.map((e) => [e.id, e]));
     const records = rows.results.flatMap((r) => {
+      if (legacyBody(r.body).context === "sl-message") return [];
       const entity = index.get(r.id);
       if (!entity) return [];
       if (a.gm && !canRead(a, r)) return [];
@@ -134,6 +150,50 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Du darfst diesen Eintrag nicht ändern.");
     if (old && old.kind !== d.kind)
       throw new HttpError(400, "Der Bereich darf nicht geändert werden.");
+    if (d.body.context === "sl-message" || (old && legacyBody(old.body).context === "sl-message"))
+      throw new HttpError(403, "Private Nachrichten werden ausschließlich über den Nachrichtenweg verwaltet.");
+    if (d.kind === "charaktere") {
+      const previous = old ? legacyBody(old.body) : undefined;
+      Object.assign(d.body, withCreationBaseValues(d.body));
+      if (previous?.characterState === "review" && ["attributes","skills","disciplines","backgrounds","virtues","humanity","willpower","clan","generation","merits","flaws","creationAllocations","freebiePurchases"].some(key=>JSON.stringify(previous[key]??null)!==JSON.stringify(d.body[key]??null)))
+        throw new HttpError(409,"Der eingereichte Bogen ist geschützt. Die Spielleitung muss ihn zuerst zur Überarbeitung zurückgeben.");
+      const protectedKeys = ["xpLedger", "creationSnapshot", "engineOperationId", "characterRequests"];
+      for (const key of protectedKeys) {
+        if (old ? JSON.stringify(previous?.[key] ?? (key === "xpLedger" ? [] : null)) !== JSON.stringify(d.body[key] ?? (key === "xpLedger" ? [] : null)) : d.body[key] !== undefined && !(key === "xpLedger" && Array.isArray(d.body[key]) && d.body[key].length === 0))
+          throw new HttpError(403, "XP, Bestätigung und Anträge dürfen nur über die zentrale Regel-Engine verändert werden.");
+      }
+      if (old ? d.body.characterState !== previous?.characterState : d.body.characterState && d.body.characterState !== "draft")
+        throw new HttpError(403, "Der Charakterstatus wird ausschließlich über den Prüfungsablauf geändert.");
+      if (!a.gm) for (const key of ["disciplines", "merits", "flaws"]) {
+        const before = Array.isArray(previous?.[key]) ? previous![key] as Record<string, unknown>[] : [];
+        const after = Array.isArray(d.body[key]) ? d.body[key] as Record<string, unknown>[] : [];
+        for (const item of after) {
+          const existing = before.find(row => row.name === item.name);
+          if (item.approved === true || item.slApproved === true) {
+            if (!existing || item.approved !== existing.approved || item.slApproved !== existing.slApproved || item.source !== existing.source || item.cost !== existing.cost)
+              throw new HttpError(403, "SL-Freigaben und bestätigte Kosten sind geschützt.");
+          } else if (d.body.engineVersion && key !== "disciplines" && item.approved !== false)
+            throw new HttpError(403, "Neue Vorzüge und Schwächen benötigen eine SL-Kostenprüfung.");
+        }
+      }
+      const clanSelection = validateCharacterClanSelection({
+        campaignId: a.campaignId,
+        clan: d.body.clan,
+        disciplines: d.body.disciplines,
+        previousClan: previous?.clan,
+        previousDisciplines: previous?.disciplines,
+        allowPending: d.body.characterState === "draft",
+      });
+      if (!clanSelection.ok) throw new HttpError(400, clanSelection.error);
+      const engine = validateCharacterDraft(a.campaignId, d.body, previous);
+      if (!engine.ok) throw new HttpError(400, engine.error);
+    }
+    if (d.kind === "sitzungen" && d.body.slSecret !== undefined) {
+      const secret = z.object({activePlaceId:z.string().trim().min(1).max(160).nullable().optional()}).passthrough().safeParse(d.body.slSecret);
+      if (!secret.success) throw new HttpError(400,"Ungültiger Regie-Schauplatz.");
+      if (secret.data.activePlaceId && !(await locationReferenceIsVisible(db,a,secret.data.activePlaceId)))
+        throw new HttpError(404,"Schauplatz nicht verfügbar.");
+    }
     const body = JSON.stringify(d.body);
     if (d.kind === "notizen" && typeof d.body.locationId === "string") {
       if (!(await locationReferenceIsVisible(db, a, d.body.locationId)))
@@ -167,7 +227,7 @@ export async function POST(req: Request) {
     } else {
       await db
         .prepare(
-          "INSERT INTO records (id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO records (id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at,campaign_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(
           id,
@@ -179,6 +239,7 @@ export async function POST(req: Request) {
           a.gm ? d.gmBody || "" : "",
           now,
           now,
+          a.campaignId,
         )
         .run();
     }
@@ -201,6 +262,7 @@ export async function DELETE(req: Request) {
       throw new HttpError(404, "Eintrag nicht gefunden.");
     if (!canEdit(a, r))
       throw new HttpError(403, "Du darfst diesen Eintrag nicht löschen.");
+    if (legacyBody(r.body).context === "sl-message") throw new HttpError(403, "Das Nachrichtenarchiv bleibt erhalten.");
     const result = await db
       .prepare("DELETE FROM records WHERE id=? AND version=?")
       .bind(r.id, Number(d.version))
@@ -215,6 +277,7 @@ export async function DELETE(req: Request) {
     return failure(e, req);
   }
 }
+
 
 
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
+import { isRichTextWithinLimit } from "@/domain/location-rich-text";
 import {
   actor,
   canEdit,
@@ -20,8 +21,8 @@ const schema = z.discriminatedUnion("action", [
     action: z.literal("roleplay"),
     id,
     version: z.number().int().positive(),
-    backgroundStory: z.string().max(30000),
-    playGuide: z.string().max(30000),
+    backgroundStory: z.string().max(90000),
+    playGuide: z.string().max(90000),
   }),
   z.object({
     action: z.literal("media"),
@@ -34,7 +35,7 @@ const schema = z.discriminatedUnion("action", [
     action: z.literal("note.create"),
     characterId: id,
     title: z.string().trim().max(120).optional(),
-    text: z.string().trim().min(1).max(30000),
+    text: z.string().trim().min(1).max(90000),
     visibility: visibility.default("private"),
   }),
   z.object({
@@ -43,7 +44,7 @@ const schema = z.discriminatedUnion("action", [
     noteId: id,
     version: z.number().int().positive(),
     title: z.string().trim().max(120).optional(),
-    text: z.string().trim().min(1).max(30000),
+    text: z.string().trim().min(1).max(90000),
     visibility: visibility.default("private"),
   }),
   z.object({
@@ -146,6 +147,10 @@ export async function PATCH(req: Request) {
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const db = database();
     const data = parsed.data;
+    if (data.action === "roleplay" && (!isRichTextWithinLimit(data.backgroundStory,30000) || !isRichTextWithinLimit(data.playGuide,30000)))
+      throw new HttpError(400,"Der formatierte Text ist zu lang.");
+    if ((data.action === "note.create" || data.action === "note.update") && !isRichTextWithinLimit(data.text,30000))
+      throw new HttpError(400,"Das Dokument ist zu lang.");
     if (data.action === "roleplay") {
       const { character, body } = await loadCharacter(db, a.id, a.campaignId, data.id);
       if (!canEdit(a, character)) throw new HttpError(403, "Charakter nicht editierbar.");
@@ -191,7 +196,7 @@ export async function PATCH(req: Request) {
       const title = data.title?.trim() || "Charakternotiz";
       await db
         .prepare(
-          "INSERT INTO records(id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO records(id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at,campaign_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(
           noteId,
@@ -209,6 +214,7 @@ export async function PATCH(req: Request) {
           "",
           now,
           now,
+          a.campaignId,
         )
         .run();
       return json({ id: noteId, version: 1 });

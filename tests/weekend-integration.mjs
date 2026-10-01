@@ -1,0 +1,122 @@
+import {randomUUID} from 'node:crypto';
+import {engineFixture} from './fixtures/engine-character.mjs';
+export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
+ const minimal=await req('/api/records','b','POST',{kind:'charaktere',title:'WEEKEND EMPTY DRAFT',visibility:'private',body:{engineVersion:1,characterState:'draft',clan:'Nosferatu',creationAllocations:structuredClone(engineFixture.creationAllocations),freebiePurchases:[],attributes:{},virtues:{},disciplines:[{name:'Animalismus',value:0},{name:'Verdunkelung',value:0},{name:'Potenz',value:0}]}});
+ check(minimal.s===200,'WEEKEND incomplete creation persists without opening every step: '+(minimal.d.error||'saved'));
+ const minimalRecord=(await req('/api/records?kind=charaktere','b')).d.records.find(r=>r.id===minimal.d.id);
+ check(minimalRecord.body.virtues.Mut===1&&minimalRecord.body.virtues.Gewissen===1&&minimalRecord.body.attributes['Körperkraft']===1&&minimalRecord.body.attributes.Erscheinungsbild===0,'WEEKEND database retains free starting dots and Nosferatu lock');
+ check(minimalRecord.body.humanity===2&&minimalRecord.body.willpower===1,'WEEKEND empty draft persists consistent automatic derived values');
+ check((await req('/api/records','b','POST',{kind:'charaktere',title:'Malformed Freebie command',visibility:'private',body:{...engineFixture,freebiePurchases:[null]}})).s===400,'WEEKEND malformed Freebie purchase returns validation error instead of server failure');
+ const created=await req('/api/records','a','POST',{kind:'charaktere',title:'WEEKEND TEST_DATA',visibility:'sl',body:structuredClone(engineFixture)});
+ check(created.s===200,'WEEKEND new character uses the existing record and identity');const id=created.d.id;
+ const get=async(who='a')=>req('/api/character-engine?id='+id,who);
+ const command=async(who,action,extra={})=>{const view=await get(who);return req('/api/character-engine',who,'POST',{id,version:view.d.version,action,...extra});};
+ const firstView=await get();
+ check(firstView.d.readiness.ready===true&&firstView.d.ownerId==='sprint1-a','LIVE ready-to-review projection follows central validation and authorized owner');
+ const minimalView=await req('/api/character-engine?id='+minimal.d.id,'b');
+ check(minimalView.d.readiness.ready===false&&minimalView.d.readiness.missing.some(m=>m.label==='Körperlich'&&m.remaining===7),'LIVE incomplete draft reports precise missing points');
+ check((await get('b')).s===404,'WEEKEND foreign player cannot read engine');
+ check((await req('/api/character-detail?id='+id,'b')).s===404,'WEEKEND foreign player cannot read shared character dossier');
+ check((await req('/api/entities?id='+id,'b')).s===404,'WEEKEND generic entity knowledge does not bypass character ownership');
+ check((await command('a','xp_grant',{amount:100,reason:'forged grant'})).s===403,'WEEKEND XP grants are SL-only');
+ check((await command('a','request_change',{request:{category:'foreignDiscipline',target:'Potenz',reason:'Synthetic exception for cost test'}})).s===200,'WEEKEND owner submits exception request without granting themselves');
+ let queue=await req('/api/command-center','gm');
+ check(queue.d.characters.find(c=>c.id===id)?.pendingRequests===1,'LIVE fresh record request appears in SL attention queue');
+ check(!queue.d.characters.some(c=>c.id===minimal.d.id),'LIVE private foreign draft never appears in SL roster or queue');
+ check(!JSON.stringify(queue.d.characters).includes('Synthetic exception for cost test'),'LIVE roster omits confidential request content');
+ check((await req('/api/command-center','a')).s===403,'LIVE player cannot enumerate SL character queue');
+ let view=await get('gm');const requestId=view.d.requests[0].id;
+ check((await command('a','resolve_request',{requestId,approved:true,reason:'forged approval'})).s===403,'WEEKEND player cannot approve request');
+ check((await command('gm','resolve_request',{requestId,approved:true,reason:'Synthetic documented clan exception'})).s===200,'WEEKEND SL approves foreign discipline as zero-rated creation choice');
+ let record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ check((await req('/api/records','a','POST',{id,version:record.version,kind:'charaktere',title:record.title,visibility:'sl',body:{...record.body,disciplines:record.body.disciplines.map(d=>d.name==='Potenz'?{...d,value:1}:d)}})).s===200,'WEEKEND owner can spend Freebies on an unchanged SL-approved foreign discipline');
+ check((await command('a','review')).s===200,'WEEKEND creation with 7 Freebie discipline cost submits successfully');
+ queue=await req('/api/command-center','gm');
+ check(queue.d.characters.find(c=>c.id===id)?.state==='review'&&queue.d.characters.find(c=>c.id===id)?.pendingRequests===0,'LIVE queue follows submitted record state even when entity copy is stale');
+ check(!JSON.stringify((await req('/api/command-center?view=player','gm')).d).includes('pendingRequests'),'LIVE group preview has no character review metadata');
+ check((await command('gm','confirm')).s===200,'WEEKEND SL confirms the complete existing character');
+ check((await req('/api/command-center','gm')).d.characters.find(c=>c.id===id)?.state==='confirmed','LIVE queue removes confirmed review immediately');
+ check((await req('/api/character-detail?id='+id,'a')).d.progression.characterState==='confirmed','LIVE owner dossier follows the confirmed server state, not the stale roster body');
+ check((await command('gm','xp_grant',{amount:30,reason:'Synthetic session reward'})).s===200,'WEEKEND documented XP grant persists');
+ view=await get();const expected=view.d.version;
+ const attempts=await Promise.all([1,2].map(()=>req('/api/character-engine','a','POST',{id,version:expected,action:'xp_purchase',purchase:{category:'discipline',target:'Potenz',from:1,to:2,inClan:true}})));
+ check(attempts.filter(r=>r.s===200).length===1&&attempts.filter(r=>r.s===409).length===1,'WEEKEND simultaneous XP spend has exactly one winner and one 409');
+ view=await get();check(view.d.xp.available===23&&view.d.ledger.filter(e=>e.kind==='spend').length===1,'WEEKEND forged inClan flag is ignored; foreign discipline costs seven XP exactly once');
+ check(view.d.budget.freebies.remaining===8,'WEEKEND later XP does not reinterpret creation Freebies');
+ check((await command('gm','gm_notes',{text:'PRIVATE_WEEKEND_SL_SECRET'})).s===200,'WEEKEND confidential SL character note persists');
+ check(!(JSON.stringify((await get()).d).includes('PRIVATE_WEEKEND_SL_SECRET'))&&!JSON.stringify((await req('/api/character-detail?id='+id,'a')).d).includes('PRIVATE_WEEKEND_SL_SECRET'),'WEEKEND owner projection never receives confidential SL note');
+ check(JSON.stringify((await get('gm')).d).includes('PRIVATE_WEEKEND_SL_SECRET'),'WEEKEND authorized SL can retrieve own confidential context');
+ check(!JSON.stringify((await req('/api/command-center','gm')).d.characters).includes('PRIVATE_WEEKEND_SL_SECRET'),'LIVE attention queue does not contain GM notes');
+ check((await command('gm','correction',{field:'concept',value:'Synthetic corrected concept',reason:'Documented QA correction'})).s===200,'WEEKEND redactional correction is documented in central command path');
+ check((await get('gm')).d.history.some(e=>e.action==='correction'&&e.reason==='Documented QA correction'),'WEEKEND correction audit is retrievable by authorized SL');
+ check((await command('a','request_change',{request:{category:'identity',target:'demeanor',value:'Visionär',reason:'Synthetic requested demeanor'}})).s===200,'WEEKEND confirmed owner can request an identity change');
+ view=await get('gm');const identityId=view.d.requests.find(r=>r.status==='pending').id;
+ check((await command('gm','resolve_request',{requestId:identityId,approved:false,reason:'Synthetic rejection for QA'})).s===200,'WEEKEND SL can reject a request without changing value');
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ check(record.body.demeanor==='Einzelgänger','WEEKEND rejected request leaves character value unchanged');
+ const concurrent=await Promise.all([
+  req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'blood',value:7}),
+  req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'willpowerTemporary',value:2})
+ ]);
+ check(concurrent.filter(r=>r.s===200).length===1&&concurrent.filter(r=>r.s===409).length===1,'LIVE simultaneous actions on the same character cannot silently overwrite');
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ const other=await req('/api/records','b','POST',{kind:'charaktere',title:'LIVE SECOND SYNTHETIC PLAYER',visibility:'sl',body:structuredClone(engineFixture)});
+ const parallel=await Promise.all([
+  req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'blood',value:8}),
+  req('/api/character-runtime','b','PATCH',{id:other.d.id,version:1,field:'blood',value:5})
+ ]);
+ check(parallel.every(r=>r.s===200),'LIVE independent simultaneous player actions both succeed');
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ const permanentBefore=JSON.stringify(record.body.attributes);
+ check((await req('/api/character-runtime','a','PATCH',{id,version:record.version,field:'blood',value:6})).s===200,'WEEKEND runtime stays editable after confirmation');
+ const rich='cvk-rich-v1:'+JSON.stringify({version:1,blocks:[{type:'heading2',children:[{text:'Synthetic history'}]},{type:'paragraph',children:[{text:'Private formatted story',bold:true}]}]});
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ check((await req('/api/character-companion','a','PATCH',{action:'roleplay',id,version:record.version,backgroundStory:rich,playGuide:'Synthetic guide'})).s===200,'WEEKEND formatted background uses existing protected companion write');
+ record=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===id);
+ check(JSON.stringify(record.body.attributes)===permanentBefore&&record.body.text===rich,'WEEKEND narrative and runtime writes preserve permanent values and ledger');
+ check((await req('/api/character-companion','b','PATCH',{action:'roleplay',id,version:record.version,backgroundStory:'forged',playGuide:''})).s===403,'WEEKEND foreign player cannot modify character document');
+ const send={clientRequestId:randomUUID(),recipients:['sprint1-a'],title:'PRIVATE_WEEKEND_MESSAGE',text:'Recipient A alone can see this text.'};
+ check((await req('/api/messages','a','POST',send)).s===403,'WEEKEND only campaign SL can send personal messages');
+ check((await req('/api/messages',null)).s===401,'WEEKEND anonymous inbox denied');
+ check((await req('/api/messages','blockedPlayer')).s===403,'WEEKEND blocked inbox denied');
+ check((await req('/api/messages','otherCampaign')).s===403,'WEEKEND foreign campaign cannot enter message API');
+ for(const recipient of ['sprint1-other-campaign','sprint1-blocked-player','nobody']) check((await req('/api/messages','gm','POST',{...send,clientRequestId:randomUUID(),recipients:[recipient]})).s===403,'WEEKEND cross-campaign, blocked or nonexistent recipient denied: '+recipient);
+ const sent=await req('/api/messages','gm','POST',send);check(sent.s===200&&sent.d.sent===1,'WEEKEND message persists in existing isolated database');const messageId=sent.d.ids[0];
+ check((await req('/api/messages','gm','POST',send)).d.ids[0]===messageId,'WEEKEND retry does not duplicate message');
+ check((await req('/api/messages','gm','POST',{...send,text:'Changed retry'})).s===409,'WEEKEND changed retry body is rejected');
+ const competingId=randomUUID();
+ const competing=await Promise.all([
+  req('/api/messages','gm','POST',{...send,clientRequestId:competingId,title:'RACE_A',recipients:['sprint1-a']}),
+  req('/api/messages','gm','POST',{...send,clientRequestId:competingId,title:'RACE_B',recipients:['sprint1-b']})
+ ]);
+ check(competing.filter(r=>r.s===200).length===1&&competing.filter(r=>r.s===409).length===1,'WEEKEND concurrent changed message command has one winner and one conflict');
+ const sendArchive=(await req('/api/messages?sent=1','gm')).d.messages.filter(m=>m.title==='RACE_A'||m.title==='RACE_B');
+ check(sendArchive.length===1,'WEEKEND rejected competing send cannot insert another private recipient copy');
+ check((await req('/api/messages','a')).d.messages.some(m=>m.id===messageId)&&(await req('/api/messages','a')).d.unread>0,'WEEKEND offline inbox holds unread message');
+ check(!(await req('/api/messages','b')).d.messages.some(m=>m.id===messageId),'WEEKEND other player inbox excludes private message metadata');
+ check((await req('/api/messages?id='+messageId,'b')).s===404,'WEEKEND guessed message ID cannot be read');
+ check((await req('/api/messages','b','PATCH',{id:messageId})).s===404,'WEEKEND guessed message ID cannot be acknowledged');
+ check((await req('/api/messages?id='+messageId,'a')).d.messages[0].text===send.text,'WEEKEND recipient reopens archived content');
+ check((await req('/api/messages','a','PATCH',{id:messageId})).s===200&&(await req('/api/messages?id='+messageId,'a')).d.messages[0].readAt,'WEEKEND read acknowledgement persists');
+ check((await req('/api/messages','a','PATCH',{id:messageId})).s===200,'WEEKEND repeat read is idempotent');
+ check((await req('/api/messages?sent=1','gm')).d.messages.some(m=>m.id===messageId),'WEEKEND sender has a sent archive');
+ check((await req('/api/messages?sent=1','a')).s===403,'WEEKEND player cannot read sender archive');
+ check((await req('/api/messages?recipients=1','a')).s===403,'WEEKEND player cannot enumerate campaign recipients');
+ localSql("UPDATE campaign_memberships SET role='campaign_gm' WHERE campaign_id='chronik-von-kleve' AND user_id='sprint1-b'");
+ check((await req('/api/messages?id='+messageId,'b')).s===404,'WEEKEND another SL cannot read a different sender private correspondence');
+ check(!JSON.stringify((await req('/api/export?scope=campaign','b')).d.records).includes('PRIVATE_WEEKEND_MESSAGE'),'WEEKEND campaign export cannot bypass message sender and recipient isolation');
+ check(JSON.stringify((await req('/api/export?scope=campaign','gm')).d.records).includes('PRIVATE_WEEKEND_MESSAGE'),'WEEKEND sender retains their own messages in authorized export');
+ localSql("UPDATE campaign_memberships SET role='player' WHERE campaign_id='chronik-von-kleve' AND user_id='sprint1-b'");
+ await req('/api/knowledge','gm','POST',{entityId:messageId,audience:'group',state:'DISCOVERED'});
+ check((await req('/api/entities?id='+messageId,'b')).s===404,'WEEKEND group grant cannot override personal message privacy');
+ check(!JSON.stringify((await req('/api/records?kind=notizen','b')).d).includes('PRIVATE_WEEKEND_MESSAGE'),'WEEKEND generic notes never list others messages');
+ check((await req('/api/records','a','POST',{id:messageId,version:2,kind:'notizen',title:'re-share',visibility:'group',body:{text:'forged'}})).s===403,'WEEKEND recipient cannot re-share message through generic record API');
+ check((await req('/api/records','a','DELETE',{id:messageId,version:2})).s===403,'WEEKEND generic delete cannot destroy message archive');
+ check((await req('/api/messages','gm','POST',{...send,clientRequestId:randomUUID(),recipients:['sprint1-a','sprint1-b'],title:'SYNTHETIC_MULTI'})).d.sent===2,'WEEKEND multiple selected recipients receive separate private copies atomically');
+ check((await req('/api/messages','gm','POST',{...send,clientRequestId:randomUUID(),unknown:'bad'})).s===400,'WEEKEND message contract rejects unknown fields');
+ check((await req('/api/messages','gm','POST',{...send,clientRequestId:randomUUID()},{origin:'https://foreign.invalid'})).s===403,'WEEKEND cross-origin message write denied');
+ // Add enough archived copies to prove older saved messages stay reachable.
+ localSql(Array.from({length:52},(_,n)=>`INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,version,created_at,updated_at) VALUES(${sqlQuote('weekend-archive-'+n)},'chronik-von-kleve','sprint1-a','notizen','private','Synthetic older letter',${sqlQuote(JSON.stringify({context:'sl-message',senderId:'sprint1-gm',senderName:'Test GM',text:'SYNTHETIC_ARCHIVE',readAt:now}))},'',1,${sqlQuote(now)},${sqlQuote(now)});`).join('\n'));
+ const page=(await req('/api/messages','a')).d;check(page.messages.length===50&&page.next,'WEEKEND archive pagination does not discard older letters');
+ check((await req('/api/messages?before='+encodeURIComponent(page.next),'a')).d.messages.length>0,'WEEKEND older archive page can be reopened');
+}
