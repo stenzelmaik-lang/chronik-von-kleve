@@ -2,6 +2,7 @@ import { actor, database, failure, gmOnly, json } from '@/server/access';
 import { loadEntities, projectEntity, type GrantRow } from '@/server/entities';
 import { commandHandouts } from '@/domain/command-center';
 import { commandCharacterSummary } from '@/domain/character-live';
+import { commandReferences, listStories, listMoments } from '@/server/command-workspace';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
@@ -32,8 +33,11 @@ export async function GET(req: Request) {
       });
       return json({sessions,handouts});
     }
+    const [references, stories, moments] = await Promise.all([commandReferences(db, a), listStories(db, a), listMoments(db, a)]);
     return json({
       campaignId:a.campaignId,
+      references, stories, moments,
+      sessions:entities.filter(e=>e.type==='SESSION').map(e=>({id:e.id,kind:'sitzungen',title:e.title,visibility:e.visibility,body:e.content,gmBody:e.gmBody,version:e.version})),
       members:members.results,
       characters:readableCharacters.results.flatMap(row=>{
         const entity=entities.find(e=>e.id===row.id&&e.type==='CHARACTER'&&e.canonStatus!=='GM_SECRET'&&e.content.recoveryOnly!==true);

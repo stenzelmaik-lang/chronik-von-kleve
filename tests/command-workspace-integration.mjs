@@ -1,0 +1,81 @@
+import { randomUUID } from 'node:crypto';
+import { defaultWorkspace, emptyStory } from '../domain/command-workspace.ts';
+
+export async function commandWorkspaceIntegration({ req, check, localSql, sqlQuote, session, privateCharacterId }) {
+  const prefix = '/api/command-center';
+  for (const who of [undefined, 'a', 'b', 'editor', 'blockedGm', 'pendingGm', 'otherCampaign', 'platformOnly']) for (const path of ['workspace', 'story', 'moments']) {
+    check([401, 403].includes((await req(`${prefix}/${path}`, who)).s), `CC2 ${path} read denies ${who || 'anonymous'}`);
+    check([401, 403].includes((await req(`${prefix}/${path}`, who, 'POST', {})).s), `CC2 ${path} write denies ${who || 'anonymous'}`);
+  }
+  const base = emptyStory(); base.title = 'CC2_SYNTHETIC_SECRET'; base.sections.secrets = 'CC2_PRIVATE_CONTENT';
+  base.possibilities.push({ id: randomUUID(), title: 'CC2_PREPARED_ONLY', text: 'Not yet happened', status: 'open' });
+  base.references = ['place.electric-taberna'];
+  const requestId = randomUUID();
+  const created = await req(prefix + '/story', 'gm', 'POST', { action: 'create', clientRequestId: requestId, document: base });
+  check(created.s === 201 && created.d.story.version === 1, 'CC2 creates a private plot dossier through existing Entity storage');
+  const id = created.d.story.id, initial = created.d.story;
+  const repeated = await req(prefix + '/story', 'gm', 'POST', { action: 'create', clientRequestId: requestId, document: base });
+  check(repeated.s === 201 && repeated.d.story.id === id && repeated.d.story.version === 1, 'CC2 create retries are idempotent');
+  const initialHistory = await req(`${prefix}/story?id=${id}&history=1`, 'gm');
+  check(initialHistory.d.history.length === 1, 'CC2 repeated create does not duplicate audit history');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'create', clientRequestId: requestId, document: { ...base, title: 'Different retry' } })).s === 409, 'CC2 idempotency key rejects a different document');
+  const edit = { ...base, title: 'CC2_SYNTHETIC_UPDATED', sections: { ...base.sections, core: 'New core' } };
+  const pair = await Promise.all(['first', 'second'].map(text => req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 1, document: { ...edit, sections: { ...edit.sections, core: text } } })));
+  check(pair.map(r => r.s).sort().join(',') === '200,409', 'CC2 parallel story writes with the same revision have exactly one winner');
+  const saved = await req(`${prefix}/story?id=${id}&history=1`, 'gm');
+  check(saved.d.story.version === 2 && saved.d.history.length === 2, 'CC2 failed CAS writes cannot append a history snapshot');
+  check(saved.d.story.possibilities[0].status === 'open', 'CC2 editing the story does not turn preparation into actual events');
+  const restored = await req(prefix + '/story', 'gm', 'POST', { action: 'restore', id, version: 2, historyId: initialHistory.d.history[0].id });
+  check(restored.s === 200 && restored.d.story.version === 3 && restored.d.story.title === initial.title, 'CC2 restore creates a new revision instead of destroying history');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'restore', id, version: 2, historyId: initialHistory.d.history[0].id })).s === 409, 'CC2 stale restoration is rejected');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, references: [privateCharacterId] } })).s === 404, 'CC2 private foreign character cannot enter a story reference');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, references: ['recovery.synthetic-secret'] } })).s === 404, 'CC2 recovered secret sources cannot enter ordinary plot tools');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, visibility: 'group' } })).s === 400, 'CC2 rejects accidental publication flags');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: base }, { Origin: 'https://evil.invalid' })).s === 403, 'CC2 story writes reject cross-site commands');
+  for (const who of ['a', 'b']) check((await req('/api/entities?id=' + id, who)).s === 404, `CC2 story Entity is never visible to Player ${who}`);
+  check((await req('/api/knowledge', 'gm', 'POST', { entityId: id, audience: 'group', state: 'DISCOVERED' })).s === 400, 'CC2 normal grants cannot publish GM_SECRET plot dossiers');
+  localSql(`INSERT INTO knowledge(id,campaign_id,entity_id,audience,subject_id,state,granted_by,created_at,updated_at) VALUES(${sqlQuote(randomUUID())},'chronik-von-kleve',${sqlQuote(id)},'group','chronik-von-kleve','DISCOVERED','sprint1-gm','now','now')`);
+  check((await req('/api/entities?id=' + id, 'a')).s === 404, 'CC2 GM_SECRET remains private even if a normal knowledge grant exists');
+  for (const path of ['/api/entities', prefix + '?view=player', '/api/records?kind=sitzungen']) {
+    const result = await req(path, path.includes('view=player') ? 'gm' : 'a');
+    check(!JSON.stringify(result.d).includes('CC2_PRIVATE_CONTENT') && !JSON.stringify(result.d).includes('CC2_SYNTHETIC_SECRET'), 'CC2 no plot contents or metadata in ' + path);
+  }
+  const layout = defaultWorkspace('live'); layout.focus.sessionId = session.id; layout.focus.storyId = id;
+  const before = await req(prefix + '/workspace?mode=live&windowRole=main', 'gm');
+  check(before.s === 200 && before.d.version === 0, 'CC2 untouched personal workspace has a validated default');
+  const layoutPair = await Promise.all([42, 64].map(split => req(prefix + '/workspace', 'gm', 'POST', { mode: 'live', windowRole: 'main', version: 0, workspace: { ...layout, split } })));
+  check(layoutPair.map(r => r.s).sort().join(',') === '200,409', 'CC2 competing first-layout saves cannot overwrite each other');
+  const reloaded = await req(prefix + '/workspace?mode=live&windowRole=main', 'gm');
+  check(reloaded.d.version === 1 && [42, 64].includes(reloaded.d.workspace.split) && reloaded.d.workspace.focus.storyId === id, 'CC2 fresh workspace read retains sizes and context');
+  for (const scope of ['mode=prepare&windowRole=main', 'mode=live&windowRole=companion']) check((await req(prefix + '/workspace?' + scope, 'gm')).d.version === 0, 'CC2 separate stored arrangement for ' + scope);
+  check((await req(prefix + '/workspace', 'gm', 'POST', { mode: 'live', windowRole: 'main', version: 1, workspace: { ...layout, focus: { ...layout.focus, characterId: privateCharacterId } } })).s === 404, 'CC2 private character metadata cannot be pinned or focused');
+  check((await req(prefix + '/workspace', 'gm', 'POST', { mode: 'live', windowRole: 'main', version: 1, workspace: { ...layout, focus: { ...layout.focus, characterId: 'place.electric-taberna' } } })).s === 400, 'CC2 typed tool context rejects an unrelated Entity type');
+  localSql("UPDATE campaign_memberships SET role='campaign_gm' WHERE user_id='sprint1-a' AND campaign_id='chronik-von-kleve'");
+  check((await req(prefix + '/workspace?mode=live&windowRole=main', 'a')).d.version === 0, 'CC2 another SL receives a separate personal arrangement');
+  localSql("UPDATE campaign_memberships SET role='player' WHERE user_id='sprint1-a' AND campaign_id='chronik-von-kleve'");
+  const moment = { clientRequestId: randomUUID(), text: 'CC2_ACTUAL_PRIVATE_EVENT', sessionId: session.id, storyId: id, references: ['place.electric-taberna'] };
+  const actual = await req(prefix + '/moments', 'gm', 'POST', moment);
+  check(actual.s === 201 && actual.d.moments.some(m => m.text === moment.text && m.storyId === id && m.sessionId === session.id), 'CC2 actual moment is saved with existing session and story identities');
+  const again = await req(prefix + '/moments', 'gm', 'POST', moment);
+  check(again.s === 200 && again.d.moments.filter(m => m.text === moment.text).length === 1, 'CC2 actual event retries do not duplicate the event');
+  check((await req(prefix + '/moments', 'gm', 'POST', { ...moment, text: 'Changed retry' })).s === 409, 'CC2 actual event rejects idempotency key reuse');
+  check((await req(prefix + '/moments', 'gm', 'POST', { ...moment, clientRequestId: randomUUID(), sessionId: 'missing-session' })).s === 404, 'CC2 actual event must belong to a real campaign session');
+  check((await req(`${prefix}/story?id=${id}`, 'gm')).d.story.possibilities[0].status === 'open', 'CC2 actual events never silently complete prepared possibilities');
+  const eventId = actual.d.moments.find(m => m.text === moment.text).id;
+  check((await req('/api/entities?id=' + eventId, 'b')).s === 404, 'CC2 actual private events are not player handouts');
+  check(!JSON.stringify((await req(prefix + '?view=player', 'gm')).d).includes('CC2_ACTUAL_PRIVATE_EVENT'), 'CC2 group preview cannot leak actual SL notes');
+  const noteBase = (await req('/api/records?kind=sitzungen', 'gm')).d.records.find(row => row.id === session.id);
+  const concurrentScene = await req('/api/records', 'gm', 'POST', { id: noteBase.id, version: noteBase.version, kind: 'sitzungen', title: noteBase.title, visibility: noteBase.visibility, body: { ...noteBase.body, scene: 'CC2_CONCURRENT_SCENE' }, gmBody: noteBase.gmBody });
+  check(concurrentScene.s === 200, 'CC2 scene update establishes a new session revision');
+  const staleNote = await req('/api/records', 'gm', 'POST', { id: noteBase.id, version: noteBase.version, kind: 'sitzungen', title: noteBase.title, visibility: noteBase.visibility, body: noteBase.body, gmBody: 'CC2_STALE_PRIVATE_NOTE' });
+  check(staleNote.s === 409, 'CC2 notes from an old session revision cannot silently overwrite a concurrent scene change');
+  const noteCurrent = (await req('/api/records?kind=sitzungen', 'gm')).d.records.find(row => row.id === session.id);
+  check(noteCurrent.body.scene === 'CC2_CONCURRENT_SCENE' && noteCurrent.gmBody !== 'CC2_STALE_PRIVATE_NOTE', 'CC2 rejected stale notes leave the scene and original notes intact');
+  const freshNote = await req('/api/records', 'gm', 'POST', { id: noteCurrent.id, version: noteCurrent.version, kind: 'sitzungen', title: noteCurrent.title, visibility: noteCurrent.visibility, body: noteCurrent.body, gmBody: 'CC2_CURRENT_PRIVATE_NOTE' });
+  check(freshNote.s === 200 && (await req('/api/records?kind=sitzungen', 'gm')).d.records.find(row => row.id === session.id).body.scene === 'CC2_CONCURRENT_SCENE', 'CC2 consciously rebased private note saves preserve the latest scene');
+  check(!JSON.stringify((await req('/api/records?kind=sitzungen', 'a')).d).includes('CC2_CURRENT_PRIVATE_NOTE'), 'CC2 private session notes remain absent from the actual player projection');
+  const publicSnapshot = await req(prefix + '?view=player', 'gm');
+  check(!['stories', 'moments', 'references'].some(key => key in publicSnapshot.d), 'CC2 group projection excludes private tool collections entirely');
+  localSql(`INSERT INTO settings(key,value) VALUES(${sqlQuote('command-workspace:chronik-von-kleve:sprint1-gm:recap:main')},'broken')`);
+  check((await req(prefix + '/workspace?mode=recap&windowRole=main', 'gm')).s === 409, 'CC2 malformed saved layout is preserved and reported instead of silently reset');
+}

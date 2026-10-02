@@ -1,17 +1,18 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, ShieldCheck, Sparkles, NotebookPen, Mail } from 'lucide-react';
 import type { CharacterEngineView } from '@/domain/character-live';
 import styles from './character-studio.module.css';
 
 const identityLabels:Record<string,string>={concept:'Konzept',nature:'Wesen',demeanor:'Verhalten',sire:'Erzeuger'};
-type Props={data:CharacterEngineView;busy:boolean;command:(action:string,extra?:Record<string,unknown>)=>Promise<void>;onConfirm:()=>void};
-export function CharacterManagement({data,busy,command,onConfirm}:Props) {
+type Props={data:CharacterEngineView;busy:boolean;command:(action:string,extra?:Record<string,unknown>)=>Promise<void>;onConfirm:()=>void;onDirty?:(dirty:boolean)=>void};
+export function CharacterManagement({data,busy,command,onConfirm,onDirty}:Props) {
   const [action,setAction]=useState('review');
   const [amount,setAmount]=useState(5),[xpReason,setXpReason]=useState(''),[reviewReason,setReviewReason]=useState('');
   const [decisionReason,setDecisionReason]=useState(''),[decisionCost,setDecisionCost]=useState(1);
   const [noteDraft,setNotes]=useState<string|null>(null);
   const notes=noteDraft??data.gmNotes??'', notesDirty=notes!==(data.gmNotes||'');
+  useEffect(()=>{onDirty?.(notesDirty);},[notesDirty,onDirty]);
   const [correctionField,setCorrectionField]=useState('concept'),[correctionValue,setCorrectionValue]=useState(''),[correctionReason,setCorrectionReason]=useState('');
   const pending=data.requests.filter(r=>r.status==='pending');
   const reviewCount=(data.state==='review'?1:0)+pending.length;

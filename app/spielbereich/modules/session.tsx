@@ -26,12 +26,14 @@ export function SessionPanel({
   onRefresh,
   compact = false,
   onDraftChange,
+  onSaved,
 }: {
   entries: Entry[];
   a: Actor;
   onRefresh: () => void;
   compact?: boolean;
   onDraftChange?: (dirty: boolean) => void;
+  onSaved?: (entry: Entry) => void;
 }) {
   const existing = entries.find((e) => e.kind === "sitzungen");
   const initial = existing?.body || {};
@@ -65,7 +67,7 @@ export function SessionPanel({
     if (!a.gm) return;
     setSaving(true);
     try {
-      await api("/api/records", "POST", {
+      const payload = {
         id: existing?.id,
         version: existing?.version,
         kind: "sitzungen",
@@ -73,7 +75,9 @@ export function SessionPanel({
         visibility: "group",
         body: {...initial,...next,...(!publishScene?{scene:initial.scene||"",subtitle:initial.subtitle||""}:{})},
         gmBody: existing?.gmBody || "",
-      });
+      };
+      const stored = await api<{ id: string; version: number }>("/api/records", "POST", payload);
+      onSaved?.({ ...payload, id: stored.id, version: stored.version, title: String(payload.title), visibility: 'group' });
       toast.success("Sitzung aktualisiert");
       if(publishScene)onDraftChange?.(false);
       onRefresh();
