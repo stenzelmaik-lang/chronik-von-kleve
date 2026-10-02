@@ -120,7 +120,9 @@ export function RecordEditor({
                   }
                   options={Object.entries(visibilityNames).map(([v, t]) => [
                     v,
-                    a.gm && v === "sl" && !personal.includes(edit.kind)
+                    edit.kind === 'charaktere' && v === 'private'
+                      ? 'Privater Charakter · du & zuständige SL'
+                      : a.gm && v === "sl" && !personal.includes(edit.kind)
                       ? "Nur Spielleitung"
                       : t,
                   ])}
@@ -131,6 +133,7 @@ export function RecordEditor({
                   {visibilityNames[edit.visibility]}
                 </p>
               )}
+              {edit.kind === 'charaktere' && <p className="muted">Die zuständige Spielleitung kann deinen Kampagnenbogen lesen und bearbeiten. Private Notizen, Nachrichten und Dateien behalten ihre eigenen Zugriffsregeln.</p>}
               {edit.kind === "charaktere" ? (
                 <CharacterFields
                   edit={edit}

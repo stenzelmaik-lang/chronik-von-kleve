@@ -15,7 +15,7 @@ export type CommandPanel = z.infer<typeof panelSchema>;
 export const workspaceSchema = z.object({
   panels: z.array(panelSchema).min(1).max(10), split: z.number().finite().min(30).max(75),
   favorites: z.array(contextId.min(1)).max(40),
-  focus: z.object({ characterId: contextId, storyId: contextId, sessionId: contextId, placeId: contextId }).strict(),
+  focus: z.object({ characterId: contextId, storyId: contextId, sessionId: contextId, placeId: contextId, sceneId: contextId.default('') }).strict(),
 }).strict().superRefine((value, ctx) => {
   if (new Set(value.panels.map(p => p.id)).size !== value.panels.length) ctx.addIssue({ code: 'custom', message: 'Arbeitsflächen müssen unterschiedliche Identitäten haben.' });
   for (const tool of commandTools) {
@@ -31,7 +31,7 @@ export function defaultWorkspace(mode: WorkspaceMode, companion = false): Comman
   const tools: [CommandTool, 0 | 1][] = companion ? [['character', 0], ['dispatch', 1]] : mode === 'prepare'
     ? [['story', 0], ['dossiers', 1]] : mode === 'recap' ? [['moments', 0], ['story', 1]]
     : [['story', 0], ['scene', 1], ['character', 1]];
-  return { split: 58, panels: tools.map(([tool, column], i) => ({ id: `${tool}-${i}`, tool, column, height: 50, pinnedId: null })), favorites: [], focus: { characterId: '', storyId: '', sessionId: '', placeId: '' } };
+  return { split: 58, panels: tools.map(([tool, column], i) => ({ id: `${tool}-${i}`, tool, column, height: 50, pinnedId: null })), favorites: [], focus: { characterId: '', storyId: '', sessionId: '', placeId: '', sceneId: '' } };
 }
 export const storySectionLabels = { core: 'Kern & Konflikt', background: 'Hintergründe', secrets: 'Wissen & Geheimnisse', clues: 'Hinweise', consequences: 'Mögliche Folgen', notes: 'SL-Kommentare' } as const;
 export type StorySection = keyof typeof storySectionLabels;
@@ -49,14 +49,14 @@ export type StoryView = StoryDocument & { id: string; version: number; updatedAt
 export type StoryHistory = { id: string; version: number; createdAt: string; document: StoryDocument };
 export const emptyStory = (): StoryDocument => ({ title: 'Neuer Handlungsstrang', sections: { core: '', background: '', secrets: '', clues: '', consequences: '', notes: '' }, references: [], possibilities: [] });
 export type CommandReference = { id: string; title: string; type: string; summary: string };
-export type MomentView = { id: string; text: string; sessionId: string; storyId: string; references: string[]; occurredAt: string };
+export type MomentView = { id: string; text: string; sessionId: string; storyId: string; sceneId: string; runId: string; references: string[]; occurredAt: string };
 export const momentSchema = z.object({
   clientRequestId: z.string().uuid(), text: z.string().trim().min(1).max(3000),
-  sessionId: contextId.min(1), storyId: contextId, references: z.array(contextId.min(1)).max(15),
+  sessionId: contextId.min(1), storyId: contextId, sceneId: contextId.default(''), runId: z.union([z.string().uuid(), z.literal('')]).default(''), references: z.array(contextId.min(1)).max(15),
 }).strict();
 export const commandSyncSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('request-focus') }).strict(),
-  z.object({ type: z.literal('focus'), characterId: contextId.optional(), sessionId: contextId.optional(), storyId: contextId.optional(), placeId: contextId.optional() }).strict(),
+  z.object({ type: z.literal('focus'), characterId: contextId.optional(), sessionId: contextId.optional(), storyId: contextId.optional(), placeId: contextId.optional(), sceneId: contextId.optional() }).strict(),
   z.object({ type: z.literal('invalidate') }).strict(),
   z.object({ type: z.literal('lock') }).strict(),
 ]);

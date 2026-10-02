@@ -16,13 +16,14 @@ import { CommandCharacter } from './command-character';
 import { CommandNotes } from './command-notes';
 import { CommandPlace, sessionPlaceId } from './command-place';
 import { useCommandConfirmation } from './command-confirmation';
-import { CommandScene } from './command-scene';
+import { StorySceneManager } from './story-scene-manager';
+import type { SceneSummary } from '@/domain/story-scene';
 import { DicePanel } from './dice';
 import { CharacterReviewQueue } from './character-review-queue';
 import { PlayerSession, type PlayerCommandData } from './command-player-session';
 import styles from './command-workspace.module.css';
 
-type Snapshot = { campaignId: string; members: { id: string; name: string }[]; characters: CommandCharacterSummary[]; handouts: { id: string; title: string; text: string; revocable: boolean }[]; grants: { entity_id: string; audience: string; subject_id: string; state: string }[]; sessions: Entry[]; references: CommandReference[]; stories: { id: string; title: string; version: number; updatedAt: string }[]; moments: MomentView[] };
+type Snapshot = { campaignId: string; members: { id: string; name: string }[]; characters: CommandCharacterSummary[]; handouts: { id: string; title: string; text: string; revocable: boolean }[]; grants: { entity_id: string; audience: string; subject_id: string; state: string }[]; sessions: Entry[]; references: CommandReference[]; stories: { id: string; title: string; version: number; updatedAt: string }[]; scenes:SceneSummary[]; moments: MomentView[] };
 const modeNames: Record<WorkspaceMode, string> = { prepare: 'Vorbereiten', live: 'Spielabend', recap: 'Nachbereiten' };
 export function CommandWorkspace({ a, onRefresh }: { a: Actor; entries: Entry[]; onRefresh: () => void }) {
   const { ask, cancel, dialog } = useCommandConfirmation();
@@ -74,6 +75,7 @@ export function CommandWorkspace({ a, onRefresh }: { a: Actor; entries: Entry[];
       if (message.storyId !== undefined && (!message.storyId || s.stories.some(c => c.id === message.storyId))) next.storyId = message.storyId;
       if (message.sessionId !== undefined && (!message.sessionId || s.sessions.some(c => c.id === message.sessionId))) next.sessionId = message.sessionId;
       if (message.placeId !== undefined && (!message.placeId || s.references.some(c => c.id === message.placeId && c.type === 'PLACE'))) next.placeId = message.placeId;
+      if (message.sceneId !== undefined && (!message.sceneId || s.scenes.some(c => c.id === message.sceneId))) next.sceneId = message.sceneId;
       change(w => ({ ...w, focus: { ...w.focus, ...next } }));
     };
     return () => { bc.close(); channel.current = null; };
@@ -82,12 +84,13 @@ export function CommandWorkspace({ a, onRefresh }: { a: Actor; entries: Entry[];
     if (ids.some(id => dirtyPanels.current[id]) && !await ask('In dieser Arbeitsfläche sind noch ungespeicherte Eingaben. Jetzt verwerfen?')) return false;
     for (const id of ids) delete dirtyPanels.current[id]; return true;
   }
-  const focus = { characterId: '', storyId: '', sessionId: '', placeId: '', ...view?.workspace.focus };
+  const focus = { characterId: '', storyId: '', sessionId: '', placeId: '', sceneId: '', ...view?.workspace.focus };
   if (!focus.sessionId) focus.sessionId = snapshot?.sessions[0]?.id || '';
   if (!focus.storyId) focus.storyId = snapshot?.stories[0]?.id || '';
+  if (!focus.sceneId) focus.sceneId = snapshot?.scenes[0]?.id || '';
   const session = snapshot?.sessions.find(s => s.id === focus.sessionId), activeCharacter = snapshot?.characters.find(c => c.id === focus.characterId);
   async function selectFocus(next: Partial<Layout['focus']>, sync = true) {
-    const affected = view?.workspace.panels.filter(p => !p.pinnedId && (next.characterId !== undefined && p.tool === 'character' || next.storyId !== undefined && p.tool === 'story' || next.sessionId !== undefined && ['scene', 'notes', 'moments'].includes(p.tool))).map(p => p.id) || [];
+    const affected = view?.workspace.panels.filter(p => !p.pinnedId && (next.characterId !== undefined && p.tool === 'character' || next.storyId !== undefined && p.tool === 'story' || next.sceneId !== undefined && p.tool === 'scene' || next.sessionId !== undefined && ['scene', 'notes', 'moments'].includes(p.tool))).map(p => p.id) || [];
     if (!await allowDiscard(affected)) return;
     change(w => ({ ...w, focus: { ...w.focus, ...next } })); if (sync) channel.current?.postMessage({ type: 'focus', ...next });
   }
@@ -105,6 +108,7 @@ export function CommandWorkspace({ a, onRefresh }: { a: Actor; entries: Entry[];
     if (reference.type === 'PLACE') { await selectFocus({ placeId: reference.id }); ensureTool('places'); }
     else if (reference.type === 'PLOT') { await selectFocus({ storyId: reference.id }); ensureTool('story'); }
     else if (reference.type === 'CHARACTER') { await selectFocus({ characterId: reference.id }); ensureTool('character'); }
+    else if (reference.type === 'SCENE') { await selectFocus({ sceneId: reference.id }); ensureTool('scene'); }
     else { setDossierId(reference.id); ensureTool('dossiers'); } setSearch('');
   }
   function favorite(id: string) { change(w => ({ ...w, favorites: w.favorites.includes(id) ? w.favorites.filter(old => old !== id) : w.favorites.length < 40 ? [...w.favorites, id] : w.favorites })); }
@@ -140,18 +144,18 @@ export function CommandWorkspace({ a, onRefresh }: { a: Actor; entries: Entry[];
   }
   function renderTool(panel: CommandPanel) {
     const id = panelContext(panel), onDirty = (dirty: boolean) => { dirtyPanels.current[panel.id] = dirty; };
-    if (panel.tool === 'story') return <><div className={styles.toolContext}><select aria-label="Handlungsstrang auswählen" value={id} disabled={!!panel.pinnedId} onChange={e => selectFocus({ storyId: e.target.value })}><option value="">Handlungsstrang auswählen</option>{snapshot?.stories.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select><button disabled={creating || !!panel.pinnedId} onClick={() => void newStory()} aria-label="Neuen Handlungsstrang anlegen"><Plus size={15}/></button></div>{id ? <CommandStory key={id} id={id} version={snapshot?.stories.find(s => s.id === id)?.version} references={snapshot?.references || []} onChanged={changed} onDirty={onDirty} onOpenReference={openReference} onDenied={deny} ask={ask}/> : <div className={styles.empty}><BookOpen size={35}/><h2>Dein roter Faden</h2><p>Private Handlungsstränge mit Geheimnissen, Möglichkeiten und Verweisen auf deine vorhandenen Akten.</p><button className={styles.primary} disabled={creating} onClick={() => void newStory()}><Plus size={15}/>{creating ? 'Wird angelegt …' : 'Ersten Handlungsstrang anlegen'}</button></div>}</>;
-    if (panel.tool === 'scene') return <CommandScene key={session?.id || 'new'} session={session} a={a} onRefresh={changed} onDirty={onDirty}/>;
-    if (panel.tool === 'character') return <><div className={styles.toolContext}><select aria-label="Charakterakte auswählen" disabled={!!panel.pinnedId} value={id} onChange={e => selectFocus({ characterId: e.target.value })}><option value="">Charakter auswählen</option>{snapshot?.characters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select>{id && <button aria-label="Zweiten Charakter daneben öffnen" onClick={() => ensureTool('character', true, id)}><Plus size={15}/></button>}</div>{id ? <CommandCharacter key={id} id={id} version={snapshot?.characters.find(c => c.id === id)?.version} onChanged={changed} onDirty={onDirty}/> : <div className={styles.empty}><ShieldCheck size={28}/><p>Wähle einen lesbaren Charakter. Private Charaktere anderer Personen bleiben geschützt.</p></div>}</>;
+    if (panel.tool === 'story') return <><div className={styles.toolContext}><select aria-label="Handlungsstrang auswählen" value={id} disabled={!!panel.pinnedId} onChange={e => selectFocus({ storyId: e.target.value })}><option value="">Handlungsstrang auswählen</option>{snapshot?.stories.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select><button disabled={creating || !!panel.pinnedId} onClick={() => void newStory()} aria-label="Neuen Handlungsstrang anlegen"><Plus size={15}/></button></div>{id ? <CommandStory key={id} id={id} version={snapshot?.stories.find(s => s.id === id)?.version} references={snapshot?.references || []} scenes={snapshot?.scenes || []} onOpenScene={sceneId=>{void selectFocus({sceneId});ensureTool('scene');}} onChanged={changed} onDirty={onDirty} onOpenReference={openReference} onDenied={deny} ask={ask}/> : <div className={styles.empty}><BookOpen size={35}/><h2>Dein roter Faden</h2><p>Private Handlungsstränge mit Geheimnissen, Möglichkeiten und Verweisen auf deine vorhandenen Akten.</p><button className={styles.primary} disabled={creating} onClick={() => void newStory()}><Plus size={15}/>{creating ? 'Wird angelegt …' : 'Ersten Handlungsstrang anlegen'}</button></div>}</>;
+    if (panel.tool === 'scene') return <StorySceneManager key={session?.id || 'new'} a={a} session={session} id={focus.sceneId} storyId={focus.storyId} scenes={snapshot?.scenes || []} stories={snapshot?.stories || []} references={snapshot?.references || []} characters={snapshot?.characters || []} moments={snapshot?.moments || []} onSelect={(sceneId,storyId,placeId)=>void selectFocus({sceneId,...(storyId?{storyId}:{}),...(placeId?{placeId}:{})})} onRefresh={changed} onDirty={onDirty} onDenied={deny} onOpenReference={openReference} ask={ask}/>;
+    if (panel.tool === 'character') return <><div className={styles.toolContext}><select aria-label="Charakterakte auswählen" disabled={!!panel.pinnedId} value={id} onChange={e => selectFocus({ characterId: e.target.value })}><option value="">Charakter auswählen</option>{snapshot?.characters.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</select>{id && <button aria-label="Zweiten Charakter daneben öffnen" onClick={() => ensureTool('character', true, id)}><Plus size={15}/></button>}</div>{id ? <CommandCharacter key={id} id={id} version={snapshot?.characters.find(c => c.id === id)?.version} onChanged={changed} onDirty={onDirty}/> : <div className={styles.empty}><ShieldCheck size={28}/><p>Wähle einen Charakter deiner Kampagne. Private Spielernotizen und Nachrichten bleiben geschützt.</p></div>}</>;
     if (panel.tool === 'places') return <CommandPlace key={session?.id || 'new'} session={session} a={a} browseId={id} pinned={!!panel.pinnedId} onBrowse={placeId => selectFocus({ placeId })} onRefresh={changed}/>;
     if (panel.tool === 'dossiers') return <CommandDossier id={id} references={snapshot?.references || []} favorites={view?.workspace.favorites || []} onSelect={next => panel.pinnedId ? change(w => ({ ...w, panels: w.panels.map(p => p.id === panel.id ? { ...p, pinnedId: next || null } : p) })) : setDossierId(next)} onFavorite={favorite} onDenied={deny}/>;
     if (panel.tool === 'notes') return <CommandNotes key={session?.id || 'new'} session={session} onRefresh={changed} onDirty={onDirty} ask={ask}/>;
-    if (panel.tool === 'moments') return <CommandMoments moments={snapshot?.moments || []} focus={focus} onChanged={changed} onDirty={onDirty}/>;
+    if (panel.tool === 'moments') return <CommandMoments moments={snapshot?.moments || []} focus={focus} stories={snapshot?.stories || []} scenes={snapshot?.scenes || []} onOpenStory={storyId=>{void selectFocus({storyId});ensureTool('story');}} onOpenScene={sceneId=>{void selectFocus({sceneId});ensureTool('scene');}} onChanged={changed} onDirty={onDirty}/>;
     if (panel.tool === 'dice') return <DicePanel/>;
     return <><CommandDispatch members={snapshot?.members || []} initialRecipient={activeCharacter?.ownerId || ''} onChanged={changed} onDirty={onDirty}/><details className={styles.fold}><summary>Vorbereitete Handouts freigeben</summary><label className={styles.field}>Zielgruppe ausdrücklich auswählen<select aria-label="Handout-Zielgruppe" value={target} onChange={e => setTarget(e.target.value)}><option value="">Keine Zielgruppe ausgewählt</option><option value="group">Aktive Kampagnengruppe</option>{snapshot?.members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>{snapshot?.handouts.map(h => { const released = snapshot.grants.some(g => g.entity_id === h.id && g.subject_id === (target === 'group' ? a.campaignId : target) && g.audience === (target === 'group' ? 'group' : 'player') && g.state !== 'UNKNOWN'); return <article className={styles.handout} key={h.id}><strong>{h.title}</strong><p>{h.text}</p>{h.revocable ? <button disabled={!target || grantBusy} onClick={() => void grant(h.id, !released)}>{released ? 'Für diese Zielgruppe zurückziehen' : 'Für diese Zielgruppe freigeben'}</button> : <small>Bestehende öffentliche oder Gruppenregel · im CMS verwalten.</small>}</article>; })}</details></>;
   }
   if (locked) return <div className={styles.root}><div className={styles.empty}><LockKeyhole size={35}/><h1>Geschützter Arbeitsplatz geschlossen</h1><p>Deine Anmeldung oder Kampagnenberechtigung ist nicht mehr gültig. Private Arbeitsflächen wurden entfernt.</p><a href="/anmelden" className="button">Erneut anmelden</a></div></div>;
-  const searchable: CommandReference[] = [...snapshot?.references || [], ...(snapshot?.stories || []).map(s => ({ id: s.id, title: s.title, type: 'PLOT', summary: 'Privater Handlungsstrang' })), ...(snapshot?.characters || []).map(c => ({ id: c.id, title: c.title, type: 'CHARACTER', summary: 'Berechtigter Charakterkontext' }))];
+  const searchable: CommandReference[] = [...snapshot?.references || [], ...(snapshot?.stories || []).map(s => ({ id: s.id, title: s.title, type: 'PLOT', summary: 'Privater Handlungsstrang' })), ...(snapshot?.scenes || []).map(s=>({id:s.id,title:s.title,type:'SCENE',summary:'Vorbereitete Szene und getrennte Szenenläufe'})), ...(snapshot?.characters || []).map(c => ({ id: c.id, title: c.title, type: 'CHARACTER', summary: 'Berechtigter Charakterkontext' }))];
   const results = searchable.filter(r => (r.title + ' ' + r.summary).toLowerCase().includes(search.toLowerCase())).slice(0, 9);
   const pending = snapshot?.characters.reduce((n, c) => n + (c.state === 'review' ? 1 : 0) + c.pendingRequests, 0) || 0;
   return <div className={styles.root}>

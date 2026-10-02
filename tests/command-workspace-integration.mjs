@@ -28,7 +28,7 @@ export async function commandWorkspaceIntegration({ req, check, localSql, sqlQuo
   const restored = await req(prefix + '/story', 'gm', 'POST', { action: 'restore', id, version: 2, historyId: initialHistory.d.history[0].id });
   check(restored.s === 200 && restored.d.story.version === 3 && restored.d.story.title === initial.title, 'CC2 restore creates a new revision instead of destroying history');
   check((await req(prefix + '/story', 'gm', 'POST', { action: 'restore', id, version: 2, historyId: initialHistory.d.history[0].id })).s === 409, 'CC2 stale restoration is rejected');
-  check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, references: [privateCharacterId] } })).s === 404, 'CC2 private foreign character cannot enter a story reference');
+  check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, references: ['missing-character'] } })).s === 404, 'CC2 nonexistent character cannot enter a story reference');
   check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, references: ['recovery.synthetic-secret'] } })).s === 404, 'CC2 recovered secret sources cannot enter ordinary plot tools');
   check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: { ...base, visibility: 'group' } })).s === 400, 'CC2 rejects accidental publication flags');
   check((await req(prefix + '/story', 'gm', 'POST', { action: 'save', id, version: 3, document: base }, { Origin: 'https://evil.invalid' })).s === 403, 'CC2 story writes reject cross-site commands');
@@ -48,7 +48,7 @@ export async function commandWorkspaceIntegration({ req, check, localSql, sqlQuo
   const reloaded = await req(prefix + '/workspace?mode=live&windowRole=main', 'gm');
   check(reloaded.d.version === 1 && [42, 64].includes(reloaded.d.workspace.split) && reloaded.d.workspace.focus.storyId === id, 'CC2 fresh workspace read retains sizes and context');
   for (const scope of ['mode=prepare&windowRole=main', 'mode=live&windowRole=companion']) check((await req(prefix + '/workspace?' + scope, 'gm')).d.version === 0, 'CC2 separate stored arrangement for ' + scope);
-  check((await req(prefix + '/workspace', 'gm', 'POST', { mode: 'live', windowRole: 'main', version: 1, workspace: { ...layout, focus: { ...layout.focus, characterId: privateCharacterId } } })).s === 404, 'CC2 private character metadata cannot be pinned or focused');
+  check((await req(prefix + '/workspace', 'gm', 'POST', { mode: 'prepare', windowRole: 'companion', version: 0, workspace: { ...layout, focus: { ...layout.focus, characterId: privateCharacterId } } })).s === 200, 'CC2 campaign SL can focus private player character without changing main layout');
   check((await req(prefix + '/workspace', 'gm', 'POST', { mode: 'live', windowRole: 'main', version: 1, workspace: { ...layout, focus: { ...layout.focus, characterId: 'place.electric-taberna' } } })).s === 400, 'CC2 typed tool context rejects an unrelated Entity type');
   localSql("UPDATE campaign_memberships SET role='campaign_gm' WHERE user_id='sprint1-a' AND campaign_id='chronik-von-kleve'");
   check((await req(prefix + '/workspace?mode=live&windowRole=main', 'a')).d.version === 0, 'CC2 another SL receives a separate personal arrangement');

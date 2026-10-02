@@ -161,7 +161,7 @@ export async function POST(req: Request) {
       Object.assign(d.body, withCreationBaseValues(d.body));
       if (previous?.characterState === "review" && ["attributes","skills","disciplines","backgrounds","virtues","humanity","willpower","clan","generation","merits","flaws","creationAllocations","freebiePurchases"].some(key=>JSON.stringify(previous[key]??null)!==JSON.stringify(d.body[key]??null)))
         throw new HttpError(409,"Der eingereichte Bogen ist geschützt. Die Spielleitung muss ihn zuerst zur Überarbeitung zurückgeben.");
-      const protectedKeys = ["xpLedger", "creationSnapshot", "engineOperationId", "characterRequests"];
+      const protectedKeys = ["xpLedger", "creationSnapshot", "engineOperationId", "characterRequests", "ruleExceptions"];
       for (const key of protectedKeys) {
         if (old ? JSON.stringify(previous?.[key] ?? (key === "xpLedger" ? [] : null)) !== JSON.stringify(d.body[key] ?? (key === "xpLedger" ? [] : null)) : d.body[key] !== undefined && !(key === "xpLedger" && Array.isArray(d.body[key]) && d.body[key].length === 0))
           throw new HttpError(403, "XP, Bestätigung und Anträge dürfen nur über die zentrale Regel-Engine verändert werden.");

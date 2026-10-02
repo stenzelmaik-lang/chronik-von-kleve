@@ -1,3 +1,4 @@
+import { canManageCampaignCharacter } from '../domain/character-access.ts';
 import type {
   Actor,
   Entity,
@@ -25,10 +26,11 @@ export type EntityRow = {
 };
 export type GrantRow = {
   entity_id: string;
-  audience: "group" | "player";
+  audience: "group" | "player" | "character";
   subject_id: string;
   state: string;
 };
+export type CharacterKnowledgeContext = { id: string; ownerId: string; campaignId: string };
 export function parseObject(raw: string): JsonObject {
   try {
     const v: unknown = JSON.parse(raw);
@@ -91,6 +93,7 @@ export function projectEntity(
   a: Actor,
   e: Entity,
   grants: GrantRow[],
+  character?: CharacterKnowledgeContext,
 ): Entity | null {
   if (a.status !== "active" || a.campaignId !== e.campaignId) return null;
   // Recipient privacy is stronger than knowledge grants and generic GM access.
@@ -98,15 +101,19 @@ export function projectEntity(
     if (e.ownerId !== a.id && !(a.gm && e.content.senderId === a.id)) return null;
     return { ...e, content: { context: "sl-message", text: e.content.text ?? "", senderName: e.content.senderName ?? "", readAt: e.content.readAt ?? null } };
   }
-  if (e.type === "CHARACTER" && e.ownerId !== a.id && (!a.gm || e.visibility === "private")) return null;
+  if (e.type === "CHARACTER" && e.ownerId !== a.id && !canManageCampaignCharacter(a, e.campaignId)) return null;
   if (a.gm) return e;
+  // Scene preparation and runtime metadata require the dedicated allowlist
+  // projector. A generic grant must never disclose the private scene dossier.
+  if (e.type === "SCENE" && e.content.documentKind === "story_scene") return null;
   if (e.content.recoveryOnly === true || e.canonStatus === "GM_SECRET" || e.content.canonStatus === "GM_SECRET" || e.content.canon_status === "GM_SECRET") return null;
   const granted = grants.some(
     (g) =>
       g.entity_id === e.id &&
       g.state !== "UNKNOWN" &&
       ((g.audience === "group" && g.subject_id === a.campaignId) ||
-        (g.audience === "player" && g.subject_id === a.id)),
+        (g.audience === "player" && g.subject_id === a.id) ||
+        (g.audience === "character" && character?.ownerId === a.id && character.campaignId === a.campaignId && g.subject_id === character.id)),
   );
   // Existing shared records keep their visibility, except explicitly locked bodies.
   const legacyShared =
@@ -178,12 +185,13 @@ export async function loadEntitiesForIds(
   const legacy = new Map(legacyBatches.flatMap((batch) => batch.results as LegacyRecordRow[]).map((row) => [row.id, row]));
   return entityRows.map((row) => resolveEntity(row, row.legacy_record_id ? legacy.get(row.legacy_record_id) : undefined));
 }
-export async function grantsFor(db: D1Database, a: Actor): Promise<GrantRow[]> {
+export async function grantsFor(db: D1Database, a: Actor, character?: CharacterKnowledgeContext): Promise<GrantRow[]> {
+  const characterId = character?.ownerId === a.id && character.campaignId === a.campaignId ? character.id : '';
   const result = await db
     .prepare(
-      "SELECT entity_id,audience,subject_id,state FROM knowledge WHERE campaign_id=? AND ((audience=? AND subject_id=?) OR (audience=? AND subject_id=?))",
+      "SELECT entity_id,audience,subject_id,state FROM knowledge WHERE campaign_id=? AND ((audience=? AND subject_id=?) OR (audience=? AND subject_id=?) OR (audience='character' AND subject_id=?))",
     )
-    .bind(a.campaignId, "group", a.campaignId, "player", a.id)
+    .bind(a.campaignId, "group", a.campaignId, "player", a.id, characterId)
     .all<GrantRow>();
   return result.results;
 }

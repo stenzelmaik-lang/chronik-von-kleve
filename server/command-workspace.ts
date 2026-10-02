@@ -9,7 +9,7 @@ const storyPredicate = "type='CHRONICLE' AND canon_status='GM_SECRET' AND visibi
 export async function validateCommandReferences(db: D1Database, a: Actor, ids: string[]) {
   const unique = [...new Set(ids.filter(Boolean))];
   const entities = await loadEntitiesForIds(db, a.campaignId, unique);
-  if (entities.length !== unique.length || entities.some(e => e.content.recoveryOnly === true || (e.type === 'CHARACTER' && !canRead(a, { owner_id: e.ownerId, visibility: e.visibility })))) throw new HttpError(404, 'Eine verknüpfte Akte ist nicht verfügbar.');
+  if (entities.length !== unique.length || entities.some(e => e.content.recoveryOnly === true || (e.type === 'CHARACTER' && !canRead(a, { owner_id: e.ownerId, visibility: e.visibility, kind: 'charaktere', campaign_id: e.campaignId })))) throw new HttpError(404, 'Eine verknüpfte Akte ist nicht verfügbar.');
 }
 export async function readWorkspace(db: D1Database, a: Actor, mode: WorkspaceMode, windowRole: 'main' | 'companion') {
   gmOnly(a);
@@ -25,7 +25,7 @@ export async function readWorkspace(db: D1Database, a: Actor, mode: WorkspaceMod
 export async function saveWorkspace(db: D1Database, a: Actor, mode: WorkspaceMode, windowRole: 'main' | 'companion', version: number, workspace: CommandWorkspace) {
   gmOnly(a);
   await validateCommandReferences(db, a, [...workspace.favorites, ...workspace.panels.flatMap(p => p.pinnedId ? [p.pinnedId] : []), ...Object.values(workspace.focus)]);
-  const typedIds = [...workspace.panels.filter(p => p.pinnedId).map(p => ({ id: p.pinnedId!, expected: p.tool === 'character' ? 'CHARACTER' : p.tool === 'places' ? 'PLACE' : p.tool === 'story' ? 'CHRONICLE' : null })), ...Object.entries(workspace.focus).filter(([, id]) => id).map(([key, id]) => ({ id, expected: key === 'characterId' ? 'CHARACTER' : key === 'placeId' ? 'PLACE' : key === 'storyId' ? 'CHRONICLE' : 'SESSION' }))];
+  const typedIds = [...workspace.panels.filter(p => p.pinnedId).map(p => ({ id: p.pinnedId!, expected: p.tool === 'character' ? 'CHARACTER' : p.tool === 'places' ? 'PLACE' : p.tool === 'story' ? 'CHRONICLE' : null })), ...Object.entries(workspace.focus).filter(([, id]) => id).map(([key, id]) => ({ id, expected: key === 'characterId' ? 'CHARACTER' : key === 'placeId' ? 'PLACE' : key === 'storyId' ? 'CHRONICLE' : key === 'sceneId' ? 'SCENE' : 'SESSION' }))];
   const nodes = await loadEntitiesForIds(db, a.campaignId, typedIds.map(r => r.id));
   if (typedIds.some(r => r.expected && !nodes.some(e => e.id === r.id && e.type === r.expected))) throw new HttpError(400, 'Diese Akte passt nicht zum gewählten Werkzeug.');
   for (const ref of typedIds.filter(r => r.expected === 'CHRONICLE')) await readStory(db, a, ref.id);
@@ -79,7 +79,7 @@ export async function writeStory(db: D1Database, a: Actor, args: { id: string; v
 export async function listMoments(db: D1Database, a: Actor, sessionId?: string): Promise<MomentView[]> {
   gmOnly(a);
   const rows = await db.prepare("SELECT * FROM entities WHERE campaign_id=? AND type='NOTE' AND canon_status='GM_SECRET' AND visibility='sl' AND legacy_record_id IS NULL AND json_extract(content,'$.documentKind')='session_moment'" + (sessionId ? " AND json_extract(content,'$.sessionId')=?" : '') + ' ORDER BY created_at DESC,id DESC LIMIT 150').bind(a.campaignId, ...(sessionId ? [sessionId] : [])).all<EntityRow>();
-  return rows.results.map(r => { const c = parseObject(r.content); return { id: r.id, text: String(c.text || ''), sessionId: String(c.sessionId || ''), storyId: String(c.storyId || ''), references: Array.isArray(c.references) ? c.references.filter((v): v is string => typeof v === 'string') : [], occurredAt: r.created_at }; });
+  return rows.results.map(r => { const c = parseObject(r.content); return { id: r.id, text: String(c.text || ''), sessionId: String(c.sessionId || ''), storyId: String(c.storyId || ''), sceneId: String(c.sceneId || ''), runId: String(c.runId || ''), references: Array.isArray(c.references) ? c.references.filter((v): v is string => typeof v === 'string') : [], occurredAt: r.created_at }; });
 }
 export async function commandReferences(db: D1Database, a: Actor): Promise<CommandReference[]> {
   gmOnly(a);

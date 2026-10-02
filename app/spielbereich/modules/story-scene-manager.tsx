@@ -1,0 +1,146 @@
+"use client";
+import { useEffect, useRef, useState } from 'react';
+import { Clapperboard, Plus, Save, LockKeyhole, Eye, Play, Pause, Check, RotateCcw, Link2, X, History, MapPin } from 'lucide-react';
+import type { Actor } from '@/domain/types';
+import type { Entry } from '@/domain/legacy';
+import type { CommandReference, MomentView } from '@/domain/command-workspace';
+import { emptyScene, sceneTabs, sceneStatusNames, targetKey, type SceneDocument, type SceneView, type SceneSummary, type SceneHistory, type SceneParticipants, type SceneTarget, type PlayerScene } from '@/domain/story-scene';
+import { api, ApiError } from './api-client';
+import { RichTextEditor, RichTextView } from './rich-text';
+import { CommandScene } from './command-scene';
+import { ScenePlayerView } from './scene-player-view';
+import styles from './story-scene.module.css';
+import command from './command-workspace.module.css';
+
+type Character = { id: string; title: string; ownerId: string };
+type Props = {
+  a: Actor; session?: Entry; id: string; scenes: SceneSummary[]; stories: { id: string; title: string }[];
+  storyId: string; references: CommandReference[]; characters: Character[]; moments: MomentView[];
+  onSelect: (id: string, storyId?: string, placeId?: string) => void; onRefresh: () => void;
+  onDirty: (dirty: boolean) => void; onDenied: () => void; onOpenReference: (r: CommandReference) => void;
+  ask: (message: string) => Promise<boolean>;
+};
+const targetOf = (value: string): SceneTarget => value === 'group' ? { scope: 'group' } : { scope: 'character', characterId: value.slice(5) };
+
+export function StorySceneManager(p: Props) {
+  const [search, setSearch] = useState(''), [storyFilter, setStoryFilter] = useState(''), [creating, setCreating] = useState(false), [error, setError] = useState('');
+  const [draftDirty, setDraftDirty] = useState(false), [sessionDirty, setSessionDirty] = useState(false);
+  const createId = useRef<string | null>(null), creatingRef = useRef(false), dirtyCb = useRef(p.onDirty);
+  useEffect(() => { dirtyCb.current = p.onDirty; }, [p.onDirty]);
+  useEffect(() => { dirtyCb.current(draftDirty || sessionDirty || creating); }, [draftDirty, sessionDirty, creating]);
+  const choices = p.scenes.filter(s => (!storyFilter || s.storyId === storyFilter) && s.title.toLowerCase().includes(search.toLowerCase()));
+  async function create() {
+    if (creatingRef.current) return;
+    if (draftDirty || sessionDirty) return;
+    creatingRef.current = true; setCreating(true); setError(''); createId.current ||= crypto.randomUUID();
+    try { const r = await api<{ scene: SceneView }>('/api/command-center/scenes', 'POST', { action: 'create', clientRequestId: createId.current, document: emptyScene(p.storyId) }); createId.current = null; p.onRefresh(); setDraftDirty(false);dirtyCb.current(false); p.onSelect(r.scene.id); }
+    catch (e) { setError((e as Error).message); if (e instanceof ApiError && [401,403].includes(e.status)) p.onDenied(); }
+    finally { creatingRef.current = false; setCreating(false); }
+  }
+  return <div className={styles.manager}>
+    <div className={styles.toolbar}><input aria-label="Szenen suchen" placeholder="Szene suchen …" value={search} onChange={e => setSearch(e.target.value)}/><select aria-label="Szenen nach Handlungsstrang filtern" value={storyFilter} onChange={e => setStoryFilter(e.target.value)}><option value="">Alle Handlungsstränge</option>{p.stories.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select><button className={command.primary} disabled={creating||draftDirty||sessionDirty} title={draftDirty||sessionDirty?'Speichere zuerst deine offenen Eingaben.':undefined} onClick={() => void create()}><Plus size={14}/>{creating ? 'Legt an …' : 'Neue Szene'}</button></div>
+    <nav className={styles.switcher} aria-label="Szenen-Switcher">{choices.map(s => { const runs = s.runs.filter(r => r.sessionId === p.session?.id), active = runs.findLast(r => r.status === 'active'), paused = runs.findLast(r => r.status === 'paused'), latest = active || paused || runs.at(-1); return <button className={styles.sceneCard} key={s.id} aria-pressed={p.id === s.id} onClick={() => p.onSelect(s.id)}><strong>{s.title}</strong><small className={active ? styles.running : ''}>{sceneStatusNames[latest?.status || 'prepared']}{latest ? ' · ' + latest.label : ''}</small><small>{p.references.find(r => r.id === s.placeId)?.title || 'Kein Schauplatz festgelegt'}</small></button>; })}</nav>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    {p.id ? <SceneEditor key={p.id} {...p} summary={p.scenes.find(s => s.id === p.id)} onDirty={setDraftDirty}/> : <div className={styles.empty}><Clapperboard size={28}/><h2>Deine Szenenregie</h2><p>Bereite unabhängige Szenen vor. Erst dein bewusster Aufruf startet einen Szenenlauf; Öffnen und Bearbeiten verändern keinen Spielverlauf.</p></div>}
+    <details className={styles.fold} open={!p.session || undefined}><summary>{p.session ? 'Bestehende Sitzung, Initiative & gemeinsames Protokoll' : 'Zuerst eine Sitzung anlegen'}</summary><CommandScene session={p.session} a={p.a} onRefresh={p.onRefresh} onDirty={setSessionDirty}/></details>
+  </div>;
+}
+
+function SceneEditor(p: Props & { summary?: SceneSummary }) {
+  const [scene, setScene] = useState<SceneView | null>(null), [doc, setDoc] = useState<SceneDocument | null>(null), [tab, setTab] = useState<keyof typeof sceneTabs>('narration');
+  const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [generation, setGeneration] = useState(0), [remote, setRemote] = useState<SceneView | null>(null);
+  const [history, setHistory] = useState<SceneHistory[] | null>(null), [target, setTarget] = useState(''), [preview, setPreview] = useState<PlayerScene[] | null>(null);
+  const [participantMode, setParticipantMode] = useState<'group' | 'characters'>('group'), [participants, setParticipants] = useState<string[]>([]), [groupLabel, setGroupLabel] = useState('');
+  const [runId, setRunId] = useState(''), [moment, setMoment] = useState('');
+  const current = useRef<SceneDocument | null>(null), revision = useRef(0), inFlight = useRef(false), dirtyRef = useRef(false), alive = useRef(true), dirtyCb = useRef(p.onDirty), deniedCb = useRef(p.onDenied), refreshCb = useRef(p.onRefresh);
+  const runRequest = useRef<string | null>(null), momentRequest = useRef<string | null>(null);
+  useEffect(() => { dirtyCb.current = p.onDirty; deniedCb.current = p.onDenied; refreshCb.current = p.onRefresh; }, [p.onDirty,p.onDenied,p.onRefresh]);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  useEffect(() => { dirtyCb.current(dirty || !!moment.trim() || busy); }, [dirty,moment,busy]);
+  useEffect(() => {
+    let live = true;
+    api<{ scene: SceneView }>('/api/command-center/scenes?id=' + encodeURIComponent(p.id)).then(r => {
+      if (!live || inFlight.current) return;
+      if (dirtyRef.current) { if (r.scene.version !== revision.current) { setRemote(r.scene); setError('Ein anderer SL hat diese Szene verändert. Deine Eingaben bleiben erhalten.'); } return; }
+      setScene(r.scene); setDoc(r.scene.document); current.current = r.scene.document; if (r.scene.version !== revision.current) setGeneration(n => n + 1); revision.current = r.scene.version;
+    }).catch(e => { if (live) { setError(e.message); if (e instanceof ApiError && [401,403].includes(e.status)) deniedCb.current(); } });
+    return () => { live = false; };
+  }, [p.id,p.summary?.version]);
+  function edit(d: SceneDocument) { setDoc(d); current.current = d; dirtyRef.current = true; setDirty(true); setNotice(''); }
+  async function execute(extra: Record<string, unknown>) {
+    if (!scene || inFlight.current || extra.action !== 'save' && dirtyRef.current) return;
+    inFlight.current = true; setBusy(true); setError(''); const sent = current.current;
+    try {
+      const r = await api<{ scene: SceneView }>('/api/command-center/scenes','POST',{ id:p.id,version:revision.current,...extra });
+      if (!alive.current) return;
+      setScene(r.scene); revision.current = r.scene.version; setRemote(null);
+      if (extra.action === 'save') { const stillDirty = JSON.stringify(current.current) !== JSON.stringify(sent); dirtyRef.current = stillDirty; setDirty(stillDirty); }
+      setPreview(null); runRequest.current = null; refreshCb.current();
+      setNotice(extra.action === 'save' ? 'Entwurf dauerhaft gespeichert. Die Spielerfreigabe bleibt unverändert.' : extra.action === 'publish' ? 'Gespeicherte Erzählung für die ausgewählte Zielgruppe freigegeben. SL-Abschnitte bleiben vertraulich.' : extra.action === 'withdraw' ? 'Nur diese Zielgruppenfreigabe wurde zurückgezogen.' : 'Szenenlauf gespeichert. Vorbereitete Möglichkeiten bleiben unverändert.');
+    } catch(e) {
+      if (!alive.current) return; setError((e as Error).message);
+      if(e instanceof ApiError && [401,403].includes(e.status)) deniedCb.current();
+      if(e instanceof ApiError && e.status===409) { try { const r=await api<{scene:SceneView}>('/api/command-center/scenes?id='+encodeURIComponent(p.id));setRemote(r.scene); } catch { /* Preserve all open input. */ } }
+    } finally { inFlight.current=false;if(alive.current)setBusy(false); }
+  }
+  async function activate() {
+    if (!p.session || dirty || busy || participantMode === 'characters' && !participants.length) return;
+    const participantSet: SceneParticipants = participantMode === 'group' ? {scope:'group'} : {scope:'characters',characterIds:participants};
+    const label = groupLabel.trim() || (participantMode === 'group' ? 'Kampagnengruppe' : 'Teilgruppe');
+    if (!await p.ask(`„${doc?.title}“ für ${label} in dieser Sitzung aktivieren? Das veröffentlicht keine Entwurfsinhalte und legt keine Konsequenzen fest.`)) return;
+    runRequest.current ||= crypto.randomUUID(); await execute({action:'activate',runId:runRequest.current,sessionId:p.session.id,label,participants:participantSet});
+  }
+  async function release(withdraw=false) {
+    if(!target || dirty || busy)return;
+    if(!await p.ask(`${withdraw?'Freigabe zurückziehen':'Gespeicherte Erzählung freigeben'} für ${target==='group'?'die aktive Kampagnengruppe':p.characters.find(c=>c.id===target.slice(5))?.title}? Private Regie, Geheimnisse und mögliche Folgen werden nicht übertragen. Hinweise benötigen ihre eigene Freigabe.`))return;
+    await execute({action:withdraw?'withdraw':'publish',target:targetOf(target)});
+  }
+  async function showPreview() {
+    if(!target)return;
+    try { const r=await api<{scenes:PlayerScene[]}>('/api/command-center/scenes?view=player'+(target==='group'?'':'&characterId='+encodeURIComponent(target.slice(5))));setPreview(r.scenes.filter(s=>s.id===p.id)); } catch(e){setError((e as Error).message);}
+  }
+  async function lifecycle(action:'pause'|'resume'|'complete'|'reopen',id:string) {
+    if(dirty || busy)return;
+    if(['complete','reopen'].includes(action) && !await p.ask(action==='complete'?'Diesen Szenenlauf abschließen? Tatsächliche Ereignisse und Historie bleiben erhalten.':'Diese Szene erneut aufrufen? Der abgeschlossene Lauf bleibt erhalten; ein neuer Lauf beginnt.'))return;
+    await execute({action,runId:id,...(action==='reopen'?{newRunId:crypto.randomUUID()}: {})});
+  }
+  async function recordMoment(e: React.FormEvent) {
+    e.preventDefault();if(!scene||!p.session||!runId||!moment.trim()||inFlight.current)return;
+    momentRequest.current ||= crypto.randomUUID();inFlight.current=true;setBusy(true);setError('');
+    try{await api('/api/command-center/moments','POST',{clientRequestId:momentRequest.current,text:moment,sessionId:p.session.id,storyId:scene.document.storyId,sceneId:scene.id,runId,references:[scene.document.placeId].filter(Boolean)});setMoment('');momentRequest.current=null;refreshCb.current();setNotice('Tatsächliches Ereignis gespeichert. Die Vorbereitung wurde nicht verändert.');}catch(e){setError((e as Error).message);}finally{inFlight.current=false;setBusy(false);}
+  }
+  if(!scene||!doc)return <p role={error?'alert':'status'} className={styles.empty}>{error||'Szene wird geladen …'}</p>;
+  const runs=scene.state.runs.filter(r=>r.sessionId===p.session?.id), relevantMoments=p.moments.filter(m=>m.sceneId===scene.id && (!p.session || m.sessionId===p.session.id));
+  const published=target?scene.state.publications.find(pub=>targetKey(pub.target)===targetKey(targetOf(target))):undefined;
+  const rich=(key:'narration'|'atmosphere'|'gmNotes'|'dialogueNotes'|'interactions'|'secrets'|'possibleConsequences',label:string,shareable=false)=><section><p className={shareable?styles.publicLabel:styles.privateLabel}>{shareable?<Eye size={12}/>:<LockKeyhole size={12}/>} {shareable?'Erzählung · erst nach bewusster Freigabe für Spieler':'Nur Spielleitung'}</p><RichTextEditor key={key+'-'+generation} value={doc[key]} label={label} maximumPlainLength={7000} placeholder={shareable?'Was sollen die Spieler in dieser Szene erfahren?':'Deine private Vorbereitung …'} onChange={value=>edit({...current.current!,[key]:value})}/></section>;
+  return <div className={styles.editor}>
+    <header className={styles.heading}><div><p>SL-SZENE · VORBEREITUNG ≠ SPIELVERLAUF</p><h2>{scene.document.title}</h2><span role="status" className={`${styles.saveState} ${dirty?styles.dirty:''}`}>{dirty?'Ungespeicherte Änderungen':<><Check size={12}/>Entwurf gespeichert · {new Date(scene.updatedAt).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</>}</span></div><button className={command.primary} disabled={!dirty||busy||!!remote} onClick={()=>void execute({action:'save',document:current.current})}><Save size={14}/>{busy?'Speichert …':'Entwurf speichern'}</button></header>
+    {error&&<p role="alert" className={styles.error}>{error}</p>}{notice&&<p role="status" className={styles.notice}>{notice}</p>}
+    {remote&&<section className={styles.snapshotCompare}><strong>Konflikt · deine Eingaben bleiben offen</strong><details><summary>Gespeicherten Stand vergleichen</summary><h3>{remote.document.title}</h3>{(['narration','atmosphere','gmNotes','dialogueNotes','interactions','secrets','possibleConsequences'] as const).filter(k=>remote.document[k]).map(k=><blockquote key={k}><strong>{({narration:'Erzählung',atmosphere:'Atmosphäre',gmNotes:'Regie',dialogueNotes:'Gesprächsnotizen',interactions:'Interaktion',secrets:'Geheimnisse',possibleConsequences:'Mögliche Folgen'})[k]}</strong><RichTextView value={remote.document[k]}/></blockquote>)}</details><button onClick={async()=>{if(!await p.ask('Eigene Eingaben verwerfen und den gespeicherten Stand laden?'))return;setScene(remote);setDoc(remote.document);current.current=remote.document;revision.current=remote.version;dirtyRef.current=false;setDirty(false);setRemote(null);setError('');setGeneration(n=>n+1);}}>Gespeicherten Stand laden</button><button onClick={async()=>{if(!await p.ask('Nach dem Vergleich deine vollständigen Eingaben als neue Fassung verwenden? Auch unveränderte lokale Felder werden dabei übernommen.'))return;revision.current=remote.version;setScene(remote);setRemote(null);setError('');dirtyRef.current=true;setDirty(true);}}>Eigene Eingaben weiterverwenden</button></section>}
+    <nav className={styles.tabs} aria-label="Szenenregister">{Object.entries(sceneTabs).map(([key,label])=><button key={key} aria-pressed={tab===key} onClick={()=>setTab(key as keyof typeof sceneTabs)}>{label}</button>)}</nav>
+    {tab==='narration'&&<><label>Name der Szene<input aria-label="Name der Szene" value={doc.title} maxLength={200} onChange={e=>edit({...doc,title:e.target.value})}/></label><div className={styles.fields}><label>Handlungsstrang<select value={doc.storyId} onChange={e=>edit({...doc,storyId:e.target.value})}><option value="">Eigenständige Szene</option>{p.stories.map(s=><option value={s.id} key={s.id}>{s.title}</option>)}</select></label><label>Schauplatz<select value={doc.placeId} onChange={e=>edit({...doc,placeId:e.target.value})}><option value="">Kein Schauplatz festgelegt</option>{p.references.filter(r=>r.type==='PLACE').map(r=><option value={r.id} key={r.id}>{r.title}</option>)}</select></label></div>{doc.placeId&&<button onClick={()=>p.onOpenReference(p.references.find(r=>r.id===doc.placeId)!)}><MapPin size={13}/>Original-Ortsakte öffnen</button>}{rich('narration','Erzähltext für Spieler',true)}{rich('atmosphere','Atmosphäre & Vorlesehinweise')}{rich('gmNotes','Private Regienotizen')}</>}
+    {tab==='persons'&&<><ReferencePicker label="NSC aus der Spielwelt" allowed={p.references.filter(r=>r.type==='NPC')} selected={doc.npcIds} onChange={npcIds=>edit({...doc,npcIds})} onOpen={p.onOpenReference}/>{rich('dialogueNotes','Gespräche, Motive & mögliche Reaktionen')}<p className={styles.empty}>Die Originalakte bleibt zentral. Gesprächsvorbereitung wird durch das Öffnen nicht zu einer tatsächlichen Reaktion.</p></>}
+    {tab==='interaction'&&<>{rich('interactions','Handlungen & vorbereitete Proben')}<h3>Mögliche Entwicklungen</h3><p className={styles.empty}>Keine Reihenfolge, keine Pflichtentscheidung und keine automatischen Konsequenzen.</p>{doc.possibilities.map(pos=><article key={pos.id} className={styles.possibility}><header><input aria-label="Titel einer möglichen Entwicklung" value={pos.title} onChange={e=>edit({...doc,possibilities:doc.possibilities.map(old=>old.id===pos.id?{...old,title:e.target.value}:old)})}/><button aria-label="Vorbereitete Möglichkeit entfernen" onClick={()=>edit({...doc,possibilities:doc.possibilities.filter(old=>old.id!==pos.id)})}><X size={12}/></button></header><textarea aria-label="Beschreibung der möglichen Entwicklung" rows={2} value={pos.text} onChange={e=>edit({...doc,possibilities:doc.possibilities.map(old=>old.id===pos.id?{...old,text:e.target.value}:old)})}/></article>)}<button disabled={doc.possibilities.length>=50} onClick={()=>edit({...doc,possibilities:[...doc.possibilities,{id:crypto.randomUUID(),title:'Neue Möglichkeit',text:''}]})}><Plus size={13}/>Möglichkeit vorbereiten</button></>}
+    {tab==='secrets'&&<>{rich('secrets','Vertrauliche Geheimnisse')}<ReferencePicker label="Hinweise & Handouts verknüpfen" allowed={p.references.filter(r=>['CLUE','HANDOUT'].includes(r.type))} selected={doc.clueIds} onChange={clueIds=>edit({...doc,clueIds})} onOpen={p.onOpenReference}/><SceneKnowledge key={scene.id+':'+scene.version} ids={scene.document.clueIds} references={p.references} characters={p.characters} onChanged={p.onRefresh} ask={p.ask}/></>}
+    {tab==='consequences'&&<>{rich('possibleConsequences','Vorbereitete mögliche Folgen')}<h3>Tatsächlich geschehen</h3><p className={styles.empty}>Nur deine bewusste Notiz landet im Kampagnengedächtnis. Nichts wird automatisch als Kanon übernommen.</p><form onSubmit={e=>void recordMoment(e)}><label>Gespielter Szenenlauf<select aria-label="Szenenlauf für Ereignis" value={runId} onChange={e=>setRunId(e.target.value)}><option value="">Lauf ausdrücklich auswählen</option>{runs.map(r=><option value={r.id} key={r.id}>{r.label} · {sceneStatusNames[r.status]} · {new Date(r.startedAt).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</option>)}</select></label><label>Was ist wirklich passiert?<textarea aria-label="Tatsächliche Szenenkonsequenz" rows={3} maxLength={3000} value={moment} onChange={e=>{setMoment(e.target.value);momentRequest.current=null;}}/></label><button disabled={busy||!runId||!moment.trim()||!p.session}>Ereignis festhalten</button></form>{relevantMoments.map(m=><article className={styles.runCard} key={m.id}><time>{new Date(m.occurredAt).toLocaleString('de-DE')}</time><p>{m.text}</p></article>)}</>}
+    <section className={styles.publication} aria-label="Szene gezielt freigeben"><strong><Eye size={13}/>Bewusste Spielerfreigabe</strong><p>Entwurf speichern veröffentlicht nichts. Freigegeben wird nur die gespeicherte Erzählung; bekannte verknüpfte Akten werden serverseitig geprüft.</p><label>Zielgruppe<select aria-label="Szenen-Zielgruppe" value={target} onChange={e=>{setTarget(e.target.value);setPreview(null);}}><option value="">Zielgruppe ausdrücklich auswählen</option><option value="group">Aktive Kampagnengruppe</option>{p.characters.map(c=><option value={'char:'+c.id} key={c.id}>Nur Charakter: {c.title}</option>)}</select></label>{published&&<p>Für diese Zielgruppe freigegeben · {new Date(published.publishedAt).toLocaleString('de-DE')}{JSON.stringify([published.title,published.narration,published.placeId,published.npcIds,published.clueIds]) !== JSON.stringify([doc.title,doc.narration,doc.placeId,doc.npcIds,doc.clueIds])?' · der Entwurf wurde danach weiterbearbeitet':''}</p>}{dirty&&<p className={styles.dirty}>Speichere zuerst den Entwurf. Unveröffentlichte Änderungen bleiben privat.</p>}<div className={styles.actions}><button className={command.primary} disabled={!target||dirty||busy||!!remote} onClick={()=>void release()}>Gespeicherte Erzählung freigeben</button><button disabled={!published||dirty||busy||!!remote} onClick={()=>void release(true)}>Freigabe zurückziehen</button><button disabled={!target||busy} onClick={()=>void showPreview()}><Eye size={13}/>Echter Spielerblick</button></div>{preview&&<div className={styles.preview}><header>VERÖFFENTLICHTE ANSICHT · {target==='group'?'Gruppenwissen':p.characters.find(c=>c.id===target.slice(5))?.title} · keine Entwurfsinhalte</header><ScenePlayerView scenes={preview}/></div>}</section>
+    <details className={styles.fold} open={runs.some(r=>r.status!=='completed')||undefined}><summary><Clapperboard size={13}/>Szenenläufe & Teilgruppen</summary><p className={styles.empty}>Öffnen wechselt nur deinen Fokus. Aktivieren, Pausieren und Abschließen sind bewusste SL-Aktionen; getrennte Gruppen können parallel spielen.</p>{runs.map(r=><article className={styles.runCard} key={r.id}><header><strong>{r.label}</strong><span>{sceneStatusNames[r.status]}</span></header><small>{r.participants.scope==='group'?'Aktive Kampagnengruppe':r.participants.characterIds.map(id=>p.characters.find(c=>c.id===id)?.title||'Nicht mehr verfügbare Charakterakte').join(' · ')}</small><div className={styles.actions}>{r.status==='active'&&<button disabled={dirty||busy||!!remote} onClick={()=>void lifecycle('pause',r.id)}><Pause size={12}/>Pausieren</button>}{r.status==='paused'&&<button disabled={dirty||busy||!!remote} onClick={()=>void lifecycle('resume',r.id)}><Play size={12}/>Fortsetzen</button>}{r.status!=='completed'?<button disabled={dirty||busy||!!remote} onClick={()=>void lifecycle('complete',r.id)}><Check size={12}/>Abschließen</button>:<button disabled={dirty||busy||!!remote} onClick={()=>void lifecycle('reopen',r.id)}><RotateCcw size={12}/>Erneut aufrufen</button>}</div></article>)}<details className={styles.fold}><summary>Neuen Szenenlauf aktivieren</summary><label>Wer spielt diese Szene?<select aria-label="Szenenteilnehmer" value={participantMode} onChange={e=>setParticipantMode(e.target.value as 'group'|'characters')}><option value="group">Aktive Kampagnengruppe</option><option value="characters">Ausgewählte Charaktere / Teilgruppe</option></select></label>{participantMode==='characters'&&<div className={styles.participants}>{p.characters.map(c=><label key={c.id}><input type="checkbox" checked={participants.includes(c.id)} onChange={e=>setParticipants(old=>e.target.checked?[...old,c.id]:old.filter(id=>id!==c.id))}/>{c.title}</label>)}{!p.characters.length&&<p>Keine freigegebenen Charakterakten verfügbar.</p>}</div>}<label>Bezeichnung der Gruppe<input aria-label="Name der Szenenteilgruppe" maxLength={120} placeholder={participantMode==='group'?'Kampagnengruppe':'Teilgruppe'} value={groupLabel} onChange={e=>setGroupLabel(e.target.value)}/></label><button disabled={dirty||busy||!!remote||!p.session||participantMode==='characters'&&!participants.length} onClick={()=>void activate()}><Play size={13}/>Szene aktivieren</button>{!p.session&&<p>Lege zuerst unten eine Sitzung an.</p>}</details></details>
+    <details className={styles.fold}><summary onClick={()=>{void api<{history:SceneHistory[]}>('/api/command-center/scenes?id='+encodeURIComponent(p.id)+'&history=1').then(r=>setHistory(r.history)).catch(e=>setError(e.message));}}><History size={13}/>Änderungsverlauf & Revisionsnachweis</summary><ol className={styles.history}>{history?.map(h=><li key={h.id}><strong>Revision {h.version}</strong><span>{({create:'Vorbereitet',save:'Entwurf gespeichert',activate:'Aktiviert',pause:'Pausiert',resume:'Fortgesetzt',complete:'Abgeschlossen',reopen:'Erneut aufgerufen',publish:'Zielgerichtet freigegeben',withdraw:'Freigabe zurückgezogen'} as Record<string,string>)[h.action]||h.action}</span><time>{new Date(h.createdAt).toLocaleString('de-DE')}</time></li>)}</ol></details>
+  </div>;
+}
+
+function ReferencePicker({label,allowed,selected,onChange,onOpen}:{label:string;allowed:CommandReference[];selected:string[];onChange:(ids:string[])=>void;onOpen:(r:CommandReference)=>void}) {
+  return <section><label>{label}<select value="" onChange={e=>{if(e.target.value&&!selected.includes(e.target.value))onChange([...selected,e.target.value]);}}><option value="">Bestehende Akte hinzufügen …</option>{allowed.filter(r=>!selected.includes(r.id)).map(r=><option key={r.id} value={r.id}>{r.title}</option>)}</select></label><div className={styles.referenceList}>{selected.map(id=>{const ref=allowed.find(r=>r.id===id);return <span key={id}><button disabled={!ref} onClick={()=>ref&&onOpen(ref)}><Link2 size={11}/>{ref?.title||'Nicht verfügbare Akte'}</button><button aria-label={'Verknüpfung '+(ref?.title||'Akte')+' entfernen'} onClick={()=>onChange(selected.filter(old=>old!==id))}><X size={12}/></button></span>;})}</div><small className={styles.empty}>Verknüpft die Originalakte; kein zweiter Datenbestand.</small></section>;
+}
+
+function SceneKnowledge({ids,references,characters,onChanged,ask}:{ids:string[];references:CommandReference[];characters:Character[];onChanged:()=>void;ask:(s:string)=>Promise<boolean>}) {
+  const [id,setId]=useState(''),[target,setTarget]=useState(''),[knowledge,setKnowledge]=useState<{audience:string;subject_id:string;state:string;version:number}[]>([]),[loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+  useEffect(()=>{let live=true;if(id)api<{knowledge:typeof knowledge}>('/api/knowledge?entityId='+encodeURIComponent(id)).then(r=>{if(live){setKnowledge(r.knowledge);setLoaded(true);}}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[id]);
+  const prior=knowledge.find(k=>k.audience===(target==='group'?'group':'character')&&(target==='group'||k.subject_id===target.slice(5)));
+  async function grant(withdraw=false) {
+    if(!id||!target||busy||!loaded||!await ask(`${withdraw?'Wissen zurückziehen':'Hinweis freigeben'} für ${target==='group'?'die Kampagnengruppe':characters.find(c=>c.id===target.slice(5))?.title}? Andere Charaktere und Zielgruppen bleiben unverändert.`))return;
+    setBusy(true);setError('');
+    try{await api('/api/knowledge','POST',{entityId:id,audience:target==='group'?'group':'character',...(target==='group'?{}:{characterId:target.slice(5)}),state:withdraw?'UNKNOWN':'DISCOVERED',expectedVersion:prior?.version||0});const r=await api<{knowledge:typeof knowledge}>('/api/knowledge?entityId='+encodeURIComponent(id));setKnowledge(r.knowledge);onChanged();setNotice(withdraw?'Diese Wissensfreigabe wurde zurückgezogen.':'Hinweis gezielt freigegeben.');}catch(e){setError((e as Error).message);setLoaded(false);}finally{setBusy(false);}
+  }
+  return <section className={styles.knowledgeCard}><h4>Individuelles Charakterwissen</h4><p>Vertrauliche SL-Geheimnisse bleiben gesperrt. Hier gibst du nur bestehende freigabefähige Hinweise oder Handouts frei.</p><label>Gespeicherten Hinweis auswählen<select aria-label="Hinweis für Wissensfreigabe" value={id} onChange={e=>{setId(e.target.value);setNotice('');setLoaded(false);setKnowledge([]);setError('');}}><option value="">Hinweis wählen</option>{ids.map(id=><option key={id} value={id}>{references.find(r=>r.id===id)?.title||'Nicht verfügbare Akte'}</option>)}</select></label><label>Wer erfährt es?<select aria-label="Wissens-Zielgruppe" value={target} onChange={e=>setTarget(e.target.value)}><option value="">Zielgruppe wählen</option><option value="group">Aktive Kampagnengruppe</option>{characters.map(c=><option key={c.id} value={'char:'+c.id}>{c.title}</option>)}</select></label><div className={styles.actions}><button disabled={!loaded||!target||busy} onClick={()=>void grant()}>Hinweis freigeben</button><button disabled={!loaded||!target||busy||!prior||prior.state==='UNKNOWN'} onClick={()=>void grant(true)}>Wissen zurückziehen</button></div>{notice&&<p className={styles.notice} role="status">{notice}</p>}{error&&<p className={styles.error} role="alert">{error} <button onClick={()=>{setId('');setKnowledge([]);setLoaded(false);}}>Auswahl neu laden</button></p>}</section>;
+}
