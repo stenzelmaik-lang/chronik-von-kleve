@@ -14,9 +14,10 @@ import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 // data across restarts; the full regression suite always uses a fresh store.
 const inventoryDemo=process.argv.includes('--inventory');
 const accessDemo=process.argv.includes('--access-alpha');
-const interactive=process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const preserve=process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const state=preserve?resolve(inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const commandDemo=process.argv.includes('--command-center-2');
+const interactive=commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const preserve=commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const state=preserve?resolve(commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
 const fingerprint=createHash('sha256').update(migrations.map(file=>readFileSync(file,'utf8')).join('\n')).digest('hex');
@@ -25,7 +26,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const port=inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const port=commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:'+port,CVK_TEST_STATE:state};
 if(!resumed)for(const migration of migrations){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
@@ -111,7 +112,7 @@ try{
   if(login.status!==200)throw new Error('Synthetic demo login failed');
   const fixtureCookie=login.headers.get('set-cookie')?.split(';')[0];
   if(!fixtureCookie)throw new Error('Synthetic demo session missing');
-  const author=async(path,body)=>{const response=await fetch(env.CVK_TEST_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:fixtureCookie},body:JSON.stringify(body)});if(!response.ok)throw new Error('Synthetic demo authoring failed: '+path+' '+response.status);};
+  const author=async(path,body)=>{const response=await fetch(env.CVK_TEST_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:fixtureCookie},body:JSON.stringify(body)});if(!response.ok)throw new Error('Synthetic demo authoring failed: '+path+' '+response.status);return response.json();};
   await author('/api/records',{kind:'sitzungen',title:'SYNTHETISCH – Regieabnahme',visibility:'group',body:{scene:'Lokale Demonstrationsszene',subtitle:'Ausschließlich synthetische Abnahmedaten.',status:'Bereit',log:[]},gmBody:'PRIVATE_QA: Diese Notiz gehört ausschließlich der Spielleitung.'});
   await author('/api/entities',{type:'HANDOUT',title:'SYNTHETISCH – Testhinweis',text:'PLAYER_QA: Gezielter Testhinweis.',gmBody:'PRIVATE_QA: Vertraulicher Handout-Kontext.'});
   const playerLogin=await fetch(env.CVK_TEST_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL},body:JSON.stringify({email:'command-a@example.invalid',password:'ChroniPlay-Demo-2036!'})});
@@ -128,6 +129,16 @@ try{
 
   // Existing accepted reference fixture, only in this fresh isolated local DB.
   if(!inventoryDemo)await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
+  if(commandDemo){
+   const command=async(cookie,id,action,extra={})=>{const view=await (await fetch(env.CVK_TEST_URL+'/api/character-engine?id='+id,{headers:{Cookie:cookie}})).json();const response=await fetch(env.CVK_TEST_URL+'/api/character-engine',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:cookie},body:JSON.stringify({id,version:view.version,action,...extra})});if(!response.ok)throw new Error('Synthetic character command failed: '+action+' '+response.status);};
+   await command(playerCookie,engineId,'review');
+   const bLogin=await fetch(env.CVK_TEST_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL},body:JSON.stringify({email:'command-b@example.invalid',password:'ChroniPlay-Demo-2036!'})});
+   const bCookie=bLogin.headers.get('set-cookie')?.split(';')[0];if(!bLogin.ok||!bCookie)throw new Error('Synthetic Player B login failed');
+   const bResponse=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:bCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Regiecharakter B',visibility:'sl',body:{...engineFixture,player:'Demo Spieler B'}})});
+   if(!bResponse.ok)throw new Error('Synthetic Player B character authoring failed');const bId=(await bResponse.json()).id;
+   await command(bCookie,bId,'review');await command(fixtureCookie,bId,'confirm');await command(fixtureCookie,bId,'xp_grant',{amount:15,reason:'Synthetische Demonstration, kein Kanon'});
+   await author('/api/command-center/story',{action:'create',clientRequestId:randomUUID(),document:{title:'SYNTHETISCH – Die offene Frage',sections:{core:'Dies ist ein reiner Bedienungstest. Beschreibe hier deinen roten Faden; die Software erzwingt keine Szenenfolge.',background:'Vorbereitete Informationen bleiben von tatsächlich geschehenen Ereignissen getrennt.',secrets:'PRIVATE_COMMAND_QA: Diese Information gehört ausschließlich der Spielleitung.',clues:'Verknüpfe vorhandene Hinweise, statt ihre Inhalte zu kopieren.',consequences:'Mögliche Folgen sind Vorschläge für deine Regie, keine automatischen Kampagnenereignisse.',notes:''},references:['place.electric-taberna'],possibilities:[{id:randomUUID(),title:'Synthetische mögliche Begegnung',text:'Nur vorbereitet. Ein Protokolleintrag erledigt diese Möglichkeit nicht automatisch.',status:'open'}]}});
+  }
   if(preserve)writeFileSync(marker,JSON.stringify({purpose:'synthetic-local-weekend',migrations:fingerprint}));
   }
   console.log('Isolated application ready: '+env.CVK_TEST_URL+'/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
