@@ -1,5 +1,6 @@
 import {inventory2Integration} from "./inventory-integration.mjs";
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
+import {storySceneIntegration} from './story-scene-integration.mjs';
 import {engineFixture} from "./fixtures/engine-character.mjs";
 import {weekendIntegration} from "./weekend-integration.mjs";
 import {accountAccessIntegration} from "./account-access-integration.mjs";
@@ -980,5 +981,6 @@ check((await req('/api/records','gm','POST',regieUpdate)).s===200,'Scene update 
 check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session revision cannot overwrite regie association');
 await weekendIntegration({req,check,localSql,sqlQuote,now});
 await commandWorkspaceIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId});
+await storySceneIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId,characterBody});
 await accountAccessIntegration({req,check,localSql,sqlQuote,base,testPassword,testPasswordHash});
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');

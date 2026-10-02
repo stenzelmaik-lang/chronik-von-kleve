@@ -5,10 +5,12 @@ import { storySectionLabels, type StoryDocument, type StoryView, type StorySecti
 import { api, ApiError } from './api-client';
 import { RichTextEditor, RichTextView } from './rich-text';
 import styles from './command-workspace.module.css';
+import type { SceneSummary } from '@/domain/story-scene';
+import sceneStyles from './story-scene.module.css';
 
-type Props = { id: string; version?: number; references: CommandReference[]; onChanged: () => void; onDirty: (dirty: boolean) => void; onOpenReference: (reference: CommandReference) => void; onDenied: () => void; ask: (text: string) => Promise<boolean> };
+type Props = { id: string; version?: number; references: CommandReference[]; scenes:SceneSummary[];onOpenScene:(id:string)=>void; onChanged: () => void; onDirty: (dirty: boolean) => void; onOpenReference: (reference: CommandReference) => void; onDenied: () => void; ask: (text: string) => Promise<boolean> };
 const documentOf = (s: StoryView): StoryDocument => ({ title: s.title, sections: s.sections, references: s.references, possibilities: s.possibilities });
-export function CommandStory({ id, version, references, onChanged, onDirty, onOpenReference, onDenied, ask }: Props) {
+export function CommandStory({ id, version, references, scenes, onOpenScene, onChanged, onDirty, onOpenReference, onDenied, ask }: Props) {
   const [story, setStory] = useState<StoryView | null>(null), [document, setDocument] = useState<StoryDocument | null>(null);
   const [editing, setEditing] = useState(false), [section, setSection] = useState<StorySection>('core');
   const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [saved, setSaved] = useState('');
@@ -59,6 +61,7 @@ export function CommandStory({ id, version, references, onChanged, onDirty, onOp
   const linked = document.references.map(ref => references.find(r => r.id === ref)).filter((r): r is CommandReference => !!r);
   const available = references.filter(r => !document.references.includes(r.id) && (r.title + ' ' + r.type).toLowerCase().includes(referenceSearch.toLowerCase())).slice(0, 8);
   return <div className={styles.story}>
+    {scenes.some(s=>s.storyId===id)&&<nav className={sceneStyles.relatedScenes} aria-label="Szenen dieses Handlungsstrangs">{scenes.filter(s=>s.storyId===id).map(s=><button key={s.id} onClick={()=>onOpenScene(s.id)}>{s.title}</button>)}</nav>}
     <div className={styles.documentBar}><span className={styles.private}><LockKeyhole size={12}/>Nur Spielleitung</span><button onClick={() => setEditing(!editing)} aria-pressed={editing}><Pencil size={14}/>{editing ? 'Lesen' : 'Bearbeiten'}</button><button onClick={() => void loadHistory()}><History size={14}/><span>Verlauf</span></button></div>
     {editing ? <label className={styles.field}>Titel des Handlungsstrangs<input aria-label="Titel des Handlungsstrangs" value={document.title} maxLength={200} onChange={e => change({ ...document, title: e.target.value })}/></label> : <h2 className={styles.documentTitle}>{document.title}</h2>}
     <nav className={styles.sectionTabs} aria-label="Storyabschnitte">{Object.entries(storySectionLabels).map(([key, label]) => <button key={key} aria-pressed={section === key} onClick={() => setSection(key as StorySection)}>{label}{document.sections[key as StorySection] ? <i/> : null}</button>)}</nav>

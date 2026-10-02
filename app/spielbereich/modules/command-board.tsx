@@ -6,7 +6,7 @@ import type { CommandPanel, CommandTool, CommandWorkspace } from '@/domain/comma
 import styles from './command-workspace.module.css';
 
 export const commandToolLabels = {
-  story: { label: 'Storybuch', icon: BookOpen }, scene: { label: 'Szene', icon: Clapperboard },
+  story: { label: 'Storybuch', icon: BookOpen }, scene: { label: 'Szenenregie', icon: Clapperboard },
   character: { label: 'Charakter', icon: Users }, places: { label: 'Ortsakte', icon: MapPin },
   dispatch: { label: 'Briefe & Freigaben', icon: Send }, notes: { label: 'Regienotizen', icon: NotebookPen },
   moments: { label: 'Sitzungsprotokoll', icon: Feather }, dossiers: { label: 'NSC & Akten', icon: Library }, dice: { label: 'Würfel', icon: Dices },

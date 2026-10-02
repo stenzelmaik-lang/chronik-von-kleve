@@ -229,7 +229,7 @@ export const knowledge = sqliteTable(
       .default(KLEVE_CAMPAIGN_ID)
       .references(() => campaigns.id),
     entityId: text("entity_id").notNull(),
-    audience: text("audience", { enum: ["public", "group", "player"] }).notNull(),
+    audience: text("audience", { enum: ["public", "group", "player", "character"] }).notNull(),
     subjectId: text("subject_id").notNull(),
     state: text("state", { enum: knowledgeStateSchema.options }).notNull(),
     discoveryState: text("discovery_state"),

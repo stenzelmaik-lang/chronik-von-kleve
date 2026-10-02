@@ -11,18 +11,21 @@ import {
 } from "@/server/access";
 import { entityTypeSchema, canonStatusSchema } from "@/domain/types";
 import { loadEntities, grantsFor, projectEntity } from "@/server/entities";
+import { characterKnowledgeContext } from '@/server/character-knowledge';
 export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const a = await actor(),
       id = new URL(req.url).searchParams.get("id") || undefined,
       db = database();
+    const characterId = new URL(req.url).searchParams.get('characterId');
+    const character = characterId ? await characterKnowledgeContext(db, a, characterId) : undefined;
     const [entities, grants] = await Promise.all([
       loadEntities(db, a.campaignId, id),
-      grantsFor(db, a),
+      grantsFor(db, a, character),
     ]);
     const result = entities
-      .map((e) => projectEntity(a, e, grants))
+      .map((e) => projectEntity(a, e, grants, character))
       .filter((e) => e !== null);
     if (id && !result.length)
       throw new HttpError(404, "Entität nicht gefunden.");

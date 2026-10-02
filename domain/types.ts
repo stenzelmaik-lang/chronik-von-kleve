@@ -83,7 +83,7 @@ export type KnowledgeGrant = {
   id: string;
   campaignId: string;
   entityId: string;
-  audience: "group" | "player";
+  audience: "group" | "player" | "character";
   // Group is the set of active members of this campaign. No new group UI.
   subjectId: string;
   state: KnowledgeState;
