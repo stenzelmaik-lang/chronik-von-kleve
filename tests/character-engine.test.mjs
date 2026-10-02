@@ -114,3 +114,19 @@ test("XP cost, ledger and value change are atomic at the pure-engine boundary", 
   }
   assert.equal(applyXpPurchase(body, { category: "attribute", target: "Geschick", from: 4, to: 5 }).ok, false);
 });
+
+ test("character-bound Nosferatu exception preserves zero base and enforces approved maximum",()=>{
+   const body={...structuredClone(base),characterState:'draft',clan:'Nosferatu',attributes:{Erscheinungsbild:3},disciplines:[{name:'Animalismus',value:0},{name:'Verdunkelung',value:0},{name:'Potenz',value:0}]};
+   assert.equal(validateCharacterDraft(campaign,body).ok,false);
+   const allowed={...body,ruleExceptions:[{category:'appearance',target:'Erscheinungsbild',maximum:3,decidedBy:'test-sl',reason:'Synthetic permission'}]};
+   assert.equal(validateCharacterDraft(campaign,allowed).ok,true);
+   assert.equal(attributeBase(allowed,'Erscheinungsbild'),0);
+   assert.equal(validateCharacterDraft(campaign,{...allowed,attributes:{Erscheinungsbild:4}}).ok,false);
+   assert.equal(validateCharacterDraft(campaign,{...allowed,ruleExceptions:[{category:'appearance',target:'Erscheinungsbild',maximum:3}]}).ok,false);
+ });
+ test("foreign discipline permission still spends seven Freebies per dot",()=>{
+   const body={...structuredClone(base),characterState:'draft',disciplines:[...base.disciplines,{name:'Potenz',value:1,source:'foreign',slApproved:true}],ruleExceptions:[{category:'foreignDiscipline',target:'Potenz',maximum:1,decidedBy:'test-sl',reason:'Synthetic permission'}]};
+   assert.equal(freebieTotal(body),7);
+   assert.equal(validateCharacterDraft(campaign,body).ok,true);
+   assert.equal(validateCharacterDraft(campaign,{...body,disciplines:body.disciplines.map(r=>r.name==='Potenz'?{...r,value:2}:r)}).ok,false);
+ });

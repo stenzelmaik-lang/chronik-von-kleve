@@ -77,6 +77,19 @@ function integer(value: unknown, fallback = 0) { return typeof value === "number
 function line(spent: number, limit: number): CreationBudgetLine { return { spent, limit, remaining: limit - spent, exceeded: spent > limit }; }
 function rows(value: unknown): CharacterRow[] { return Array.isArray(value) ? value.filter((item): item is CharacterRow => !!item && typeof item === "object") : []; }
 function numericValue(value: unknown, fallback = 0) { return Math.max(0, integer(value, fallback)); }
+/** Server-owned, character-bound SL exception; generic record writes cannot alter it. */
+export function appearanceExceptionMaximum(body: CharacterLike): number {
+  if (!Array.isArray(body.ruleExceptions)) return 0;
+  return body.ruleExceptions.reduce((maximum, raw) => {
+    if (!raw || typeof raw !== "object") return maximum;
+    const grant = raw as CharacterLike;
+    return grant.category === "appearance" && grant.target === "Erscheinungsbild" &&
+      typeof grant.decidedBy === "string" && typeof grant.reason === "string" &&
+      Number.isInteger(grant.maximum) && Number(grant.maximum) >= 1 && Number(grant.maximum) <= 5
+      ? Math.max(maximum, Number(grant.maximum)) : maximum;
+  }, 0);
+}
+
 /** The free V20 attribute dot is visible in the editor and is not a spendable point. */
 export function attributeBase(body: CharacterLike, name: string) {
   const clan = String(body.clan ?? "").trim().toLocaleLowerCase();
@@ -379,8 +392,14 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
   if (belowBase) return { ok: false, error: `${belowBase} beginnt mit ${attributeBase(body, belowBase)} kostenlosem Grundpunkt.` };
   const overFive = [...Object.entries(attributeValues), ...Object.entries(skillValues)].find(([, value]) => integer(value) > 5);
   if (overFive) return { ok: false, error: `${overFive[0]} darf regulär höchstens 5 Punkte haben.` };
-  if (String(body.clan ?? "").trim().toLocaleLowerCase() === "nosferatu" && numericValue(attributeValues.Erscheinungsbild) > 0)
+  if (String(body.clan ?? "").trim().toLocaleLowerCase() === "nosferatu" && numericValue(attributeValues.Erscheinungsbild) > appearanceExceptionMaximum(body))
     return { ok: false, error: "Nosferatu beginnen mit Erscheinungsbild 0. Eine höhere Stufe benötigt eine separat dokumentierte SL-Ausnahme." };
+  const limitedForeign = rows(body.disciplines).find(item => {
+    const grants = Array.isArray(body.ruleExceptions) ? body.ruleExceptions as CharacterLike[] : [];
+    const grant = grants.find(g => g.category === "foreignDiscipline" && g.target === item.name);
+    return grant && numericValue(item.value) > Number(grant.maximum);
+  });
+  if (limitedForeign) return { ok: false, error: "Die clansfremde Disziplin überschreitet die dokumentierte SL-Höchststufe." };
   const foreignWithoutApproval = rows(body.disciplines).find((item) => {
     const name = String(item.name ?? "").trim();
     return !!name && !!clan && !clan.disciplines.includes(name) && !(item.source === "foreign" && (item.slApproved === true || (allowIncompleteDraft && numericValue(item.value) === 0)));
@@ -425,8 +444,12 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
 export function applyXpPurchase(body: CharacterLike, purchase: XpPurchase, now = new Date().toISOString()): { ok: true; body: CharacterLike; cost: number } | { ok: false; error: string } {
   const maximum = ["humanity", "willpower"].includes(purchase.category) ? 10 : 5;
   if (purchase.to > maximum) return { ok: false, error: `Regulär sind höchstens ${maximum} Punkte erlaubt.` };
-  if (purchase.category === "attribute" && purchase.target === "Erscheinungsbild" && String(body.clan).toLowerCase() === "nosferatu")
+  if (purchase.category === "attribute" && purchase.target === "Erscheinungsbild" && String(body.clan).toLowerCase() === "nosferatu" && purchase.to > appearanceExceptionMaximum(body))
     return { ok: false, error: "Erscheinungsbild ist für Nosferatu gesperrt." };
+  if (purchase.category === "discipline" && Array.isArray(body.ruleExceptions)) {
+    const grant = (body.ruleExceptions as CharacterLike[]).find(g => g.category === "foreignDiscipline" && g.target === purchase.target);
+    if (grant && purchase.to > Number(grant.maximum)) return { ok: false, error: "Diese Stufe überschreitet die genehmigte SL-Ausnahme." };
+  }
   if (currentValue(body, purchase) !== purchase.from) return { ok: false, error: "Der aktuelle Charakterwert passt nicht zur XP-Anfrage." };
   const raised = withRaisedValue(body, purchase);
   if (!raised) return { ok: false, error: "Das angegebene XP-Ziel existiert nicht im Charakter." };

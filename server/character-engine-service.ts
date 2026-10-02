@@ -1,7 +1,7 @@
 import type { Actor } from "@/domain/types";
 import type { LegacyRecordRow } from "@/domain/legacy";
 import { availableClanForCampaign } from "@/domain/clan-config";
-import { creationBudgetSummary, v20AbilityNames, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
+import { appearanceExceptionMaximum, creationBudgetSummary, v20AbilityNames, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
 import { creationGuidance } from "@/domain/character-guidance";
 import { canEdit, database, HttpError } from "./access";
 
@@ -26,7 +26,7 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
   const add = (category: XpPurchase["category"], target: string | undefined, from: unknown) => {
     if (!Number.isInteger(from)) return;
     const value = Number(from), max = category === "humanity" || category === "willpower" ? 10 : 5;
-    if (value >= max || (category === "attribute" && target === "Erscheinungsbild" && clan?.id === "nosferatu")) return;
+    if (value >= max || (category === "attribute" && target === "Erscheinungsbild" && clan?.id === "nosferatu" && value + 1 > appearanceExceptionMaximum(body))) return;
     const purchase: XpPurchase = { category, target, from: value, to: value + 1, ...(category === "discipline" ? { inClan: !!clan?.disciplines.includes(target || "") } : {}) };
     const price = xpCost(purchase);
     targets.push({ ...purchase, label: target || (category === "humanity" ? "Menschlichkeit" : "Willenskraft"), cost: price.ok ? price.cost : 0, available: price.ok && state === "confirmed" && xpBalance(body) >= price.cost, hint: price.ok ? "" : price.error });

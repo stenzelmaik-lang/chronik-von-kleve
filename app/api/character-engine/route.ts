@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const base = { id: z.string().trim().min(1).max(100), version: z.number().int().positive() };
 const reason = z.string().trim().min(3, "Bitte begründe die Aktion kurz.").max(2000);
 const purchase = z.object({ category: z.enum(["attribute", "ability", "discipline", "background", "humanity", "willpower"]), target: z.string().trim().min(1).max(120).optional(), from: z.number().int().min(0).max(10), to: z.number().int().min(1).max(10), inClan: z.boolean().optional(), reason: z.string().max(2000).optional() }).strict();
-const requestChange = z.object({ category: z.enum(["foreignDiscipline", "merit", "flaw", "identity"]), target: z.string().trim().min(1).max(120), value: z.string().trim().max(2000).optional(), reason }).strict();
+const requestChange = z.object({ category: z.enum(["foreignDiscipline", "appearance", "merit", "flaw", "identity"]), target: z.string().trim().min(1).max(120), value: z.string().trim().max(2000).optional(), reason }).strict();
 const schema = z.discriminatedUnion("action", [
   z.object({ ...base, action: z.literal("review") }).strict(),
   z.object({ ...base, action: z.literal("confirm"), reason: reason.optional() }).strict(),
@@ -16,10 +16,27 @@ const schema = z.discriminatedUnion("action", [
   z.object({ ...base, action: z.literal("xp_purchase"), purchase }).strict(),
   z.object({ ...base, action: z.literal("xp_grant"), amount: z.number().int().min(1).max(1000), reason }).strict(),
   z.object({ ...base, action: z.literal("request_change"), request: requestChange }).strict(),
-  z.object({ ...base, action: z.literal("resolve_request"), requestId: z.string().min(1).max(100), approved: z.boolean(), cost: z.number().int().min(0).max(7).optional(), reason }).strict(),
+  z.object({ ...base, action: z.literal("resolve_request"), requestId: z.string().min(1).max(100), approved: z.boolean(), cost: z.number().int().min(0).max(7).optional(), rating: z.number().int().min(0).max(5).optional(), maximum: z.number().int().min(1).max(5).optional(), reason }).strict(),
+  z.object({ ...base, action: z.literal("grant_exception"), category: z.enum(["appearance", "foreignDiscipline"]), target: z.string().trim().min(1).max(120), rating: z.number().int().min(0).max(5), maximum: z.number().int().min(1).max(5), reason }).strict(),
   z.object({ ...base, action: z.literal("correction"), field: z.enum(["concept", "nature", "demeanor", "sire"]), value: z.string().trim().max(2000), reason }).strict(),
   z.object({ ...base, action: z.literal("gm_notes"), text: z.string().max(30000) }).strict(),
 ]);
+
+function grantException(body: Record<string, unknown>, category: string, target: string, rating: number, maximum: number, actorId: string, reason: string, campaignId: string) {
+  if (rating > maximum) throw new HttpError(400, "Der gewünschte Wert überschreitet die genehmigte Höchststufe.");
+  const next = { ...body };
+  if (category === "appearance") {
+    if (String(body.clan).toLowerCase() !== "nosferatu" || target !== "Erscheinungsbild") throw new HttpError(400, "Diese Ausnahme gilt ausschließlich für Nosferatu-Erscheinungsbild.");
+    next.attributes = { ...(body.attributes as Record<string, unknown>), Erscheinungsbild: rating };
+  } else {
+    if (availableClanForCampaign(campaignId, body.clan)?.disciplines.includes(target)) throw new HttpError(400, "Das ist bereits eine Clan-Disziplin.");
+    const rows = Array.isArray(body.disciplines) ? body.disciplines as Record<string, unknown>[] : [];
+    next.disciplines = [...rows.filter(row => row.name !== target), { name: target, value: rating, source: "foreign", slApproved: true }];
+  }
+  const grants = Array.isArray(body.ruleExceptions) ? body.ruleExceptions as Record<string, unknown>[] : [];
+  next.ruleExceptions = [...grants.filter(g => g.category !== category || g.target !== target), { category, target, maximum, decidedBy: actorId, decidedAt: new Date().toISOString(), reason }];
+  return next;
+}
 
 export async function GET(req: Request) {
   try { const a = await actor(); const id = new URL(req.url).searchParams.get("id"); if (!id) throw new HttpError(400, "Charakter auswählen."); const { db, row, body } = await editableCharacter(a, id); const history = a.gm ? (await db.prepare("SELECT type,payload,created_at FROM world_events WHERE campaign_id=? AND entity_id=? AND type LIKE 'character.%' ORDER BY created_at DESC,id DESC LIMIT 50").bind(a.campaignId,id).all<{type:string;payload:string;created_at:string}>()).results.map(e=>({action:e.type.replace("character.",""),...characterBody(e.payload),createdAt:e.created_at})) : []; return json({...engineProjection(a, row, body), history}); } catch (e) { return failure(e, req); }
@@ -30,7 +47,7 @@ export async function POST(req: Request) {
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const d = parsed.data, { row, body } = await editableCharacter(a, d.id);
     if (row.version !== d.version) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
-    if (["confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes"].includes(d.action)) gmOnly(a);
+    if (["confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes", "grant_exception"].includes(d.action)) gmOnly(a);
     if (!body.engineVersion && d.action !== "gm_notes" && d.action !== "correction") throw new HttpError(409, "Legacy-Bogen: Werte bleiben erhalten. Die Übernahme in die Engine erfolgt bewusst über den vorhandenen Editor.");
     let next = { ...body }, visibility = row.visibility, notes = row.gm_body, auditReason = "";
     if (d.action === "review") {
@@ -72,6 +89,8 @@ export async function POST(req: Request) {
         if (request.category === "identity") {
           if (!["concept", "nature", "demeanor", "sire"].includes(String(request.target))) throw new HttpError(400, "Unzulässiges Feld.");
           next[String(request.target)] = String(request.value || "");
+        } else if (request.category === "appearance" || (request.category === "foreignDiscipline" && d.rating !== undefined)) {
+          next = grantException(next, String(request.category), String(request.target), d.rating ?? 0, d.maximum ?? Math.max(1, d.rating ?? 0), a.id, d.reason, a.campaignId);
         } else {
           const key = request.category === "foreignDiscipline" ? "disciplines" : request.category === "merit" ? "merits" : "flaws";
           const rows = Array.isArray(body[key]) ? body[key] as Record<string, unknown>[] : [];
@@ -81,7 +100,11 @@ export async function POST(req: Request) {
           next[key] = [...rows.filter(r => r.name !== request.target), item];
         }
       }
-      next.characterRequests = requests.map(r => r.id === d.requestId ? { ...r, status: d.approved ? "approved" : "rejected", decidedBy: a.id, decidedAt: new Date().toISOString(), decision: d.reason } : r); auditReason = d.reason;
+      next.characterRequests = requests.map(r => r.id === d.requestId ? { ...r, ...(d.approved && ["appearance", "foreignDiscipline"].includes(String(request.category)) ? { grantedRating: d.rating ?? 0, maximum: d.maximum ?? Math.max(1, d.rating ?? 0) } : {}), status: d.approved ? "approved" : "rejected", decidedBy: a.id, decidedAt: new Date().toISOString(), decision: d.reason } : r); auditReason = `${d.reason} · ${request.category}: ${request.target} · ${d.approved ? "genehmigt" : "abgelehnt"}${d.rating !== undefined ? ` · Wert ${d.rating}, Maximum ${d.maximum ?? Math.max(1,d.rating)}` : ""}`;
+    } else if (d.action === "grant_exception") {
+      if (body.characterState !== "draft") throw new HttpError(409, "Mechanische Ausnahme hier nur für einen Erschaffungsentwurf. Bestätigte Werte bleiben geschützt.");
+      next = grantException(next, d.category, d.target, d.rating, d.maximum, a.id, d.reason, a.campaignId);
+      auditReason = `${d.reason} · ${d.category}: ${d.target} · Wert ${d.rating}, Maximum ${d.maximum}`;
     } else if (d.action === "correction") { next[d.field] = d.value; auditReason = d.reason; }
     else if (d.action === "gm_notes") { notes = d.text; auditReason = "Vertrauliche SL-Notiz aktualisiert."; }
     if (!["gm_notes", "correction", "request_change", "resolve_request"].includes(d.action)) {
