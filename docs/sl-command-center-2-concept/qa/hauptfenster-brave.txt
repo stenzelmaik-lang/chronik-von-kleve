@@ -1,0 +1,146 @@
+- banner:
+  - generic: C
+  - text: CHRONIPLAY
+  - generic: DER SPIELLEITER-ARBEITSPLATZ
+  - navigation "Arbeitsmodus":
+    - button "Vorbereitung"
+    - button "Live-Regie" [pressed]
+    - button "Nachklang"
+  - button "Finden Ctrl K":
+    - text: Finden
+    - generic: Ctrl K
+  - button "Zweites Konzeptfenster öffnen":
+  - button "Konzept und Bedienung":
+- generic: KONZEPT
+- generic: Klickbarer Entwurf · ausschließlich synthetische Daten · keine Veröffentlichung
+- generic: Hauptregie
+- paragraph: V20 · SYNTHETISCHE PROBESITZUNG
+- heading "Der Abend gehört der Geschichte." [level=1]
+- paragraph: Story offen halten. Menschen im Blick behalten. Bewusst ausspielen.
+- text: Lokaler Konzeptmodus
+- button "Anordnung zurücksetzen"
+- generic: Im Fokus
+- group "Charakter auswählen":
+  - button "HE Helena":
+    - generic: HE
+    - text: Helena
+  - button "CO Corvina" [pressed]:
+    - generic: CO
+    - text: Corvina
+- text: Angeheftete Akten bleiben bei ihrer Person.
+- button "Weitere Akte":
+  - text: Weitere Akte
+- navigation "Werkzeuge öffnen":
+  - button "Story":
+    - generic: Story
+  - button "Charakter":
+    - generic: Charakter
+  - button "Orte":
+    - generic: Orte
+  - button "Medien":
+    - generic: Medien
+  - button "Notizen":
+    - generic: Notizen
+  - button "Protokoll":
+    - generic: Protokoll
+  - button "Moment":
+    - generic: Moment
+- main "Andockbare Arbeitsfläche":
+  - region "Storybuch":
+    - text: Storybuch
+    - generic: Fester Storykontext
+    - generic "Werkzeug anordnen":
+    - button "Werkzeug groß ansehen":
+    - button "Storybuch schließen":
+    - generic: PLOT DOSSIER · SYNTHETISCHES BEISPIEL
+    - generic: SL-vertraulich
+    - heading "Ein Gespräch ohne vorgeschriebenen Ausgang." [level=2]:
+      - text: Ein Gespräch
+      - text: ohne vorgeschriebenen Ausgang.
+    - paragraph: Nicht die nächste Szene suchen. Die Situation verstehen und auf die Menschen am Tisch reagieren.
+    - navigation "Storyansicht":
+      - button "Roter Faden" [pressed]
+      - button "Wissensperspektiven"
+      - button "Verknüpfungen"
+    - text: Der rote Faden
+    - paragraph: Zwei Personen wünschen dasselbe Gespräch – aus unterschiedlichen Gründen. Die Gruppe entscheidet selbst, ob sie zuhört, nachfragt oder den Ort verlässt.
+    - paragraph:
+      - strong: Die Vorbereitung ist ein Angebot.
+      - text: Keine Szene muss auf eine andere folgen. Eine
+      - button "Ortsakte"
+      - text: beschreibt die Umgebung; Motive und mögliche Folgen bleiben im Plotdossier.
+    - paragraph: "Für die SL: Was will die Testperson? Was weiß sie wirklich? Was könnte sich durch die Entscheidungen der Gruppe verändern?"
+    - generic: Möglichkeiten · noch nicht geschehen
+    - generic: "01"
+    - heading "Ein Gespräch anbieten" [level=4]
+    - paragraph: Die Beteiligten haben Motive, keine vorgeschriebenen Dialogzeilen.
+    - generic: Offen
+    - generic: "02"
+    - heading "Einen Hinweis zugänglich machen" [level=4]
+    - paragraph: Die SL entscheidet, ob und für wen der Hinweis erreichbar wird.
+    - generic: Offen
+    - generic: "03"
+    - heading "Auf eine unerwartete Entscheidung reagieren" [level=4]
+    - paragraph: Auch das Verlassen der Situation ist eine gültige Entscheidung.
+    - generic: Offen
+    - button "Tatsächlichen Moment notieren":
+      - text: Tatsächlichen Moment notieren
+    - button "Vorbereitetes Medium öffnen":
+      - text: Vorbereitetes Medium öffnen
+  - separator "Breite der Arbeitsbereiche ändern"
+  - region "Charakterakte Helena":
+    - text: Charakterakte
+    - generic: Angeheftet · Helena
+    - button "Akte lösen" [pressed]:
+    - generic "Werkzeug anordnen":
+    - button "Werkzeug groß ansehen":
+    - button "Charakterakte schließen":
+    - generic: HE
+    - paragraph: SYNTHETISCHER CHARAKTER
+    - heading "Helena" [level=3]
+    - paragraph: Toreador · V20
+    - generic: Beispielwerte
+    - generic: Blut
+    - strong: 8 / 10
+    - generic: Willenskraft
+    - strong: 5 / 7
+    - generic: Verfügbare XP
+    - strong: "12"
+    - text: Unverletzt
+    - generic: · Laufzeitstatus
+    - button "Bogen":
+      - text: Bogen
+    - button "XP vergeben"
+    - button "SL-Notiz"
+    - button "Brief":
+      - text: Brief
+    - generic: Ausgewählte Werte · lesend
+    - generic: Wahrnehmung
+    - generic "3 von 5 Punkten"
+    - generic: Menschenkenntnis
+    - generic "4 von 5 Punkten"
+    - generic: Heimlichkeit
+    - generic "2 von 5 Punkten"
+    - generic "Seltene Korrekturen & Freigaben"
+  - region "Medien & Versand":
+    - text: Medien & Versand
+    - generic: Synthetische Probe
+    - generic "Werkzeug anordnen":
+    - button "Werkzeug groß ansehen":
+    - button "Medien & Versand schließen":
+    - paragraph: VORBEREITETER INHALT · TEXT
+    - heading "Die versiegelte Nachricht" [level=3]
+    - paragraph: Öffnen ist keine Freigabe.
+    - generic: Ausschließlich an
+    - combobox "Empfänger auswählen":
+      - option "Helena"
+      - option "Corvina" [selected]
+    - button "Prüfen & senden":
+      - text: Prüfen & senden
+    - generic: Noch nicht ausgespielt
+    - button "Empfängersicht vergleichen ↗"
+- contentinfo:
+  - generic: Eigene Anordnung lokal gemerkt
+  - generic: Fenster unabhängig anordnen · gemeinsamer Personenfokus
+  - generic: SL-Wissen bleibt bei der SL
+- status

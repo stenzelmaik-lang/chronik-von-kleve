@@ -1,0 +1,105 @@
+- banner:
+  - generic: C
+  - text: CHRONIPLAY
+  - generic: DER SPIELLEITER-ARBEITSPLATZ
+  - navigation "Arbeitsmodus":
+    - button "Vorbereitung"
+    - button "Live-Regie" [pressed]
+    - button "Nachklang"
+  - button "Finden Ctrl K":
+    - text: Finden
+    - generic: Ctrl K
+  - button "Zweites Konzeptfenster öffnen":
+  - button "Konzept und Bedienung":
+- generic: KONZEPT
+- generic: Klickbarer Entwurf · ausschließlich synthetische Daten · keine Veröffentlichung
+- generic: Nebenfenster · eigene Anordnung
+- paragraph: V20 · SYNTHETISCHE PROBESITZUNG
+- heading "Der Abend gehört der Geschichte." [level=1]
+- paragraph: Story offen halten. Menschen im Blick behalten. Bewusst ausspielen.
+- text: Lokaler Konzeptmodus
+- button "Anordnung zurücksetzen"
+- generic: Im Fokus
+- group "Charakter auswählen":
+  - button "HE Helena":
+    - generic: HE
+    - text: Helena
+  - button "CO Corvina" [pressed]:
+    - generic: CO
+    - text: Corvina
+- text: Angeheftete Akten bleiben bei ihrer Person.
+- button "Weitere Akte":
+  - text: Weitere Akte
+- navigation "Werkzeuge öffnen":
+  - button "Story":
+    - generic: Story
+  - button "Charakter":
+    - generic: Charakter
+  - button "Orte":
+    - generic: Orte
+  - button "Medien":
+    - generic: Medien
+  - button "Notizen":
+    - generic: Notizen
+  - button "Protokoll":
+    - generic: Protokoll
+  - button "Moment":
+    - generic: Moment
+- main "Andockbare Arbeitsfläche":
+  - region "Medien & Versand":
+    - text: Medien & Versand
+    - generic: Synthetische Probe
+    - generic "Werkzeug anordnen":
+    - button "Werkzeug groß ansehen":
+    - button "Medien & Versand schließen":
+    - paragraph: VORBEREITETER INHALT · TEXT
+    - heading "Die versiegelte Nachricht" [level=3]
+    - paragraph: Öffnen ist keine Freigabe.
+    - generic: Ausschließlich an
+    - combobox "Empfänger auswählen":
+      - option "Helena"
+      - option "Corvina" [selected]
+    - button "Prüfen & senden":
+      - text: Prüfen & senden
+    - generic: Noch nicht ausgespielt
+    - button "Empfängersicht vergleichen ↗"
+  - separator "Breite der Arbeitsbereiche ändern"
+  - region "Charakterakte Corvina":
+    - text: Charakterakte
+    - generic: Folgt · Corvina
+    - button "Akte anheften" [active]:
+    - generic "Werkzeug anordnen":
+    - button "Werkzeug groß ansehen":
+    - button "Charakterakte schließen":
+    - generic: CO
+    - paragraph: SYNTHETISCHER CHARAKTER
+    - heading "Corvina" [level=3]
+    - paragraph: Nosferatu · V20
+    - generic: Beispielwerte
+    - generic: Blut
+    - strong: 6 / 10
+    - generic: Willenskraft
+    - strong: 4 / 7
+    - generic: Verfügbare XP
+    - strong: "9"
+    - text: Verletzt · −1
+    - generic: · Laufzeitstatus
+    - button "Bogen":
+      - text: Bogen
+    - button "XP vergeben"
+    - button "SL-Notiz"
+    - button "Brief":
+      - text: Brief
+    - generic: Ausgewählte Werte · lesend
+    - generic: Wahrnehmung
+    - generic "4 von 5 Punkten"
+    - generic: Menschenkenntnis
+    - generic "2 von 5 Punkten"
+    - generic: Heimlichkeit
+    - generic "4 von 5 Punkten"
+    - generic "Seltene Korrekturen & Freigaben"
+- contentinfo:
+  - generic: Anordnung wird nur auf diesem PC gemerkt
+  - generic: Personenfokus und Probeereignisse zwischen Fenstern abgeglichen
+  - generic: SL-Wissen bleibt bei der SL
+- status
