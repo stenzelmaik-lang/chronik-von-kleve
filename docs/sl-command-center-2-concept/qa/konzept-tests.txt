@@ -1,0 +1,17 @@
+✔ a pinned character remains Helena while following tools move to Corvina (0.8296ms)
+✔ multiple character instances can be reordered without changing pin or deleting the story (0.2036ms)
+✔ layout roundtrip preserves independent instances and clamps damaged values (1.2638ms)
+✔ two window layouts share a person selection without sharing panel positions (0.1677ms)
+✔ demo delivery is explicit, recipient-scoped and idempotent (0.2234ms)
+✔ only an explicit occurrence creates a log event, with safe length and duplicate protection (0.1896ms)
+✔ concept is explicitly labelled and prevents outbound connections (32.4917ms)
+✔ application APIs and arbitrary source files are not available from the concept server (14.2998ms)
+✔ concept has no mutation endpoint (12.0436ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 156.8928

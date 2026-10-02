@@ -465,6 +465,7 @@ export function CharacterDetail({
           </dl></details>
         </div>
         <div className="character-hero-actions">
+          <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>
           {entries.length > 1 && (
             <label className="character-active-select">
               <span>Aktiver Charakter</span>

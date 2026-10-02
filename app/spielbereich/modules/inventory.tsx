@@ -1,738 +1,89 @@
-/* eslint-disable @next/next/no-img-element -- authenticated R2 image responses must not enter the public optimizer cache. */
 "use client";
-
-import {
-  Archive,
-  Box,
-  BriefcaseMedical,
-  FileText,
-  KeyRound,
-  Laptop,
-  Plus,
-  Search,
-  Shield,
-  Shirt,
-  Swords,
-  ToolCase,
-  TriangleAlert,
-  Upload,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  bodySlots,
-  carryProfiles,
-  inventoryCategories,
-  inventoryStatuses,
-  type BodySlot,
-  type CarryProfile,
-  type InventoryCategory,
-  type InventoryItem,
-  type InventoryProjection,
-  type InventoryStatus,
-} from "@/domain/inventory";
+import { useMemo, useState } from "react";
+import { Backpack, Box, ChevronRight, CircleCheck, LockKeyhole, Plus, RefreshCw, Search, Shield, Shirt, TriangleAlert, X } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { carryProfiles, type BodySlot, type CarryProfile, type InventoryItem, type ItemLocation } from "@/domain/inventory";
+import { slotCategoryIssue, statusForLocation } from "@/domain/inventory-rules";
 import { api } from "./api-client";
-import {
-  describeDataError,
-  invalidatePlayerData,
-  purgeProtectedPlayerData,
-  readPlayerData,
-  requestPlayerData,
-  storePlayerData,
-} from "./player-data-cache";
-import styles from "./inventory-v1c.module.css";
+import { describeDataError } from "./player-data-cache";
+import { BodyLoadout } from "./inventory/body-loadout";
+import { ItemTile } from "./inventory/item-tile";
+import { ItemEditor } from "./inventory/item-editor";
+import { ItemInspector } from "./inventory/item-inspector";
+import { useInventory } from "./inventory/use-inventory";
+import { attentionLabels, bodySlotLabels, freshItem, itemDraft, placementText, type ItemDraft } from "./inventory/shared";
+import styles from "./inventory/inventory.module.css";
 
-type ConcealmentClass = "T" | "J" | "M" | "N";
-type Draft = {
-  id?: string;
-  expectedRevision?: number;
-  characterId: string;
-  name: string;
-  category: InventoryCategory;
-  description: string;
-  quantity: number;
-  status: InventoryStatus;
-  visibility: "private" | "sl" | "group";
-  imageFileId?: string;
-  tags: string[];
-  weaponProfile?: {
-    damage: string;
-    range: string;
-    rate: string;
-    capacity: string;
-    concealability: string;
-    currentAmmo?: number;
-    note?: string;
-    concealmentClass?: ConcealmentClass | null;
-    weaponType?: "FIREARM" | "MELEE" | "OTHER";
-    rulesTemplateId?: string;
-  };
-  armorProfile?: { armorClass?: number; armorValue?: number; dexterityPenalty?: number };
-  slotCost: number;
-  weightKg?: number;
-  location: "STORED" | "BACKPACK" | "BODY";
-  bodySlot?: BodySlot;
-  testData: boolean;
-};
-
-const labels: Record<BodySlot, string> = {
-  HAND_LEFT: "Linke Hand",
-  HAND_RIGHT: "Rechte Hand",
-  BELT_HOLSTER: "Gürtel / Holster",
-  JACKET_INNER_LEFT: "Jacke innen links",
-  JACKET_INNER_RIGHT: "Jacke innen rechts",
-  JACKET_OUTER_LEFT: "Jacke außen links",
-  JACKET_OUTER_RIGHT: "Jacke außen rechts",
-  TROUSER_POCKET_LEFT: "Hosentasche links",
-  TROUSER_POCKET_RIGHT: "Hosentasche rechts",
-  BACK_EXTERNAL: "Auf dem Rücken / außen",
-};
-
-const leftSlots: BodySlot[] = [
-  "HAND_LEFT",
-  "JACKET_INNER_LEFT",
-  "JACKET_OUTER_LEFT",
-  "TROUSER_POCKET_LEFT",
-  "BACK_EXTERNAL",
-];
-const rightSlots: BodySlot[] = [
-  "HAND_RIGHT",
-  "BELT_HOLSTER",
-  "JACKET_INNER_RIGHT",
-  "JACKET_OUTER_RIGHT",
-  "TROUSER_POCKET_RIGHT",
-];
-const icons: Record<InventoryCategory, typeof Box> = {
-  Waffe: Swords,
-  "Schutz / Rüstung": Shield,
-  Werkzeug: ToolCase,
-  Medizin: BriefcaseMedical,
-  Elektronik: Laptop,
-  Kleidung: Shirt,
-  Schlüssel: KeyRound,
-  Dokument: FileText,
-  Verbrauchsgegenstand: Box,
-  Sonstiges: Box,
-};
-const visibilityLabels = { private: "Privat", sl: "Mit SL geteilt", group: "Gruppe" };
-const attentionLabels = {
-  UNAUFFAELLIG: "Unauffällig",
-  LEICHT_AUFFAELLIG: "Leicht auffällig",
-  MITTEL_AUFFAELLIG: "Auffällig",
-  SEHR_AUFFAELLIG: "Sehr auffällig",
-};
-const fresh = (characterId: string): Draft => ({
-  characterId,
-  name: "",
-  category: "Sonstiges",
-  description: "",
-  quantity: 1,
-  status: "Mitgeführt",
-  visibility: "private",
-  tags: [],
-  slotCost: 1,
-  location: "BACKPACK",
-  testData: false,
-});
-
-function NeutralFigure() {
-  return (
-    <div className={styles.figureWrap} aria-hidden="true">
-      <svg className={styles.figure} viewBox="0 0 220 520" fill="none">
-        <defs>
-          <linearGradient id="figure-fill" x1="110" y1="28" x2="110" y2="500" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#e8e0d2" stopOpacity=".15" />
-            <stop offset="1" stopColor="#86908d" stopOpacity=".035" />
-          </linearGradient>
-        </defs>
-        <path d="M110 21c-20 0-34 17-34 39 0 20 13 36 34 36s34-16 34-36c0-22-14-39-34-39Z" fill="url(#figure-fill)" />
-        <path d="M110 21c-20 0-34 17-34 39 0 20 13 36 34 36s34-16 34-36c0-22-14-39-34-39Z" stroke="currentColor" strokeWidth="2" />
-        <path d="M94 98v24m32-24v24" stroke="currentColor" strokeWidth="2" />
-        <path d="m92 113-25 9-23 28 10 103 23 9h66l23-9 10-103-23-28-25-9-18 18-18-18Z" fill="url(#figure-fill)" />
-        <path d="m92 113-25 9-23 28 10 103 23 9h66l23-9 10-103-23-28-25-9-18 18-18-18Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="m68 129-21 17-20 112 11 67 17 4 10-66-3-58 19-52m91-24 21 17 20 112-11 67-17 4-10-66 3-58-19-52" fill="url(#figure-fill)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="m77 259-7 89 9 57-8 68 22 7 14-79-5-67 8-73m33-2 7 89-9 57 8 68-22 7-14-79 5-67-8-73" fill="url(#figure-fill)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="m71 470-4 24 5 8h39l4-7-6-12-20-18m70 5 4 24-5 8h-39l-4-7 6-12 20-18" fill="url(#figure-fill)" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M110 115v234m-43-84h86M78 373h64" stroke="currentColor" strokeOpacity=".38" strokeDasharray="4 7" />
-        <circle cx="110" cy="167" r="4" fill="#cda66b" />
-        <circle cx="80" cy="275" r="4" fill="#cda66b" />
-        <circle cx="140" cy="275" r="4" fill="#cda66b" />
-        <circle cx="82" cy="376" r="4" fill="#cda66b" />
-        <circle cx="138" cy="376" r="4" fill="#cda66b" />
-      </svg>
-      <span>Neutrale Ausrüstungsansicht</span>
-    </div>
-  );
-}
-
-function ItemCard({
-  item,
-  selected,
-  warning,
-  onClick,
-}: {
-  item: InventoryItem;
-  selected: boolean;
-  warning: boolean;
-  onClick: () => void;
-}) {
-  const Icon = icons[item.category];
-  return (
-    <button
-      className={`${styles.itemCard} ${selected ? styles.itemSelected : ""} ${item.lifecycleStatus === "ARCHIVED" ? styles.itemArchived : ""}`}
-      onClick={onClick}
-      aria-pressed={selected}
-    >
-      <span className={styles.itemArt}>
-        {item.imageFileId ? (
-          <img src={`/api/files?id=${encodeURIComponent(item.imageFileId)}`} alt="" />
-        ) : (
-          <Icon size={27} strokeWidth={1.5} />
-        )}
-        {warning && <TriangleAlert size={16} className={styles.warningIcon} aria-label="Auffällige Platzierung" />}
-      </span>
-      <span className={styles.itemInfo}>
-        <strong>{item.name}</strong>
-        <small>{item.category}{item.quantity > 1 ? ` · ×${item.quantity}` : ""}</small>
-        <em>{item.status}{item.lifecycleStatus === "ARCHIVED" ? " · Archiv" : ""}</em>
-      </span>
-    </button>
-  );
-}
-
-function EmptyZone({ title, description }: { title: string; description: string }) {
-  return (
-    <div className={styles.emptyZone}>
-      <Box size={22} strokeWidth={1.5} />
-      <strong>{title}</strong>
-      <span>{description}</span>
-    </div>
-  );
-}
-
-function inventoryKey(characterId: string | null, archived: boolean) {
-  const query = new URLSearchParams({ includeArchived: archived ? "1" : "0" });
-  if (characterId) query.set("characterId", characterId);
-  return `/api/inventory?${query.toString()}`;
-}
-
-export function InventoryPanel({
-  dataScope,
-  activeCharacterId,
-  onActiveCharacterChange,
-}: {
-  dataScope: string;
-  activeCharacterId: string | null;
-  onActiveCharacterChange: (id: string | null) => void;
-}) {
-  const [projection, setProjection] = useState<InventoryProjection | null>(null);
-  const [projectionError, setProjectionError] = useState<Error | null>(null);
-  const [selected, setSelected] = useState<InventoryItem | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Alle");
-  const [archived, setArchived] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [busyProfile, setBusyProfile] = useState(false);
-  const requestSequence = useRef(0);
-  const p = projection && (!activeCharacterId || projection.selectedCharacter?.id === activeCharacterId)
-    ? projection
-    : null;
-
-  const load = useCallback(async (force = false) => {
-    const sequence = ++requestSequence.current;
-    const key = inventoryKey(activeCharacterId, archived);
-    const cached = readPlayerData<InventoryProjection>(dataScope, key);
-    setProjection(cached?.value ?? null);
-    setProjectionError(null);
-    setLoading(!cached);
-    setRefreshing(!!cached && (force || !cached.fresh));
-    try {
-      const next = await requestPlayerData(
-        dataScope,
-        key,
-        () => api<InventoryProjection>(key),
-        { force },
-      );
-      if (sequence !== requestSequence.current) return;
-      setProjection(next);
-      if (next.selectedCharacter && !activeCharacterId) {
-        storePlayerData(dataScope, inventoryKey(next.selectedCharacter.id, archived), next);
-        onActiveCharacterChange(next.selectedCharacter.id);
-      }
-      setSelected((old) => old ? next.items.find((item) => item.id === old.id) || null : null);
-    } catch (error) {
-      if (sequence !== requestSequence.current) return;
-      const issue = describeDataError(error);
-      setProjectionError(error instanceof Error ? error : new Error(issue.detail));
-      if (issue.permission) setProjection(null);
-    } finally {
-      if (sequence === requestSequence.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [activeCharacterId, archived, dataScope, onActiveCharacterChange]);
-
-  useEffect(() => {
-    // A newer selection makes any late response from the previous character inert.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-    return () => { requestSequence.current += 1; };
-  }, [load]);
-
-  const handleMutationError = (error: unknown) => {
-    const issue = describeDataError(error);
-    toast.error(issue.detail);
-    if (issue.permission) {
-      purgeProtectedPlayerData();
-      setProjection(null);
-      setProjectionError(error instanceof Error ? error : new Error(issue.detail));
-    }
-  };
-
-  const filteredItems = useMemo(() => p?.items.filter((item) => {
-    const matches = item.name.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filter === "Alle"
-      || (filter === "Waffen" && item.category === "Waffe")
-      || item.status === filter;
-    return matches && matchesFilter;
-  }) || [], [p, search, filter]);
-
-  const open = (item?: InventoryItem) => {
-    if (!p?.selectedCharacter) return;
-    if (!item) {
-      setSelected(null);
-      setDraft(fresh(p.selectedCharacter.id));
-      return;
-    }
-    setSelected(null);
-    setDraft({
-      id: item.id,
-      expectedRevision: item.revision,
-      characterId: item.characterId,
-      name: item.name,
-      category: item.category,
-      description: item.description,
-      quantity: item.quantity,
-      status: item.status,
-      visibility: item.visibility,
-      imageFileId: item.imageFileId,
-      tags: item.tags,
-      weaponProfile: item.weaponProfile,
-      armorProfile: item.armorProfile,
-      slotCost: item.slotCost,
-      weightKg: item.weightKg,
-      location: item.location,
-      bodySlot: item.bodySlot,
-      testData: item.testData,
-    });
-  };
-
-  const addToBodySlot = (slot: BodySlot) => {
-    if (!p?.selectedCharacter) return;
-    setSelected(null);
-    setDraft({ ...fresh(p.selectedCharacter.id), location: "BODY", bodySlot: slot });
-  };
-
-  const upload = async (file: File) => {
-    if (!draft) return;
-    try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("visibility", draft.visibility);
-      const result = await api<{ id: string }>("/api/files", "POST", form);
-      setDraft({ ...draft, imageFileId: result.id });
-      toast.success("Bild sicher gespeichert");
-    } catch (error) {
-      handleMutationError(error);
-    }
-  };
-
-  const save = async (action: "update" | "archive" = "update") => {
-    if (!draft || !p) return;
-    setSaving(true);
-    try {
-      await api("/api/inventory", draft.id ? "PATCH" : "POST", {
-        ...draft,
-        action: draft.id ? action : "create",
-        expectedCarryRevision: p.carry.revision,
-        weaponProfile: draft.category === "Waffe"
-          ? draft.weaponProfile || { damage: "", range: "", rate: "", capacity: "", concealability: "" }
-          : undefined,
-        armorProfile: draft.category === "Schutz / Rüstung" ? draft.armorProfile : undefined,
-      });
-      invalidatePlayerData(dataScope, "/api/inventory");
-      setDraft(null);
-      setSelected(null);
-      await load(true);
-      toast.success(action === "archive" ? "Gegenstand archiviert" : "Gegenstand gespeichert");
-    } catch (error) {
-      handleMutationError(error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const switchProfile = async (profile: CarryProfile) => {
-    if (!p?.selectedCharacter) return;
-    setBusyProfile(true);
-    try {
-      await api("/api/inventory/profile", "PATCH", {
-        characterId: p.selectedCharacter.id,
-        profile,
-        expectedRevision: p.carry.revision,
-      });
-      invalidatePlayerData(dataScope, "/api/inventory");
-      await load(true);
-    } catch (error) {
-      handleMutationError(error);
-    } finally {
-      setBusyProfile(false);
-    }
-  };
-
-  if (loading && !p) {
-    return <section className={styles.emptyPage} aria-live="polite">Inventar wird geöffnet …</section>;
+export function InventoryPanel({ dataScope, activeCharacterId, onActiveCharacterChange }: { dataScope: string; activeCharacterId: string | null; onActiveCharacterChange: (id: string | null) => void }) {
+  const { data: p, error: loadError, loading, refreshing, load, refresh } = useInventory(dataScope, activeCharacterId, onActiveCharacterChange);
+  const [selectedId, setSelectedId] = useState<string | undefined>(), [draft, setDraft] = useState<ItemDraft | null>(null), [slotTarget, setSlotTarget] = useState<BodySlot | null>(null);
+  const [search, setSearch] = useState(""), [category, setCategory] = useState("Alle"), [showArchived, setShowArchived] = useState(false);
+  const [saving, setSaving] = useState(false), [uploading, setUploading] = useState(false), [error, setError] = useState(""), [message, setMessage] = useState("");
+  const selected = p?.items.find(i => i.id === selectedId), active = p?.items.filter(i => i.lifecycleStatus === "ACTIVE") || [];
+  const filtered = useMemo(() => p?.items.filter(i => (showArchived || i.lifecycleStatus === "ACTIVE") && (category === "Alle" || i.category === category) && [i.name, i.description, ...i.tags].join(" ").toLocaleLowerCase("de-DE").includes(search.toLocaleLowerCase("de-DE"))) || [], [p, search, category, showArchived]);
+  const failed = (e: unknown) => { setError(describeDataError(e).detail); setMessage(""); };
+  function openEditor(item?: InventoryItem, location: ItemLocation = "BACKPACK", slot?: BodySlot) {
+    if (!p?.selectedCharacter || (!item && !p.permissions.canCreate) || (item && !item.canEdit)) return;
+    setError(""); setDraft(item ? itemDraft(item) : freshItem(p.selectedCharacter.id, p.permissions.allowedVisibilities[0], location, slot));
   }
-
-  if (projectionError && !p) {
-    const issue = describeDataError(projectionError);
-    return (
-      <section role="alert" className={styles.emptyPage}>
-        <TriangleAlert size={34} />
-        <h2>{issue.title}</h2>
-        <p>{issue.detail}</p>
-        <button className="button" type="button" onClick={() => void load(true)}>Erneut versuchen</button>
-      </section>
-    );
+  async function persist(data: ItemDraft, action: "update" | "archive" = "update") {
+    if (!p || saving) return;
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const result = await api<{ id: string }>("/api/inventory", data.id ? "PATCH" : "POST", { ...data, action: data.id ? action : "create", expectedCarryRevision: p.carry.revision, weaponProfile: data.category === "Waffe" ? data.weaponProfile || { damage: "", range: "", rate: "", capacity: "", concealability: "" } : undefined, armorProfile: data.category === "Schutz / Rüstung" ? data.armorProfile : undefined });
+      setDraft(null); setSlotTarget(null); setSelectedId(action === "archive" ? undefined : result.id);
+      await refresh(); setMessage(action === "archive" ? "Archiviert. Der Gegenstand bleibt erhalten." : "Gespeichert. Dein Inventar ist aktuell.");
+    } catch (e) { failed(e); } finally { setSaving(false); }
   }
-
-  if (!p?.characters.length) {
-    return (
-      <section className={styles.emptyPage}>
-        <Box size={42} />
-        <h2>Noch kein aktiver eigener Charakter</h2>
-        <p>Das Inventar wird an einen eigenen Charakter gebunden.</p>
-      </section>
-    );
+  async function move(id: string, location: ItemLocation, slot?: BodySlot) {
+    const item = p?.items.find(i => i.id === id);
+    if (!item?.canEdit || item.lifecycleStatus !== "ACTIVE") return;
+    await persist({ ...itemDraft(item), location, status: statusForLocation(location), bodySlot: location === "BODY" ? slot : undefined });
   }
-
-  if (!p.selectedCharacter) {
-    return (
-      <section className={styles.emptyPage}>
-        <Box size={42} />
-        <h2>Charakter auswählen</h2>
-        <p>{p.characters.length} eigene Charaktere sind verfügbar. Wähle aus, welches Inventar du öffnen möchtest.</p>
-        <label className={styles.characterSelect}>
-          <span>Aktiver Charakter</span>
-          <select aria-label="Aktiver Charakter" value={activeCharacterId || ""} onChange={(event) => onActiveCharacterChange(event.target.value || null)}>
-            <option value="">Auswählen …</option>
-            {p.characters.map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}
-          </select>
-        </label>
-      </section>
-    );
+  async function upload(file: File) {
+    if (!draft || uploading || saving) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || !file.size || file.size > 10 * 1024 * 1024) { setError("Bitte ein PNG-, JPG- oder WebP-Bild bis 10 MB auswählen."); return; }
+    setUploading(true); setError("");
+    try {
+      const form = new FormData(); form.set("file", file); form.set("visibility", draft.visibility); form.set("characterId", draft.characterId);
+      const result = await api<{ id: string }>("/api/inventory/media", "POST", form);
+      setDraft(current => current ? { ...current, imageFileId: result.id } : current);
+    } catch (e) { failed(e); } finally { setUploading(false); }
   }
-
-  const slotWarning = (item?: InventoryItem) => !!item && p.carry.warningItems.includes(item.id);
-  const activeBodyItems = p.items.filter((item) => item.lifecycleStatus === "ACTIVE" && item.location === "BODY");
-  const backpackItems = filteredItems.filter((item) => item.location === "BACKPACK");
-  const storedItems = filteredItems.filter((item) => item.location === "STORED");
-  const attention = p.carry.attention;
-  const usedPercent = p.carry.capacity ? Math.min(100, (p.carry.used / p.carry.capacity) * 100) : 0;
-
-  const renderBodySlot = (slot: BodySlot) => {
-    const item = activeBodyItems.find((candidate) => candidate.bodySlot === slot);
-    const warning = slotWarning(item);
-    return (
-      <button
-        key={slot}
-        type="button"
-        className={`${styles.bodySlot} ${item ? styles.bodySlotOccupied : styles.bodySlotFree} ${warning ? styles.bodySlotWarning : ""} ${selected?.id === item?.id ? styles.bodySlotSelected : ""}`}
-        aria-label={`${labels[slot]}: ${item?.name || "frei"}${item ? `, ${item.status}` : ", Gegenstand hier hinzufügen"}`}
-        aria-pressed={!!item && selected?.id === item.id}
-        onClick={() => item ? setSelected(item) : addToBodySlot(slot)}
-      >
-        <span className={styles.slotTopline}>
-          <small>{labels[slot]}</small>
-          <i className={item ? styles.slotDotOccupied : styles.slotDotFree} aria-hidden="true" />
-        </span>
-        <strong>{item?.name || "Frei"}</strong>
-        <span className={styles.slotStatus}>
-          {warning ? <><TriangleAlert size={13} /> Auffällig</> : item ? item.status : "＋ Hier ablegen"}
-        </span>
-      </button>
-    );
-  };
-
-  const renderItems = (list: InventoryItem[], emptyTitle: string, emptyDescription: string) => list.length ? (
-    <div className={styles.itemGrid}>
-      {list.map((item) => (
-        <ItemCard
-          key={item.id}
-          item={item}
-          selected={selected?.id === item.id}
-          warning={slotWarning(item)}
-          onClick={() => setSelected(item)}
-        />
-      ))}
-    </div>
-  ) : <EmptyZone title={emptyTitle} description={emptyDescription} />;
-
-  return (
-    <div className={styles.inventoryPage}>
-      {refreshing && <p className="muted" role="status">Inventar wird aktualisiert …</p>}
-      {projectionError && <div role="alert" className="error-box"><strong>{describeDataError(projectionError).title}</strong><p>{projectionError.message}</p><button className="button" onClick={() => void load(true)}>Erneut versuchen</button></div>}
-      <header className={styles.inventoryHero}>
-        <div className={styles.heroCopy}>
-          <p className="eyebrow">AUSRÜSTUNG · INVENTAR</p>
-          <h1>Dein Inventar</h1>
-          <p>{p.selectedCharacter
-            ? `${p.selectedCharacter.name} · ${p.inventorySummary.active} aktive Gegenstände · ${activeBodyItems.length} am Körper`
-            : "Jedes Inventar bleibt eindeutig einem Charakter zugeordnet."}</p>
-        </div>
-        {p.characters.length > 1 && (
-          <label className={styles.characterSelect}>
-            <span>Charakter</span>
-            <select value={activeCharacterId || ""} onChange={(event) => { setSelected(null); onActiveCharacterChange(event.target.value || null); }}>
-              <option value="">Auswählen …</option>
-              {p.characters.map((character) => <option key={character.id} value={character.id}>{character.name}</option>)}
-            </select>
-          </label>
-        )}
-        <button className="button primary" disabled={!p.selectedCharacter} onClick={() => open()}>
-          <Plus size={17} /> Gegenstand hinzufügen
-        </button>
-      </header>
-
-      {p.selectedCharacter && <>
-        <section className={styles.carryPanel} aria-label="Trageprofil und Auffälligkeit">
-          <label className={styles.profileField}>
-            <span className="eyebrow">TRAGEPROFIL</span>
-            <select aria-label="Trageprofil" value={p.carry.profile} disabled={busyProfile} onChange={(event) => void switchProfile(event.target.value as CarryProfile)}>
-              {Object.entries(carryProfiles).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}
-            </select>
-          </label>
-          <div className={styles.capacityBlock}>
-            <div className={styles.capacityLabel}>
-              <span className="eyebrow">MITGEFÜHRT</span>
-              <strong>{p.carry.used} <span>/ {p.carry.capacity}</span></strong>
-              <small>belegte Slots · {carryProfiles[p.carry.profile].label}</small>
-            </div>
-            <div className={styles.capacityTrack} role="progressbar" aria-label="Belegte Tragekapazität" aria-valuemin={0} aria-valuemax={p.carry.capacity} aria-valuenow={p.carry.used}>
-              <span style={{ width: `${usedPercent}%` }} />
-            </div>
-          </div>
-          <div className={`${styles.attentionBlock} ${styles[attention]}`}>
-            <span className="eyebrow">AUFFÄLLIGKEIT</span>
-            <strong>{attentionLabels[attention]}</strong>
-            <small>{p.carry.warningItems.length
-              ? `${p.carry.warningItems.length} Gegenstand${p.carry.warningItems.length === 1 ? " ist" : "e sind"} offen oder unpassend platziert.`
-              : "Keine offene Warnung. Es wird keine Maskeradefolge berechnet."}</small>
-          </div>
+  async function switchProfile(profile: CarryProfile) {
+    if (!p?.selectedCharacter || saving || !p.permissions.canChangeProfile) return;
+    setSaving(true); setError(""); setMessage("");
+    try { await api("/api/inventory/profile", "PATCH", { characterId: p.selectedCharacter.id, profile, expectedRevision: p.carry.revision }); await refresh(); setMessage("Trageprofil gespeichert."); } catch (e) { failed(e); } finally { setSaving(false); }
+  }
+  const selector = p && <label className={styles.characterSelect}><span>Charakter</span><select aria-label="Inventar-Charakter" disabled={saving} value={p.selectedCharacter?.id || ""} onChange={e => { setSelectedId(undefined); setError(""); setMessage(""); onActiveCharacterChange(e.target.value || null); }}><option value="">Charakter auswählen …</option>{p.characters.map(c => <option key={c.id} value={c.id}>{c.name}{c.own ? "" : " · SL-Zugriff"}</option>)}</select></label>;
+  if (loading && !p) return <section className={styles.emptyPage} role="status"><Backpack size={32}/><h2>Ausrüstung wird geladen …</h2></section>;
+  if (loadError && !p) return <section className={styles.emptyPage} role="alert"><TriangleAlert size={32}/><h2>{describeDataError(loadError).title}</h2><p>{describeDataError(loadError).detail}</p><button className="button" onClick={() => void load(true)}>Erneut laden</button></section>;
+  if (!p?.selectedCharacter) return <section className={styles.emptyPage}><Backpack size={36}/><p className={styles.eyebrow}>DEINE AUSRÜSTUNG</p><h2>{p?.characters.length ? "Wessen Inventar öffnest du?" : "Ein Charakter, ein Inventar."}</h2><p>{p?.characters.length ? "Wähle den Charakter für diesen Spielabend." : "Erstelle zuerst deinen Charakter. Gegenstände bleiben eindeutig mit ihm verbunden."}</p>{p?.characters.length ? selector : <a className="button primary" href="/spielbereich?bereich=charaktere">Zu den Charakteren</a>}</section>;
+  const backpack = filtered.filter(i => i.lifecycleStatus === "ACTIVE" && i.location === "BACKPACK"), stored = filtered.filter(i => i.lifecycleStatus === "ACTIVE" && i.location === "STORED"), archived = filtered.filter(i => i.lifecycleStatus === "ARCHIVED");
+  const own = p.selectedCharacter.own, canMutate = p.permissions.canEdit, visibleSlots = p.carry.used, capacity = p.carry.capacity;
+  const tiles = (items: InventoryItem[], empty: string) => items.length ? <div className={styles.itemGrid}>{items.map(item => <ItemTile key={item.id} item={item} selected={item.id === selectedId} warning={p.carry.warningItems.includes(item.id)} onSelect={() => { setSelectedId(item.id); setError(""); }}/>)}</div> : <div className={styles.emptyZone}><Box size={23}/><span>{empty}</span></div>;
+  const drop = (location: "BACKPACK" | "STORED") => ({ onDragOver: (e: React.DragEvent<HTMLElement>) => { if (e.dataTransfer.types.includes("application/x-chroniplay-item")) e.preventDefault(); }, onDrop: (e: React.DragEvent<HTMLElement>) => { e.preventDefault(); if (!saving) void move(e.dataTransfer.getData("application/x-chroniplay-item"), location); } });
+  return <div className={styles.root} aria-busy={saving}>
+    <header className={styles.hero}><div><p className={styles.eyebrow}>{own ? "CHARAKTER · AUSRÜSTUNG" : "SPIELLEITUNG · GETEILTE AUSRÜSTUNG"}</p><h1>{p.selectedCharacter.name}</h1><span>Bereit für die nächste Nacht.</span></div><div className={styles.heroActions}>{p.characters.length > 1 && selector}<a className={styles.characterLink} href={`/spielbereich?bereich=charaktere&character=${encodeURIComponent(p.selectedCharacter.id)}`}>Charakterbogen <ChevronRight size={15}/></a><button className={styles.iconButton} aria-label="Inventar aktualisieren" disabled={saving} onClick={() => void load(true)}><RefreshCw className={refreshing ? styles.spinning : ""} size={18}/></button></div></header>
+    {!own && <div className={styles.scopeNotice}><Shield size={16}/><span>Du bearbeitest freigegebene Gegenstände dieses Kampagnencharakters. Persönliche Gegenstände bleiben verborgen. Eigentum bleibt beim Charakter; sein Trageprofil ändert nur der Spieler.</span></div>}
+    {error && !draft && <div className={styles.error} role="alert"><TriangleAlert size={17}/><span>{error}</span><button type="button" className={styles.textButton} onClick={() => void load(true)}>Aktuellen Stand laden</button></div>}
+    <div className={styles.feedback} role="status" aria-live="polite">{message && <><CircleCheck size={14}/>{message}</>}</div>
+    <div className={styles.carryBar}><div className={styles.capacity}><Backpack size={22}/><div><span className={styles.eyebrow}>{p.carry.complete ? "TRAGEKAPAZITÄT" : "FREIGEGEBENES GEPÄCK"}</span><strong>{visibleSlots}<small> / {capacity} Plätze</small></strong><span>{p.carry.complete ? "Körper + Rucksack · Lager zählt nicht" : "Nur sichtbare Gegenstände · volle Trageprüfung auf dem Server"}</span></div><div className={styles.capacityTrack} role="progressbar" aria-label={p.carry.complete ? "Belegte Tragekapazität" : "Sichtbare Trageplätze"} aria-valuemin={0} aria-valuemax={capacity} aria-valuenow={Math.min(visibleSlots, capacity)}><span style={{ width: Math.min(100, visibleSlots / capacity * 100) + "%" }}/></div></div><div className={`${styles.attention} ${p.carry.warningItems.length ? styles.attentionWarning : ""}`}><span className={styles.eyebrow}>AUFFÄLLIGKEIT{p.carry.complete ? "" : " · SICHTBARER AUSSCHNITT"}</span><strong>{attentionLabels[p.carry.attention]}</strong><small>{p.carry.openVisibleItems.length ? p.carry.openVisibleItems.length + " sichtbar getragene Gegenstände" : "Keine offene Platzierung im sichtbaren Inventar"}</small></div><button className="button primary" disabled={saving || !p.permissions.canCreate} onClick={() => openEditor()}><Plus size={17}/>Gegenstand hinzufügen</button></div>
+    <section className={styles.profileBar} aria-label="Trageprofil"><span>Trageprofil</span>{Object.entries(carryProfiles).map(([key, value]) => { const exceeds = own && visibleSlots > value.capacity; return <button type="button" key={key} disabled={saving || !p.permissions.canChangeProfile || exceeds} aria-pressed={p.carry.profile === key} className={p.carry.profile === key ? styles.activeProfile : ""} title={exceeds ? "Zuerst " + (visibleSlots - value.capacity) + " Plätze einlagern." : !p.permissions.canChangeProfile ? "Nur der Eigentümer ändert sein persönliches Trageprofil." : undefined} onClick={() => void switchProfile(key as CarryProfile)}>{value.label}<small>{value.capacity}</small></button>; })}</section>
+    <div className={styles.mainGrid}>
+      <section className={styles.bodyPanel} aria-label="Charakter und Ausrüstung"><div className={styles.zoneHeader}><div><p className={styles.eyebrow}>01 · DEIN AUFTRITT</p><h2>Am Körper</h2></div><Shirt size={22}/></div><p className={styles.zoneIntro}>Wähle einen Platz zum Anlegen. Belegte Plätze öffnen den Gegenstand.</p><BodyLoadout items={p.items} selectedId={selectedId} busy={saving} onSlot={(slot, item) => item ? setSelectedId(item.id) : setSlotTarget(slot)} onMove={(id, slot) => { if (!saving) void move(id, "BODY", slot); }}/></section>
+      <div className={styles.rightColumn}>
+        <section className={styles.bagPanel} aria-label="Rucksack" {...drop("BACKPACK")}><div className={styles.zoneHeader}><div><p className={styles.eyebrow}>02 · MITGEFÜHRT</p><h2>Im Rucksack</h2></div><span className={styles.countBadge}>{active.filter(i => i.location === "BACKPACK").length}</span></div><div className={styles.tools}><label className={styles.search}><Search size={17}/><input aria-label="Inventar durchsuchen" placeholder="Name, Beschreibung oder Tag …" value={search} onChange={e => setSearch(e.target.value)}/>{search && <button aria-label="Suche zurücksetzen" onClick={() => setSearch("")}><X size={14}/></button>}</label><select aria-label="Gegenstandskategorie filtern" value={category} onChange={e => setCategory(e.target.value)}><option>Alle</option>{["Waffe", "Schutz / Rüstung", "Kleidung", "Elektronik", "Werkzeug", "Medizin", "Schlüssel", "Dokument", "Verbrauchsgegenstand", "Sonstiges"].map(c => <option key={c}>{c}</option>)}</select></div>
+          {(search || category !== "Alle") && <div className={styles.searchResults} aria-label="Suchergebnisse"><span>{filtered.length} Treffer im Inventar</span>{filtered.map(i => <button key={i.id} onClick={() => setSelectedId(i.id)}>{i.name}<small>{i.lifecycleStatus === "ARCHIVED" ? "Archiv" : placementText(i)}</small></button>)}</div>}
+          {tiles(backpack, search || category !== "Alle" ? "Keine passenden Gegenstände im Rucksack." : "Noch nichts eingepackt. Nimm einen Gegenstand aus dem Lager mit.")}
+          <div className={styles.bagFooter}><LockKeyhole size={14}/><span>Geschützt gespeichert · Aktionen auch ohne Ziehen möglich.</span></div>
         </section>
-
-        <section className={styles.inventoryTools} aria-label="Inventar durchsuchen und filtern">
-          <label className={styles.searchField}>
-            <Search size={17} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Gegenstand suchen" aria-label="Gegenstand suchen" />
-          </label>
-          <div className={styles.filterList} aria-label="Inventarfilter">
-            {["Alle", "Waffen", "Ausgerüstet", "Mitgeführt", "Gelagert"].map((value) => (
-              <button type="button" className={filter === value ? styles.filterActive : ""} key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value}</button>
-            ))}
-          </div>
-          <label className={styles.archiveToggle}>
-            <input type="checkbox" checked={archived} onChange={(event) => setArchived(event.target.checked)} />
-            Archivierte anzeigen
-          </label>
-        </section>
-
-        <div className={styles.inventoryRegions}>
-          <section className={styles.zone} aria-labelledby="body-zone-title">
-            <header className={styles.zoneHeading}>
-              <span className={styles.zoneNumber}>01</span>
-              <div>
-                <p className="eyebrow">AUSRÜSTUNG</p>
-                <h3 id="body-zone-title">Am Körper</h3>
-                <p>Freie Plätze anklicken, um dort einen Gegenstand anzulegen.</p>
-              </div>
-              <span className={styles.zoneCount}>{activeBodyItems.length} belegt</span>
-            </header>
-            <div className={styles.bodyDossier}>
-              <div className={styles.bodySlotStack}>{leftSlots.map(renderBodySlot)}</div>
-              <NeutralFigure />
-              <div className={styles.bodySlotStack}>{rightSlots.map(renderBodySlot)}</div>
-            </div>
-          </section>
-
-          <section className={styles.zone} aria-labelledby="backpack-zone-title">
-            <header className={styles.zoneHeading}>
-              <span className={styles.zoneNumber}>02</span>
-              <div>
-                <p className="eyebrow">AKTIV MITGEFÜHRT</p>
-                <h3 id="backpack-zone-title">Rucksack</h3>
-                <p>Gegenstände, die gerade im Rucksack liegen.</p>
-              </div>
-              <span className={styles.zoneCount}>{p.items.filter((item) => item.lifecycleStatus === "ACTIVE" && item.location === "BACKPACK").length} Items</span>
-            </header>
-
-            <div className={styles.equippedSummary}>
-              <div className={styles.subsectionHeading}>
-                <span>AM KÖRPER AUSGERÜSTET</span>
-                <small>{activeBodyItems.length} Items</small>
-              </div>
-              {activeBodyItems.length ? (
-                <div className={styles.equippedList}>
-                  {activeBodyItems.map((item) => (
-                    <button type="button" key={item.id} onClick={() => setSelected(item)} className={selected?.id === item.id ? styles.equippedSelected : ""}>
-                      <span className={styles.equippedDot} />
-                      <span><strong>{item.name}</strong><small>{item.bodySlot ? labels[item.bodySlot] : "Am Körper"}</small></span>
-                      <span className={styles.equippedStatus}>{item.status}</span>
-                    </button>
-                  ))}
-                </div>
-              ) : <p className={styles.inlineEmpty}>Noch keine Gegenstände am Körper.</p>}
-            </div>
-
-            <div className={styles.subsectionHeading}>
-              <span>IM RUCKSACK</span>
-              <small>{backpackItems.length} angezeigt</small>
-            </div>
-            {renderItems(backpackItems, "Der Rucksack ist leer.", "Lege Gegenstände aus der Detailansicht hier ab.")}
-          </section>
-        </div>
-
-        <section className={`${styles.zone} ${styles.storedZone}`} aria-labelledby="stored-zone-title">
-          <header className={styles.zoneHeading}>
-            <span className={styles.zoneNumber}>03</span>
-            <div>
-              <p className="eyebrow">NICHT MITGEFÜHRT</p>
-              <h3 id="stored-zone-title">Gelagert</h3>
-              <p>Gegenstände im Unterschlupf oder an einem anderen sicheren Ort.</p>
-            </div>
-            <span className={styles.zoneCount}>{storedItems.length} angezeigt</span>
-          </header>
-          {renderItems(storedItems, "Nichts gelagert.", "Gelagerte Gegenstände erscheinen getrennt vom aktiven Gepäck.")}
-        </section>
-
-        <Dialog open={!!selected} onOpenChange={(isOpen) => !isOpen && setSelected(null)}>
-          <DialogContent className={styles.itemDialog}>
-            {selected && <>
-              <div className={styles.detailArt}>
-                {selected.imageFileId
-                  ? <img src={`/api/files?id=${encodeURIComponent(selected.imageFileId)}`} alt="" />
-                  : (() => { const Icon = icons[selected.category]; return <Icon size={42} strokeWidth={1.5} />; })()}
-              </div>
-              <div className={styles.detailMain}>
-                <DialogHeader className={styles.itemDialogHeader}>
-                  <p className="eyebrow">GEGENSTAND · {selected.category}</p>
-                  <DialogTitle className={styles.detailTitle}>{selected.name}</DialogTitle>
-                  <DialogDescription className={styles.itemDialogDescription}>
-                    {selected.lifecycleStatus === "ARCHIVED" ? "Archivierter Gegenstand" : "Ausrüstung deines Charakters"}
-                  </DialogDescription>
-                </DialogHeader>
-                <div className={styles.detailMeta}>
-                  <span>Menge <b>{selected.quantity}</b></span>
-                  <span>Status <b>{selected.status}</b></span>
-                  <span>Sichtbarkeit <b>{visibilityLabels[selected.visibility]}</b></span>
-                  <span>Trageort <b>{selected.location === "BODY" ? (selected.bodySlot ? labels[selected.bodySlot] : "Am Körper") : selected.location === "BACKPACK" ? "Rucksack" : "Gelagert"}</b></span>
-                  <span>Auffälligkeit <b>{slotWarning(selected) ? "Platzierung prüfen" : "Keine Warnung"}</b></span>
-                  <span>Slots <b>{selected.slotCost}</b></span>
-                  {selected.weightKg !== undefined && <span>Gewicht <b>{selected.weightKg} kg</b></span>}
-                </div>
-                <p className={styles.detailDescription}>{selected.description || "Keine Beschreibung hinterlegt."}</p>
-                {selected.tags.length > 0 && <div className={styles.tags} aria-label="Tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
-                {selected.weaponProfile && (
-                  <section className={styles.profileDetail} aria-label="Waffenprofil nach V20">
-                    <h4>Waffenprofil · V20</h4>
-                    <dl>
-                      <dt>Schaden</dt><dd>{selected.weaponProfile.damage || "—"}</dd>
-                      <dt>Reichweite</dt><dd>{selected.weaponProfile.range || "—"}</dd>
-                      <dt>Schussfolge</dt><dd>{selected.weaponProfile.rate || "—"}</dd>
-                      <dt>Magazin</dt><dd>{selected.weaponProfile.capacity || "—"}</dd>
-                      <dt>Versteck</dt><dd>{selected.weaponProfile.concealmentClass || "Nicht festgelegt"}</dd>
-                    </dl>
-                    {selected.weaponProfile.note && <p>{selected.weaponProfile.note}</p>}
-                    {selected.weaponProfile.concealmentClass && <p>{selected.weaponProfile.concealmentClass === "N" ? "Kann nach V20 nicht am Körper verborgen werden." : `V20-Versteckklasse ${selected.weaponProfile.concealmentClass}.`}</p>}
-                    {slotWarning(selected) && <p className={styles.warningText}>Platzierung auffällig · bitte Trageort prüfen.</p>}
-                  </section>
-                )}
-                {selected.armorProfile && (
-                  <section className={styles.profileDetail} aria-label="Rüstungswerte">
-                    <h4>Schutz / Rüstung</h4>
-                    <dl>
-                      <dt>Rüstungsklasse</dt><dd>{selected.armorProfile.armorClass ?? "—"}</dd>
-                      <dt>Rüstungswert</dt><dd>{selected.armorProfile.armorValue ?? "—"}</dd>
-                      <dt>Abzug</dt><dd>{selected.armorProfile.dexterityPenalty ?? "—"}</dd>
-                    </dl>
-                  </section>
-                )}
-                <div className={styles.detailActions}>
-                  <button className="button primary" onClick={() => open(selected)}>Bearbeiten</button>
-                </div>
-              </div>
-            </>}
-          </DialogContent>
-        </Dialog>
-      </>}
-
-      <Dialog open={!!draft} onOpenChange={(isOpen) => !isOpen && setDraft(null)}>
-        <DialogContent className="inventory-dialog">
-          <DialogHeader>
-            <DialogTitle>{draft?.id ? "Gegenstand bearbeiten" : "Gegenstand hinzufügen"}</DialogTitle>
-            <DialogDescription>Werte und Tragekapazität werden beim Speichern geprüft.</DialogDescription>
-          </DialogHeader>
-          {draft && <div className="inventory-form">
-            <label><span>Name</span><input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></label>
-            <div className="inventory-form-row">
-              <label><span>Kategorie</span><select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as InventoryCategory })}>{inventoryCategories.map((value) => <option key={value}>{value}</option>)}</select></label>
-              <label><span>Menge</span><input type="number" min="1" value={draft.quantity} onChange={(event) => setDraft({ ...draft, quantity: Number(event.target.value) })} /></label>
-            </div>
-            <label><span>Beschreibung</span><textarea rows={4} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></label>
-            <div className="inventory-form-row">
-              <label><span>Status</span><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as InventoryStatus })}>{inventoryStatuses.map((value) => <option key={value}>{value}</option>)}</select></label>
-              <label><span>Sichtbarkeit</span><select value={draft.visibility} onChange={(event) => setDraft({ ...draft, visibility: event.target.value as Draft["visibility"], imageFileId: undefined })}><option value="private">Privat</option><option value="sl">Mit SL geteilt</option><option value="group">Gruppe</option></select></label>
-            </div>
-            <div className="inventory-form-row">
-              <label><span>Trageort</span><select value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value as Draft["location"], bodySlot: undefined })}><option value="STORED">Gelagert</option><option value="BACKPACK">Im Rucksack</option><option value="BODY">Am Körper</option></select></label>
-              {draft.location === "BODY" && <label><span>Körperposition</span><select value={draft.bodySlot || ""} onChange={(event) => setDraft({ ...draft, bodySlot: event.target.value as BodySlot })}><option value="">Auswählen …</option>{bodySlots.map((slot) => <option key={slot} value={slot}>{labels[slot]}</option>)}</select></label>}
-            </div>
-            <label><span>Tags, durch Komma getrennt</span><input value={draft.tags.join(", ")} onChange={(event) => setDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) })} /></label>
-            <label className="inventory-upload"><Upload size={16} /><span>{draft.imageFileId ? "Bild ersetzen" : "Bild hochladen"}</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => event.target.files?.[0] && void upload(event.target.files[0])} /></label>
-            {draft.category === "Waffe" && <fieldset className="weapon-fields">
-              <legend>Waffenprofil · V20</legend>
-              {([ ["damage", "Schaden"], ["range", "Reichweite"], ["rate", "Schussfolge"], ["capacity", "Magazin"] ] as const).map(([key, label]) => <label key={key}><span>{label}</span><input value={draft.weaponProfile?.[key] || ""} onChange={(event) => setDraft({ ...draft, weaponProfile: { damage: "", range: "", rate: "", capacity: "", concealability: "", ...draft.weaponProfile, [key]: event.target.value } })} /></label>)}
-              <label><span>Versteckklasse</span><select value={draft.weaponProfile?.concealmentClass || ""} onChange={(event) => setDraft({ ...draft, weaponProfile: { damage: "", range: "", rate: "", capacity: "", concealability: "", ...draft.weaponProfile, concealmentClass: (event.target.value || undefined) as ConcealmentClass | undefined } })}><option value="">Nicht festgelegt</option><option value="T">T – Tasche</option><option value="J">J – Jacke</option><option value="M">M – Mantel</option><option value="N">N – nicht am Körper versteckbar</option></select></label>
-              <label><span>Aktuelle Munition (optional)</span><input type="number" min="0" value={draft.weaponProfile?.currentAmmo ?? ""} onChange={(event) => setDraft({ ...draft, weaponProfile: { damage: "", range: "", rate: "", capacity: "", concealability: "", ...draft.weaponProfile, currentAmmo: event.target.value ? Number(event.target.value) : undefined } })} /></label>
-              <label className="wide"><span>Notiz</span><textarea value={draft.weaponProfile?.note || ""} onChange={(event) => setDraft({ ...draft, weaponProfile: { damage: "", range: "", rate: "", capacity: "", concealability: "", ...draft.weaponProfile, note: event.target.value } })} /></label>
-            </fieldset>}
-            {draft.category === "Schutz / Rüstung" && <fieldset className="weapon-fields">
-              <legend>Rüstung</legend>
-              <div className="inventory-form-row">
-                <label><span>Rüstungsklasse (1–5)</span><input type="number" min="1" max="5" value={draft.armorProfile?.armorClass ?? ""} onChange={(event) => setDraft({ ...draft, armorProfile: { ...draft.armorProfile, armorClass: event.target.value ? Number(event.target.value) : undefined } })} /></label>
-                <label><span>Rüstungswert</span><input type="number" min="0" max="100" value={draft.armorProfile?.armorValue ?? ""} onChange={(event) => setDraft({ ...draft, armorProfile: { ...draft.armorProfile, armorValue: event.target.value ? Number(event.target.value) : undefined } })} /></label>
-              </div>
-              <label><span>Geschick-Abzug</span><input type="number" min="-20" max="0" value={draft.armorProfile?.dexterityPenalty ?? ""} onChange={(event) => setDraft({ ...draft, armorProfile: { ...draft.armorProfile, dexterityPenalty: event.target.value ? Number(event.target.value) : undefined } })} /></label>
-            </fieldset>}
-          </div>}
-          <DialogFooter>
-            {draft?.id && <button className="button" disabled={saving} onClick={() => void save("archive")}><Archive size={16} /> Archivieren</button>}
-            <button className="button primary" disabled={saving || !draft?.name.trim() || (draft?.location === "BODY" && !draft.bodySlot)} onClick={() => void save()}>{saving ? "Speichert …" : "Speichern"}</button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        {selected && <ItemInspector key={selected.id} item={selected} projection={p} busy={saving} onClose={() => setSelectedId(undefined)} onEdit={() => openEditor(selected)} onMove={(where, slot) => void move(selected.id, where, slot)} onArchive={() => void persist(itemDraft(selected), "archive")} onRestore={() => void persist({ ...itemDraft(selected), location: "STORED", status: "Gelagert", bodySlot: undefined })}/>}
+      </div>
     </div>
-  );
+    <section className={styles.storagePanel} aria-label="Gelagerte Gegenstände" {...drop("STORED")}><div className={styles.zoneHeader}><div><p className={styles.eyebrow}>03 · DEIN BESITZ</p><h2>Im Lager</h2><p>Nicht mitgeführt. Beansprucht keine aktive Tragekapazität.</p></div><button className="button" disabled={saving || !p.permissions.canCreate} onClick={() => openEditor(undefined, "STORED")}><Plus size={15}/>Im Lager hinzufügen</button></div>{tiles(stored, "Kein passender Gegenstand im Lager.")}<div className={styles.archiveToggle}><label><input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)}/>Archivierte Gegenstände anzeigen</label><span>Archivieren bewahrt Eigentum und Daten.</span></div>{showArchived && <div className={styles.archiveList}><h3>Archiv</h3>{tiles(archived, "Kein archivierter Gegenstand.")}</div>}</section>
+    <footer className={styles.pageFooter}><span>CHRONIPLAY <i>·</i> AUSRÜSTUNG</span><span>Dein Charakter. Dein Inventar. Jede Änderung wird geprüft.</span></footer>
+    {draft && <ItemEditor key={draft.id || "new"} draft={draft} projection={p} saving={saving} uploading={uploading} error={error} onDraft={setDraft} onSave={() => void persist(draft)} onUpload={file => void upload(file)} onClose={() => { setDraft(null); setError(""); }}/>}
+    <Dialog open={!!slotTarget} onOpenChange={open => { if (!open && !saving) setSlotTarget(null); }}><DialogContent className={styles.slotDialog}><DialogHeader><p className={styles.eyebrow}>AUSRÜSTUNG ANLEGEN</p><DialogTitle>{slotTarget ? bodySlotLabels[slotTarget] : "Körperplatz"}</DialogTitle><DialogDescription>Wähle einen vorhandenen Gegenstand. Seine Trageplätze und die Belegung werden beim Speichern geprüft.</DialogDescription></DialogHeader>{error && <p role="alert" className={styles.error}>{error}</p>}<div className={styles.slotChoices}>{active.filter(i => i.canEdit && !slotCategoryIssue(i.category, slotTarget || undefined)).map(i => <button type="button" key={i.id} disabled={saving} onClick={() => slotTarget && void move(i.id, "BODY", slotTarget)}><strong>{i.name}</strong><small>{placementText(i)} · {i.slotCost} Plätze</small><ChevronRight size={16}/></button>)}</div><button className="button primary" disabled={saving || !canMutate} onClick={() => { const slot = slotTarget; setSlotTarget(null); if (slot) openEditor(undefined, "BODY", slot); }}><Plus size={16}/>Neuen Gegenstand hier anlegen</button></DialogContent></Dialog>
+  </div>;
 }

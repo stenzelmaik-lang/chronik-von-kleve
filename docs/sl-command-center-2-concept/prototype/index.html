@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>ChroniPlay · SL Command Center 2.0 · Konzept</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.mjs"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="masthead">
+      <div class="wordmark"><span class="brand-mark" aria-hidden="true">C</span><div>CHRONIPLAY<small>DER SPIELLEITER-ARBEITSPLATZ</small></div></div>
+      <nav class="modes" aria-label="Arbeitsmodus">
+        <button data-mode="prepare">Vorbereitung</button><button data-mode="live">Live-Regie</button><button data-mode="after">Nachklang</button>
+      </nav>
+      <div class="head-actions"><button id="search-open" class="search-trigger"><span data-icon="search"></span> Finden <kbd>Ctrl K</kbd></button><button id="second-window" class="icon-button" title="Zweites Konzeptfenster öffnen" aria-label="Zweites Konzeptfenster öffnen"><span data-icon="windows"></span></button><button id="help-open" class="icon-button" aria-label="Konzept und Bedienung"><span data-icon="help"></span></button></div>
+    </header>
+    <div class="concept-banner"><span class="concept-seal">KONZEPT</span><span>Klickbarer Entwurf · ausschließlich synthetische Daten · keine Veröffentlichung</span><span id="window-label">Hauptregie</span></div>
+    <div class="table-header">
+      <div><p class="eyebrow">V20 · SYNTHETISCHE PROBESITZUNG</p><h1 id="mode-title">Der Abend gehört der Geschichte.</h1><p class="table-caption" id="mode-caption">Story offen halten. Menschen im Blick behalten. Bewusst ausspielen.</p></div>
+      <div class="table-state"><span class="status-dot"></span> Lokaler Konzeptmodus<span class="divider"></span><button id="layout-reset" class="text-button">Anordnung zurücksetzen</button></div>
+    </div>
+    <div class="context-strip"><span class="context-label">Im Fokus</span><div id="people" role="group" aria-label="Charakter auswählen"></div><div class="context-info"><span data-icon="pin"></span> Angeheftete Akten bleiben bei ihrer Person.</div><button id="add-character" class="text-button"><span data-icon="plus"></span> Weitere Akte</button></div>
+    <div class="desk-body">
+      <nav class="toolrail" aria-label="Werkzeuge öffnen">
+        <button data-tool="story" title="Storybuch öffnen"><span data-icon="book"></span><span>Story</span></button>
+        <button data-tool="character" title="Charakterakte öffnen"><span data-icon="person"></span><span>Charakter</span></button>
+        <button data-tool="places" title="Ortsakte öffnen"><span data-icon="map"></span><span>Orte</span></button>
+        <button data-tool="media" title="Medien und Versand öffnen"><span data-icon="media"></span><span>Medien</span></button>
+        <button data-tool="notes" title="Private Notizen öffnen"><span data-icon="pen"></span><span>Notizen</span></button>
+        <button data-tool="log" title="Sitzungsprotokoll öffnen"><span data-icon="history"></span><span>Protokoll</span></button>
+        <div class="rail-rule"></div><button id="moment-open" title="Tatsächliches Ereignis notieren"><span data-icon="plus"></span><span>Moment</span></button>
+      </nav>
+      <main id="desk" class="desk" aria-label="Andockbare Arbeitsfläche">
+        <div id="lane-0" class="lane" data-lane="0"></div>
+        <div id="splitter" class="splitter" tabindex="0" role="separator" aria-label="Breite der Arbeitsbereiche ändern" aria-orientation="vertical" aria-valuemin="38" aria-valuemax="74" aria-valuenow="61"><span></span></div>
+        <div id="lane-1" class="lane" data-lane="1"></div>
+      </main>
+    </div>
+    <footer class="statusbar"><span><span class="status-dot"></span> <span id="save-state">Anordnung wird nur auf diesem PC gemerkt</span></span><span id="sync-state">Fenster unabhängig anordnen · gemeinsamer Personenfokus</span><span>SL-Wissen bleibt bei der SL</span></footer>
+  </div>
+  <dialog id="send-dialog"><form method="dialog"><button class="dialog-close icon-button" aria-label="Schließen" value="cancel"><span data-icon="close"></span></button><p class="eyebrow">BEWUSST AUSSPIELEN</p><h2>Eine Nachricht. Eine Person.</h2><p>Prüfe den Empfänger und den freizugebenden Inhalt.</p><div class="delivery-recipient" id="send-recipient"></div><article class="letter"><p class="eyebrow">DIE VERSIEGELTE NACHRICHT</p><p>Dies ist eine synthetische persönliche Nachricht. Sie enthält keinen Kampagnenkanon.</p></article><p class="small muted">Es wird keine SL-Notiz angehängt. Versand erzeugt kein automatisches Charakterwissen. Diese Simulation schreibt nur lokale Beispieldaten.</p><div class="dialog-actions"><button class="button" value="cancel">Zurück</button><button id="send-confirm" type="button" class="button primary">Im Konzept senden</button></div></form></dialog>
+  <dialog id="player-dialog"><button class="dialog-close icon-button" data-close-dialog aria-label="Schließen"><span data-icon="close"></span></button><p class="eyebrow">SIMULIERTE EMPFÄNGERSICHT · KEIN LOGINTEST</p><h2>Was kommt bei wem an?</h2><div id="player-tabs" class="tabs"></div><div id="player-inbox"></div><p class="small muted">Die echte Anwendung muss jeden Abruf serverseitig prüfen. Dieser Entwurf demonstriert ausschließlich den Bedienablauf.</p></dialog>
+  <dialog id="moment-dialog"><button class="dialog-close icon-button" data-close-dialog aria-label="Schließen"><span data-icon="close"></span></button><p class="eyebrow">TATSÄCHLICH GESCHEHEN · SL-INTERN</p><h2>Einen Moment festhalten.</h2><p>Keine vorbereitete Möglichkeit wird automatisch zum Ereignis.</p><label for="moment-text">Was ist in der Probesitzung wirklich passiert?</label><textarea id="moment-text" rows="4" maxlength="800" placeholder="Zum Beispiel: Die Gruppe hat das Gespräch verlassen."></textarea><div class="dialog-actions"><button data-close-dialog class="button">Abbrechen</button><button id="moment-save" class="button primary">Als Ereignis notieren</button></div></dialog>
+  <dialog id="search-dialog"><button class="dialog-close icon-button" data-close-dialog aria-label="Schließen"><span data-icon="close"></span></button><label for="search-input" class="eyebrow">KONZEPTINHALTE FINDEN</label><input id="search-input" type="search" placeholder="Story, Charakter, Ort, Medien …" autocomplete="off"><div id="search-results"></div><p class="small muted">Im Produkt: Suche ausschließlich in berechtigten Kampagneninhalten. Im Entwurf: sechs synthetische Werkzeuge.</p></dialog>
+  <dialog id="help-dialog"><button class="dialog-close icon-button" data-close-dialog aria-label="Schließen"><span data-icon="close"></span></button><p class="eyebrow">COMMAND CENTER 2.0 · KONZEPT</p><h2>Ein Arbeitsplatz, kein Ablaufplan.</h2><ol class="help-list"><li>Öffne Werkzeuge links. Jede Akte kann mehrfach geöffnet werden.</li><li>Wechsle Helena und Corvina. Hefte eine Charakterakte an: Sie behält ihre Person.</li><li>Ziehe eine Werkzeugüberschrift in die andere Spalte. Über das Menü geht es auch per Tastatur.</li><li>Ziehe den Mittelsteg, oder fokussiere ihn und nutze die Pfeiltasten. Passe Werkzeughöhen im Menü an.</li><li>Öffne „Medien“, prüfe einen Empfänger und sende die Beispielnachricht. Vergleiche beide Empfängersichten.</li><li>Öffne ein zweites Fenster. Der Personenfokus folgt; angeheftete Akten und Anordnungen sind unabhängig.</li><li>Vorbereitung und Nachklang verändern die Arbeitsanordnung, niemals den Kampagnenkanon.</li></ol><div class="notice">NUR DESIGN / MOCKUP. Kein produktiver Editor, keine Character Engine, keine Datenbank, keine echte Medienfreigabe. Alle Einträge stammen aus einer synthetischen Probe.</div><p class="small muted">Schließen und Neuladen erhält die lokale Konzeptanordnung und die synthetischen Notizen. Eine echte Authentifizierung und serverseitige Sicherheit werden hier nicht behauptet.</p></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
