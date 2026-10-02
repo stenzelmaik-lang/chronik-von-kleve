@@ -27,6 +27,7 @@ export function CommandCharacter({id,version,onChanged}:{id:string;version?:numb
     <h3>{text(p.identity.name)}</h3>
     <p>{text(p.identity.clan)} · Generation {text(p.identity.generation)}</p>
     <div className="actions"><button className="button" onClick={()=>setReload(n=>n+1)}>Werte aktualisieren</button><a className="button" href={"/spielbereich?bereich=charaktere&character="+encodeURIComponent(id)} target="_blank" rel="noopener noreferrer">Ganzen Charakterbogen öffnen ↗</a></div>
+    <a className="button" href={"/spielbereich?bereich=inventar&character="+encodeURIComponent(id)}>Geteiltes Inventar öffnen ↗</a>
     <dl className="command-vitals">
       <div><dt>Blut</dt><dd>{text(blood.current)} / {text(blood.max)}</dd></div>
       <div><dt>Willenskraft aktuell / permanent</dt><dd>{text(willpower.temporary)} / {text(willpower.permanent)}</dd></div>

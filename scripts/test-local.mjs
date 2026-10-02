@@ -1,3 +1,4 @@
+import {seedInventoryDemo} from "../tests/fixtures/inventory-demo.mjs";
 import {engineFixture} from "../tests/fixtures/engine-character.mjs";
 import {spawnSync,spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -11,10 +12,11 @@ import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 
 // Isolated local resources only. --weekend preserves synthetic acceptance
 // data across restarts; the full regression suite always uses a fresh store.
+const inventoryDemo=process.argv.includes('--inventory');
 const accessDemo=process.argv.includes('--access-alpha');
-const interactive=process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo;
-const preserve=process.argv.includes('--weekend')||accessDemo;
-const state=preserve?resolve(accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const interactive=process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const preserve=process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const state=preserve?resolve(inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
 const fingerprint=createHash('sha256').update(migrations.map(file=>readFileSync(file,'utf8')).join('\n')).digest('hex');
@@ -23,7 +25,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const port=accessDemo?8795:interactive?8794:8793;
+const port=inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:'+port,CVK_TEST_STATE:state};
 if(!resumed)for(const migration of migrations){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
@@ -115,15 +117,17 @@ try{
   const playerLogin=await fetch(env.CVK_TEST_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL},body:JSON.stringify({email:'command-a@example.invalid',password:'ChroniPlay-Demo-2036!'})});
   const playerCookie=playerLogin.headers.get('set-cookie')?.split(';')[0];
   if(!playerLogin.ok||!playerCookie)throw new Error('Synthetic character owner login failed');
-  const characterResponse=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Regiecharakter A',visibility:'group',body:{player:'Demo Spieler A',clan:'Tremere',generation:10,attributes:{Körperkraft:2,Geschick:3,Widerstandsfähigkeit:2,Charisma:2,Manipulation:2,Erscheinungsbild:2,Wahrnehmung:3,Intelligenz:3,Geistesschärfe:2},disciplines:[{name:'Auspex',value:1}],humanity:7,willpower:5,willpowerTemporary:4,blood:8,bloodMax:13}})});
+  const characterResponse=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:inventoryDemo?'TEST – Nachtläufer A':'SYNTHETISCH – Regiecharakter A',visibility:'group',body:{player:'Demo Spieler A',clan:'Tremere',generation:10,attributes:{Körperkraft:2,Geschick:3,Widerstandsfähigkeit:2,Charisma:2,Manipulation:2,Erscheinungsbild:2,Wahrnehmung:3,Intelligenz:3,Geistesschärfe:2},disciplines:[{name:'Auspex',value:1}],humanity:7,willpower:5,willpowerTemporary:4,blood:8,bloodMax:13}})});
   if(!characterResponse.ok)throw new Error('Synthetic character authoring failed '+characterResponse.status);
+  const inventoryCharacterId=(await characterResponse.json()).id;
+  if(inventoryDemo)await seedInventoryDemo(env.CVK_TEST_URL,playerCookie,inventoryCharacterId);
   const engineDraft=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Character Engine A',visibility:'sl',body:{...engineFixture,player:'Demo Spieler A'}})});
   if(!engineDraft.ok)throw new Error('Synthetic engine draft failed '+engineDraft.status);
   const engineId=(await engineDraft.json()).id;
   console.log('Synthetic engine character: '+engineId+'. Draft belongs to Player A and is shared only with SL.');
 
   // Existing accepted reference fixture, only in this fresh isolated local DB.
-  await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
+  if(!inventoryDemo)await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
   if(preserve)writeFileSync(marker,JSON.stringify({purpose:'synthetic-local-weekend',migrations:fingerprint}));
   }
   console.log('Isolated application ready: '+env.CVK_TEST_URL+'/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
@@ -160,5 +164,3 @@ if(process.exitCode===0){
  const maintenance=spawnSync(process.execPath,['--experimental-strip-types','tests/role-foundation-local.mjs'],{env:roleEnv,stdio:'inherit',windowsHide:true});
  if(maintenance.status!==0)process.exitCode=maintenance.status??1;
 }
-
-

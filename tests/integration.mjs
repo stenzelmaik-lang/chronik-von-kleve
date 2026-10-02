@@ -1,3 +1,4 @@
+import {inventory2Integration} from "./inventory-integration.mjs";
 import {engineFixture} from "./fixtures/engine-character.mjs";
 import {weekendIntegration} from "./weekend-integration.mjs";
 import {accountAccessIntegration} from "./account-access-integration.mjs";
@@ -581,6 +582,7 @@ const duplicateRows=(await req('/api/export?scope=campaign','gm')).d.records.fil
 check(duplicateRows.length===1,'INV-B-C01 concurrent saves retain exactly one Carry Profile record');
 const createContractRegression=await inventoryCreate('a',invPayload(carryCharacterId,{name:'INV-B Create Contract Regression'}));
 check(createContractRegression.s===201&&(await carryInventory()).d.items.some(i=>i.id===createContractRegression.d.id),'INV-B-C09 Version 30 Create Item contract remains functional');
+await inventory2Integration({req,check,inventory,inventoryCreate,inventoryPatch,invPayload,characterBody,localSql,sqlQuote,base,ids});
 const imported=await req('/api/catalog','gm','POST',{});check(imported.s===200,'Legacy catalogue import works');
 check((await req('/api/catalog','gm','POST',{})).d.imported===0,'Legacy catalogue reimport is idempotent');
 const backup=(await req('/api/export?scope=campaign','gm')).d;
@@ -978,5 +980,3 @@ check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session
 await weekendIntegration({req,check,localSql,sqlQuote,now});
 await accountAccessIntegration({req,check,localSql,sqlQuote,base,testPassword,testPasswordHash});
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');
-
-

@@ -150,6 +150,10 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Du darfst diesen Eintrag nicht ändern.");
     if (old && old.kind !== d.kind)
       throw new HttpError(400, "Der Bereich darf nicht geändert werden.");
+    // Legacy text inventory remains readable/editable. Structured ITEMs must
+    // use the character-scoped transaction, including capacity and revision CAS.
+    if (old?.kind === "inventar" && await db.prepare("SELECT 1 AS present FROM entities WHERE id=? AND campaign_id=? AND type='ITEM'").bind(old.id, a.campaignId).first())
+      throw new HttpError(403, "Gegenstände bitte über das Charakterinventar bearbeiten. Dort werden Belegung und Version geprüft.");
     if (d.body.context === "sl-message" || (old && legacyBody(old.body).context === "sl-message"))
       throw new HttpError(403, "Private Nachrichten werden ausschließlich über den Nachrichtenweg verwaltet.");
     if (d.kind === "charaktere") {
@@ -262,6 +266,8 @@ export async function DELETE(req: Request) {
       throw new HttpError(404, "Eintrag nicht gefunden.");
     if (!canEdit(a, r))
       throw new HttpError(403, "Du darfst diesen Eintrag nicht löschen.");
+    if (r.kind === "inventory_carry" || (r.kind === "inventar" && await db.prepare("SELECT 1 AS present FROM entities WHERE id=? AND campaign_id=? AND type='ITEM'").bind(r.id, a.campaignId).first()))
+      throw new HttpError(403, "Inventardaten bleiben erhalten. Gegenstände lassen sich im Charakterinventar archivieren.");
     if (legacyBody(r.body).context === "sl-message") throw new HttpError(403, "Das Nachrichtenarchiv bleibt erhalten.");
     const result = await db
       .prepare("DELETE FROM records WHERE id=? AND version=?")
