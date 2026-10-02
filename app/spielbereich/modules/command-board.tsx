@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useEffect, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { Group, Panel, Separator } from 'react-resizable-panels';
 import { BookOpen, Clapperboard, Users, MapPin, Send, NotebookPen, Feather, Library, Dices, Pin, PinOff, Maximize2, Minimize2, X, MoreHorizontal, ArrowUp, ArrowDown, ArrowLeftRight, GripHorizontal } from 'lucide-react';
 import type { CommandPanel, CommandTool, CommandWorkspace } from '@/domain/command-workspace';
@@ -19,14 +19,27 @@ type Props = {
 };
 export function CommandBoard({ workspace, onChange, renderTool, title, onPin, onClose, onMove }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null), [menu, setMenu] = useState<string | null>(null), [narrow, setNarrow] = useState(false);
+  const [expandedTop, setExpandedTop] = useState(160);
+  useEffect(() => {
+    if (!expanded) return;
+    // Keep the return control below the real sticky navigation, including wrapped layouts.
+    const navigation = document.querySelector('.player-nav');
+    const update = () => setExpandedTop(Math.max(16, Math.ceil(navigation?.getBoundingClientRect().bottom ?? 0) + 8));
+    const observer = new ResizeObserver(update);
+    if (navigation) observer.observe(navigation);
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, { passive: true });
+    return () => { observer.disconnect(); window.removeEventListener('resize', update); window.removeEventListener('scroll', update); };
+  }, [expanded]);
   useEffect(() => { const media = window.matchMedia('(max-width: 850px)'); const update = () => setNarrow(media.matches); update(); media.addEventListener('change', update); return () => media.removeEventListener('change', update); }, []);
   useEffect(() => { const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') { setExpanded(null); setMenu(null); } }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, []);
   const frame = (panel: CommandPanel) => {
     const tool = commandToolLabels[panel.tool], isExpanded = expanded === panel.id;
-    return <section className={`${styles.panel} ${isExpanded ? styles.expanded : ''}`} aria-label={tool.label + (panel.pinnedId ? ' · angeheftet' : '')}>
+    return <section className={`${styles.panel} ${isExpanded ? styles.expanded : ''}`} style={isExpanded ? { '--command-expanded-top': `${expandedTop}px` } as CSSProperties : undefined} aria-label={tool.label + (panel.pinnedId ? ' · angeheftet' : '')}>
       <header className={styles.panelHeading}><tool.icon size={15}/><div><strong>{tool.label}</strong><small>{title(panel)}</small></div>
         {['story', 'character', 'places', 'dossiers'].includes(panel.tool) && <button className={styles.iconButton} aria-label={tool.label + (panel.pinnedId ? ' lösen' : ' anheften')} aria-pressed={!!panel.pinnedId} onClick={() => onPin(panel)}>{panel.pinnedId ? <PinOff size={14}/> : <Pin size={14}/>}</button>}
-        <button className={styles.iconButton} aria-label={tool.label + (isExpanded ? ' verkleinern' : ' vergrößern')} onClick={() => setExpanded(isExpanded ? null : panel.id)}>{isExpanded ? <Minimize2 size={14}/> : <Maximize2 size={14}/>}</button>
+        <button className={isExpanded ? styles.returnButton : styles.iconButton} title={isExpanded ? 'Zur Arbeitsfläche · Esc' : 'Vergrößern'} aria-label={tool.label + (isExpanded ? ' verkleinern' : ' vergrößern')} onClick={() => setExpanded(isExpanded ? null : panel.id)}>{isExpanded ? <><Minimize2 size={14}/><span>Zur Arbeitsfläche</span></> : <Maximize2 size={14}/>}</button>
         <button className={styles.iconButton} aria-label={tool.label + ' anordnen'} aria-expanded={menu === panel.id} onClick={() => setMenu(menu === panel.id ? null : panel.id)}><MoreHorizontal size={16}/></button>
         <button className={styles.iconButton} disabled={workspace.panels.length <= 1} aria-label={tool.label + ' schließen'} onClick={() => { onClose(panel); setMenu(null); }}><X size={15}/></button>
         {menu === panel.id && <div className={styles.panelMenu}><button onClick={() => { onMove(panel, 'up'); setMenu(null); }}><ArrowUp size={13}/>Weiter nach oben</button><button onClick={() => { onMove(panel, 'down'); setMenu(null); }}><ArrowDown size={13}/>Weiter nach unten</button><button onClick={() => { onMove(panel, 'column'); setMenu(null); }}><ArrowLeftRight size={13}/>Andere Spalte</button></div>}
