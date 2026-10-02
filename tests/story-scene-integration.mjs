@@ -37,7 +37,8 @@ export async function storySceneIntegration({ req, check, localSql, sqlQuote, se
   check((await req(path,'gm','POST',{action:'save',id,version:2,document:{...doc,clueIds:['recovery.synthetic-secret']}})).s===404,'SCENE recovery data cannot enter scene references');
   check((await req(path,'gm','POST',{action:'save',id,version:2,document:{...doc,published:true}})).s===400,'SCENE unknown publication fields rejected');
   check((await req(path,'gm','POST',{action:'save',id,version:2,document:doc},{Origin:'https://evil.invalid'})).s===403,'SCENE cross-site save denied');
-  check((await req(path,'gm','POST',{action:'publish',id,version:2,target:{scope:'character',characterId:privateCharacterId}})).s===404,'SCENE private foreign Character metadata cannot be used as release target');
+  check((await req(path,'gm','POST',{action:'publish',id,version:2,target:{scope:'character',characterId:'missing-character'}})).s===404,'SCENE missing Character cannot be used as release target');
+  check((await req('/api/character-detail?id='+privateCharacterId,'gm')).s===200,'SCENE SL can inspect existing private campaign character without publishing anything');
   const personal=await req(path,'gm','POST',{action:'publish',id,version:2,target:{scope:'character',characterId:a1.d.id}});
   check(personal.s===200,'SCENE explicit personal publication succeeds');s=personal.d;
   const personalA=await req('/api/session-scenes?characterId='+a1.d.id,'a');

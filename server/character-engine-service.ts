@@ -11,7 +11,7 @@ export function characterBody(raw: string): Record<string, unknown> {
 export async function editableCharacter(a: Actor, id: string) {
   const db = database();
   const row = await db.prepare("SELECT * FROM records WHERE id=? AND campaign_id=? AND kind='charaktere'").bind(id, a.campaignId).first<LegacyRecordRow>();
-  if (!row || !canEdit(a, row)) throw new HttpError(404, "Charakter nicht verfügbar. Private Entwürfe bleiben beim Besitzer.");
+  if (!row || !canEdit(a, row)) throw new HttpError(404, "Charakter nicht verfügbar. Zugriff nur für Besitzer und zuständige Spielleitung.");
   const body = characterBody(row.body);
   const entity = await db.prepare("SELECT canon_status FROM entities WHERE id=? AND campaign_id=?").bind(id, a.campaignId).first<{canon_status:string}>();
   if (body.recoveryOnly === true || body.canonStatus === "GM_SECRET" || entity?.canon_status === "GM_SECRET") throw new HttpError(404, "Charakter nicht verfügbar.");

@@ -22,7 +22,7 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check((await command('a','request_change',{request:{category:'foreignDiscipline',target:'Potenz',reason:'Synthetic exception for cost test'}})).s===200,'WEEKEND owner submits exception request without granting themselves');
  let queue=await req('/api/command-center','gm');
  check(queue.d.characters.find(c=>c.id===id)?.pendingRequests===1,'LIVE fresh record request appears in SL attention queue');
- check(!queue.d.characters.some(c=>c.id===minimal.d.id),'LIVE private foreign draft never appears in SL roster or queue');
+ check(queue.d.characters.some(c=>c.id===minimal.d.id&&c.state==='draft'),'LIVE private campaign draft is visible to SL without being submitted or shared');
  check(!JSON.stringify(queue.d.characters).includes('Synthetic exception for cost test'),'LIVE roster omits confidential request content');
  check((await req('/api/command-center','a')).s===403,'LIVE player cannot enumerate SL character queue');
  let view=await get('gm');const requestId=view.d.requests[0].id;

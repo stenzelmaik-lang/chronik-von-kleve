@@ -20,7 +20,7 @@ export async function GET(req: Request) {
         .bind(a.campaignId, a.campaignId).all<{id:string;name:string;status:string}>(),
       db.prepare('SELECT entity_id,audience,subject_id,state FROM knowledge WHERE campaign_id=?')
         .bind(a.campaignId).all(),
-      db.prepare("SELECT id,title,owner_id,body,version FROM records WHERE campaign_id=? AND kind='charaktere' AND (visibility!='private' OR owner_id=?)").bind(a.campaignId,a.id).all<{id:string;title:string;owner_id:string;body:string;version:number}>(),
+      db.prepare("SELECT id,title,owner_id,body,version FROM records WHERE campaign_id=? AND kind='charaktere'").bind(a.campaignId).all<{id:string;title:string;owner_id:string;body:string;version:number}>(),
     ]);
     if(new URL(req.url).searchParams.get('view')==='player') {
       const viewer={...a,id:'command-center-group-preview',gm:false,role:'player' as const};

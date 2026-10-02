@@ -8,7 +8,7 @@ export async function characterKnowledgeContext(db: D1Database, a: Actor, id: st
   if (preview) gmOnly(a);
   const e = (await loadEntitiesForIds(db, a.campaignId, [id]))[0];
   if (!e || e.type !== 'CHARACTER' || e.canonStatus === 'GM_SECRET' || e.content.recoveryOnly === true ||
-    (!preview && e.ownerId !== a.id) || !canRead(a, { owner_id: e.ownerId, visibility: e.visibility }))
+    (!preview && e.ownerId !== a.id) || !canRead(a, { owner_id: e.ownerId, visibility: e.visibility, kind: 'charaktere', campaign_id: e.campaignId }))
     throw new HttpError(404, 'Dieser Charakter ist nicht verfügbar.');
   const member = await db.prepare(`SELECT m.id FROM members m LEFT JOIN campaign_memberships cm ON cm.campaign_id=? AND cm.user_id=m.id
     WHERE m.id=? AND ((cm.user_id IS NOT NULL AND cm.status='active') OR (cm.user_id IS NULL AND m.campaign_id=? AND m.status='active'))`)

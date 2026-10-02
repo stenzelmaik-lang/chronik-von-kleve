@@ -9,7 +9,7 @@ const storyPredicate = "type='CHRONICLE' AND canon_status='GM_SECRET' AND visibi
 export async function validateCommandReferences(db: D1Database, a: Actor, ids: string[]) {
   const unique = [...new Set(ids.filter(Boolean))];
   const entities = await loadEntitiesForIds(db, a.campaignId, unique);
-  if (entities.length !== unique.length || entities.some(e => e.content.recoveryOnly === true || (e.type === 'CHARACTER' && !canRead(a, { owner_id: e.ownerId, visibility: e.visibility })))) throw new HttpError(404, 'Eine verknüpfte Akte ist nicht verfügbar.');
+  if (entities.length !== unique.length || entities.some(e => e.content.recoveryOnly === true || (e.type === 'CHARACTER' && !canRead(a, { owner_id: e.ownerId, visibility: e.visibility, kind: 'charaktere', campaign_id: e.campaignId })))) throw new HttpError(404, 'Eine verknüpfte Akte ist nicht verfügbar.');
 }
 export async function readWorkspace(db: D1Database, a: Actor, mode: WorkspaceMode, windowRole: 'main' | 'companion') {
   gmOnly(a);

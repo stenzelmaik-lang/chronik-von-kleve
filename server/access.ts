@@ -3,6 +3,7 @@ import { KLEVE_CAMPAIGN_ID, type Actor } from "@/domain/types";
 import { currentUserFromContext } from "@/server/platform-auth";
 import { database, HttpError } from "@/server/database";
 import { resolveRoles } from "@/server/role-resolver";
+import { canManageCampaignCharacter } from '@/domain/character-access';
 export { database, HttpError } from "@/server/database";
 export type { Actor } from "@/domain/types";
 export async function actor(requireActive = true): Promise<Actor> {
@@ -119,24 +120,25 @@ export const personalKinds = [
 ];
 export function canRead(
   a: Actor,
-  r: { owner_id: string; visibility: string; kind?: string },
+  r: { owner_id: string; visibility: string; kind?: string; campaign_id?: string },
 ) {
   if (a.status !== "active") return false;
   return (
     r.owner_id === a.id ||
+    (r.kind === 'charaktere' && canManageCampaignCharacter(a, r.campaign_id ?? a.campaignId)) ||
     r.visibility === "group" ||
     (a.gm && r.visibility === "sl")
   );
 }
 export function canEdit(
   a: Actor,
-  r: { owner_id: string; visibility: string; kind: string },
+  r: { owner_id: string; visibility: string; kind: string; campaign_id?: string },
 ) {
   if (a.status !== "active") return false;
   return (
     r.owner_id === a.id ||
     (a.gm &&
       (campaignKinds.includes(r.kind) ||
-        (r.kind === "charaktere" && r.visibility !== "private")))
+        (r.kind === "charaktere" && canManageCampaignCharacter(a, r.campaign_id ?? a.campaignId))))
   );
 }

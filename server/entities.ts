@@ -1,3 +1,4 @@
+import { canManageCampaignCharacter } from '../domain/character-access.ts';
 import type {
   Actor,
   Entity,
@@ -100,7 +101,7 @@ export function projectEntity(
     if (e.ownerId !== a.id && !(a.gm && e.content.senderId === a.id)) return null;
     return { ...e, content: { context: "sl-message", text: e.content.text ?? "", senderName: e.content.senderName ?? "", readAt: e.content.readAt ?? null } };
   }
-  if (e.type === "CHARACTER" && e.ownerId !== a.id && (!a.gm || e.visibility === "private")) return null;
+  if (e.type === "CHARACTER" && e.ownerId !== a.id && !canManageCampaignCharacter(a, e.campaignId)) return null;
   if (a.gm) return e;
   // Scene preparation and runtime metadata require the dedicated allowlist
   // projector. A generic grant must never disclose the private scene dossier.
