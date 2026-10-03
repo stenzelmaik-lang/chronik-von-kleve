@@ -25,7 +25,7 @@ test('Whole-card native button retains non-hover operation and responsive reduce
   const panel = readFileSync(new URL('../app/spielbereich/modules/npc-panel.tsx',import.meta.url),'utf8');
   const css = readFileSync(new URL('../app/spielbereich/modules/npc-cards.module.css',import.meta.url),'utf8');
   assert.match(panel,/<button key=\{e.id\} className=\{cards.card\} aria-label=/);
-  assert.match(panel,/onClick=\{\(\) => setSelected\(e.id\)\}/);
+  assert.match(panel,/setFrames\(\[\{id:e.id,title:e.title,scroll:0\}\]\)/);
   assert.match(panel,/Akte öffnen/);
   assert.match(css,/:focus-visible/);
   assert.match(css,/object-fit: contain/);

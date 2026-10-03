@@ -1,4 +1,5 @@
-import {loadNPCList,loadNPCDetail} from '../app/spielbereich/modules/npc-data.ts';
+import {loadNPCList,loadNPCDetail,loadEntityDossier} from '../app/spielbereich/modules/npc-data.ts';
+import {dossierSections,dossierRelations} from '../app/spielbereich/modules/npc-dossier-data.ts';
 export async function m1Integration({req,check,localSql}) {
   const path='/api/entities';
   const make=async(type,title,defaultVisibility='player_visible')=>{
@@ -50,4 +51,8 @@ export async function m1Integration({req,check,localSql}) {
   check(playerDetail.blocks.length===1&&slDetail.blocks.length===2&&slDetail.blocks[0].position===0,'M2.1 detail orders original blocks for each role');
   check(playerDetail.relationships.some(r=>r.id===visibleRel.d.relationship.id)&&!playerDetail.relationships.some(r=>r.id===hiddenRel.d.relationship.id),'M2.1 detail shows authorized relationships only');
   check(!JSON.stringify(playerDetail).includes('M1_SECRET')&&!JSON.stringify(playerDetail).includes('M1_BLOCK_SECRET')&&!JSON.stringify(playerDetail).includes(secret),'M2.1 player detail contains no SL secrets or hidden endpoint IDs');
+  check(dossierRelations(npc,playerDetail.relationships,playerDetail.relatedEntities,false).some(g=>g.title==='Orte'),'M2.3 groups authorized original world references');
+  check(dossierRelations(npc,slDetail.relationships,slDetail.relatedEntities,true).some(g=>g.title==='SL-INTERN'),'M2.3 separates secret endpoint relations for SL');
+  check(!JSON.stringify(dossierSections(playerDetail.entity,playerDetail.blocks,false)).includes('M1_BLOCK_SECRET'),'M2.3 player reading sections contain no secret block');
+  check((await loadEntityDossier(requestFor('a'),place,false)).entity.id===place,'M2.3 relationship click reads same non-NPC original without copying');
 }
