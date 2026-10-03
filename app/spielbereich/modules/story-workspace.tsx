@@ -46,6 +46,7 @@ type StorySummary = {
   favorite: boolean;
   pinned: boolean;
   searchText: string;
+  status: StoryDocument["status"];
 };
 type Historic = { id: string; version: number; createdAt: string };
 const endpoint = (kind: Kind) =>
@@ -432,13 +433,17 @@ export function StoryWorkspace({ a }: { a: Actor }) {
     favorite?: boolean;
     pinned?: boolean;
     searchText?: string;
+    status?: string;
+    archived?: boolean;
   }) {
+    const archived = v.archived || v.status === "archived";
     return (
+      (filter === "archive" ? archived : !archived) &&
       (!search ||
         (v.title + " " + (v.searchText || ""))
           .toLowerCase()
           .includes(search.toLowerCase())) &&
-      (filter === "all" ||
+      (filter === "archive" || filter === "all" ||
         (filter === "favorite" && v.favorite) ||
         (filter === "pinned" && v.pinned) ||
         (filter === "recent" && recent.includes(v.id)))
@@ -518,10 +523,29 @@ export function StoryWorkspace({ a }: { a: Actor }) {
       )}
     </fieldset>
   );
+  async function toggleArchive() {
+    if (!current || inflight.current) return;
+    const token = generation.current;
+    const start = current;
+    const archived = start.kind === "scene" ? (start.document as SceneDocument).archived : (start.document as StoryDocument | SessionPreparation).status === "archived";
+    if (!(await confirmation.ask(archived ? "Diese Akte wieder in den Arbeitsbestand aufnehmen?" : "Diese Akte archivieren? Inhalte, verknüpfte Akten und Spielverlauf bleiben erhalten. Bestehende Spielerfreigaben werden dadurch nicht zurückgezogen."))) return;
+    if (inflight.current || generation.current !== token || latest.current?.id !== start.id) return;
+    if (latest.current.version !== start.version || JSON.stringify(latest.current.document) !== JSON.stringify(start.document)) { setMessage("Der Entwurf hat sich während der Bestätigung geändert. Bitte erneut archivieren."); return; }
+    inflight.current = true; setBusy(true);
+    try {
+      const document = start.kind === "scene" ? { ...start.document, archived: !archived } : { ...start.document, status: archived ? "draft" : "archived" };
+      const data = await request(endpoint(start.kind), { action: "save", id: start.id, version: start.version, document });
+      accept(selection(start.kind, data[start.kind]));
+      setFilter(archived ? "all" : "archive");
+      setMessage(archived ? "Wieder im Arbeitsbestand · gespeichert" : "Archiviert · gespeichert. Im Archiv wiederherstellbar.");
+      await refresh();
+    } catch (e) { setMessage((e as Error).message + " Deine Eingaben bleiben im Editor."); }
+    finally { inflight.current = false; setBusy(false); }
+  }
   function tree(parent: string, storyId: string, depth = 0): React.ReactNode {
     if (depth > 20) return null;
     return scenes
-      .filter((v) => v.parentId === parent && v.storyId === storyId)
+      .filter((v) => v.parentId === parent && v.storyId === storyId && matches(v))
       .map((v) => (
         <div key={v.id} style={{ paddingLeft: depth ? 12 : 0 }}>
           <button
@@ -573,7 +597,8 @@ export function StoryWorkspace({ a }: { a: Actor }) {
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
-            <option value="all">Alle Akten</option>
+            <option value="all">Aktive Akten</option>
+            <option value="archive">Archiv</option>
             <option value="favorite">Favoriten</option>
             <option value="pinned">Angeheftet</option>
             <option value="recent">Zuletzt geöffnet</option>
@@ -627,7 +652,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
                   scenes
                     .filter(
                       (c) =>
-                        v.document.sceneIds.includes(c.id),
+                        v.document.sceneIds.includes(c.id) && matches(c),
                     )
                     .map((c) => (
                       <button
@@ -660,6 +685,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
             <>
               <div className={s.savebar}>
                 <span role="status">{message}</span>
+                <button disabled={busy} onClick={() => void toggleArchive()}>{(scene?.archived || story?.status === "archived" || session?.status === "archived") ? "Aus Archiv wiederherstellen" : "Archivieren"}</button>
                 <button disabled={busy || !dirty} onClick={() => void save()}>
                   Jetzt speichern
                 </button>

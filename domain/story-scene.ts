@@ -13,6 +13,7 @@ export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(scene
 export type SceneElement=z.infer<typeof sceneElementSchema>;
 // Preparation has no execution flags. Only an explicit SL command creates a run.
 export const sceneDocumentSchema = z.object({
+  archived: z.boolean().default(false),
   title: z.string().trim().min(1).max(200), storyId: optionalId, placeId: optionalId,
   parentId: optionalId, sessionIds: ids.default([]), favorite:z.boolean().default(false),pinned:z.boolean().default(false), elements:z.array(sceneElementSchema).max(100).default([]).refine(v=>new Set(v.map(e=>e.id)).size===v.length,'Elemente benötigen eindeutige Identitäten.'),
   narration: text, atmosphere: text, gmNotes: text, dialogueNotes: text,
@@ -22,7 +23,7 @@ export const sceneDocumentSchema = z.object({
     .refine(v => new Set(v.map(p => p.id)).size === v.length, 'Möglichkeiten dürfen nicht doppelt sein.'),
 }).strict();
 export type SceneDocument = z.infer<typeof sceneDocumentSchema>;
-export const emptyScene = (storyId = ''): SceneDocument => ({ title: 'Neue Szene', storyId, placeId: '',parentId:'',sessionIds:[],favorite:false,pinned:false,elements:[], narration: '', atmosphere: '', gmNotes: '', dialogueNotes: '', interactions: '', secrets: '', possibleConsequences: '', npcIds: [], clueIds: [], possibilities: [] });
+export const emptyScene = (storyId = ''): SceneDocument => ({ archived:false,title: 'Neue Szene', storyId, placeId: '',parentId:'',sessionIds:[],favorite:false,pinned:false,elements:[], narration: '', atmosphere: '', gmNotes: '', dialogueNotes: '', interactions: '', secrets: '', possibleConsequences: '', npcIds: [], clueIds: [], possibilities: [] });
 export const sceneTargetSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('group') }).strict(),
   z.object({ scope: z.literal('character'), characterId: id }).strict(),
@@ -53,7 +54,7 @@ export const sceneStateSchema = z.object({
 });
 export type SceneState = z.infer<typeof sceneStateSchema>;
 export type SceneView = { id: string; version: number; updatedAt: string; document: SceneDocument; state: SceneState };
-export type SceneSummary = Pick<SceneView, 'id' | 'version' | 'updatedAt'> & { title: string; storyId: string; placeId: string; parentId:string; sessionIds:string[]; favorite:boolean;pinned:boolean;searchText:string;elements:Pick<SceneElement,'id'|'title'|'kind'>[]; runs: SceneRun[] };
+export type SceneSummary = Pick<SceneView, 'id' | 'version' | 'updatedAt'> & { title: string; archived?:boolean; storyId: string; placeId: string; parentId:string; sessionIds:string[]; favorite:boolean;pinned:boolean;searchText:string;elements:Pick<SceneElement,'id'|'title'|'kind'>[]; runs: SceneRun[] };
 export type SceneHistory = { id: string; version: number; action: string; createdAt: string; document: SceneDocument; state: SceneState };
 export type PlayerScene = { id: string; title: string; narration: string; publishedAt: string; place: { id: string; title: string } | null; persons: { id: string; title: string }[]; clues: { id: string; title: string; text: string; state: string }[]; runs: { id: string; sessionId: string; label: string; status: SceneRun['status'] }[] };
 export function targetKey(t: SceneTarget) { return t.scope === 'group' ? '@group' : t.characterId; }

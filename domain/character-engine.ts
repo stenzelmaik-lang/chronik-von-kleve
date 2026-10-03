@@ -461,3 +461,37 @@ export function applyXpPurchase(body: CharacterLike, purchase: XpPurchase, now =
   ledger.push({ id: crypto.randomUUID(), kind: "spend", amount: price.cost, reason: purchase.reason || `${purchase.category} ${purchase.from} → ${purchase.to}`, createdAt: now });
   return { ok: true, body: { ...raised, xpLedger: ledger }, cost: price.cost };
 }
+
+
+/** Explicit SL correction. Caller must enforce campaign GM, revision and audit. */
+export type SlAdjustment = { category: 'attribute'|'ability'|'discipline'|'background'|'virtue'|'humanity'|'willpower'; target: string; value: number };
+export function slAdjustmentTargets(body: CharacterLike) {
+  const targets: Array<SlAdjustment & {minimum:number;maximum:number}> = [];
+  const add=(category:SlAdjustment['category'],target:string,value:unknown,minimum=0,maximum=5)=>{if(Number.isInteger(value))targets.push({category,target,value:Number(value),minimum,maximum});};
+  for(const name of Object.values(attributeGroups).flat()) add('attribute',name,(body.attributes as NumericMap|undefined)?.[name]??attributeBase(body,name),attributeBase(body,name));
+  for(const name of v20AbilityNames) add('ability',name,(body.skills as NumericMap|undefined)?.[name]??0);
+  for(const [key,category] of [['disciplines','discipline'],['backgrounds','background']] as const) for(const row of rows(body[key])) if(typeof row.name==='string')add(category,row.name,row.value);
+  for(const name of ['Gewissen','Selbstbeherrschung','Mut']) add('virtue',name,(body.virtues as NumericMap|undefined)?.[name]??1,1);
+  add('humanity','Menschlichkeit',body.humanity,0,10);add('willpower','Willenskraft',body.willpower,Math.max(1,integer(body.willpowerTemporary)),10);
+  return targets;
+}
+export function applySlAdjustment(body: CharacterLike, adjustment: SlAdjustment, actorId:string, reason:string, now=new Date().toISOString()): {ok:true;body:CharacterLike;previous:number}|{ok:false;error:string} {
+  const selected=slAdjustmentTargets(body).find(t=>t.category===adjustment.category&&t.target===adjustment.target);
+  if(!selected||!Number.isInteger(adjustment.value)||adjustment.value<selected.minimum||adjustment.value>selected.maximum)return {ok:false,error:'Unzulässiges Korrekturziel oder Wert außerhalb des zulässigen Bereichs.'};
+  const next={...body};const {category,target,value}=adjustment;
+  const mapKey=category==='attribute'?'attributes':category==='ability'?'skills':category==='virtue'?'virtues':null;
+  if(mapKey)next[mapKey]={...(body[mapKey] as NumericMap),[target]:value};
+  else if(category==='discipline'||category==='background'){const key=category==='discipline'?'disciplines':'backgrounds';next[key]=rows(body[key]).map(row=>row.name===target?{...row,value}:row);}
+  else next[category]=value;
+  if(category==='attribute'&&target==='Erscheinungsbild'&&String(body.clan).toLowerCase()==='nosferatu'&&value>appearanceExceptionMaximum(body)){
+    const grants=Array.isArray(body.ruleExceptions)?body.ruleExceptions as CharacterLike[]:[];
+    next.ruleExceptions=[...grants.filter(g=>g.category!=='appearance'),{category:'appearance',target,maximum:value,decidedBy:actorId,decidedAt:now,reason}];
+  }
+  if(category==='discipline'&&rows(body.disciplines).some(row=>row.name===target&&row.source==='foreign')) {
+    const grants=Array.isArray(next.ruleExceptions)?next.ruleExceptions as CharacterLike[]:[];
+    const old=grants.find(g=>g.category==='foreignDiscipline'&&g.target===target);
+    if(!old||value>Number(old.maximum))next.ruleExceptions=[...grants.filter(g=>g.category!=='foreignDiscipline'||g.target!==target),{category:'foreignDiscipline',target,maximum:Math.max(1,value),decidedBy:actorId,decidedAt:now,reason}];
+  }
+  // No ledger, historical creation snapshot or temporary values are rewritten.
+  return {ok:true,body:next,previous:selected.value};
+}

@@ -130,3 +130,22 @@ test("XP cost, ledger and value change are atomic at the pure-engine boundary", 
    assert.equal(validateCharacterDraft(campaign,body).ok,true);
    assert.equal(validateCharacterDraft(campaign,{...body,disciplines:body.disciplines.map(r=>r.name==='Potenz'?{...r,value:2}:r)}).ok,false);
  });
+
+
+test('Explicit SL correction preserves XP, snapshot and temporary values',async()=>{
+ const {applySlAdjustment}=await import('../domain/character-engine.ts');
+ const body={clan:'Nosferatu',attributes:{Erscheinungsbild:0},xpLedger:[{amount:8,kind:'grant'}],creationSnapshot:{attributes:{Erscheinungsbild:0}},blood:{current:2},health:{current:1},willpowerTemporary:2};
+ const edited=applySlAdjustment(body,{category:'attribute',target:'Erscheinungsbild',value:3},'synthetic-sl','Documented exception');
+ assert.equal(edited.ok,true);assert.equal(edited.body.attributes.Erscheinungsbild,3);
+ for(const key of ['xpLedger','creationSnapshot','blood','health','willpowerTemporary'])assert.deepEqual(edited.body[key],body[key]);
+ assert.equal(edited.body.ruleExceptions[0].maximum,3);assert.equal(body.attributes.Erscheinungsbild,0);
+});
+
+
+test('SL correction updates a foreign permission and prevents impossible Willpower state',async()=>{
+ const {applySlAdjustment}=await import('../domain/character-engine.ts');
+ const body={disciplines:[{name:'Auspex',value:1,source:'foreign',slApproved:true}],ruleExceptions:[{category:'foreignDiscipline',target:'Auspex',maximum:2}],willpower:3,willpowerTemporary:2};
+ const edit=applySlAdjustment(body,{category:'discipline',target:'Auspex',value:3},'synthetic-sl','Explicit correction');
+ assert.equal(edit.ok,true);assert.equal(edit.body.ruleExceptions[0].maximum,3);
+ assert.equal(applySlAdjustment(body,{category:'willpower',target:'Willenskraft',value:1},'synthetic-sl','Explicit correction').ok,false);
+});

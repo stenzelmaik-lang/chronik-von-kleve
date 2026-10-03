@@ -487,11 +487,11 @@ export function CharacterDetail({
           {permissions.canEdit === true && (
             <button
               className="button primary character-edit"
-              disabled={characterState === "confirmed" || characterState === "review"}
-              title={characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : characterState === "review" ? "Der eingereichte Bogen ist während der SL-Prüfung geschützt." : undefined}
-              onClick={() => onEdit(active)}
+              disabled={!(inspection && a.gm) && (characterState === "confirmed" || characterState === "review")}
+              title={inspection && a.gm ? "Werte als zuständige SL begründet korrigieren und Ausnahmen freigeben." : characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : characterState === "review" ? "Der eingereichte Bogen ist während der SL-Prüfung geschützt." : undefined}
+              onClick={() => inspection && a.gm ? setView("management") : onEdit(active)}
             >
-              <Pencil size={16} /> Bogen bearbeiten
+              <Pencil size={16} /> {inspection && a.gm ? "SL-Werte ändern" : "Bogen bearbeiten"}
             </button>
           )}
           <details className={studio.heroUtilities}><summary>Weitere Aktionen</summary><div>

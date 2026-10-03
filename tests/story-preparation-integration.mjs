@@ -350,4 +350,19 @@ export async function storyPreparationIntegration({
     catalog.d.places.some((p) => p.id === "place.electric-taberna"),
     "P2A central place catalog uses existing stable identity",
   );
+  // Archive is a recoverable preparation change, never a destructive delete.
+  for (const [kind, id] of [['story',story.id],['preparation',prepared.id],['scenes',child.id]]) {
+    const key=kind==='story'?'story':kind==='scenes'?'scene':'session';
+    let old=(await req(root+'/'+kind+'?id='+id,'gm')).d[key];
+    const doc=kind==='story'?{title:old.title,summary:old.summary,status:old.status,favorite:old.favorite,pinned:old.pinned,sections:old.sections,references:old.references,possibilities:old.possibilities}:old.document;
+    const archived=kind==='scenes'?{...doc,archived:true}:{...doc,status:'archived'};
+    check((await req(root+'/'+kind,'a','POST',{action:'save',id,version:old.version,document:archived})).s===403,'ARCHIVE player cannot archive SL '+kind);
+    const saved=await req(root+'/'+kind,'gm','POST',{action:'save',id,version:old.version,document:archived});
+    check(saved.s===200,'ARCHIVE SL archives '+kind);
+    check((await req(root+'/'+kind,'gm','POST',{action:'save',id,version:old.version,document:archived})).s===409,'ARCHIVE stale revision rejected '+kind);
+    old=(await req(root+'/'+kind+'?id='+id,'gm')).d[key];
+    check(kind==='scenes'?old.document.archived===true:kind==='story'?old.status==='archived':old.document.status==='archived','ARCHIVE persists on fresh read '+kind);
+    check((await req(root+'/'+kind,'gm','POST',{action:'save',id,version:old.version,document:doc})).s===200,'ARCHIVE can restore original content '+kind);
+  }
+
 }

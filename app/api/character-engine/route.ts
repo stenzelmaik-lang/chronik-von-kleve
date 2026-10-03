@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { validateCharacterDraft, applyXpPurchase, type XpPurchase } from "@/domain/character-engine";
+import { validateCharacterDraft, applySlAdjustment, applyXpPurchase, type XpPurchase } from "@/domain/character-engine";
 import { availableClanForCampaign } from "@/domain/clan-config";
 import { actor, gmOnly, sameOrigin, input, json, failure, HttpError } from "@/server/access";
 import { editableCharacter, engineProjection, saveEngine, characterBody } from "@/server/character-engine-service";
@@ -9,15 +9,17 @@ const base = { id: z.string().trim().min(1).max(100), version: z.number().int().
 const reason = z.string().trim().min(3, "Bitte begründe die Aktion kurz.").max(2000);
 const purchase = z.object({ category: z.enum(["attribute", "ability", "discipline", "background", "humanity", "willpower"]), target: z.string().trim().min(1).max(120).optional(), from: z.number().int().min(0).max(10), to: z.number().int().min(1).max(10), inClan: z.boolean().optional(), reason: z.string().max(2000).optional() }).strict();
 const requestChange = z.object({ category: z.enum(["foreignDiscipline", "appearance", "merit", "flaw", "identity"]), target: z.string().trim().min(1).max(120), value: z.string().trim().max(2000).optional(), reason }).strict();
+const slAdjustment = z.object({category:z.enum(['attribute','ability','discipline','background','virtue','humanity','willpower']),target:z.string().trim().min(1).max(120),value:z.number().int().min(0).max(10)}).strict();
 const schema = z.discriminatedUnion("action", [
+  z.object({ ...base, action: z.literal("sl_adjustment"), adjustment:slAdjustment, reason }).strict(),
   z.object({ ...base, action: z.literal("review") }).strict(),
   z.object({ ...base, action: z.literal("confirm"), reason: reason.optional() }).strict(),
   z.object({ ...base, action: z.literal("return_draft"), reason }).strict(),
   z.object({ ...base, action: z.literal("xp_purchase"), purchase }).strict(),
   z.object({ ...base, action: z.literal("xp_grant"), amount: z.number().int().min(1).max(1000), reason }).strict(),
   z.object({ ...base, action: z.literal("request_change"), request: requestChange }).strict(),
-  z.object({ ...base, action: z.literal("resolve_request"), requestId: z.string().min(1).max(100), approved: z.boolean(), cost: z.number().int().min(0).max(7).optional(), rating: z.number().int().min(0).max(5).optional(), maximum: z.number().int().min(1).max(5).optional(), reason }).strict(),
-  z.object({ ...base, action: z.literal("grant_exception"), category: z.enum(["appearance", "foreignDiscipline"]), target: z.string().trim().min(1).max(120), rating: z.number().int().min(0).max(5), maximum: z.number().int().min(1).max(5), reason }).strict(),
+  z.object({ ...base, action: z.literal("resolve_request"), asCorrection:z.boolean().default(false), requestId: z.string().min(1).max(100), approved: z.boolean(), cost: z.number().int().min(0).max(7).optional(), rating: z.number().int().min(0).max(5).optional(), maximum: z.number().int().min(1).max(5).optional(), reason }).strict(),
+  z.object({ ...base, action: z.literal("grant_exception"), asCorrection:z.boolean().default(false), category: z.enum(["appearance", "foreignDiscipline"]), target: z.string().trim().min(1).max(120), rating: z.number().int().min(0).max(5), maximum: z.number().int().min(1).max(5), reason }).strict(),
   z.object({ ...base, action: z.literal("correction"), field: z.enum(["concept", "nature", "demeanor", "sire"]), value: z.string().trim().max(2000), reason }).strict(),
   z.object({ ...base, action: z.literal("gm_notes"), text: z.string().max(30000) }).strict(),
 ]);
@@ -47,10 +49,15 @@ export async function POST(req: Request) {
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const d = parsed.data, { row, body } = await editableCharacter(a, d.id);
     if (row.version !== d.version) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
-    if (["confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes", "grant_exception"].includes(d.action)) gmOnly(a);
-    if (!body.engineVersion && d.action !== "gm_notes" && d.action !== "correction") throw new HttpError(409, "Legacy-Bogen: Werte bleiben erhalten. Die Übernahme in die Engine erfolgt bewusst über den vorhandenen Editor.");
+    if (["sl_adjustment", "confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes", "grant_exception"].includes(d.action)) gmOnly(a);
+    if (!body.engineVersion && !((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && d.action !== "sl_adjustment" && d.action !== "gm_notes" && d.action !== "correction") throw new HttpError(409, "Legacy-Bogen: Werte bleiben erhalten. Die Übernahme in die Engine erfolgt bewusst über den vorhandenen Editor.");
     let next = { ...body }, visibility = row.visibility, notes = row.gm_body, auditReason = "";
-    if (d.action === "review") {
+    if (d.action === "sl_adjustment") {
+      const result=applySlAdjustment(body,d.adjustment,a.id,d.reason);
+      if(!result.ok)throw new HttpError(400,result.error);
+      next=result.body;
+      auditReason=d.reason+' · SL-Korrektur '+d.adjustment.target+': '+result.previous+' → '+d.adjustment.value+' · XP unverändert';
+    } else if (d.action === "review") {
       if (row.owner_id !== a.id || body.characterState !== "draft") throw new HttpError(403, "Nur der Besitzer reicht seinen Entwurf ein.");
       next.characterState = "review"; if (visibility === "private") visibility = "sl";
       auditReason = "Besitzer reicht den Bogen ein und teilt ihn gezielt mit der Spielleitung.";
@@ -77,7 +84,7 @@ export async function POST(req: Request) {
       const requests = Array.isArray(body.characterRequests) ? body.characterRequests as Record<string, unknown>[] : [];
       if (requests.filter(r => r.status === "pending").length >= 20) throw new HttpError(400, "Bitte zuerst die offenen Anträge klären.");
       if (requests.some(r => r.status === "pending" && r.category === d.request.category && r.target === d.request.target)) throw new HttpError(409, "Für diesen Eintrag ist bereits ein Antrag bei der Spielleitung.");
-      if (d.request.category !== "identity" && body.characterState !== "draft") throw new HttpError(409, "Regelausnahmen zunächst ausschließlich während der Erschaffung beantragen.");
+      if (d.request.category !== "identity" && !["draft", "review"].includes(String(body.characterState))) throw new HttpError(409, "Regelausnahmen zunächst ausschließlich während der Erschaffung beantragen.");
       if (d.request.category === "identity" && !["concept", "nature", "demeanor", "sire"].includes(d.request.target)) throw new HttpError(400, "Dieses Feld ist keine zulässige redaktionelle Änderung.");
       next.characterRequests = [...requests, { ...d.request, id: crypto.randomUUID(), status: "pending", createdAt: new Date().toISOString() }];
       if (visibility === "private") visibility = "sl"; auditReason = d.request.reason;
@@ -102,16 +109,17 @@ export async function POST(req: Request) {
       }
       next.characterRequests = requests.map(r => r.id === d.requestId ? { ...r, ...(d.approved && ["appearance", "foreignDiscipline"].includes(String(request.category)) ? { grantedRating: d.rating ?? 0, maximum: d.maximum ?? Math.max(1, d.rating ?? 0) } : {}), status: d.approved ? "approved" : "rejected", decidedBy: a.id, decidedAt: new Date().toISOString(), decision: d.reason } : r); auditReason = `${d.reason} · ${request.category}: ${request.target} · ${d.approved ? "genehmigt" : "abgelehnt"}${d.rating !== undefined ? ` · Wert ${d.rating}, Maximum ${d.maximum ?? Math.max(1,d.rating)}` : ""}`;
     } else if (d.action === "grant_exception") {
-      if (body.characterState !== "draft") throw new HttpError(409, "Mechanische Ausnahme hier nur für einen Erschaffungsentwurf. Bestätigte Werte bleiben geschützt.");
+      if (!d.asCorrection && !["draft", "review"].includes(String(body.characterState))) throw new HttpError(409, "Regelausnahmen gelten für Entwürfe und eingereichte Charaktere. Bestätigte Werte bleiben geschützt.");
       next = grantException(next, d.category, d.target, d.rating, d.maximum, a.id, d.reason, a.campaignId);
       auditReason = `${d.reason} · ${d.category}: ${d.target} · Wert ${d.rating}, Maximum ${d.maximum}`;
     } else if (d.action === "correction") { next[d.field] = d.value; auditReason = d.reason; }
     else if (d.action === "gm_notes") { notes = d.text; auditReason = "Vertrauliche SL-Notiz aktualisiert."; }
-    if (!["gm_notes", "correction", "request_change", "resolve_request"].includes(d.action)) {
+    if (!((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && !["sl_adjustment", "gm_notes", "correction", "request_change", "resolve_request"].includes(d.action)) {
       const validation = validateCharacterDraft(a.campaignId, next); if (!validation.ok) throw new HttpError(400, validation.error);
-    } else if (d.action === "resolve_request" && d.approved && body.characterState === "draft") {
+    } else if (d.action === "resolve_request" && d.approved && !d.asCorrection && ["draft", "review"].includes(String(body.characterState))) {
       const validation = validateCharacterDraft(a.campaignId, next); if (!validation.ok) throw new HttpError(400, validation.error);
     }
+    if ((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) auditReason += " · Bewusste SL-Korrektur, XP und historischer Erschaffungsstand unverändert";
     const updated = await saveEngine(a, row, next, d.version, d.action, auditReason, visibility, notes);
     const view = engineProjection(a, updated, characterBody(updated.body));
     return json({ ...view, xpAvailable: view.xp.available, freebieAvailable: view.budget.freebies.remaining });
