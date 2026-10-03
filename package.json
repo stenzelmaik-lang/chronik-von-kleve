@@ -12,11 +12,12 @@
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node --experimental-strip-types --test tests/foundation.test.mjs tests/recovery.test.mjs tests/location-system.test.mjs tests/player-data-cache.test.mjs tests/world-map.test.mjs tests/cloudflare-preview-config.test.mjs tests/cloudflare-remote-test-config.test.mjs tests/location-rich-text.test.mjs tests/password-hash.test.mjs tests/first-alpha-account.test.mjs tests/clan-config.test.mjs tests/character-engine.test.mjs tests/command-center.test.mjs tests/account-access.test.mjs tests/inventory.test.mjs tests/character-live.test.mjs tests/character-access.test.mjs tests/character-weekend.test.mjs tests/command-workspace.test.mjs tests/story-scene.test.mjs",
+    "test": "node --experimental-strip-types --test tests/foundation.test.mjs tests/recovery.test.mjs tests/location-system.test.mjs tests/player-data-cache.test.mjs tests/world-map.test.mjs tests/cloudflare-preview-config.test.mjs tests/cloudflare-remote-test-config.test.mjs tests/location-rich-text.test.mjs tests/password-hash.test.mjs tests/first-alpha-account.test.mjs tests/clan-config.test.mjs tests/character-engine.test.mjs tests/command-center.test.mjs tests/account-access.test.mjs tests/inventory.test.mjs tests/character-live.test.mjs tests/character-access.test.mjs tests/character-weekend.test.mjs tests/command-workspace.test.mjs tests/story-scene.test.mjs tests/story-preparation.test.mjs",
     "test:command-workspace": "node --experimental-strip-types --test tests/command-workspace.test.mjs tests/story-scene.test.mjs",
     "demo:command-center": "node scripts/test-local.mjs --command-center-2",
     "test:integration": "node scripts/test-local.mjs",
-    "typecheck": "tsc --noEmit --incremental false"
+    "typecheck": "tsc --noEmit --incremental false",
+    "work:story": "node scripts/test-local.mjs --story-workspace"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -34,6 +35,7 @@
     "maplibre-gl": "6.4.1",
     "next": "16.3.6",
     "next-themes": "^0.4.6",
+    "parse5": "^8.0.0",
     "radix-ui": "^1.6.7",
     "react": "19.2.8",
     "react-day-picker": "^10.0.1",

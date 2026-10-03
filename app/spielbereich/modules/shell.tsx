@@ -52,7 +52,7 @@ export function WorkspaceShell({
       <div className="player-top-actions">
         {a.status === "active" && <MessageCenter key={a.campaignId + a.id} a={a}/>}
         <a href="/" className="workspace-home-link"><Home size={15} /><span>Startseite</span></a>
-        {canManageLocations&&!cmsActive&&<a href="/spielbereich?bereich=ortscms" className="workspace-home-link" aria-label="SL-CMS öffnen" title="SL-CMS"><MapPinned size={15} /><span>SL-CMS</span></a>}
+        {canManageLocations&&!cmsActive&&<a href="/sl/command-center" className="workspace-home-link" aria-label="Command Center öffnen" title="SL-Vorbereitung"><MapPinned size={15} /><span>Command Center</span></a>}
         <a href="/profil" className="player-identity" aria-label="Mein Profil öffnen" title="Mein Profil">
           <span className="player-avatar">{a.name?.slice(0, 1).toUpperCase()}</span>
           <span className="player-identity-copy"><strong>{a.name}</strong><small>{a.gm ? "Spielleitung" : "Spielerbereich"}</small></span>

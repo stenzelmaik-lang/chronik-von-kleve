@@ -14,19 +14,22 @@ import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 // data across restarts; the full regression suite always uses a fresh store.
 const inventoryDemo=process.argv.includes('--inventory');
 const accessDemo=process.argv.includes('--access-alpha');
+const storyWork=process.argv.includes('--story-workspace');
 const commandDemo=process.argv.includes('--command-center-2');
-const interactive=commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const preserve=commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const state=preserve?resolve(commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const interactive=storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const preserve=storyWork||commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const state=preserve?resolve(storyWork?'.local-work/story-workspace':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
 const fingerprint=createHash('sha256').update(migrations.map(file=>readFileSync(file,'utf8')).join('\n')).digest('hex');
 const resumed=preserve&&existsSync(marker);
-if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose!=='synthetic-local-weekend'||saved.migrations!==fingerprint)throw new Error('Local demo store has an incompatible marker. Existing data are preserved; no migration was run.');}
+if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose!==purpose||saved.migrations!==fingerprint)throw new Error('Local demo store has an incompatible marker. Existing data are preserved; no migration was run.');}
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const port=commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const port=storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+if(interactive){const probe=createServer();await new Promise((ok,fail)=>{probe.once('error',()=>fail(new Error('Der lokale Port '+port+' ist bereits belegt. Öffne die laufende Anwendung; kein anderer Prozess wird beendet.')));probe.listen(port,'127.0.0.1',()=>probe.close(ok));});}
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:'+port,CVK_TEST_STATE:state};
 if(!resumed)for(const migration of migrations){
  const result=spawnSync(process.execPath,[cli,'d1','execute','DB','--local','--persist-to',state,'--config',config,'--file',migration],{env,encoding:'utf8',windowsHide:true});
@@ -98,7 +101,7 @@ try{
   // Never reused by any production or remote provisioning command.
   const stamp=new Date().toISOString(),salt=randomBytes(16).toString('base64url');
   const digest=pbkdf2Sync('ChroniPlay-Demo-2036!',salt,600000,32,'sha256').toString('base64url');
-  for(const [id,name,role] of [['command-gm','Demo Spielleitung','campaign_gm'],['command-a','Demo Spieler A','player'],['command-b','Demo Spieler B','player'],...(accessDemo?[['command-admin','Demo Plattformadmin','player']]:[])]){
+  for(const [id,name,role] of (storyWork?[['command-gm','Lokale Spielleitung','campaign_gm']]:[['command-gm','Demo Spielleitung','campaign_gm'],['command-a','Demo Spieler A','player'],['command-b','Demo Spieler B','player'],...(accessDemo?[['command-admin','Demo Plattformadmin','player']]:[])])){
    const email=id+'@example.invalid',authId='auth-'+id;
    await localDb.batch([
     localDb.prepare('INSERT INTO members(id,campaign_id,email,name,status,created_at) VALUES(?,?,?,?,?,?)').bind(id,'chronik-von-kleve',email,name,'active',stamp),
@@ -108,6 +111,7 @@ try{
    ]);
   }
   if(accessDemo)await localDb.prepare("INSERT INTO platform_roles(user_id,role,status,granted_by,created_at,updated_at) VALUES('command-admin','platform_admin','active','synthetic-local-fixture',?,?)").bind(stamp,stamp).run();
+  if(!storyWork){
   const login=await fetch(env.CVK_TEST_URL+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL},body:JSON.stringify({email:'command-gm@example.invalid',password:'ChroniPlay-Demo-2036!'})});
   if(login.status!==200)throw new Error('Synthetic demo login failed');
   const fixtureCookie=login.headers.get('set-cookie')?.split(';')[0];
@@ -139,9 +143,10 @@ try{
    await command(bCookie,bId,'review');await command(fixtureCookie,bId,'confirm');await command(fixtureCookie,bId,'xp_grant',{amount:15,reason:'Synthetische Demonstration, kein Kanon'});
    await author('/api/command-center/story',{action:'create',clientRequestId:randomUUID(),document:{title:'SYNTHETISCH – Die offene Frage',sections:{core:'Dies ist ein reiner Bedienungstest. Beschreibe hier deinen roten Faden; die Software erzwingt keine Szenenfolge.',background:'Vorbereitete Informationen bleiben von tatsächlich geschehenen Ereignissen getrennt.',secrets:'PRIVATE_COMMAND_QA: Diese Information gehört ausschließlich der Spielleitung.',clues:'Verknüpfe vorhandene Hinweise, statt ihre Inhalte zu kopieren.',consequences:'Mögliche Folgen sind Vorschläge für deine Regie, keine automatischen Kampagnenereignisse.',notes:''},references:['place.electric-taberna'],possibilities:[{id:randomUUID(),title:'Synthetische mögliche Begegnung',text:'Nur vorbereitet. Ein Protokolleintrag erledigt diese Möglichkeit nicht automatisch.',status:'open'}]}});
   }
-  if(preserve)writeFileSync(marker,JSON.stringify({purpose:'synthetic-local-weekend',migrations:fingerprint}));
   }
-  console.log('Isolated application ready: '+env.CVK_TEST_URL+'/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
+  if(preserve)writeFileSync(marker,JSON.stringify({purpose,migrations:fingerprint}));
+  }
+  console.log(storyWork?'Persistent local authoring workspace: '+env.CVK_TEST_URL+'/sl/command-center · empty story/session collection, retained across restarts. Local-only account: command-gm@example.invalid.':'Isolated application ready: '+env.CVK_TEST_URL+'/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
   await new Promise(resolveStop=>{process.once('SIGINT',resolveStop);process.once('SIGTERM',resolveStop);});
  }else{
   const suite=spawn(process.execPath,['tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});

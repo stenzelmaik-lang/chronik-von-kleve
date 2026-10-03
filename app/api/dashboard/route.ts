@@ -27,7 +27,7 @@ export async function GET(req: Request) {
 
     // Only hydrate entities that can contribute to this dashboard response.
     const eligibleRows = rows.results.filter((row) =>
-      canRead(a, row) && (a.gm || row.kind !== "charaktere" || row.owner_id === a.id),
+      canRead(a, row) && (row.kind !== "charaktere" || row.owner_id === a.id),
     );
     const entities = await loadEntitiesForIds(db, a.campaignId, eligibleRows.map((row) => row.id));
     const index = new Map(entities.map((entity) => [entity.id, entity]));

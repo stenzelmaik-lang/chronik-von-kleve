@@ -3,6 +3,7 @@ import { loadEntitiesForIds, grantsFor, projectEntity } from "@/server/entities"
 import { z } from "zod";
 import {
   actor,
+  gmOnly,
   database,
   sameOrigin,
   input,
@@ -81,6 +82,8 @@ export async function GET(req: Request) {
     const kind = url.searchParams.get("kind") || "charaktere";
     if (![...campaignKinds, ...personalKinds].includes(kind))
       throw new HttpError(400, "Unbekannter Bereich.");
+    const inspection = url.searchParams.get("view") === "sl";
+    if (inspection) gmOnly(a);
     const db = database();
     const [rows, grants] = await Promise.all([
       db
@@ -98,8 +101,8 @@ export async function GET(req: Request) {
       const entity = index.get(r.id);
       if (!entity) return [];
       if (a.gm && !canRead(a, r)) return [];
-      if (!a.gm && kind === "charaktere" && r.owner_id !== a.id) return [];
-      const safe = projectEntity(a, entity, grants);
+      if (!inspection && kind === "charaktere" && r.owner_id !== a.id) return [];
+      const safe = projectEntity(!inspection && kind === "charaktere" ? { ...a, gm: false, role: "player" } : a, entity, grants);
       if (!safe) return [];
       return [
         {

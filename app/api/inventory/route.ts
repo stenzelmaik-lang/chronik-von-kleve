@@ -1,11 +1,20 @@
-import { actor, database, failure, HttpError, input, json, sameOrigin } from "@/server/access";
+import { actor, gmOnly, database, failure, HttpError, input, json, sameOrigin } from "@/server/access";
 import { inventoryCreateEnvelopeSchema, inventoryPatchSchema, inventoryProjection, ownItem } from "@/server/inventory";
 import { writeInventoryItem } from "@/server/inventory-write";
 export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
     const a = await actor(), url = new URL(req.url);
-    return json(await inventoryProjection(database(), a, url.searchParams.get("characterId"), url.searchParams.get("includeArchived") === "1"));
+    const inspection = url.searchParams.get("view") === "sl";
+    if (inspection) gmOnly(a);
+    if (!inspection && url.searchParams.get("characterId")) {
+      const owned = await database().prepare("SELECT id FROM records WHERE id=? AND campaign_id=? AND owner_id=? AND kind='charaktere'").bind(url.searchParams.get("characterId"),a.campaignId,a.id).first();
+      if (!owned) throw new HttpError(404,"Eigener Charakter nicht gefunden.");
+    }
+    const result = await inventoryProjection(database(), inspection ? a : { ...a, gm: false, role: "player" }, url.searchParams.get("characterId"), url.searchParams.get("includeArchived") === "1");
+    if (!inspection) result.characters = result.characters.filter(c=>c.own);
+    if (!inspection && result.selectedCharacter && !result.selectedCharacter.own) throw new HttpError(404,"Eigener Charakter nicht gefunden.");
+    return json(result);
   } catch (error) { return failure(error, req); }
 }
 export async function POST(req: Request) {

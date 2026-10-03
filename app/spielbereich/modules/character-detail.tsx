@@ -58,6 +58,7 @@ const mediaLabels: Record<string, string> = {
 
 export function CharacterDetail({
   a,
+  inspection = false,
   entries,
   dataScope,
   activeCharacterId,
@@ -67,6 +68,7 @@ export function CharacterDetail({
   onRefresh,
 }: {
   a: Actor;
+  inspection?: boolean;
   entries: Entry[];
   dataScope: string;
   activeCharacterId: string | null;
@@ -121,7 +123,7 @@ export function CharacterDetail({
     const characterId = active?.id;
     if (!characterId) return;
     const version = ++loadVersion.current;
-    const key = `/api/character-detail?id=${encodeURIComponent(characterId)}`;
+    const key = `/api/character-detail?id=${encodeURIComponent(characterId)}${inspection ? "&view=sl" : ""}`;
     const cached = readPlayerData<CharacterDetailProjection>(dataScope, key);
     if (!quiet) setProjection(cached?.value ?? null);
     setLoadedCharacterId(characterId);
@@ -179,7 +181,7 @@ export function CharacterDetail({
 
   function invalidateCharacter() {
     if (!active?.id) return;
-    invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(active.id)}`);
+    invalidatePlayerData(dataScope, `/api/character-detail?id=${encodeURIComponent(active.id)}${inspection ? "&view=sl" : ""}`);
     invalidatePlayerData(dataScope, "/api/dashboard");
   }
 
@@ -465,12 +467,12 @@ export function CharacterDetail({
           </dl></details>
         </div>
         <div className="character-hero-actions">
-          <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>
+          {!inspection && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
           {entries.length > 1 && (
             <label className="character-active-select">
-              <span>Aktiver Charakter</span>
+              <span>{inspection ? "Charakter in SL-Inspektion" : "Aktiver Charakter"}</span>
               <select
-                aria-label="Aktiver Charakter"
+                aria-label={inspection ? "Charakter in SL-Inspektion" : "Aktiver Charakter"}
                 value={active.id ?? ""}
                 disabled={runtimeBusy || companionBusy}
                 onChange={(event) => {
@@ -511,7 +513,7 @@ export function CharacterDetail({
       </header>
       <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>setView("development")}/>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
       {(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
 

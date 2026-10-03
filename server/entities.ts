@@ -65,7 +65,7 @@ export function resolveEntity(
 export function playerContent(value: JsonObject): JsonObject {
   const clean: JsonObject = {};
   for (const [key, item] of Object.entries(value)) {
-    if (/^(gm_?body|gm_?secret|sl_?text|sl_?secret|secret|secrets)$/i.test(key))
+    if (/^(gm_?body|gm_?secret|sl_?text|sl_?secret|sl_preparation|secret|secrets)$/i.test(key))
       continue;
     if (
       (key === "rules" && value.rules_unlocked === false) ||

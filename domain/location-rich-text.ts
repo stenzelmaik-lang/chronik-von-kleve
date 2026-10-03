@@ -1,3 +1,4 @@
+import { parseFragment } from 'parse5';
 export const richTextPrefix = "cvk-rich-v1:";
 
 export const richTextColors = ["#d6b36f", "#eee6d6", "#a9c3cf", "#d38b82"] as const;
@@ -17,12 +18,17 @@ export type RichTextBlock =
   | { type: "heading2"; children: RichTextInline[] }
   | { type: "heading3"; children: RichTextInline[] }
   | { type: "bulletList"; items: RichTextInline[][] }
-  | { type: "orderedList"; items: RichTextInline[][] };
+  | { type: "orderedList"; items: RichTextInline[][] }
+  | { type: "quote"; children: RichTextInline[] }
+  | { type: "table"; rows: RichTextInline[][][] }
+  | { type: "image"; fileId: string; alt: string }
+  | { type: "divider" };
 
 export type RichTextDocument = { version: 1; blocks: RichTextBlock[] };
 
 const safeHref = (value: unknown): string | undefined => {
   if (typeof value !== "string" || value.length > 1000) return undefined;
+  if (/^\/(?:sl\/command-center|spielbereich)(?:\?|$)/.test(value) && !value.includes("\\")) return value;
   try {
     const url = new URL(value);
     return ["https:", "http:", "mailto:"].includes(url.protocol) ? url.toString() : undefined;
@@ -35,7 +41,7 @@ function parseInline(value: unknown): RichTextInline | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   if (Object.keys(row).some(key => !["text", "bold", "italic", "underline", "color", "href"].includes(key))) return null;
-  if (typeof row.text !== "string" || row.text.length > 5000) return null;
+  if (typeof row.text !== "string" || row.text.length > 10000) return null;
   if (row.bold !== undefined && row.bold !== true || row.italic !== undefined && row.italic !== true || row.underline !== undefined && row.underline !== true) return null;
   if (row.color !== undefined && !richTextColors.includes(row.color as RichTextColor)) return null;
   const href = row.href === undefined ? undefined : safeHref(row.href);
@@ -60,13 +66,13 @@ export function parseRichTextDocument(value: unknown): RichTextDocument | null {
   for (const candidate of row.blocks) {
     if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
     const block = candidate as Record<string, unknown>;
-    if (["paragraph", "heading2", "heading3"].includes(String(block.type))) {
+    if (["paragraph", "heading2", "heading3", "quote"].includes(String(block.type))) {
       if (Object.keys(block).some(key => key !== "type" && key !== "children")) return null;
       if (!Array.isArray(block.children) || block.children.length > 120) return null;
       const children = block.children.map(parseInline);
       if (children.some(item => item === null)) return null;
       inlineCount += children.length;
-      blocks.push({ type: block.type as "paragraph" | "heading2" | "heading3", children: children as RichTextInline[] });
+      blocks.push({ type: block.type as "paragraph" | "heading2" | "heading3" | "quote", children: children as RichTextInline[] });
     } else if (block.type === "bulletList" || block.type === "orderedList") {
       if (Object.keys(block).some(key => key !== "type" && key !== "items")) return null;
       if (!Array.isArray(block.items) || block.items.length > 120) return null;
@@ -79,6 +85,25 @@ export function parseRichTextDocument(value: unknown): RichTextDocument | null {
         items.push(parsed as RichTextInline[]);
       }
       blocks.push({ type: block.type, items });
+    } else if (block.type === "divider" && Object.keys(block).length === 1) {
+      blocks.push({ type: "divider" });
+    } else if (block.type === "image") {
+      if (Object.keys(block).some(k => !['type','fileId','alt'].includes(k)) || typeof block.fileId !== 'string' || !/^[a-zA-Z0-9_.-]{1,100}$/.test(block.fileId) || typeof block.alt !== 'string' || block.alt.length > 300) return null;
+      blocks.push({type:'image', fileId:block.fileId, alt:block.alt});
+    } else if (block.type === 'table') {
+      if(Object.keys(block).some(k=>!['type','rows'].includes(k)) || !Array.isArray(block.rows) || block.rows.length>30) return null;
+      const rows: RichTextInline[][][]=[];
+      for(const raw of block.rows) {
+        if(!Array.isArray(raw)||raw.length>10)return null;
+        const cells: RichTextInline[][]=[];
+        for(const cell of raw) {
+          if(!Array.isArray(cell)||cell.length>120)return null;
+          const parts=cell.map(parseInline);if(parts.some(p=>p===null))return null;
+          inlineCount+=parts.length;cells.push(parts as RichTextInline[]);
+        }
+        rows.push(cells);
+      }
+      blocks.push({type:'table',rows});
     } else return null;
     if (inlineCount > 800) return null;
   }
@@ -106,9 +131,12 @@ export function encodeRichText(document: RichTextDocument): string {
 }
 
 export function richTextToPlainText(value: string): string {
-  return readRichText(value).blocks.map(block => block.type === "bulletList" || block.type === "orderedList"
-    ? block.items.map(item => item.map(part => part.text).join("")).join("\n")
-    : block.children.map(part => part.text).join("")).join("\n");
+  return readRichText(value).blocks.map(block => {
+    if(block.type==='divider')return '';
+    if(block.type==='image')return block.alt;
+    if(block.type==='table')return block.rows.map(row=>row.map(c=>c.map(p=>p.text).join('')).join(' | ')).join('\n');
+    return block.type === 'bulletList' || block.type === 'orderedList' ? block.items.map(item=>item.map(p=>p.text).join('')).join('\n') : block.children.map(p=>p.text).join('');
+  }).join('\n');
 }
 
 export function isRichTextWithinLimit(value: string, maximumPlainLength: number): boolean {
@@ -121,3 +149,61 @@ export function isRichTextWithinLimit(value: string, maximumPlainLength: number)
     return false;
   }
 }
+
+// HTML is parsed into the existing typed document. Raw markup is never rendered or stored.
+export const richHtmlPrefix='cvk-html-v1:';
+type HtmlNode={nodeName:string;tagName?:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:HtmlNode[]};
+const forbidden=new Set(['script','style','iframe','object','embed','svg','math','template','noscript','form','input','button','video','audio']);
+export function htmlToRichText(html:string):string {
+  if(html.length>65000)throw new Error('HTML zu lang.');
+  const root=parseFragment(html) as unknown as HtmlNode;
+  let visited=0;
+  const inline=(n:HtmlNode,marks:Omit<RichTextInline,'text'>={},depth=0):RichTextInline[]=>{
+    if(++visited>5000||depth>40)throw new Error('HTML zu komplex.');
+    if(n.nodeName==='#text')return [{text:n.value||'',...marks}];
+    const tag=n.tagName||'';if(forbidden.has(tag))return [];
+    const m={...marks};if(['b','strong'].includes(tag))m.bold=true;if(['i','em'].includes(tag))m.italic=true;if(tag==='u')m.underline=true;
+    const color=n.attrs?.find(a=>a.name==='style')?.value.match(/(?:^|;)\s*color\s*:\s*(#[a-f0-9]{6}|rgb\([^)]*\))/i)?.[1]?.toLowerCase()||n.attrs?.find(a=>a.name==='color')?.value.toLowerCase();const rgb=color?.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);const normalized=rgb?'#'+rgb.slice(1).map(v=>Number(v).toString(16).padStart(2,'0')).join(''):color;if(normalized&&richTextColors.includes(normalized as RichTextColor))m.color=normalized as RichTextColor;
+    if(tag==='a'){const href=safeHref(n.attrs?.find(a=>a.name==='href')?.value);if(href)m.href=href;}
+    if(tag==='br')return [{text:'\n',...m}];
+    return (n.childNodes||[]).flatMap(c=>inline(c,m,depth+1));
+  };
+  const blocks:RichTextBlock[]=[];
+  const walk=(n:HtmlNode,depth=0)=>{
+    if(depth>40||++visited>5000)throw new Error('HTML zu komplex.');
+    const tag=n.tagName||'';if(forbidden.has(tag))return;
+    if(tag==='hr'){blocks.push({type:'divider'});return;}
+    if(tag==='img'){
+      const src=n.attrs?.find(a=>a.name==='src')?.value||'';const match=src.match(/^\/api\/files\?id=([a-zA-Z0-9_.-]{1,100})$/);
+      if(match)blocks.push({type:'image',fileId:match[1],alt:(n.attrs?.find(a=>a.name==='alt')?.value||'Ortsunabhängiges SL-Bild').slice(0,300)});return;
+    }
+    if(tag==='table'){
+      const rows:RichTextInline[][][]=[];
+      const tr=(node:HtmlNode,d=0)=>{if(d>40)throw new Error('Tabelle zu komplex.');if(node.tagName==='tr')rows.push((node.childNodes||[]).filter(c=>['td','th'].includes(c.tagName||'')).map(c=>inline(c)));else(node.childNodes||[]).forEach(c=>{if(++visited>5000)throw new Error('Tabelle zu komplex.');tr(c,d+1);});};tr(n);
+      blocks.push({type:'table',rows});return;
+    }
+    if(tag==='ul'||tag==='ol'){blocks.push({type:tag==='ul'?'bulletList':'orderedList',items:(n.childNodes||[]).filter(c=>c.tagName==='li').map(c=>inline(c))});return;}
+    if(['p','h1','h2','h3','h4','blockquote'].includes(tag)){
+      blocks.push({type:tag==='blockquote'?'quote':['h1','h2'].includes(tag)?'heading2':['h3','h4'].includes(tag)?'heading3':'paragraph',children:(n.childNodes?.length===1&&n.childNodes[0].tagName==='br')?[]:inline(n)});
+      (n.childNodes||[]).filter(c=>c.tagName==='img'||c.tagName==='hr').forEach(c=>walk(c,depth+1));return;
+    }
+    if(['span','a','b','strong','i','em','u','font'].includes(tag)){blocks.push({type:'paragraph',children:(n.childNodes?.length===1&&n.childNodes[0].tagName==='br')?[]:inline(n)});return;}
+    if(n.nodeName==='#text'){if(n.value?.trim())blocks.push({type:'paragraph',children:[{text:n.value}]});return;}
+    (n.childNodes||[]).forEach(c=>walk(c,depth+1));
+  };
+  (root.childNodes||[]).forEach(n=>walk(n));
+  const parsed=parseRichTextDocument({version:1,blocks});if(!parsed)throw new Error('HTML überschreitet die zulässige Dokumentstruktur.');return encodeRichText(parsed);
+}
+export function sanitizeRichTextInput(value:string):string { return value.startsWith(richHtmlPrefix)?htmlToRichText(value.slice(richHtmlPrefix.length)):value; }
+const escapeHtml=(s:string)=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+export function richTextToHtml(value:string):string {
+  const parts=(v:RichTextInline[])=>v.map(p=>{let t=escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
+  return readRichText(value).blocks.map(b=>{
+    if(b.type==='divider')return '<hr>';
+    if(b.type==='image')return '<img src="/api/files?id='+escapeHtml(b.fileId)+'" alt="'+escapeHtml(b.alt)+'">';
+    if(b.type==='table')return '<table><tbody>'+b.rows.map(r=>'<tr>'+r.map(c=>'<td>'+parts(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+    if(b.type==='bulletList'||b.type==='orderedList'){const tag=b.type==='bulletList'?'ul':'ol';return '<'+tag+'>'+b.items.map(i=>'<li>'+parts(i)+'</li>').join('')+'</'+tag+'>';}
+    const tag=b.type==='heading2'?'h2':b.type==='heading3'?'h3':b.type==='quote'?'blockquote':'p';return '<'+tag+'>'+parts(b.children)+'</'+tag+'>';
+  }).join('\n');
+}
+export function richTextFileIds(value:string):string[] { return readRichText(value).blocks.flatMap(b=>b.type==='image'?[b.fileId]:[]); }

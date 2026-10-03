@@ -1,3 +1,5 @@
+import { validatePreparationMedia } from './preparation-media';
+import { richTextToPlainText } from '@/domain/location-rich-text';
 import type { Actor, Entity } from '@/domain/types';
 import { sceneDocumentSchema, sceneStateSchema, targetKey, participantMatches, type SceneCommand, type SceneDocument, type SceneView, type SceneState, type SceneSummary, type SceneHistory, type SceneTarget, type PlayerScene } from '@/domain/story-scene';
 import { gmOnly, HttpError } from '@/server/access';
@@ -22,17 +24,28 @@ export async function readScene(db: D1Database, a: Actor, id: string) {
 }
 export async function listScenes(db: D1Database, a: Actor): Promise<SceneSummary[]> {
   gmOnly(a);
-  return (await sceneRows(db, a.campaignId)).map(row => { const s = decode(row); return { id: s.id, title: s.document.title, storyId: s.document.storyId, placeId: s.document.placeId, version: s.version, updatedAt: s.updatedAt, runs: s.state.runs }; });
+  return (await sceneRows(db, a.campaignId)).map(row => { const s = decode(row); return { id: s.id, title: s.document.title, storyId: s.document.storyId, placeId: s.document.placeId, version: s.version, updatedAt: s.updatedAt, runs: s.state.runs,parentId:s.document.parentId,sessionIds:s.document.sessionIds,favorite:s.document.favorite,pinned:s.document.pinned,elements:s.document.elements.map(({id,title,kind})=>({id,title,kind})),searchText:[s.document.narration,...s.document.elements.map(e=>e.title+' '+richTextToPlainText(e.text))].join(' ') }; });
 }
-async function validateDocument(db: D1Database, a: Actor, d: SceneDocument) {
+async function validateDocument(db: D1Database, a: Actor, d: SceneDocument, sceneId:string) {
   if (d.storyId) await readStory(db, a, d.storyId);
-  const ids = [d.placeId, ...d.npcIds, ...d.clueIds].filter(Boolean);
+  if(d.parentId){
+    let next=d.parentId;const seen=new Set([sceneId]);
+    while(next){if(seen.has(next))throw new HttpError(400,'Szenen dürfen keinen hierarchischen Kreis bilden.');seen.add(next);const parent=await readScene(db,a,next);if(parent.document.storyId!==d.storyId)throw new HttpError(400,'Unter- und Hauptszene müssen denselben Handlungsstrang verwenden.');next=parent.document.parentId;if(seen.size>100)throw new HttpError(400,'Szenenhierarchie zu tief.');}
+  }
+  const children=await db.prepare("SELECT gm_body FROM entities WHERE campaign_id=? AND type='SCENE' AND json_extract(CASE WHEN json_valid(gm_body) THEN gm_body ELSE '{}' END,'$.parentId')=?").bind(a.campaignId,sceneId).all<{gm_body:string}>();
+  if(children.results.some(c=>parseObject(c.gm_body).storyId!==d.storyId))throw new HttpError(400,'Ein Handlungsstrangwechsel würde Unter-Szenen abtrennen. Vorhandene Verknüpfungen bleiben geschützt.');
+  for(const sid of d.sessionIds){if(!await db.prepare("SELECT id FROM records WHERE campaign_id=? AND id=? AND kind='sitzungen'").bind(a.campaignId,sid).first())throw new HttpError(404,'Verknüpfter Spielabend nicht verfügbar.');}
+  const elementRefs=d.elements.filter(e=>e.referenceId);
+  const ids = [d.placeId, ...d.npcIds, ...d.clueIds,...elementRefs.map(e=>e.referenceId)].filter(Boolean);
   await validateCommandReferences(db, a, ids);
   const entities = await loadEntitiesForIds(db, a.campaignId, ids);
   if (d.placeId && !entities.some(e => e.id === d.placeId && e.type === 'PLACE') ||
     d.npcIds.some(id => !entities.some(e => e.id === id && e.type === 'NPC')) ||
     d.clueIds.some(id => !entities.some(e => e.id === id && ['CLUE', 'HANDOUT'].includes(e.type))))
     throw new HttpError(400, 'Eine Akte passt nicht zu diesem Szenenbereich.');
+  for(const e of elementRefs){const target=entities.find(n=>n.id===e.referenceId);const expected=e.kind==='place'?['PLACE']:e.kind==='person'?['NPC','CHARACTER']:e.kind==='clue'?['CLUE']:e.kind==='handout'?['HANDOUT']:e.kind==='puzzle'?['RULE','HANDOUT']:[];if(!expected.includes(target?.type||''))throw new HttpError(400,'Verknüpfung passt nicht zum Elementtyp.');}
+  await validatePreparationMedia(db,a,[d.narration,d.atmosphere,d.gmNotes,d.dialogueNotes,d.interactions,d.secrets,d.possibleConsequences,...d.elements.map(e=>e.text)],d.elements.filter(e=>e.fileId).map(e=>({id:e.fileId,kind:e.kind})));
+  if(d.elements.some(e=>e.fileId&&!['image','audio','video','handout'].includes(e.kind)))throw new HttpError(400,'Dieser Elementtyp unterstützt keine Datei.');
 }
 export async function sceneHistory(db: D1Database, a: Actor, id: string): Promise<SceneHistory[]> {
   await readScene(db, a, id);
@@ -53,7 +66,11 @@ export async function executeScene(db: D1Database, a: Actor, command: SceneComma
   const state: SceneState = before ? structuredClone(before.state) : { documentKind: 'story_scene', runs: [], publications: [] };
   const now = new Date().toISOString();
   let grant: { target: SceneTarget; state: 'DISCOVERED' | 'UNKNOWN' } | undefined;
-  if (create || command.action === 'save') await validateDocument(db, a, document);
+  if(command.action==='restore'){
+    const historic=(await sceneHistory(db,a,id)).find(h=>h.id===command.historyId);if(!historic)throw new HttpError(404,'Historischer Stand nicht verfügbar.');document=historic.document;
+    // Restore preparation only; do not restore historic runs or audience releases.
+  }
+  if (create || command.action === 'save' || command.action==='restore') await validateDocument(db, a, document,id);
   if (command.action === 'activate') {
     const session = await db.prepare("SELECT id FROM records WHERE campaign_id=? AND id=? AND kind='sitzungen'").bind(a.campaignId, command.sessionId).first();
     if (!session) throw new HttpError(404, 'Wähle eine vorhandene Sitzung.');
@@ -86,8 +103,8 @@ export async function executeScene(db: D1Database, a: Actor, command: SceneComma
   document = sceneDocumentSchema.parse(document);
   const version = create ? 1 : command.version + 1;
   const mutation = create
-    ? db.prepare("INSERT OR IGNORE INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at) VALUES(?,?,'SCENE','WORKING',?,'sl',?,?,?,1,?,?)").bind(id, a.campaignId, a.id, document.title, JSON.stringify(state), JSON.stringify(document), now, now)
-    : db.prepare(`UPDATE entities SET title=?,content=?,gm_body=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=? AND ${predicate}`).bind(document.title, JSON.stringify(state), JSON.stringify(document), now, a.campaignId, id, command.version);
+    ? db.prepare("INSERT OR IGNORE INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at) SELECT ?,?,'SCENE','WORKING',?,'sl',?,?,?,1,?,? WHERE ?='' OR EXISTS (SELECT 1 FROM entities WHERE campaign_id=? AND id=? AND type='SCENE' AND COALESCE(json_extract(CASE WHEN json_valid(gm_body) THEN gm_body ELSE '{}' END,'$.storyId'),'')=?)").bind(id, a.campaignId, a.id, document.title, JSON.stringify(state), JSON.stringify(document), now, now,document.parentId,a.campaignId,document.parentId,document.storyId)
+    : db.prepare(`UPDATE entities SET title=?,content=?,gm_body=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=? AND ${predicate} AND NOT EXISTS (WITH RECURSIVE ancestors(id,parent) AS (SELECT id,json_extract(CASE WHEN json_valid(gm_body) THEN gm_body ELSE '{}' END,'$.parentId') FROM entities WHERE campaign_id=? AND id=? UNION SELECT e.id,json_extract(CASE WHEN json_valid(e.gm_body) THEN e.gm_body ELSE '{}' END,'$.parentId') FROM entities e JOIN ancestors p ON e.id=p.parent WHERE e.campaign_id=?) SELECT 1 FROM ancestors WHERE id=?) AND (?='' OR EXISTS(SELECT 1 FROM entities WHERE campaign_id=? AND id=? AND type='SCENE' AND COALESCE(json_extract(CASE WHEN json_valid(gm_body) THEN gm_body ELSE '{}' END,'$.storyId'),'')=?)) AND NOT EXISTS(SELECT 1 FROM entities WHERE campaign_id=? AND type='SCENE' AND json_extract(CASE WHEN json_valid(gm_body) THEN gm_body ELSE '{}' END,'$.parentId')=? AND COALESCE(json_extract(CASE WHEN json_valid(gm_body) THEN gm_body ELSE '{}' END,'$.storyId'),'')!=?)`).bind(document.title, JSON.stringify(state), JSON.stringify(document), now, a.campaignId, id, command.version,a.campaignId,document.parentId,a.campaignId,id,document.parentId,a.campaignId,document.parentId,document.storyId,a.campaignId,id,document.storyId);
   const statements = [mutation];
   if (grant) statements.push(db.prepare(`INSERT INTO knowledge(id,campaign_id,entity_id,audience,subject_id,state,granted_by,created_at,updated_at)
     SELECT ?,?,?,?,?,?,?,?,? WHERE changes()=1 ON CONFLICT(campaign_id,entity_id,audience,subject_id)
