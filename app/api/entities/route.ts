@@ -19,12 +19,16 @@ export async function GET(req: Request) {
       id = new URL(req.url).searchParams.get("id") || undefined,
       db = database();
     const characterId = new URL(req.url).searchParams.get('characterId');
+    const requestedType = new URL(req.url).searchParams.get('type');
+    const type = requestedType === null ? undefined : entityTypeSchema.safeParse(requestedType);
+    if (type && !type.success) throw new HttpError(400, "Ungültiger Entity-Typ.");
     const character = characterId ? await characterKnowledgeContext(db, a, characterId) : undefined;
     const [entities, grants] = await Promise.all([
       loadEntities(db, a.campaignId, id),
       grantsFor(db, a, character),
     ]);
     const result = entities
+      .filter((e) => !type || (type.success && e.type === type.data))
       .map((e) => projectEntity(a, e, grants, character))
       .filter((e) => e !== null);
     if (id && !result.length)

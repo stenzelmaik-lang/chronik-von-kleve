@@ -47,6 +47,7 @@ import { RecordEditor } from "./modules/record-editor";
 import { CommandCenter } from "./modules/command-center";
 import { Choice, safeImage, visibilityNames } from "./modules/shared";
 import { CharacterDetail } from "./modules/character-detail";
+import { NPCPanel } from "./modules/npc-panel";
 import { InventoryPanel } from "./modules/inventory";
 import { SLWorkspaceShell } from "./modules/sl-workspace-shell";
 import { WorkspaceShell } from "./modules/shell";
@@ -289,6 +290,7 @@ export default function Workspace({
           "haendler",
           "gefallen",
           "inventar",
+          "nscs",
         ].includes(section) &&
           (a.gm || personal.includes(section)) && (
             <button className="button primary" onClick={() => create()}>
@@ -323,6 +325,8 @@ export default function Workspace({
           <p className="muted">{error.message}</p>
           <button className="button" onClick={reload}>Erneut versuchen</button>
         </section>
+      ) : section === "nscs" ? (
+        <NPCPanel key={dataScope} dataScope={dataScope} gm={a.gm} />
       ) : section === "charaktere" ? (
         <CharacterDetail a={a} inspection={surface === "sl"} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
       ) : section === "inventar" ? (

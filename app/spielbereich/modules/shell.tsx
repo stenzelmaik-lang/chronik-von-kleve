@@ -12,7 +12,6 @@ import { api } from "./api-client";
 import { useEffect, useState } from "react";
 
 const plannedWorldSections = [
-  { title: "Persönlichkeiten", icon: Users },
   { title: "Händler", icon: Store },
   { title: "Archiv", icon: BookOpen },
   { title: "Chronikbuch", icon: ScrollText },
@@ -80,6 +79,7 @@ export function WorkspaceShell({
             <Compass size={17} aria-hidden="true" /><span>Orte</span>
           </button>
           <button type="button" className={section === "chronik" ? shellStyles.worldNavActive : ""} aria-current={section === "chronik" ? "page" : undefined} onClick={() => navigate("chronik")}><BookOpen size={17} aria-hidden="true" /><span>Chronik</span></button>
+          <button type="button" className={section === "nscs" ? shellStyles.worldNavActive : ""} aria-current={section === "nscs" ? "page" : undefined} onClick={() => navigate("nscs")}><Users size={17} aria-hidden="true" /><span>Persönlichkeiten</span></button>
           {plannedWorldSections.map(({ title, icon: Icon }) => <span className={shellStyles.worldNavPlanned} aria-disabled="true" key={title}><Icon size={16} aria-hidden="true" /><span>{title}</span><small>Demnächst</small></span>)}
         </div>
         <button type="button" className={shellStyles.worldNavReturn} onClick={() => navigate("dashboard")}><ArrowLeftIcon /><span>Zum Spieltisch</span></button>

@@ -1,3 +1,4 @@
+import {loadNPCList,loadNPCDetail} from '../app/spielbereich/modules/npc-data.ts';
 export async function m1Integration({req,check,localSql}) {
   const path='/api/entities';
   const make=async(type,title,defaultVisibility='player_visible')=>{
@@ -39,4 +40,14 @@ export async function m1Integration({req,check,localSql}) {
   const hiddenRel=await req(rel,'gm','POST',{sourceId:npc,targetId:secret,type:'related_to',visibility:'group'});
   check((await req(rel+'?entityId='+npc+'&id='+hiddenRel.d.relationship.id,'a')).s===404,'M1 relation cannot reveal secret endpoint');
   check((await req(path+'?id='+npc,'a')).s===200,'M1 original NPC survives block and relation operations');
+  const requestFor=role=>async url=>{const r=await req(url,role);if(r.s!==200)throw new Error('NPC request failed '+r.s);return r.d;};
+  const playerNPCs=await loadNPCList(requestFor('a'));
+  check(playerNPCs.some(e=>e.id===npc)&&playerNPCs.every(e=>e.type==='NPC')&&!playerNPCs.some(e=>e.id===secret),'M2.1 NPC list uses typed M1 originals and excludes hidden entities');
+  check((await req(path+'?type=invalid','gm')).s===400,'M2.1 rejects invalid entity filter');
+  const visibleRel=await req(rel,'gm','POST',{sourceId:npc,targetId:place,type:'located_at',visibility:'group'});
+  const playerDetail=await loadNPCDetail(requestFor('a'),npc,false);
+  const slDetail=await loadNPCDetail(requestFor('gm'),npc,true);
+  check(playerDetail.blocks.length===1&&slDetail.blocks.length===2&&slDetail.blocks[0].position===0,'M2.1 detail orders original blocks for each role');
+  check(playerDetail.relationships.some(r=>r.id===visibleRel.d.relationship.id)&&!playerDetail.relationships.some(r=>r.id===hiddenRel.d.relationship.id),'M2.1 detail shows authorized relationships only');
+  check(!JSON.stringify(playerDetail).includes('M1_SECRET')&&!JSON.stringify(playerDetail).includes('M1_BLOCK_SECRET')&&!JSON.stringify(playerDetail).includes(secret),'M2.1 player detail contains no SL secrets or hidden endpoint IDs');
 }
