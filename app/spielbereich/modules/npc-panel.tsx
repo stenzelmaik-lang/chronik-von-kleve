@@ -11,6 +11,8 @@ import { describeDataError, requestPlayerData } from './player-data-cache';
 import { loadNPCList, loadNPCDetail, npcListPath } from './npc-data';
 import { safeImage } from './shared';
 import { RichTextView } from './rich-text';
+import { npcCardData } from './npc-card-data';
+import cards from './npc-cards.module.css';
 
 type Detail = Awaited<ReturnType<typeof loadNPCDetail>>;
 export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) {
@@ -34,10 +36,13 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
     {error && <section role="alert" className="error-box"><h2>{describeDataError(error).title}</h2><p>{error.message}</p><button className="button" onClick={() => { setError(null); setRefreshing(true); setRefresh(n => n + 1); }}>Erneut versuchen</button></section>}
     {!entities && !error ? <div className="entry-grid">{[1, 2, 3].map(i => <Skeleton key={i} className="h-56 w-full" />)}</div> : entities && <>
       <div className="search-row"><Search size={18} /><input aria-label="NPC durchsuchen" placeholder="Persönlichkeiten durchsuchen …" value={search} onChange={e => setSearch(e.target.value)} /><span>{list.length} Einträge</span></div>
-      {!list.length ? <Empty className="empty-night"><EmptyHeader><EmptyTitle>{search ? 'Keine passenden Einträge' : 'Hier beginnt die nächste Geschichte.'}</EmptyTitle><EmptyDescription>{search ? 'Versuche einen anderen Suchbegriff.' : gm ? 'Noch keine NPC-Originalobjekte vorhanden.' : 'Die Spielleitung hat hier noch keine Inhalte freigegeben.'}</EmptyDescription></EmptyHeader></Empty> : <div className="entry-grid">{list.map(e => {
+      {!list.length ? <Empty className="empty-night"><EmptyHeader><EmptyTitle>{search ? 'Keine passenden Einträge' : 'Hier beginnt die nächste Geschichte.'}</EmptyTitle><EmptyDescription>{search ? 'Versuche einen anderen Suchbegriff.' : gm ? 'Noch keine NPC-Originalobjekte vorhanden.' : 'Die Spielleitung hat hier noch keine Inhalte freigegeben.'}</EmptyDescription></EmptyHeader></Empty> : <div className={cards.grid}>{list.map(e => {
         const image = safeImage(e.content.image);
-        const summary = typeof e.content.summary === 'string' ? e.content.summary : typeof e.content.text === 'string' ? e.content.text.slice(0, 155) : 'Eintrag öffnen';
-        return <button key={e.id} className="entry-card text-left" onClick={() => setSelected(e.id)}>{image && <img className="card-image" src={image} alt="" loading="lazy" />}<div className="card-body"><h2>{e.title}</h2><p className="muted card-summary">{summary}</p><span className="card-link">Lesen ↗</span></div></button>;
+        const card = npcCardData(e);
+        return <button key={e.id} className={cards.card} aria-label={`${e.title}${card.alias ? ` · ${card.alias}` : ''} – Akte öffnen`} onClick={() => setSelected(e.id)}>
+          <span className={cards.portrait} aria-hidden="true">{gm && (e.defaultVisibility === 'sl_secret' || e.canonStatus === 'GM_SECRET') && <span className={cards.secret}>SL-INTERN</span>}{image ? <img src={image} alt="" loading="lazy" /> : <><span className={cards.placeholder}>{card.initials}</span><span className={cards.noPortrait}>Kein Bild hinterlegt</span></>}</span>
+          <span className={cards.body}><span className={cards.name}>{e.title}</span>{card.alias && <span className={cards.alias}>{card.alias}</span>}<span className={cards.facts}>{card.facts.map(fact => <span key={fact.label} className={cards.fact}><span className={cards.factLabel}>{fact.label}</span><span className={cards.factValue}>{fact.value}</span></span>)}</span><span className={cards.open}>Akte öffnen <span aria-hidden="true">↗</span></span></span>
+        </button>;
       })}</div>}
     </>}
     <Dialog open={selected !== null} onOpenChange={open => { if (!open) setSelected(null); }}><DialogContent className="!max-w-5xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{entities?.find(e => e.id === selected)?.title ?? 'NPC'}</DialogTitle><DialogDescription>Für dich freigegebene Inhalte der Originalakte.</DialogDescription></DialogHeader>{selected && <NPCDetail key={selected} id={selected} entities={entities ?? []} gm={gm} onDenied={() => { setSelected(null); setEntities(null); setRefresh(n => n + 1); }} />}</DialogContent></Dialog>
