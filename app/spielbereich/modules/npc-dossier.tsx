@@ -11,7 +11,7 @@ import { RichTextView } from './rich-text';
 import styles from './npc-dossier.module.css';
 
 type Dossier = Awaited<ReturnType<typeof loadEntityDossier>>;
-export function NPCDossier({ id, gm, onOpen, onDenied, onReady }: { id: string; gm: boolean; onOpen: (id: string, title: string) => void; onDenied: () => void; onReady: () => void }) {
+export function NPCDossier({ id, gm, onOpen, onDenied, onReady, onEdit }: { id: string; gm: boolean; onOpen: (id: string, title: string) => void; onDenied: () => void; onReady: () => void; onEdit?: (id:string)=>void }) {
   const [detail,setDetail]=useState<Dossier|null>(null);
   const [error,setError]=useState<Error|null>(null);
   const [retry,setRetry]=useState(0);
@@ -35,6 +35,7 @@ export function NPCDossier({ id, gm, onOpen, onDenied, onReady }: { id: string; 
     <header className={styles.hero}>
       <div className={styles.portrait}>{image?<img src={image} alt={`Darstellung von ${entity.title}`} />:<span aria-hidden="true">{card.initials}</span>}</div>
       <div className={styles.identity}><p className={styles.overline}>{entity.type==='NPC'?'CHARAKTERAKTE':entityTypeNames[entity.type]??'ORIGINALAKTE'}{gm&&(entity.defaultVisibility==='sl_secret'||entity.canonStatus==='GM_SECRET')?' · SL-INTERN':''}</p><h1>{entity.title}</h1>{card.alias&&<p className={styles.alias}>{card.alias}</p>}<div className={styles.facts}>{card.facts.map(f=><div key={f.label}><span>{f.label}</span><strong>{f.value}</strong></div>)}</div></div>
+      {gm&&entity.type==='NPC'&&onEdit&&<button type="button" className="button" onClick={()=>onEdit(entity.id)}>Bearbeiten</button>}
     </header>
     <section className={styles.section} aria-label="Kurzprofil"><h2>Kurzprofil</h2>{typeof entity.content.summary==='string' && entity.content.summary ? <RichTextView value={entity.content.summary}/>:card.facts.length?<dl className={styles.profile}>{card.facts.map(f=><div key={f.label}><dt>{f.label}</dt><dd>{f.value}</dd></div>)}</dl>:<p className="muted">Noch kein Kurzprofil hinterlegt.</p>}</section>
     <div className={styles.reading}>{sections.texts.filter(t=>t.key!=='summary').map(t=><section className={styles.section} key={t.key}><p className={styles.overline}>DIE AKTE</p><h2>{t.title}</h2><RichTextView value={t.content}/></section>)}

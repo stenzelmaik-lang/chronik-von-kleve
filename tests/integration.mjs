@@ -1,5 +1,6 @@
 import {inventory2Integration} from "./inventory-integration.mjs";
 import {m1Integration} from './m1-integration.mjs';
+import {npcAuthoringIntegration} from './npc-authoring-integration.mjs';
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
 import {storySceneIntegration} from './story-scene-integration.mjs';
 import {storyPreparationIntegration} from './story-preparation-integration.mjs';
@@ -136,6 +137,7 @@ const resetMember=(await req('/api/members','gm')).d.members.find(member=>member
 check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:resetMember.version})).s===200,'membership concurrency fixture is restored to active');
 check((await req('/api/entities','a','POST',{type:'CLUE',title:'test',text:'test'})).s===403,'Player cannot author core entity');
 await m1Integration({req,check,localSql});
+await npcAuthoringIntegration({req,check,localSql,sqlQuote});
 const created=await req('/api/entities','gm','POST',{type:'CLUE',title:'QA isolated clue',text:'SPRINT_PROTECTED',gmBody:'SPRINT_GM_ONLY'});
 check(created.s===201&&created.d.campaignId==='chronik-von-kleve','Entity has stable ID and campaignId');
 const id=created.d.id;

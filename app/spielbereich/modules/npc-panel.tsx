@@ -7,10 +7,11 @@ import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/u
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { Entity } from '@/domain/types';
 import { api } from './api-client';
-import { describeDataError, requestPlayerData } from './player-data-cache';
+import { describeDataError, requestPlayerData, invalidatePlayerData } from './player-data-cache';
 import { loadNPCList, npcListPath } from './npc-data';
 import { safeImage } from './shared';
 import { NPCDossier } from './npc-dossier';
+import { NPCEditor } from './npc-editor';
 import dossierStyles from './npc-dossier.module.css';
 import { npcCardData } from './npc-card-data';
 import cards from './npc-cards.module.css';
@@ -23,6 +24,7 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
   const [search, setSearch] = useState('');
   const [frames, setFrames] = useState<{id:string;title:string;scroll:number}[]>([]);
   const selected=frames.at(-1);
+  const [editing,setEditing]=useState<{id?:string}|null>(null),[saving,setSaving]=useState(false),[detailRevision,setDetailRevision]=useState(0);
   const dialogRef=useRef<HTMLDivElement>(null),opener=useRef<HTMLButtonElement|null>(null),pendingScroll=useRef(0),overviewScroll=useRef(0);
   const onReady=useCallback(()=>{requestAnimationFrame(()=>{if(dialogRef.current)dialogRef.current.scrollTop=pendingScroll.current;});},[]);
   function openRelated(id:string,title:string) {
@@ -32,6 +34,12 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
   function back() {
     pendingScroll.current=frames.at(-2)?.scroll??0;
     setFrames(previous=>previous.slice(0,-1));
+  }
+  function cancelEdit(){setEditing(null);if(!selected)setFrames([]);}
+  function saved(id:string,title:string){
+    setEditing(null);pendingScroll.current=0;
+    setFrames(previous=>previous.length?previous.map((f,i)=>i===previous.length-1?{id,title,scroll:0}:f):[{id,title,scroll:0}]);
+    setDetailRevision(n=>n+1);invalidatePlayerData(dataScope,npcListPath);setRefreshing(true);setRefresh(n=>n+1);
   }
   useEffect(() => {
     let alive = true;
@@ -43,6 +51,7 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
   }, [dataScope, refresh]);
   const list = (entities ?? []).filter(e => (e.title + ' ' + JSON.stringify(e.content)).toLowerCase().includes(search.toLowerCase()));
   return <>
+    {gm&&<button type="button" className="button" onClick={event=>{opener.current=event.currentTarget;overviewScroll.current=window.scrollY;pendingScroll.current=0;setEditing({});}}>NPC anlegen</button>}
     {entities && refreshing && <p className="muted" role="status">Wird aktualisiert …</p>}
     {error && <section role="alert" className="error-box"><h2>{describeDataError(error).title}</h2><p>{error.message}</p><button className="button" onClick={() => { setError(null); setRefreshing(true); setRefresh(n => n + 1); }}>Erneut versuchen</button></section>}
     {!entities && !error ? <div className="entry-grid">{[1, 2, 3].map(i => <Skeleton key={i} className="h-56 w-full" />)}</div> : entities && <>
@@ -56,6 +65,6 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
         </button>;
       })}</div>}
     </>}
-    <Dialog open={!!selected} onOpenChange={open => {if(!open)setFrames([]);}}><DialogContent ref={dialogRef} className={`!max-w-5xl max-h-[90vh] overflow-y-auto ${dossierStyles.dialog}`} onCloseAutoFocus={event=>{event.preventDefault();opener.current?.focus({preventScroll:true});window.scrollTo({top:overviewScroll.current,behavior:'instant'});}}><DialogHeader className="sr-only"><DialogTitle>{selected?.title??'Originalakte'}</DialogTitle><DialogDescription>Für dich freigegebene Inhalte der Originalakte.</DialogDescription></DialogHeader><div className={dossierStyles.toolbar}><button type="button" className="button" onClick={back}>{frames.length>1?`← Zurück zu ${frames.at(-2)?.title}`:'← Zur NPC-Übersicht'}</button></div>{selected && <NPCDossier key={selected.id} id={selected.id} gm={gm} onOpen={openRelated} onReady={onReady} onDenied={()=>{setFrames([]);setEntities(null);setRefresh(n=>n+1);}} />}</DialogContent></Dialog>
+    <Dialog open={!!selected||!!editing} onOpenChange={open => {if(!open&&!saving){setEditing(null);setFrames([]);}}}><DialogContent ref={dialogRef} className={`!max-w-5xl max-h-[90vh] overflow-y-auto ${dossierStyles.dialog}`} onEscapeKeyDown={e=>{if(saving)e.preventDefault();}} onInteractOutside={e=>{if(saving)e.preventDefault();}} onCloseAutoFocus={event=>{event.preventDefault();opener.current?.focus({preventScroll:true});window.scrollTo({top:overviewScroll.current,behavior:'instant'});}}><DialogHeader className="sr-only"><DialogTitle>{editing?'NPC bearbeiten':selected?.title??'Originalakte'}</DialogTitle><DialogDescription>{editing?'Änderungen erst beim Speichern übernehmen.':'Für dich freigegebene Inhalte der Originalakte.'}</DialogDescription></DialogHeader><div className={dossierStyles.toolbar}><button type="button" className="button" disabled={saving} onClick={editing?cancelEdit:back}>{editing?'← Bearbeitung abbrechen':frames.length>1?`← Zurück zu ${frames.at(-2)?.title}`:'← Zur NPC-Übersicht'}</button></div>{editing&&gm?<NPCEditor key={editing.id??'new'} id={editing.id} onCancel={cancelEdit} onSaved={saved} onBusy={setSaving}/>:selected&&<NPCDossier key={selected.id+':'+detailRevision} id={selected.id} gm={gm} onOpen={openRelated} onReady={onReady} onEdit={gm?id=>{pendingScroll.current=dialogRef.current?.scrollTop??0;setEditing({id});if(dialogRef.current)dialogRef.current.scrollTop=0;}:undefined} onDenied={()=>{setFrames([]);setEditing(null);setEntities(null);setRefresh(n=>n+1);}} />}</DialogContent></Dialog>
   </>;
 }

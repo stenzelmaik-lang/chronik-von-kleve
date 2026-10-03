@@ -48,6 +48,9 @@ export function resolveEntity(
   row: EntityRow,
   legacy?: LegacyRecordRow,
 ): Entity {
+  // NPC edits live on the original Entity. Legacy data remain untouched and
+  // supply only values that have not been explicitly overridden on that Entity.
+  const npc = row.type === 'NPC';
   return {
     id: row.id,
     campaignId: row.campaign_id,
@@ -59,12 +62,12 @@ export function resolveEntity(
     legacyRecordId: row.legacy_record_id,
     ownerId: legacy?.owner_id ?? row.owner_id,
     visibility: legacy?.visibility ?? row.visibility,
-    title: legacy?.title ?? row.title,
-    content: parseObject(legacy?.body ?? row.content),
+    title: npc && row.title ? row.title : legacy?.title ?? row.title,
+    content: npc ? {...parseObject(legacy?.body ?? '{}'),...parseObject(row.content)} : parseObject(legacy?.body ?? row.content),
     gmBody: legacy?.gm_body ?? row.gm_body,
-    version: legacy?.version ?? row.version,
+    version: npc ? row.version : legacy?.version ?? row.version,
     createdAt: legacy?.created_at ?? row.created_at,
-    updatedAt: legacy?.updated_at ?? row.updated_at,
+    updatedAt: npc && row.title ? row.updated_at : legacy?.updated_at ?? row.updated_at,
   };
 }
 // The only player projection: secret values never enter a client response.

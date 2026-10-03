@@ -1,0 +1,20 @@
+.editor { padding:24px clamp(16px,4vw,40px); color:#e6e1d5; overflow-wrap:anywhere; }
+.editor h1 { font:normal 32px/1.2 Georgia,serif; margin-bottom:16px; }
+.editor h2 { font-size:18px; margin:0 0 16px; }
+.editor p { line-height:1.6; margin:12px 0 20px; }
+.editor fieldset { border:1px solid #9d805c66; padding:20px; margin:24px 0; min-width:0; }
+.editor legend { color:#e4d2ae; padding:0 8px; font-size:20px; }
+.fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.editor label { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; min-width:0; }
+.editor input,.editor select,.editor textarea { width:100%; min-width:0; color:#eee5d3; background:#172528; border:1px solid #9d805c99; border-radius:4px; padding:10px; font:inherit; }
+.editor textarea { resize:vertical; }
+.editor :is(input,select,textarea,button):focus-visible { outline:3px solid #e4c890; outline-offset:3px; }
+.editor small { font-size:12px; color:#b6bdb4; }
+.block { border:1px solid #9d805c66; padding:16px; margin-bottom:20px; }
+.secret { border:2px solid #b78279; background:#392326; }
+.actions { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0; }
+.relations { list-style:none; padding:0; }
+.relations li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #9d805c66; }
+.relations li span { min-width:0; }
+.editor button { white-space:normal; }
+@media(max-width:600px){.fields{grid-template-columns:1fr;gap:0}.editor fieldset{padding:16px 12px}.relations li{align-items:flex-start;flex-direction:column}}
