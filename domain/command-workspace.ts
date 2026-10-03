@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isRichTextWithinLimit } from './location-rich-text.ts';
+import { isRichTextWithinLimit, sanitizeRichTextInput } from './location-rich-text.ts';
 
 export const commandTools = ['story', 'scene', 'character', 'places', 'dispatch', 'notes', 'moments', 'dossiers', 'dice'] as const;
 export type CommandTool = typeof commandTools[number];
@@ -35,9 +35,10 @@ export function defaultWorkspace(mode: WorkspaceMode, companion = false): Comman
 }
 export const storySectionLabels = { core: 'Kern & Konflikt', background: 'Hintergründe', secrets: 'Wissen & Geheimnisse', clues: 'Hinweise', consequences: 'Mögliche Folgen', notes: 'SL-Kommentare' } as const;
 export type StorySection = keyof typeof storySectionLabels;
-const storyText = z.string().max(65000).refine(value => isRichTextWithinLimit(value, 10000), 'Der Abschnitt ist zu lang oder enthält ungültige Formatierungen.');
+const storyText = z.string().max(65000).transform((v,ctx)=>{try{return sanitizeRichTextInput(v);}catch{ctx.addIssue({code:'custom',message:'Ungültiges oder zu komplexes HTML.'});return '';}}).refine(value => isRichTextWithinLimit(value, 10000), 'Der Abschnitt ist zu lang oder enthält ungültige Formatierungen.');
 export const storyDocumentSchema = z.object({
   title: z.string().trim().min(1).max(200),
+  summary: z.string().max(2000).default(''), status: z.enum(['draft','ready','active','completed','archived']).default('draft'), favorite: z.boolean().default(false), pinned: z.boolean().default(false),
   sections: z.object({ core: storyText, background: storyText, secrets: storyText, clues: storyText, consequences: storyText, notes: storyText }).strict(),
   references: z.array(contextId.min(1)).max(30),
   possibilities: z.array(z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(200), text: z.string().max(3000), status: z.enum(['open', 'used', 'discarded']) }).strict()).max(50),
@@ -47,7 +48,7 @@ export const storyDocumentSchema = z.object({
 export type StoryDocument = z.infer<typeof storyDocumentSchema>;
 export type StoryView = StoryDocument & { id: string; version: number; updatedAt: string };
 export type StoryHistory = { id: string; version: number; createdAt: string; document: StoryDocument };
-export const emptyStory = (): StoryDocument => ({ title: 'Neuer Handlungsstrang', sections: { core: '', background: '', secrets: '', clues: '', consequences: '', notes: '' }, references: [], possibilities: [] });
+export const emptyStory = (): StoryDocument => ({ title: 'Neuer Handlungsstrang', summary:'',status:'draft',favorite:false,pinned:false, sections: { core: '', background: '', secrets: '', clues: '', consequences: '', notes: '' }, references: [], possibilities: [] });
 export type CommandReference = { id: string; title: string; type: string; summary: string };
 export type MomentView = { id: string; text: string; sessionId: string; storyId: string; sceneId: string; runId: string; references: string[]; occurredAt: string };
 export const momentSchema = z.object({

@@ -1,3 +1,4 @@
+import { validatePreparationMedia } from './preparation-media';
 import type { Actor } from '@/domain/types';
 import { workspaceSchema, defaultWorkspace, storyDocumentSchema, type StoryView, type StoryHistory, type WorkspaceMode, type CommandWorkspace, type MomentView, type CommandReference } from '@/domain/command-workspace';
 import { HttpError } from '@/server/database';
@@ -51,8 +52,8 @@ export async function readStory(db: D1Database, a: Actor, id: string) {
 }
 export async function listStories(db: D1Database, a: Actor) {
   gmOnly(a);
-  const rows = await db.prepare(`SELECT id,title,version,updated_at FROM entities WHERE campaign_id=? AND ${storyPredicate} ORDER BY updated_at DESC,id DESC LIMIT 200`).bind(a.campaignId).all<{ id: string; title: string; version: number; updated_at: string }>();
-  return rows.results.map(r => ({ id: r.id, title: r.title, version: r.version, updatedAt: r.updated_at }));
+  const rows = await db.prepare(`SELECT * FROM entities WHERE campaign_id=? AND ${storyPredicate} ORDER BY updated_at DESC,id DESC LIMIT 200`).bind(a.campaignId).all<EntityRow>();
+  return rows.results.map(r => {const s=projectStory(r);return {id:s.id,title:s.title,version:s.version,updatedAt:s.updatedAt,summary:s.summary,status:s.status,favorite:s.favorite,pinned:s.pinned,searchText:Object.values(s.sections).map(richTextToPlainText).join(' ').slice(0,20000)};});
 }
 export async function storyHistory(db: D1Database, a: Actor, id: string): Promise<StoryHistory[]> {
   await readStory(db, a, id);
@@ -62,6 +63,7 @@ export async function storyHistory(db: D1Database, a: Actor, id: string): Promis
 export async function writeStory(db: D1Database, a: Actor, args: { id: string; version: number; document: import('@/domain/command-workspace').StoryDocument; create?: boolean; restored?: boolean }) {
   gmOnly(a);
   await validateCommandReferences(db, a, args.document.references);
+  await validatePreparationMedia(db,a,Object.values(args.document.sections));
   if (!args.create) await readStory(db, a, args.id);
   const { title, ...document } = args.document;
   const content = JSON.stringify({ documentKind: 'plot_dossier', canonStatus: 'GM_SECRET', document });
@@ -71,7 +73,7 @@ export async function writeStory(db: D1Database, a: Actor, args: { id: string; v
     : db.prepare(`UPDATE entities SET title=?,content=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=? AND ${storyPredicate}`).bind(title, content, now, a.campaignId, args.id, args.version);
   const results = await db.batch([mutation, db.prepare("INSERT INTO world_events(id,campaign_id,entity_id,actor_id,type,payload,created_at) SELECT ?,?,?,?,?,?,? WHERE changes()=1").bind(eventId, a.campaignId, args.id, a.id, args.create ? 'command.story.created' : args.restored ? 'command.story.restored' : 'command.story.saved', JSON.stringify({ version: args.version + 1, document: args.document }), now)]);
   if (results[0].meta.changes !== 1) {
-    if (args.create) { const prior = await readStory(db, a, args.id).catch(() => null); if (prior?.version === 1 && JSON.stringify({ title: prior.title, sections: prior.sections, references: prior.references, possibilities: prior.possibilities }) === JSON.stringify(args.document)) return prior; }
+    if (args.create) { const prior = await readStory(db, a, args.id).catch(() => null); if (prior?.version === 1 && JSON.stringify(storyDocumentSchema.parse({title:prior.title,summary:prior.summary,status:prior.status,favorite:prior.favorite,pinned:prior.pinned,sections:prior.sections,references:prior.references,possibilities:prior.possibilities})) === JSON.stringify(args.document)) return prior; }
     throw new HttpError(409, 'Das Plotdossier wurde inzwischen verändert. Deine Eingabe bleibt erhalten. Lade den Vergleich, bevor du erneut speicherst.');
   }
   return readStory(db, a, args.id);

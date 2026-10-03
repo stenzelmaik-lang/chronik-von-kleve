@@ -1,6 +1,7 @@
 import {inventory2Integration} from "./inventory-integration.mjs";
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
 import {storySceneIntegration} from './story-scene-integration.mjs';
+import {storyPreparationIntegration} from './story-preparation-integration.mjs';
 import {engineFixture} from "./fixtures/engine-character.mjs";
 import {weekendIntegration} from "./weekend-integration.mjs";
 import {accountAccessIntegration} from "./account-access-integration.mjs";
@@ -42,7 +43,7 @@ check(Boolean(mapWorker),'MapLibre v6 emits a bundled worker artifact');
 const mapWorkerResponse=await fetch(base+'/_next/static/'+mapWorker);
 check(mapWorkerResponse.status===200&&mapWorkerResponse.headers.get('content-type')?.includes('javascript'),'MapLibre worker is served as JavaScript, not an HTML fallback');
 check(Buffer.from(await mapWorkerResponse.arrayBuffer()).equals(readFileSync('dist/client/_next/static/'+mapWorker)),'MapLibre worker response matches the tested build artifact');
-async function req(path,who,method='GET',body,extra={}){const r=await fetch(base+path,{method,headers:{...(who&&ids[who]?ids[who]:{}),...(body?{'Content-Type':'application/json'}:{}),...extra},body:body?JSON.stringify(body):undefined});const d=await r.json();return {s:r.status,d}}
+async function req(path,who,method='GET',body,extra={}){const r=await fetch(base+path,{method,headers:{...(who&&ids[who]?ids[who]:{}),...(body&&!(body instanceof FormData)?{'Content-Type':'application/json'}:{}),...extra},body:body instanceof FormData?body:body?JSON.stringify(body):undefined});const d=await r.json();return {s:r.status,d}}
 function localSqlFails(sql) { const state=resolve(process.env.CVK_TEST_STATE||''); assert.equal(dirname(state),tmpdir()); assert.match(basename(state),/^cvk-phase-c-tests-[a-f0-9-]+$/); const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true}); assert.notEqual(r.status,0,'Expected isolated D1 constraint or trigger to reject the write'); }
 const sqlQuote=value=>`'${String(value).replaceAll("'","''")}'`;
 const now='2026-09-26T12:00:00.000Z';
@@ -1002,5 +1003,6 @@ check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session
 await weekendIntegration({req,check,localSql,sqlQuote,now});
 await commandWorkspaceIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId});
 await storySceneIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId,characterBody});
+await storyPreparationIntegration({req,check,localSql,sqlQuote,session:regieStored});
 await accountAccessIntegration({req,check,localSql,sqlQuote,base,testPassword,testPasswordHash});
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');

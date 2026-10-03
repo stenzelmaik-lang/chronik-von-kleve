@@ -9,7 +9,7 @@ import type { SceneSummary } from '@/domain/story-scene';
 import sceneStyles from './story-scene.module.css';
 
 type Props = { allowEditing?: boolean; id: string; version?: number; references: CommandReference[]; scenes:SceneSummary[];onOpenScene:(id:string)=>void; onChanged: () => void; onDirty: (dirty: boolean) => void; onOpenReference: (reference: CommandReference) => void; onDenied: () => void; ask: (text: string) => Promise<boolean> };
-const documentOf = (s: StoryView): StoryDocument => ({ title: s.title, sections: s.sections, references: s.references, possibilities: s.possibilities });
+const documentOf = (s: StoryView): StoryDocument => ({ title: s.title, sections: s.sections, references: s.references, possibilities: s.possibilities,summary:s.summary,status:s.status,favorite:s.favorite,pinned:s.pinned });
 export function CommandStory({ allowEditing = true, id, version, references, scenes, onOpenScene, onChanged, onDirty, onOpenReference, onDenied, ask }: Props) {
   const [story, setStory] = useState<StoryView | null>(null), [document, setDocument] = useState<StoryDocument | null>(null);
   const [editing, setEditing] = useState(false), [section, setSection] = useState<StorySection>('core');

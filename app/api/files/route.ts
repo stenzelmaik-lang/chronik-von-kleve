@@ -96,10 +96,11 @@ export async function POST(req: Request) {
     try {
       await database()
         .prepare(
-          "INSERT INTO files(id,owner_id,visibility,name,mime,size,key,created_at) VALUES (?,?,?,?,?,?,?,?)",
+          "INSERT INTO files(id,campaign_id,owner_id,visibility,name,mime,size,key,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
         )
         .bind(
           id,
+          a.campaignId,
           a.id,
           visibility,
           file.name.slice(0, 200),
@@ -129,11 +130,14 @@ export async function DELETE(req: Request) {
     const removed=await db.prepare(`DELETE FROM files WHERE id=? AND campaign_id=? AND owner_id=?
       AND NOT EXISTS (SELECT 1 FROM entity_revision_media m WHERE m.campaign_id=files.campaign_id AND m.file_id=files.id)
       AND NOT EXISTS (SELECT 1 FROM records i WHERE i.campaign_id=files.campaign_id AND i.kind='inventar' AND json_valid(i.body) AND json_extract(i.body,'$.imageFileId')=files.id)
+      AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.campaign_id=files.campaign_id AND (instr(e.content,files.id)>0 OR instr(e.gm_body,files.id)>0))
+      AND NOT EXISTS (SELECT 1 FROM records r WHERE r.campaign_id=files.campaign_id AND instr(r.body,files.id)>0)
+      AND NOT EXISTS (SELECT 1 FROM world_events w WHERE w.campaign_id=files.campaign_id AND instr(w.payload,files.id)>0)
       RETURNING key`).bind(String(d.id),a.campaignId,a.id).first<{key:string}>();
     if(!removed){
       const existing=await db.prepare("SELECT id FROM files WHERE id=? AND campaign_id=? AND owner_id=?").bind(String(d.id),a.campaignId,a.id).first();
       if(!existing)throw new HttpError(404,"Eigene Datei nicht gefunden.");
-      throw new HttpError(409,"Dieses Bild ist mit einem Ort oder Gegenstand verknüpft. Entferne zuerst die Zuordnung; die gespeicherten Inhalte bleiben geschützt.");
+      throw new HttpError(409,"Diese Datei wird in gespeicherten Inhalten oder deren Verlauf verwendet. Sie bleibt für diese Verknüpfungen geschützt.");
     }
     // Remove the D1 locator first. If R2 is temporarily unavailable the object
     // is an inaccessible orphan, never a still-referenced public object.

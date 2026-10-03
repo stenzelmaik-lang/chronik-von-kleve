@@ -1,108 +1,28 @@
+/* eslint-disable @next/next/no-img-element -- Images use the protected authenticated file API. */
 "use client";
 
 import { useLayoutEffect, useRef, useState, type ClipboardEvent, type MouseEvent, type ReactNode } from "react";
 import {
   encodeRichText,
-  parseRichTextDocument,
+  htmlToRichText, richTextToHtml,
   readRichText,
   richTextColors,
   richTextToPlainText,
-  type RichTextBlock,
   type RichTextDocument,
   type RichTextInline,
 } from "@/domain/location-rich-text";
 import styles from "./rich-text.module.css";
 
 function safeHref(value: string) {
+  if (/^\/(?:sl\/command-center|spielbereich)(?:\?|$)/.test(value) && !value.includes("\\")) return value;
   try {
     const url = new URL(value);
     return ["https:", "http:", "mailto:"].includes(url.protocol) ? url.toString() : undefined;
   } catch { return undefined; }
 }
 
-function colorValue(value: string | null | undefined) {
-  if (!value) return undefined;
-  const normalized = value.trim().toLowerCase().replaceAll(" ", "");
-  const colors: Record<string, string> = {
-    "#d6b36f": "#d6b36f", "rgb(214,179,111)": "#d6b36f",
-    "#eee6d6": "#eee6d6", "rgb(238,230,214)": "#eee6d6",
-    "#a9c3cf": "#a9c3cf", "rgb(169,195,207)": "#a9c3cf",
-    "#d38b82": "#d38b82", "rgb(211,139,130)": "#d38b82",
-  };
-  return colors[normalized] as RichTextInline["color"] | undefined;
-}
-
-function childWithMarks(node: Node, inherited: Omit<RichTextInline, "text"> = {}): RichTextInline[] {
-  if (node.nodeType === Node.TEXT_NODE) {
-    return node.textContent ? [{ text: node.textContent, ...inherited }] : [];
-  }
-  if (!(node instanceof HTMLElement)) return [];
-  const tag = node.tagName.toLowerCase();
-  const marks: Omit<RichTextInline, "text"> = { ...inherited };
-  if (["b", "strong"].includes(tag)) marks.bold = true;
-  if (["i", "em"].includes(tag)) marks.italic = true;
-  if (tag === "u") marks.underline = true;
-  if (tag === "a") {
-    const href = safeHref(node.getAttribute("href") || "");
-    if (href) marks.href = href;
-  }
-  if (tag === "font") marks.color = colorValue(node.getAttribute("color")) || marks.color;
-  marks.color = colorValue(node.style.color) || marks.color;
-  return Array.from(node.childNodes).flatMap(child => childWithMarks(child, marks));
-}
-
-function documentFromEditor(root: HTMLElement): RichTextDocument {
-  const blocks: RichTextBlock[] = [];
-  for (const node of Array.from(root.childNodes)) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (node.textContent?.trim()) blocks.push({ type: "paragraph", children: [{ text: node.textContent }] });
-      continue;
-    }
-    if (!(node instanceof HTMLElement)) continue;
-    const tag = node.tagName.toLowerCase();
-    if (tag === "ul" || tag === "ol") {
-      const items = Array.from(node.children).filter(item => item.tagName.toLowerCase() === "li")
-        .map(item => Array.from(item.childNodes).flatMap(child => childWithMarks(child)));
-      blocks.push({ type: tag === "ul" ? "bulletList" : "orderedList", items });
-    } else {
-      const type = tag === "h2" || tag === "h3" ? tag === "h2" ? "heading2" : "heading3" : "paragraph";
-      blocks.push({ type, children: Array.from(node.childNodes).flatMap(child => childWithMarks(child)) });
-    }
-  }
-  return parseRichTextDocument({ version: 1, blocks }) || { version: 1, blocks: [{ type: "paragraph", children: [] }] };
-}
-
-function appendInline(parent: HTMLElement, inline: RichTextInline) {
-  let node: Node = document.createTextNode(inline.text);
-  const wrap = (tag: string, child: Node) => { const element = document.createElement(tag); element.appendChild(child); return element; };
-  if (inline.bold) node = wrap("strong", node);
-  if (inline.italic) node = wrap("em", node);
-  if (inline.underline) node = wrap("u", node);
-  if (inline.color && richTextColors.includes(inline.color)) {
-    const element = document.createElement("span"); element.style.color = inline.color; element.appendChild(node); node = element;
-  }
-  if (inline.href) {
-    const href = safeHref(inline.href);
-    if (href) { const element = document.createElement("a"); element.href = href; element.rel = "noopener noreferrer"; element.target = "_blank"; element.appendChild(node); node = element; }
-  }
-  parent.appendChild(node);
-}
-
-function replaceEditorContents(editor: HTMLElement, value: string) {
-  const documentModel = readRichText(value);
-  const fragment = document.createDocumentFragment();
-  for (const block of documentModel.blocks) {
-    if (block.type === "bulletList" || block.type === "orderedList") {
-      const list = document.createElement(block.type === "bulletList" ? "ul" : "ol");
-      for (const item of block.items) { const li = document.createElement("li"); item.forEach(part => appendInline(li, part)); list.appendChild(li); }
-      fragment.appendChild(list);
-    } else {
-      const element = document.createElement(block.type === "heading2" ? "h2" : block.type === "heading3" ? "h3" : "p");
-      block.children.forEach(part => appendInline(element, part)); fragment.appendChild(element);
-    }
-  }
-  editor.replaceChildren(fragment);
-}
+function documentFromEditor(root:HTMLElement):RichTextDocument { return readRichText(htmlToRichText(root.innerHTML)); }
+function replaceEditorContents(editor:HTMLElement,value:string) { editor.innerHTML=richTextToHtml(value); }
 
 function inlineElements(parts: RichTextInline[], keyPrefix: string) {
   return parts.map((part, index) => {
@@ -120,6 +40,10 @@ export function RichTextView({ value, className }: { value: string; className?: 
   const documentModel = readRichText(value);
   return <div className={className}>
     {documentModel.blocks.map((block, index) => {
+      if(block.type==='divider')return <hr key={index}/>;
+      if(block.type==='image')return <img key={index} src={'/api/files?id='+encodeURIComponent(block.fileId)} alt={block.alt} style={{maxWidth:'100%',height:'auto'}}/>;
+      if(block.type==='table')return <div key={index} style={{overflowX:'auto'}}><table><tbody>{block.rows.map((r,ri)=><tr key={ri}>{r.map((c,ci)=><td key={ci}>{inlineElements(c,`t${index}-${ri}-${ci}`)}</td>)}</tr>)}</tbody></table></div>;
+      if(block.type==='quote')return <blockquote key={index}>{inlineElements(block.children,`q${index}`)}</blockquote>;
       if (block.type === "bulletList" || block.type === "orderedList") {
         const List = block.type === "bulletList" ? "ul" : "ol";
         return <List key={`list-${index}`}>{block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`}>{inlineElements(item, `l${index}-${itemIndex}`)}</li>)}</List>;
@@ -138,31 +62,38 @@ export function RichTextEditor({
   label,
   maximumPlainLength,
   placeholder,
+  advanced = false,
+  files = [],
 }: {
   value: string;
   onChange: (value: string) => void;
   label: string;
   maximumPlainLength: number;
   placeholder: string;
+  advanced?:boolean;
+  files?:{id:string;name:string;mime:string}[];
 }) {
+  const [htmlMode,setHtmlMode]=useState(false),[htmlDraft,setHtmlDraft]=useState(''),[htmlError,setHtmlError]=useState(''),[imageId,setImageId]=useState('');
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
   const [link, setLink] = useState("");
   const [plainLength, setPlainLength] = useState(richTextToPlainText(value).length);
   const [limitExceeded, setLimitExceeded] = useState(false);
   const initialValueRef = useRef(value);
+  const canonicalValueRef=useRef(htmlToRichText(richTextToHtml(value)));
+  useLayoutEffect(()=>{initialValueRef.current=value;canonicalValueRef.current=htmlToRichText(richTextToHtml(value));},[value]);
   useLayoutEffect(() => {
     if (editorRef.current) replaceEditorContents(editorRef.current, initialValueRef.current);
-  }, []);
+  }, [htmlMode]);
 
   function commit() {
     const editor = editorRef.current;
     if (!editor) return;
-    const next = encodeRichText(documentFromEditor(editor));
+    let next:string;try{next=encodeRichText(documentFromEditor(editor));}catch(e){setHtmlError((e as Error).message);return;}
     const length = richTextToPlainText(next).length;
     setPlainLength(length);
     setLimitExceeded(length > maximumPlainLength);
-    if (length <= maximumPlainLength) onChange(next);
+    if (length <= maximumPlainLength && next!==canonicalValueRef.current) onChange(next);
   }
 
   function preserveSelection(event: MouseEvent) {
@@ -196,7 +127,10 @@ export function RichTextEditor({
     commit();
   }
 
+  function sourceChange(raw:string){setHtmlDraft(raw);try{const next=htmlToRichText(raw);if(richTextToPlainText(next).length>maximumPlainLength)throw new Error('Text zu lang.');setHtmlError('');onChange(next);}catch(e){setHtmlError((e as Error).message);}}
   return <div className={styles.editor}>
+    {advanced&&<div className={styles.toolbar}><button type="button" aria-pressed={!htmlMode} onClick={()=>{setHtmlMode(false);if(editorRef.current)replaceEditorContents(editorRef.current,value);}}>Visuell</button><button type="button" aria-pressed={htmlMode} onClick={()=>{setHtmlDraft(richTextToHtml(value));setHtmlMode(true);}}>HTML</button><small>Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.</small></div>}
+    {htmlMode?<textarea aria-label={label+' HTML'} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>:<>
     <div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h2>")} aria-label="Überschrift groß">H2</button>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h3>")} aria-label="Überschrift klein">H3</button>
@@ -207,9 +141,11 @@ export function RichTextEditor({
       <span aria-hidden="true" />
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertUnorderedList")} aria-label="Aufzählung einfügen">• Liste</button>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertOrderedList")} aria-label="Nummerierte Liste einfügen">1. Liste</button>
+      {advanced&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><td>Spalte 1</td><td>Spalte 2</td></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button></>}
       <label className={styles.colorControl}><span>Textfarbe</span><select aria-label="Textfarbe" defaultValue="#d6b36f" onMouseDown={()=>{const selection=window.getSelection();if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange();}} onChange={event => command("foreColor", event.target.value)}>{richTextColors.map(color => <option key={color} value={color}>{color === "#d6b36f" ? "Gold" : color === "#eee6d6" ? "Elfenbein" : color === "#a9c3cf" ? "Nebelblau" : "Rostrot"}</option>)}</select></label>
     </div>
-    <div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="url" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder="https://…"/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>
+    <div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>
+    {advanced&&<div className={styles.linkRow}><label>Geschütztes Bild<select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')).map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
     <div
       ref={editorRef}
       className={styles.editable}
@@ -225,7 +161,8 @@ export function RichTextEditor({
       onKeyUp={() => { const editor=editorRef.current;if(editor){savedRange.current=window.getSelection()?.rangeCount?window.getSelection()!.getRangeAt(0).cloneRange():null;} }}
       onMouseUp={() => { const editor=editorRef.current;if(editor){savedRange.current=window.getSelection()?.rangeCount?window.getSelection()!.getRangeAt(0).cloneRange():null;} }}
     />
-    <div className={styles.editorFooter}><span role={limitExceeded?"alert":undefined}>{limitExceeded?`Text zu lang: kürze auf höchstens ${maximumPlainLength} Zeichen, bevor du weiterarbeitest.`:"Formatierungen bleiben auf Überschriften, Listen, Hervorhebungen, Links und die vier Kampagnenfarben begrenzt."}</span><small data-over-limit={limitExceeded}>{plainLength}/{maximumPlainLength}</small></div>
+    </>}{htmlError&&<p role="alert">{htmlError}</p>}
+    <div className={styles.editorFooter}><span role={limitExceeded?"alert":undefined}>{limitExceeded?`Text zu lang: kürze auf höchstens ${maximumPlainLength} Zeichen, bevor du weiterarbeitest.`:advanced?"HTML wird als sichere Dokumentstruktur gespeichert; Scripts und externe Einbettungen entfallen.":"Überschriften, Listen, Hervorhebungen, Links und Kampagnenfarben."}</span><small data-over-limit={limitExceeded}>{plainLength}/{maximumPlainLength}</small></div>
   </div>;
 }
 
