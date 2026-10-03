@@ -343,7 +343,7 @@ check(dashboard.s===200&&dashboard.d.character.id===charId,'DASH-03 selected cha
 check((await req(`/api/dashboard?characterId=${encodeURIComponent(charId)}`,'b')).s===404,'DASH-S01 another player cannot select a foreign character');
 check((await req('/api/dashboard','b')).d.characterCount===0,'DASH-S02 private characters are absent from another player dashboard');
 check(JSON.stringify((await req('/api/records?kind=charaktere','b')).d).indexOf(secondDashboardCharacterId)===-1,'DASH-S03 character-list projection keeps private ownership filter');
-const characterDetail=async(who)=>req('/api/character-detail?id='+charId,who);
+const characterDetail=async(who)=>req('/api/character-detail?id='+charId+(who==='gm'?'&view=sl':''),who);
 let charProjection=await characterDetail('a');
 check(charProjection.s===200&&charProjection.d.sheet.attributes.Geschick===4,'CHAR-P01 attribute reload persists');
 check(charProjection.d.sheet.abilities.Diebstahl===3,'CHAR-P02 fixed skill reload persists');
@@ -385,10 +385,20 @@ check((await characterDetail('b')).s===404,'CHAR-S03 other player cannot read ch
 check(!JSON.stringify((await req('/api/records?kind=charaktere','b')).d).includes(charId),'CHAR-S04 private character not listed to other player');
 check((await characterDetail('gm')).s===200,'CHAR-S07 authorized campaign SL reads private player character');
 check((await characterDetail('gm')).d.permissions.canEdit===true,'CHAR-SL campaign SL receives character edit permission');
-check((await req('/api/records?kind=charaktere','gm')).d.records.some(r=>r.id===charId&&r.canEdit),'CHAR-SL private character appears in SL list');
+check(!(await req('/api/records?kind=charaktere','gm')).d.records.some(r=>r.id===charId),'WORKSPACE SL personal roster excludes foreign characters');
+check((await req('/api/character-detail?id='+charId,'gm')).s===404,'WORKSPACE SL personal detail rejects foreign ID');
+check((await req('/api/character-detail?id='+charId+'&view=sl','b')).s===403,'WORKSPACE player cannot forge SL inspection');
+check((await req('/api/records?kind=charaktere&view=sl','b')).s===403,'WORKSPACE player cannot list SL roster');
+check((await req('/api/dashboard?characterId='+charId,'gm')).s===404,'WORKSPACE personal dashboard rejects foreign character selection');
+check((await req('/api/inventory?characterId='+charId,'gm')).s===404,'WORKSPACE personal inventory rejects foreign character selection');
+check((await req('/api/inventory?view=sl','b')).s===403,'WORKSPACE player cannot forge SL inventory inspection');
+const deniedWorkspace=await fetch(base+'/sl/command-center',{headers:ids.b});
+const deniedWorkspaceHtml=await deniedWorkspace.text();
+check(deniedWorkspaceHtml.includes('Nur für die Kampagnenredaktion')&&!deniedWorkspaceHtml.includes('SL-Workspace-Werkzeuge'),'WORKSPACE direct player URL cannot render SL preparation');
+check((await req('/api/records?kind=charaktere&view=sl','gm')).d.records.some(r=>r.id===charId&&r.canEdit),'CHAR-SL private character appears in SL list');
 check((await req('/api/command-center','gm')).d.characters.some(r=>r.id===charId),'CHAR-SL private character appears in Command Center selection');
 for(const who of ['b','editor','blockedGm','pendingGm','otherCampaign','platformOnly'])check([401,403,404].includes((await characterDetail(who)).s),'CHAR-SL non-authorized identity cannot open another character: '+who);
-const slRecord=(await req('/api/records?kind=charaktere','gm')).d.records.find(r=>r.id===charId);
+const slRecord=(await req('/api/records?kind=charaktere&view=sl','gm')).d.records.find(r=>r.id===charId);
 const slEdit={id:charId,version:slRecord.version,kind:'charaktere',title:slRecord.title,visibility:slRecord.visibility,body:{...slRecord.body,concept:'SL_SYNTHETIC_EDIT'}};
 check((await req('/api/records','gm','POST',slEdit)).s===200,'CHAR-SL edits campaign player sheet through normal versioned write path');
 check((await req('/api/records','gm','POST',slEdit)).s===409,'CHAR-SL stale edit cannot overwrite player changes');
@@ -424,7 +434,7 @@ charProjection=await characterDetail('a');
 check(!JSON.stringify(charProjection.d.companion.notes).includes('COMP_EDITED_NOTE'),'COMP-N07 archived Character Note leaves active companion');
 const sharedCharacter=await req('/api/records','a','POST',{kind:'charaktere',title:'QA Companion Shared',visibility:'group',body:{...characterBody,text:'Shared',testData:true}});
 const sharedCharId=sharedCharacter.d.id;
-const sharedDetail=async(who)=>req('/api/character-detail?id='+sharedCharId,who);
+const sharedDetail=async(who)=>req('/api/character-detail?id='+sharedCharId+(who==='gm'?'&view=sl':''),who);
 check((await companionPatch({action:'note.create',characterId:sharedCharId,title:'COMP GM hidden private',text:'COMP_GROUP_PRIVATE',visibility:'private'})).s===200,'COMP-N03 owner creates private note on readable shared character');
 check(!JSON.stringify((await sharedDetail('gm')).d).includes('COMP_GROUP_PRIVATE'),'COMP-N03/COMP-N04 GM/admin path does not automatically read private Player Note');
 check((await companionPatch({action:'note.create',characterId:sharedCharId,title:'COMP SL shared',text:'COMP_SL_SHARED',visibility:'sl'})).s===200,'COMP-N05 explicitly shared SL note saved');
@@ -447,7 +457,7 @@ check(sessionProjection.d.companion.lastSession.summary==='PLAYER_SAFE_SESSION',
 check(!JSON.stringify(sessionProjection.d).includes('GM_SESSION_SECRET')&&!JSON.stringify(sessionProjection.d).includes('SESSION_SECRET'),'COMP-S02 GM internal session text hidden');
 // Inventory V1-A: first-class Character-owned items and safe server projection.
 const invPayload=(characterId,overrides={})=>({characterId,name:'INV Test Item',category:'Werkzeug',description:'Synthetic inventory fixture',quantity:1,status:'Mitgeführt',visibility:'private',tags:['TEST_DATA'],testData:true,...overrides});
-const inventory=(who,characterId,archived=false)=>req('/api/inventory?characterId='+encodeURIComponent(characterId)+(archived?'&includeArchived=1':''),who);
+const inventory=(who,characterId,archived=false)=>req('/api/inventory?characterId='+encodeURIComponent(characterId)+(archived?'&includeArchived=1':'')+(who==='gm'?'&view=sl':''),who);
 const inventoryCreate=async(who,payload,expectedCarryRevision)=>{const revision=expectedCarryRevision??(await inventory(who,payload.characterId)).d.carry.revision;return req('/api/inventory',who,'POST',{...payload,action:'create',expectedCarryRevision:revision})};
 const inventoryPatch=async(who,item,payload,action='update',expectedCarryRevision)=>{const revision=expectedCarryRevision??(await inventory(who,payload.characterId,true)).d.carry.revision;return req('/api/inventory',who,'PATCH',{...payload,id:item.id,expectedRevision:item.revision,expectedCarryRevision:revision,action})};
 const privateCreated=await inventoryCreate('a',invPayload(charId));
@@ -961,7 +971,7 @@ check(commandSnapshot.s===200&&commandSnapshot.d.campaignId==='chronik-von-kleve
 check(!JSON.stringify(commandSnapshot.d.members).includes('@'),'Command roster does not expose member emails');
 check(commandSnapshot.d.members.every(m=>m.status==='active'),'Command roster contains only active campaign members');
 check(commandSnapshot.d.characters.some(c=>c.id===charId),'Command roster includes private campaign characters for authorized SL');
-check((await req('/api/character-detail?id='+charId,'gm')).s===200,'Command context uses campaign SL character permission');
+check((await req('/api/character-detail?id='+charId+'&view=sl','gm')).s===200,'Command context uses campaign SL character permission');
 const commandHandout=await req('/api/entities','gm','POST',{type:'HANDOUT',title:'COMMAND synthetic handout',text:'COMMAND_PLAYER_SAFE',gmBody:'COMMAND_PRIVATE_SECRET'});
 check(commandHandout.s===201,'Existing entity API authors command handout');
 check((await req('/api/knowledge','gm','POST',{entityId:commandHandout.d.id,audience:'player',playerId:'sprint1-a',state:'DISCOVERED'})).s===200,'Existing knowledge API grants command handout to A');

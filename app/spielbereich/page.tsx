@@ -17,5 +17,6 @@ async function SignedIn({ initialSection, initialCharacterId }: { initialSection
 }
 export default async function Page({ searchParams }: { searchParams: Promise<{ bereich?: string; character?: string }> }) {
   const params = await searchParams;
+  if (params.bereich === "ortscms") redirect("/sl/command-center?bereich=ortscms");
   return <SignedIn initialSection={params.bereich || "dashboard"} initialCharacterId={typeof params.character==="string"&&params.character.length<=100?params.character:undefined} />;
 }

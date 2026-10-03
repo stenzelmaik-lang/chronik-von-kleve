@@ -36,7 +36,7 @@ export function useNavigation(
       setSection(id);
       onNavigate();
       const nextUrl = new URL(window.location.href);
-      nextUrl.pathname = "/spielbereich";
+      nextUrl.pathname = window.location.pathname;
       nextUrl.searchParams.set("bereich", id);
       nextUrl.searchParams.delete("ort");
       if (nextUrl.href !== window.location.href) history.pushState(null, "", nextUrl);

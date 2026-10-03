@@ -26,7 +26,7 @@ const empty: Data = {
   catalog: { available: 67, imported: 0 },
 };
 
-function pathFor(section: string) {
+function pathFor(section: string, inspection = false) {
   if (section === "galerie") return "/api/files";
   if (section === "verwaltung") return "/api/members|/api/catalog";
   if (["dashboard", "cms", "ortscms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
@@ -37,10 +37,10 @@ function pathFor(section: string) {
       : section === "sitzung"
         ? "sitzungen"
         : section;
-  return `/api/records?kind=${encodeURIComponent(kind)}`;
+  return `/api/records?kind=${encodeURIComponent(kind)}${inspection && kind === "charaktere" ? "&view=sl" : ""}`;
 }
 
-async function fetchSection(section: string): Promise<Data> {
+async function fetchSection(section: string, inspection = false): Promise<Data> {
   if (["dashboard", "cms", "ortscms", "wuerfel", "inventar", "schauplaetze", "weltkarte"].includes(section))
     return empty;
   if (section === "galerie")
@@ -52,7 +52,7 @@ async function fetchSection(section: string): Promise<Data> {
     ]);
     return { ...empty, members: members.members, catalog };
   }
-  const path = pathFor(section);
+  const path = pathFor(section, inspection);
   return { ...empty, entries: (await api<{ records: Entry[] }>(path)).records };
 }
 
@@ -78,11 +78,12 @@ export function useWorkspaceData(
   section: string,
   active: boolean,
   scope: string,
+  inspection = false,
 ) {
   const [refreshVersion, setRefreshVersion] = useState(0);
   const forceNext = useRef(false);
   const [result, setResult] = useState<Result>(initial);
-  const key = pathFor(section);
+  const key = pathFor(section, inspection);
   const resultKey = `${scope}\u0000${key}`;
 
   useEffect(() => {
@@ -105,7 +106,7 @@ export function useWorkspaceData(
       refreshing: cached !== undefined && (force || !cached.fresh),
     });
 
-    requestPlayerData(scope, key, () => fetchSection(section), { force })
+    requestPlayerData(scope, key, () => fetchSection(section, inspection), { force })
       .then((data) => {
         if (alive) setResult({ key: resultKey, hasValue: true, data, error: null, loading: false, refreshing: false });
       })
@@ -126,7 +127,7 @@ export function useWorkspaceData(
     return () => {
       alive = false;
     };
-  }, [active, key, refreshVersion, resultKey, scope, section]);
+  }, [active, key, refreshVersion, resultKey, scope, section, inspection]);
 
   const cached = active && !key.startsWith("empty:")
     ? readPlayerData<Data>(scope, key)

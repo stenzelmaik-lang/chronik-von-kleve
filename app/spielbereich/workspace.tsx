@@ -48,6 +48,7 @@ import { CommandCenter } from "./modules/command-center";
 import { Choice, safeImage, visibilityNames } from "./modules/shared";
 import { CharacterDetail } from "./modules/character-detail";
 import { InventoryPanel } from "./modules/inventory";
+import { SLWorkspaceShell } from "./modules/sl-workspace-shell";
 import { WorkspaceShell } from "./modules/shell";
 import { useNavigation } from "./modules/use-navigation";
 import { useWorkspaceData } from "./modules/use-workspace-data";
@@ -62,8 +63,10 @@ export default function Workspace({
   actor: a,
   initialSection = "dashboard",
   initialCharacterId,
+  surface = "player",
 }: {
   actor: Actor;
+  surface?: "player" | "sl";
   initialSection?: string;
   initialCharacterId?: string;
 }) {
@@ -80,7 +83,7 @@ export default function Workspace({
     [uploadVisibility, setUploadVisibility] = useState("private");
   const uploadInput = useRef<HTMLInputElement>(null),
     active = a.status === "active";
-  const dataScope = `${a.campaignId}:${a.id}:${a.gm ? "gm" : "player"}`;
+  const dataScope = `${a.campaignId}:${a.id}:${a.gm ? "gm" : "player"}:${surface}`;
   const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope: dataScope, id: initialCharacterId || null });
   const activeCharacterId = selection.scope === dataScope ? selection.id : null;
   const setActiveCharacterId = useCallback((id: string | null) => {
@@ -109,7 +112,7 @@ export default function Workspace({
     a.status === "active" && ["campaign_owner", "campaign_gm", "campaign_editor"].includes(a.role),
   );
   const { entries, files, members, catalog, loading, refreshing, hasData, error, reload } =
-    useWorkspaceData(section, active, dataScope);
+    useWorkspaceData(section, active, dataScope, surface === "sl");
   const pendingCharacterSelection = useRef<string | null>(null);
   useEffect(() => {
     const id = pendingCharacterSelection.current;
@@ -263,8 +266,9 @@ export default function Workspace({
         </section>
       </main>
     );
+  const Shell = surface === "sl" ? SLWorkspaceShell : WorkspaceShell;
   return (
-    <WorkspaceShell a={a} section={section} navigate={navigate}>
+    <Shell a={a} section={section} navigate={navigate}>
       {!worldExperienceActive && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
@@ -320,7 +324,7 @@ export default function Workspace({
           <button className="button" onClick={reload}>Erneut versuchen</button>
         </section>
       ) : section === "charaktere" ? (
-        <CharacterDetail a={a} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
+        <CharacterDetail a={a} inspection={surface === "sl"} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
       ) : section === "inventar" ? (
         <InventoryPanel key={dataScope} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "verwaltung" ? (
@@ -518,7 +522,7 @@ export default function Workspace({
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (
-        <CommandCenter entries={entries} a={a} onRefresh={reload} />
+        <CommandCenter preparation={surface === "sl"} entries={entries} a={a} onRefresh={reload} />
       ) : section === "wirtschaft" ? (
         <EconomyPanel entries={entries} onRefresh={reload} />
       ) : section === "haendler" ? (
@@ -650,7 +654,7 @@ export default function Workspace({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </WorkspaceShell>
+    </Shell>
   );
 }
 
