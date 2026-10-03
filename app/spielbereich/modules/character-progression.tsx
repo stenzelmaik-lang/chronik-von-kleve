@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, ChevronRight, LockKeyhole, RefreshCw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { api } from "./api-client";
 import type { CharacterEngineView as EngineView } from "@/domain/character-live";
 import { xpOptionHint } from "@/domain/character-guidance";
@@ -26,7 +27,7 @@ export function CharacterProgression({ id, revision, onChanged, onDirty, manage 
   async function command(action: string, extra: Record<string, unknown> = {}) {
     if (!data || busy) return;
     setBusy(true); setError(""); setNotice("");
-    try { const updated = await api<EngineView>("/api/character-engine", "POST", { id, version: data.version, action, ...extra }); setData(updated);  setConfirm(false); setNotice("Dauerhaft gespeichert. Der Bogen ist aktualisiert."); onChanged?.(); }
+    try { const updated = await api<EngineView>("/api/character-engine", "POST", { id, version: data.version, action, ...extra }); setData(updated);  setConfirm(false); setNotice("Dauerhaft gespeichert. Der Bogen ist aktualisiert."); toast.success("Dauerhaft gespeichert. Der Bogen ist aktualisiert."); onChanged?.(); }
     catch (e) { setError((e as Error).message); setReload(n => n + 1); }
     finally { setBusy(false); }
   }

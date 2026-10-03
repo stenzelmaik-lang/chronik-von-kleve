@@ -2,6 +2,7 @@ import type { CreationBudgetSummary, XpLedgerEntry, XpPurchase } from './charact
 
 export type CharacterChangeRequest = { id:string; category:string; target:string; value?:string; reason:string; status:string; decision?:string };
 export type CharacterEngineView = {
+  adjustmentTargets?:Array<{category:string;target:string;value:number;minimum:number;maximum:number}>;
   id:string; ownerId:string; version:number; state:string; enrolled:boolean; owner:boolean; canManage:boolean; canSubmit:boolean;
   readiness:{ ready:boolean; reason:string; missing:Array<{label:string;remaining:number;step:string}> };
   budget:CreationBudgetSummary; xp:{available:number;received:number;spent:number}; ledger:XpLedgerEntry[];
