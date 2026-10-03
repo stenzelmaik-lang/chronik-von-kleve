@@ -14,7 +14,11 @@ export const membershipStatusSchema = z.enum(["pending", "active", "blocked"]);
 export type MembershipStatus = z.infer<typeof membershipStatusSchema>;
 export const visibilitySchema = z.enum(["private", "sl", "group"]);
 export type Visibility = z.infer<typeof visibilitySchema>;
-export const canonStatusSchema = z.enum([
+export const canonStatusSchema = z.enum(["draft", "open", "confirmed", "replaced"]);
+export const playStateSchema = z.enum(["unplayed", "played", "historical"]);
+export type PlayState = z.infer<typeof playStateSchema>;
+// Compatibility only: old secrecy/status semantics must survive until a separate migration.
+export const legacyCanonStatusSchema = z.enum([
   "CANON",
   "WORKING",
   "RUMOR",
@@ -23,7 +27,8 @@ export const canonStatusSchema = z.enum([
   "SUPERSEDED",
   "OPEN",
 ]);
-export type CanonStatus = z.infer<typeof canonStatusSchema>;
+export const storedCanonStatusSchema = z.union([canonStatusSchema, legacyCanonStatusSchema]);
+export type CanonStatus = z.infer<typeof storedCanonStatusSchema>;
 export const knowledgeStateSchema = z.enum([
   "UNKNOWN",
   "RUMOR",
@@ -42,6 +47,7 @@ export const entityTypeSchema = z.enum([
   "HANDOUT",
   "SESSION",
   "SCENE",
+  "storyline",
   "FACTION",
   "CHRONICLE",
   "RULE",
@@ -69,6 +75,9 @@ export type Entity = {
   campaignId: string;
   type: EntityType;
   canonStatus: CanonStatus;
+  playState?: PlayState | null;
+  replacedBy?: string | null;
+  defaultVisibility?: "sl_secret" | "player_visible" | null;
   ownerId: string;
   visibility: Visibility;
   title: string;

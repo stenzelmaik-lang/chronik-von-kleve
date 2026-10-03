@@ -9,7 +9,7 @@ import {
   failure,
   HttpError,
 } from "@/server/access";
-import { entityTypeSchema, canonStatusSchema } from "@/domain/types";
+import { entityTypeSchema, canonStatusSchema, playStateSchema, legacyCanonStatusSchema } from "@/domain/types";
 import { loadEntities, grantsFor, projectEntity } from "@/server/entities";
 import { characterKnowledgeContext } from '@/server/character-knowledge';
 export const dynamic = "force-dynamic";
@@ -38,7 +38,10 @@ export async function GET(req: Request) {
 const schema = z
   .object({
     type: entityTypeSchema,
-    canonStatus: canonStatusSchema.default("WORKING"),
+    canonStatus: z.union([canonStatusSchema, legacyCanonStatusSchema]).default("draft"),
+    playState: playStateSchema.nullable().optional(),
+    replacedBy: z.string().trim().min(1).nullable().optional(),
+    defaultVisibility: z.enum(['sl_secret','player_visible']).optional(),
     title: z.string().trim().min(1).max(200),
     text: z.string().max(90000),
     gmBody: z.string().max(30000).default(""),
@@ -55,10 +58,12 @@ export async function POST(req: Request) {
       id = crypto.randomUUID(),
       now = new Date().toISOString(),
       db = database();
+    if (d.replacedBy && !(await db.prepare("SELECT id FROM entities WHERE campaign_id=? AND id=?").bind(a.campaignId, d.replacedBy).first()))
+      throw new HttpError(400, "Nachfolger-Entity nicht gefunden.");
     await db.batch([
       db
         .prepare(
-          "INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,created_at,updated_at,play_state,replaced_by,default_visibility) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(
           id,
@@ -72,6 +77,9 @@ export async function POST(req: Request) {
           d.gmBody,
           now,
           now,
+          d.playState ?? null,
+          d.replacedBy ?? null,
+          d.defaultVisibility ?? null,
         ),
       db
         .prepare(
@@ -91,4 +99,30 @@ export async function POST(req: Request) {
   } catch (e) {
     return failure(e, req);
   }
+}
+const updateSchema = z.object({
+  id: z.string().trim().min(1).max(200),
+  expectedVersion: z.number().int().min(1),
+  canonStatus: schema.shape.canonStatus.removeDefault().optional(),
+  playState: schema.shape.playState,
+  replacedBy: schema.shape.replacedBy,
+  defaultVisibility: schema.shape.defaultVisibility,
+}).strict().refine(d=>['canonStatus','playState','replacedBy','defaultVisibility'].some(k=>k in d));
+export async function PATCH(req: Request) {
+  try {
+    sameOrigin(req);
+    const a=await actor(); gmOnly(a);
+    const parsed=updateSchema.safeParse(await input(req));
+    if(!parsed.success) throw new HttpError(400,'Ungültige Entity-Änderung.');
+    const d=parsed.data,db=database();
+    const entity=(await loadEntities(db,a.campaignId,d.id))[0];
+    if(!entity || !projectEntity(a,entity,[])) throw new HttpError(404,'Entität nicht gefunden.');
+    if(entity.version!==d.expectedVersion) throw new HttpError(409,'Entity wurde inzwischen geändert.');
+    if(d.replacedBy && (d.replacedBy===d.id || !(await db.prepare('SELECT id FROM entities WHERE campaign_id=? AND id=?').bind(a.campaignId,d.replacedBy).first())))
+      throw new HttpError(400,'Ungültige Nachfolger-Entity.');
+    const result=await db.prepare('UPDATE entities SET canon_status=?,play_state=?,replaced_by=?,default_visibility=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=?')
+      .bind(d.canonStatus??entity.canonStatus,d.playState===undefined?entity.playState??null:d.playState,d.replacedBy===undefined?entity.replacedBy??null:d.replacedBy,d.defaultVisibility??entity.defaultVisibility??null,new Date().toISOString(),a.campaignId,d.id,d.expectedVersion).run();
+    if(!result.meta.changes) throw new HttpError(409,'Entity wurde inzwischen geändert.');
+    return json({id:d.id,version:d.expectedVersion+1});
+  } catch(e) { return failure(e,req); }
 }

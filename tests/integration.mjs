@@ -1,4 +1,5 @@
 import {inventory2Integration} from "./inventory-integration.mjs";
+import {m1Integration} from './m1-integration.mjs';
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
 import {storySceneIntegration} from './story-scene-integration.mjs';
 import {storyPreparationIntegration} from './story-preparation-integration.mjs';
@@ -134,6 +135,7 @@ check(staleRevisionWrite.s===409,'stale membership revision is rejected after a 
 const resetMember=(await req('/api/members','gm')).d.members.find(member=>member.id==='sprint1-b');
 check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expectedVersion:resetMember.version})).s===200,'membership concurrency fixture is restored to active');
 check((await req('/api/entities','a','POST',{type:'CLUE',title:'test',text:'test'})).s===403,'Player cannot author core entity');
+await m1Integration({req,check,localSql});
 const created=await req('/api/entities','gm','POST',{type:'CLUE',title:'QA isolated clue',text:'SPRINT_PROTECTED',gmBody:'SPRINT_GM_ONLY'});
 check(created.s===201&&created.d.campaignId==='chronik-von-kleve','Entity has stable ID and campaignId');
 const id=created.d.id;

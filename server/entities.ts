@@ -14,6 +14,9 @@ export type EntityRow = {
   campaign_id: string;
   type: EntityType;
   canon_status: CanonStatus;
+  play_state?: Entity["playState"];
+  replaced_by?: string | null;
+  default_visibility?: Entity["defaultVisibility"];
   legacy_record_id: string | null;
   owner_id: string;
   visibility: Visibility;
@@ -50,6 +53,9 @@ export function resolveEntity(
     campaignId: row.campaign_id,
     type: row.type,
     canonStatus: row.canon_status,
+    playState: row.play_state ?? null,
+    replacedBy: row.replaced_by ?? null,
+    defaultVisibility: row.default_visibility ?? null,
     legacyRecordId: row.legacy_record_id,
     ownerId: legacy?.owner_id ?? row.owner_id,
     visibility: legacy?.visibility ?? row.visibility,
@@ -103,6 +109,7 @@ export function projectEntity(
   }
   if (e.type === "CHARACTER" && e.ownerId !== a.id && !canManageCampaignCharacter(a, e.campaignId)) return null;
   if (a.gm) return e;
+  if (e.defaultVisibility === 'sl_secret') return null;
   // Scene preparation and runtime metadata require the dedicated allowlist
   // projector. A generic grant must never disclose the private scene dossier.
   if (e.type === "SCENE" && e.content.documentKind === "story_scene") return null;
@@ -122,9 +129,11 @@ export function projectEntity(
     e.content.discovered !== false &&
     e.content.content_unlocked !== false;
   const owner = e.ownerId === a.id;
-  if (!granted && !legacyShared && !owner) return null;
-  const { gmBody: _secret, ...safe } = e;
+  if (!granted && !legacyShared && !owner && e.defaultVisibility !== 'player_visible') return null;
+  // Replacement targets may be secret; only the GM gets the raw reference.
+  const { gmBody: _secret, replacedBy: _replacement, ...safe } = e;
   void _secret;
+  void _replacement;
   const content=playerContent(e.content);
   // A permitted reader must also be able to open the existing map view.
   // These are response flags only; the canonical legacy body remains untouched.

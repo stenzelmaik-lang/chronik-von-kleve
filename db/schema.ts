@@ -12,7 +12,7 @@ import { sql } from "drizzle-orm";
 import {
   KLEVE_CAMPAIGN_ID,
   campaignRoleSchema,
-  canonStatusSchema,
+  playStateSchema,
   entityTypeSchema,
   knowledgeStateSchema,
   visibilitySchema,
@@ -167,9 +167,12 @@ export const entities = sqliteTable(
       .default(KLEVE_CAMPAIGN_ID)
       .references(() => campaigns.id),
     type: text("type", { enum: entityTypeSchema.options }).notNull(),
-    canonStatus: text("canon_status", { enum: canonStatusSchema.options })
+    canonStatus: text("canon_status", { enum: ["draft", "open", "confirmed", "replaced", "CANON", "WORKING", "RUMOR", "GM_SECRET", "PLAYER_KNOWLEDGE", "SUPERSEDED", "OPEN"] })
       .notNull()
       .default("WORKING"),
+    playState: text("play_state", { enum: playStateSchema.options }),
+    replacedBy: text("replaced_by"),
+    defaultVisibility: text("default_visibility", { enum: ["sl_secret", "player_visible"] }),
     legacyRecordId: text("legacy_record_id").references(() => records.id, {
       onDelete: "cascade",
     }),
@@ -188,8 +191,29 @@ export const entities = sqliteTable(
     uniqueIndex("idx_entities_campaign_id").on(t.campaignId, t.id),
     uniqueIndex("idx_entities_legacy").on(t.legacyRecordId),
     index("idx_entities_campaign_type").on(t.campaignId, t.type),
+    foreignKey({ columns: [t.replacedBy], foreignColumns: [t.id] }).onDelete("restrict"),
+    check("entities_play_state_check", sql`${t.playState} IS NULL OR ${t.playState} IN ('unplayed','played','historical')`),
+    check("entities_replaced_by_self_check", sql`${t.replacedBy} IS NULL OR ${t.replacedBy} <> ${t.id}`),
+    check("entities_default_visibility_check", sql`${t.defaultVisibility} IS NULL OR ${t.defaultVisibility} IN ('sl_secret','player_visible')`),
   ],
 );
+
+export const entityContentBlocks = sqliteTable('entity_content_blocks', {
+  id: text('id').primaryKey(),
+  campaignId: text('campaign_id').notNull(),
+  entityId: text('entity_id').notNull(),
+  kind: text('kind').notNull(),
+  content: text('content').notNull(),
+  visibility: text('visibility', { enum: ['sl_secret', 'player_visible'] }).notNull(),
+  position: integer('position').notNull(),
+}, t => [
+  foreignKey({ columns: [t.campaignId, t.entityId], foreignColumns: [entities.campaignId, entities.id] }).onDelete('cascade'),
+  index('idx_entity_content_blocks_order').on(t.campaignId, t.entityId, t.position, t.id),
+  check('entity_content_blocks_visibility_check', sql`${t.visibility} IN ('sl_secret','player_visible')`),
+  check('entity_content_blocks_position_check', sql`typeof(${t.position}) = 'integer' AND ${t.position} BETWEEN 0 AND 2147483647`),
+  check('entity_content_blocks_kind_check', sql`length(trim(${t.kind})) BETWEEN 1 AND 100`),
+  check('entity_content_blocks_content_check', sql`length(${t.content}) <= 90000`),
+]);
 
 export const relationships = sqliteTable(
   "relationships",

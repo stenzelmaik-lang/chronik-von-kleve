@@ -22,6 +22,8 @@ const state=preserve?resolve(storyWork?'.local-work/story-workspace':commandDemo
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
+const journal=JSON.parse(readFileSync('drizzle/meta/_journal.json','utf8'));
+migrations.splice(0,migrations.length,...journal.entries.map(entry=>'drizzle/'+entry.tag+'.sql'));
 const fingerprint=createHash('sha256').update(migrations.map(file=>readFileSync(file,'utf8')).join('\n')).digest('hex');
 const resumed=preserve&&existsSync(marker);
 if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose!==purpose||saved.migrations!==fingerprint)throw new Error('Local demo store has an incompatible marker. Existing data are preserved; no migration was run.');}
