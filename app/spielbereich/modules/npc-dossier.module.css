@@ -39,6 +39,17 @@
 .visibility { display:inline-block; color:#eac2b5; font-size:10px; letter-spacing:.08em; margin-bottom:8px; }
 .textBlock { margin:0 0 20px; max-width:80ch; }
 .textBlock:last-child { margin-bottom:0; }
+.textBlock p { white-space:pre-wrap; min-height:1.8em; margin:0 0 1em; }
+.textBlock p:last-child { margin-bottom:0; }
+.textBlock h2,.textBlock h3 { color:#e4d2ae; margin:1.2em 0 .55em; font-family:Georgia,serif; }
+.textBlock h2 { font-size:24px; }
+.textBlock h3 { font-size:20px; }
+.textBlock ul,.textBlock ol { margin:.6em 0 1em; padding-left:1.5em; line-height:1.8; }
+.textBlock ul { list-style:disc; }
+.textBlock ol { list-style:decimal; }
+.textBlock li { white-space:pre-wrap; margin:.3em 0; }
+.textBlock a { color:#dfc18a; text-decoration:underline; text-underline-offset:3px; }
+.textBlock a:focus-visible { outline:2px solid #e4c890; outline-offset:3px; }
 .biography { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(160px,.7fr); gap:24px; align-items:start; }
 .secondary { width:100%; height:auto; border-radius:8px; }
 @media(max-width:600px) { .npcHero { grid-template-columns:1fr; } .npcHero .portrait { height:380px; } .biography { grid-template-columns:1fr; } .secondary { max-width:320px; margin:auto; } }

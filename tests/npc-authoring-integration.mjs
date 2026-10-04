@@ -1,3 +1,5 @@
+import {htmlToRichText,richTextToPlainText,readRichText} from '../domain/location-rich-text.ts';
+
 export async function npcAuthoringIntegration({req,check,localSql,sqlQuote}){
   const path='/api/entities/npc';
   const create={title:'M24 NPC',canonStatus:'draft',playState:'unplayed',defaultVisibility:'player_visible',profile:{alias:'M24 alias',summary:'M24 summary',field_visibility:{name:'player_visible',alias:'player_visible',summary:'player_visible'}},blocks:[{kind:'bio',content:'M24_PUBLIC',visibility:'player_visible',position:1},{kind:'motivation',content:'M24_SECRET',visibility:'sl_secret',position:0}],retainedRelationships:[],addedRelationships:[]};
@@ -24,6 +26,16 @@ export async function npcAuthoringIntegration({req,check,localSql,sqlQuote}){
   const remove=build(next);remove.retainedRelationships=[];remove.blocks=remove.blocks.filter(b=>b.visibility==='player_visible');
   check((await req(path,'gm','POST',remove)).s===200,'M2.4 deletes explicitly removed relation and block');
   check((await req('/api/relationships?entityId='+id,'a')).d.relationships.length===0,'M2.4 removed relation no longer delivered');
+  const formatted=build(await get());
+  const rich=htmlToRichText('<h2>Lesbarer Hintergrund</h2><p><strong>Erster Absatz</strong></p><p><br></p><p>Zweiter<br>Zeile</p><ul><li>Hinweis</li></ul>');
+  formatted.blocks[0].content=rich;
+  formatted.blocks.push({kind:'sl_secrets',content:htmlToRichText('<p><em>NPC_RICH_SECRET</em></p>'),visibility:'sl_secret',position:1});
+  check((await req(path,'gm','POST',formatted)).s===200,'NPC rich text saves formatted public and secret blocks');
+  const formattedRead=await get();
+  check(formattedRead.blocks[0].content===rich&&readRichText(formattedRead.blocks[0].content).blocks[1].children[0].bold===true,'NPC rich text rereads preserved formatting and stable original block');
+  const playerFormatted=(await req('/api/content-blocks?entityId='+id,'a')).d.blocks;
+  check(playerFormatted.length===1&&playerFormatted[0].content===rich&&richTextToPlainText(playerFormatted[0].content).includes('Erster Absatz\n\nZweiter\nZeile'),'NPC rich text player read preserves paragraphs and line breaks');
+  check(!JSON.stringify(playerFormatted).includes('NPC_RICH_SECRET'),'NPC rich text secret formatting never reaches player');
   const fresh=await get();
   await req('/api/content-blocks','gm','PATCH',{...fresh.blocks[0],content:'M24_API_EDIT'});
   check((await req(path,'gm','POST',build(fresh))).s===409,'M2.4 detects block update through existing CRUD');

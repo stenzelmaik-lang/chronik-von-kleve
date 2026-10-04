@@ -12,6 +12,11 @@
 .editor small { font-size:12px; color:#b6bdb4; }
 .block { border:1px solid #9d805c66; padding:16px; margin-bottom:20px; }
 .secret { border:2px solid #b78279; background:#392326; }
+.block .contentLabel { margin:0 0 8px; color:#e4d2ae; }
+.block [contenteditable] { white-space:pre-wrap; }
+.block [contenteditable] p:empty { min-height:1.72em; }
+.block [contenteditable] ul { list-style:disc; }
+.block [contenteditable] ol { list-style:decimal; }
 .actions { display:flex; flex-wrap:wrap; gap:12px; margin:12px 0; }
 .relations { list-style:none; padding:0; }
 .relations li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #9d805c66; }
