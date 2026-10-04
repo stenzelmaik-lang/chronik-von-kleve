@@ -33,3 +33,14 @@ test('Whole-card native button retains non-hover operation and responsive reduce
   assert.match(css,/max-width: 580px/);
   assert.doesNotMatch(css,/display:\s*none|visibility:\s*hidden/);
 });
+
+test('NPC card uses the biography portrait while the hero retains the primary image and a static soft fade', () => {
+  const panel=readFileSync(new URL('../app/spielbereich/modules/npc-panel.tsx',import.meta.url),'utf8');
+  const dossier=readFileSync(new URL('../app/spielbereich/modules/npc-dossier.tsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../app/spielbereich/modules/npc-dossier.module.css',import.meta.url),'utf8');
+  assert.match(panel,/safeImage\(e.content.image_secondary\)\|\|safeImage\(e.content.image_primary\)/);
+  assert.match(dossier,/image=safeImage\(entity.content.image_primary\)/);
+  assert.match(css,/\.npcHero \.portrait img[^}]*mask-image:linear-gradient/);
+  assert.match(css,/\.npcHero \.portrait:has\(img\)::after[^}]*pointer-events:none/);
+  assert.doesNotMatch(css,/animation\s*:/);
+});
