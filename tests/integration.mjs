@@ -2,6 +2,7 @@ import {inventory2Integration} from "./inventory-integration.mjs";
 import {m1Integration} from './m1-integration.mjs';
 import {npcAuthoringIntegration} from './npc-authoring-integration.mjs';
 import {npcDetailV1Integration} from './npc-detail-v1-integration.mjs';
+import {npcUploadIntegration} from './npc-upload-integration.mjs';
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
 import {storySceneIntegration} from './story-scene-integration.mjs';
 import {storyPreparationIntegration} from './story-preparation-integration.mjs';
@@ -140,6 +141,7 @@ check((await req('/api/entities','a','POST',{type:'CLUE',title:'test',text:'test
 await m1Integration({req,check,localSql});
 await npcAuthoringIntegration({req,check,localSql,sqlQuote});
 await npcDetailV1Integration({req,check,localSql,sqlQuote});
+await npcUploadIntegration({req,check,base,ids});
 const created=await req('/api/entities','gm','POST',{type:'CLUE',title:'QA isolated clue',text:'SPRINT_PROTECTED',gmBody:'SPRINT_GM_ONLY'});
 check(created.s===201&&created.d.campaignId==='chronik-von-kleve','Entity has stable ID and campaignId');
 const id=created.d.id;

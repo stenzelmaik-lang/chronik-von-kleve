@@ -22,6 +22,7 @@ export function NPCEditor({id,onCancel,onSaved,onBusy}:{id?:string;onCancel:()=>
   const [listInputs,setListInputs]=useState({affiliation:'',known_for:''});
   const formRef=useRef<HTMLFormElement>(null);
   const originalProfile=useRef<NPCSave['profile']>({});
+  const [imageFiles,setImageFiles]=useState<Partial<Record<'image_primary'|'image_secondary',File>>>({});
   useEffect(()=>{
     let alive=true;
     Promise.all([id?api<DraftResponse>('/api/entities/npc?id='+encodeURIComponent(id)):Promise.resolve(null),api<{entities:Entity[]}>('/api/entities')]).then(([data,list])=>{
@@ -54,7 +55,22 @@ export function NPCEditor({id,onCancel,onSaved,onBusy}:{id?:string;onCancel:()=>
     const parsed=npcSaveSchema.safeParse(payload);
     if(!parsed.success){setError(parsed.error.issues.map(i=>i.message).join(' '));return;}
     setBusy(true);onBusy(true);setError('');
-    try{const saved=await api<{id:string;title:string}>('/api/entities/npc','POST',parsed.data);onSaved(saved.id,saved.title);}catch(e){setError(e instanceof Error?e.message:'Speichern fehlgeschlagen. Der Entwurf bleibt erhalten.');}finally{setBusy(false);onBusy(false);}
+    const uploaded:string[]=[];
+    try{
+      const profile={...draft.profile};
+      for(const key of ['image_primary','image_secondary'] as const){
+        const file=imageFiles[key];if(!file)continue;
+        const form=new FormData();form.set('file',file);form.set('visibility','sl');
+        const result=await api<{id:string}>('/api/files','POST',form);uploaded.push(result.id);
+        profile[key]='/api/files?id='+encodeURIComponent(result.id);
+      }
+      const saved=await api<{id:string;title:string}>('/api/entities/npc','POST',{...parsed.data,profile:id?npcProfilePatch(profile,originalProfile.current):profile});
+      onSaved(saved.id,saved.title);
+    }catch(e){
+      // Only new uploads from this save; the file API protects committed references.
+      const cleanup=await Promise.allSettled(uploaded.map(fileId=>api('/api/files','DELETE',{id:fileId})));
+      setError((e instanceof Error?e.message:'Speichern fehlgeschlagen. Der Entwurf bleibt erhalten.')+(cleanup.some(r=>r.status==='rejected')?' Nicht entfernbare Uploads bleiben geschützt gespeichert.':''));
+    }finally{setBusy(false);onBusy(false);}
   }
   if(!loaded)return <section className={styles.editor}>{error?<><p role="alert">{error}</p><button className="button" onClick={()=>setRetry(n=>n+1)}>Erneut laden</button></>:<p role="status">Bearbeitungsstand wird geladen …</p>}<button className="button" onClick={onCancel}>Abbrechen</button></section>;
   const titleFor=(other:string)=>entities.find(e=>e.id===other)?.title??other;
@@ -69,6 +85,7 @@ export function NPCEditor({id,onCancel,onSaved,onBusy}:{id?:string;onCancel:()=>
       <label htmlFor="npc-visibility">NPC-Sichtbarkeit<select id="npc-visibility" value={draft.defaultVisibility??''} onChange={e=>setDraft({...draft,defaultVisibility:(e.target.value||null) as NPCSave['defaultVisibility']})}>{id&&<option value="">Bestehende Legacy-Freigabe beibehalten</option>}<option value="sl_secret">SL-INTERN · sl_secret</option><option value="player_visible">Spieler sichtbar · player_visible</option></select></label>
       {'image' in draft.profile&&<label htmlFor="npc-image">Bildreferenz (optional)<input id="npc-image" maxLength={500} placeholder="/api/files?id=… oder /images/…" value={draft.profile.image} onChange={e=>setDraft({...draft,profile:{...draft.profile,image:e.target.value}})}/><small>Vorhandenes Bild verwenden; kein neuer Upload.</small></label>}
       {(['title','role','clan','stance','npc_status','location_note','image_primary','image_secondary'] as const).filter(key=>key in draft.profile).map(key=><label key={key} htmlFor={'npc-profile-'+key}>{npcFieldNames[key]} (optional)<input id={'npc-profile-'+key} value={draft.profile[key]??''} maxLength={key.startsWith('image_')?500:200} onChange={e=>setDraft({...draft,profile:{...draft.profile,[key]:e.target.value}})}/></label>)}
+      {(['image_primary','image_secondary'] as const).map(key=><div key={'upload-'+key}><label htmlFor={'npc-upload-'+key}>{npcFieldNames[key]} hochladen<input id={'npc-upload-'+key} type="file" accept="image/jpeg,image/png,image/webp" onChange={event=>{const file=event.currentTarget.files?.[0];if(file&&(!['image/jpeg','image/png','image/webp'].includes(file.type)||!file.size||file.size>10*1024*1024)){setError('Bitte JPG, PNG oder WebP bis 10 MB auswählen.');event.currentTarget.value='';setImageFiles(previous=>({...previous,[key]:undefined}));return;}setError('');setImageFiles(previous=>({...previous,[key]:file}));}}/></label><small>{imageFiles[key]?imageFiles[key]!.name+' · wird beim Speichern hochgeladen.':'JPG, PNG oder WebP bis 10 MB. Abbrechen lädt nichts hoch.'}</small></div>)}
       {'generation' in draft.profile&&<label htmlFor="npc-generation">Generation (optional)<input id="npc-generation" type="number" min={1} max={20} value={draft.profile.generation??''} onChange={e=>setDraft({...draft,profile:{...draft.profile,generation:e.target.value?Number(e.target.value):null}})}/></label>}
       {(['affiliation','known_for'] as const).filter(key=>key in draft.profile).map(key=><label key={key} htmlFor={'npc-'+key}>{npcFieldNames[key]} (mit Komma trennen)<input id={'npc-'+key} value={listInputs[key]} onChange={e=>{setListInputs({...listInputs,[key]:e.target.value});setDraft({...draft,profile:{...draft.profile,[key]:e.target.value.split(',').map(v=>v.trim()).filter(Boolean)}});}}/></label>)}
     </div>{'summary' in draft.profile&&<label htmlFor="npc-summary">Kurzprofil (optional)<textarea id="npc-summary" rows={3} maxLength={2000} value={draft.profile.summary} onChange={e=>setDraft({...draft,profile:{...draft.profile,summary:e.target.value}})}/></label>}</fieldset>

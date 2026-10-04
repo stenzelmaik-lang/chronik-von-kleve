@@ -1,5 +1,6 @@
 import type { FileRow } from "@/domain/legacy";
 import { env } from "cloudflare:workers";
+import {canReadNPCFile} from '@/server/npc-file-access';
 import {
   actor,
   database,
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
       .prepare("SELECT * FROM files WHERE id=? AND campaign_id=?")
       .bind(id, a.campaignId)
       .first<FileRow>();
-    if (!f || !canRead(a, f)) throw new HttpError(404, "Datei nicht gefunden.");
+    if (!f || (!canRead(a, f) && !(f.visibility==='sl' && await canReadNPCFile(db,a,id)))) throw new HttpError(404, "Datei nicht gefunden.");
     if (!env.BUCKET)
       throw new HttpError(503, "Dateispeicher nicht erreichbar.");
     const obj = await env.BUCKET.get(f.key);
