@@ -31,4 +31,14 @@
 .secret { margin:28px clamp(16px,3vw,32px) 32px; padding:24px; border:2px solid #b78279; border-radius:8px; background:#392326; }
 .secret .overline { color:#f1bdb1; }
 .secretHint { color:#f1bdb1; border-bottom:1px solid #ae81764f; padding-bottom:16px; }
+.npcHero { grid-template-columns:minmax(0,1.2fr) minmax(180px,.8fr); }
+.npcHero .portrait { height:520px; overflow:visible; }
+.npcHero .portrait img { border:0; background:transparent; }
+.admin { font-size:12px; color:#adb8af; margin:24px 0 16px; }
+.visibility { display:inline-block; color:#eac2b5; font-size:10px; letter-spacing:.08em; margin-bottom:8px; }
+.textBlock { margin:0 0 20px; max-width:80ch; }
+.textBlock:last-child { margin-bottom:0; }
+.biography { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(160px,.7fr); gap:24px; align-items:start; }
+.secondary { width:100%; height:auto; border-radius:8px; }
+@media(max-width:600px) { .npcHero { grid-template-columns:1fr; } .npcHero .portrait { height:380px; } .biography { grid-template-columns:1fr; } .secondary { max-width:320px; margin:auto; } }
 @media(max-width:600px) { .hero { grid-template-columns:1fr; gap:20px; padding:24px 20px; } .portrait { height:230px; } .identity h1 { font-size:34px; } .facts { margin-top:22px; } .toolbar { padding-left:16px; } .profile { gap:16px; } .secret { padding:20px 16px; } }

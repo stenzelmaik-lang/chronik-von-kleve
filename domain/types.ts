@@ -106,6 +106,7 @@ export type Relationship = {
   sourceId: string;
   targetId: string;
   type: string;
+  note?: string | null;
   visibility: Visibility;
   createdAt: string;
 };

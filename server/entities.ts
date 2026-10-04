@@ -1,4 +1,5 @@
 import { canManageCampaignCharacter } from '../domain/character-access.ts';
+import {hasNPCFieldVisibility,npcFieldVisibility,projectNPCFields} from '../domain/npc-profile.ts';
 import type {
   Actor,
   Entity,
@@ -137,11 +138,11 @@ export function projectEntity(
   const { gmBody: _secret, replacedBy: _replacement, ...safe } = e;
   void _secret;
   void _replacement;
-  const content=playerContent(e.content);
+  const content=playerContent(e.type==='NPC'?projectNPCFields(e.content):e.content);
   // A permitted reader must also be able to open the existing map view.
   // These are response flags only; the canonical legacy body remains untouched.
   if(granted){if(content.discovered===false)content.discovered=true;if(content.content_unlocked===false)content.content_unlocked=true;}
-  return { ...safe, content };
+  return { ...safe, title:e.type==='NPC'&&hasNPCFieldVisibility(e.content)&&npcFieldVisibility(e.content,'name')!=='player_visible'?'Unbekannte Persönlichkeit':safe.title, content };
 }
 export async function loadEntities(
   db: D1Database,

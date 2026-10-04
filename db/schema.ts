@@ -226,6 +226,7 @@ export const relationships = sqliteTable(
     sourceId: text("source_id").notNull(),
     targetId: text("target_id").notNull(),
     type: text("type").notNull(),
+      note: text("note"),
     visibility: text("visibility", { enum: visibilitySchema.options })
       .notNull()
       .default("sl"),

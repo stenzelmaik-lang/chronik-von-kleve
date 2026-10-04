@@ -11,7 +11,7 @@ export class NPCAuthoringError extends Error {
 function requireSL(a:Actor){if(a.status!=='active'||!a.gm||!['campaign_owner','campaign_gm'].includes(a.role))throw new NPCAuthoringError(403,'Nur für die Spielleitung.');}
 // Ordered SQL snapshots also guard changes made through the existing block/relation APIs.
 const blockSnapshot="SELECT json_group_array(json_object('id',id,'kind',kind,'content',content,'visibility',visibility,'position',position)) AS snapshot FROM (SELECT * FROM entity_content_blocks WHERE campaign_id=? AND entity_id=? ORDER BY id)";
-const relationSnapshot="SELECT json_group_array(json_object('id',id,'source',source_id,'target',target_id,'type',type,'visibility',visibility)) AS snapshot FROM (SELECT * FROM relationships WHERE campaign_id=? AND (source_id=? OR target_id=?) ORDER BY id)";
+const relationSnapshot="SELECT json_group_array(json_object('id',id,'source',source_id,'target',target_id,'type',type,'visibility',visibility,'note',note)) AS snapshot FROM (SELECT * FROM relationships WHERE campaign_id=? AND (source_id=? OR target_id=?) ORDER BY id)";
 async function snapshot(db:D1Database,a:Actor,id:string){
   const raw=await db.prepare('SELECT * FROM entities WHERE campaign_id=? AND id=?').bind(a.campaignId,id).first<EntityRow>();
   if(!raw||raw.type!=='NPC')throw new NPCAuthoringError(404,'NPC nicht gefunden.');
@@ -44,7 +44,8 @@ export async function saveNPC(db:D1Database,a:Actor,input:NPCSave){
   const invisibleRelations=allRawRelations.filter(r=>!existingRelations.some(old=>old.id===r.id)).map(r=>r.id);
   const targets=await loadEntitiesForIds(db,a.campaignId,d.addedRelationships.map(r=>r.targetId));
   if(d.addedRelationships.some(r=>!targets.some(e=>e.id===r.targetId&&projectEntity(a,e,[]))))throw new NPCAuthoringError(400,'Beziehungsziel nicht in dieser Kampagne verfügbar.');
-  const content={...parseObject(s?.raw.content??'{}'),...d.profile};
+  const previous=parseObject(s?.raw.content??'{}');
+  const content={...previous,...d.profile,...(!s||d.profile.field_visibility?{field_visibility:{...(previous.field_visibility&&typeof previous.field_visibility==='object'&&!Array.isArray(previous.field_visibility)?previous.field_visibility:{}),...d.profile.field_visibility}}:{})};
   const statements:D1PreparedStatement[]=[];
   if(s){
     statements.push(db.prepare(`UPDATE entities SET title=?,content=?,canon_status=?,play_state=?,default_visibility=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=? AND (${blockSnapshot})=? AND (${relationSnapshot})=? AND (? IS NULL OR (SELECT version FROM records WHERE campaign_id=? AND id=?)=?)`)
@@ -59,7 +60,7 @@ export async function saveNPC(db:D1Database,a:Actor,input:NPCSave){
   }
   const retained=[...d.retainedRelationships,...invisibleRelations];
   for(const old of existingRelations.filter(r=>!retained.includes(r.id)))statements.push(db.prepare(`DELETE FROM relationships WHERE campaign_id=? AND id=? AND ${guard}`).bind(a.campaignId,old.id,eventId));
-  for(const r of d.addedRelationships)statements.push(db.prepare(`INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) SELECT ?,?,?,?,?,?,? WHERE ${guard}`).bind(crypto.randomUUID(),a.campaignId,id,r.targetId,r.type,r.visibility,now,eventId));
+  for(const r of d.addedRelationships)statements.push(db.prepare(`INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,note,created_at) SELECT ?,?,?,?,?,?,?,? WHERE ${guard}`).bind(crypto.randomUUID(),a.campaignId,id,r.targetId,r.type,r.visibility,r.note??null,now,eventId));
   const results=await db.batch(statements);
   if(!results[0].meta.changes)throw new NPCAuthoringError(409,'Die Akte wurde inzwischen geändert. Bitte neu öffnen.');
   return {id,title:d.title};

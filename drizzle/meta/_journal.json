@@ -78,6 +78,13 @@
       "when": 1791043200002,
       "tag": "0010_m1_entity_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791095836144,
+      "tag": "0011_npc_detail_v1",
+      "breakpoints": true
     }
   ]
 }

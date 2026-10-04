@@ -9,8 +9,8 @@ export class RelationshipError extends Error {
 const isSL=(a:Actor)=>a.status==='active' && a.gm && ['campaign_owner','campaign_gm'].includes(a.role);
 function active(a:Actor) { if(a.status!=='active') throw new RelationshipError(403,'Zugang nicht aktiv.'); }
 function sl(a:Actor) { active(a); if(!isSL(a)) throw new RelationshipError(403,'Nur für die Spielleitung.'); }
-type Row={id:string;campaign_id:string;source_id:string;target_id:string;type:string;visibility:Relationship['visibility'];created_at:string};
-const relation=(r:Row):Relationship=>({id:r.id,campaignId:r.campaign_id,sourceId:r.source_id,targetId:r.target_id,type:r.type,visibility:r.visibility,createdAt:r.created_at});
+type Row={id:string;campaign_id:string;source_id:string;target_id:string;type:string;note?:string|null;visibility:Relationship['visibility'];created_at:string};
+const relation=(r:Row):Relationship=>({id:r.id,campaignId:r.campaign_id,sourceId:r.source_id,targetId:r.target_id,type:r.type,note:r.note??null,visibility:r.visibility,createdAt:r.created_at});
 export async function createRelationship(db:D1Database,a:Actor,raw:RelationshipInput) {
   sl(a);
   const parsed=relationshipInputSchema.safeParse(raw);
@@ -21,7 +21,7 @@ export async function createRelationship(db:D1Database,a:Actor,raw:RelationshipI
   // Private relations have no separate owner column: both endpoint owners must match.
   if(d.visibility==='private' && endpoints.some(e=>e.ownerId!==a.id)) throw new RelationshipError(400,'Private Beziehungen benötigen zwei eigene Entities.');
   const id=crypto.randomUUID(),createdAt=new Date().toISOString();
-  await db.prepare('INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) VALUES(?,?,?,?,?,?,?)').bind(id,a.campaignId,d.sourceId,d.targetId,d.type,d.visibility,createdAt).run();
+  await db.prepare('INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,note,created_at) VALUES(?,?,?,?,?,?,?,?)').bind(id,a.campaignId,d.sourceId,d.targetId,d.type,d.visibility,d.note??null,createdAt).run();
   return {id,campaignId:a.campaignId,...d,createdAt};
 }
 export async function readRelationships(db:D1Database,a:Actor,entityId:string,id?:string) {

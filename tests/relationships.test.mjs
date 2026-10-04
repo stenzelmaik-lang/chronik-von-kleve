@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
-import {readFileSync,readdirSync} from 'node:fs';
+import {readFileSync} from 'node:fs';
 import {createRelationship,readRelationships,deleteRelationship} from '../server/relationships.ts';
 import {coreRelationshipTypeSchema} from '../domain/relationships.ts';
 
@@ -9,7 +9,7 @@ test('Relationships retain legacy types and enforce endpoints, campaigns and rea
   const sql=new DatabaseSync(':memory:');
   try {
     sql.exec('PRAGMA foreign_keys=ON');
-    for(const f of readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>/^000[0-9]_.*\.sql$/.test(f)).sort()) sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));
+    for(const {tag} of JSON.parse(readFileSync(new URL('../drizzle/meta/_journal.json',import.meta.url),'utf8')).entries) sql.exec(readFileSync(new URL('../drizzle/'+tag+'.sql',import.meta.url),'utf8'));
     class Statement {
       constructor(q,v=[]) {this.q=q;this.v=v;}
       bind(...v) {return new Statement(this.q,v);}
@@ -43,14 +43,14 @@ test('Relationships retain legacy types and enforce endpoints, campaigns and rea
     await assert.rejects(createRelationship(db,{...player,gm:true},data),denied);
     await assert.rejects(deleteRelationship(db,player,slRel.id),denied);
     await assert.rejects(readRelationships(db,{...player,status:'blocked'},'npc'),denied);
-    sql.exec("INSERT INTO relationships VALUES('legacy','chronik-von-kleve','npc','place','location.contains','group','test'); INSERT INTO relationships VALUES('private-owned','chronik-von-kleve','own-a','own-b','legacy.social','private','test')");
+    sql.exec("INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) VALUES('legacy','chronik-von-kleve','npc','place','location.contains','group','test'); INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) VALUES('private-owned','chronik-von-kleve','own-a','own-b','legacy.social','private','test')");
     assert.equal((await readRelationships(db,player,'npc','legacy'))[0].type,'location.contains');
     sql.exec("UPDATE knowledge SET state='UNKNOWN' WHERE entity_id='place'");
     await assert.rejects(readRelationships(db,player,'npc','legacy'),missing);
     sql.exec("UPDATE knowledge SET state='DISCOVERED' WHERE entity_id='place'");
     assert.equal((await readRelationships(db,player,'own-a','private-owned'))[0].type,'legacy.social');
-    assert.throws(()=>sql.exec("INSERT INTO relationships VALUES('bad','chronik-von-kleve','npc','foreign','related_to','sl','test')"));
-    assert.throws(()=>sql.exec("INSERT INTO relationships VALUES('bad','chronik-von-kleve','absent','place','related_to','sl','test')"));
+    assert.throws(()=>sql.exec("INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) VALUES('bad','chronik-von-kleve','npc','foreign','related_to','sl','test')"));
+    assert.throws(()=>sql.exec("INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) VALUES('bad','chronik-von-kleve','absent','place','related_to','sl','test')"));
     await deleteRelationship(db,gm,'legacy');
     assert.equal(sql.prepare('SELECT count(*) n FROM entities').get().n,9);
     assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);

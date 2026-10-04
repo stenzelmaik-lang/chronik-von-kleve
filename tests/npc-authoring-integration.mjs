@@ -1,6 +1,6 @@
 export async function npcAuthoringIntegration({req,check,localSql,sqlQuote}){
   const path='/api/entities/npc';
-  const create={title:'M24 NPC',canonStatus:'draft',playState:'unplayed',defaultVisibility:'player_visible',profile:{alias:'M24 alias',summary:'M24 summary'},blocks:[{kind:'bio',content:'M24_PUBLIC',visibility:'player_visible',position:1},{kind:'motivation',content:'M24_SECRET',visibility:'sl_secret',position:0}],retainedRelationships:[],addedRelationships:[]};
+  const create={title:'M24 NPC',canonStatus:'draft',playState:'unplayed',defaultVisibility:'player_visible',profile:{alias:'M24 alias',summary:'M24 summary',field_visibility:{name:'player_visible',alias:'player_visible',summary:'player_visible'}},blocks:[{kind:'bio',content:'M24_PUBLIC',visibility:'player_visible',position:1},{kind:'motivation',content:'M24_SECRET',visibility:'sl_secret',position:0}],retainedRelationships:[],addedRelationships:[]};
   for(const role of ['a','b','blockedGm','pendingGm','explicitBlockedGm','explicitPendingGm'])check([401,403].includes((await req(path,role,'POST',create)).s),'M2.4 prohibits authoring by '+role);
   const made=await req(path,'gm','POST',create),id=made.d.id;
   check(made.s===200&&!!id,'M2.4 SL creates original NPC with blocks atomically');

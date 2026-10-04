@@ -1,6 +1,7 @@
 import {inventory2Integration} from "./inventory-integration.mjs";
 import {m1Integration} from './m1-integration.mjs';
 import {npcAuthoringIntegration} from './npc-authoring-integration.mjs';
+import {npcDetailV1Integration} from './npc-detail-v1-integration.mjs';
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
 import {storySceneIntegration} from './story-scene-integration.mjs';
 import {storyPreparationIntegration} from './story-preparation-integration.mjs';
@@ -138,6 +139,7 @@ check((await req('/api/members','gm','POST',{id:'sprint1-b',status:'active',expe
 check((await req('/api/entities','a','POST',{type:'CLUE',title:'test',text:'test'})).s===403,'Player cannot author core entity');
 await m1Integration({req,check,localSql});
 await npcAuthoringIntegration({req,check,localSql,sqlQuote});
+await npcDetailV1Integration({req,check,localSql,sqlQuote});
 const created=await req('/api/entities','gm','POST',{type:'CLUE',title:'QA isolated clue',text:'SPRINT_PROTECTED',gmBody:'SPRINT_GM_ONLY'});
 check(created.s===201&&created.d.campaignId==='chronik-von-kleve','Entity has stable ID and campaignId');
 const id=created.d.id;
@@ -445,6 +447,8 @@ check(!JSON.stringify((await sharedDetail('gm')).d).includes('COMP_GROUP_PRIVATE
 check((await companionPatch({action:'note.create',characterId:sharedCharId,title:'COMP SL shared',text:'COMP_SL_SHARED',visibility:'sl'})).s===200,'COMP-N05 explicitly shared SL note saved');
 check(JSON.stringify((await sharedDetail('gm')).d).includes('COMP_SL_SHARED'),'COMP-N05 explicitly shared note is visible to allowed role');
 const contact=await req('/api/entities','gm','POST',{type:'NPC',title:'QA Companion Contact',text:'KNOWN_CONTACT',gmBody:'REL_SECRET'});
+const contactDraft=(await req('/api/entities/npc?id='+contact.d.id,'gm')).d;
+check((await req('/api/entities/npc','gm','POST',{id:contact.d.id,revision:contactDraft.revision,title:contactDraft.entity.title,canonStatus:contactDraft.entity.canonStatus,playState:null,defaultVisibility:null,profile:{field_visibility:{name:'player_visible'}},blocks:[],retainedRelationships:[],addedRelationships:[]})).s===200,'COMP-R00 contact name explicitly released without releasing its text');
 await req('/api/knowledge','gm','POST',{entityId:contact.d.id,audience:'player',playerId:'sprint1-a',state:'DISCOVERED'});
 localSql(`INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,created_at) VALUES('rel-comp-known','chronik-von-kleve','${sharedCharId}','${contact.d.id}','Kontakt','group','test')`);
 const secretContact=await req('/api/entities','gm','POST',{type:'NPC',canonStatus:'GM_SECRET',title:'QA Secret Contact',text:'SECRET_CONTACT'});

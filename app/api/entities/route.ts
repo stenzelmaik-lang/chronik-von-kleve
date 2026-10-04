@@ -77,7 +77,7 @@ export async function POST(req: Request) {
           a.id,
           "sl",
           d.title,
-          JSON.stringify({ text: d.text }),
+          JSON.stringify({ text: d.text, ...(d.type === 'NPC' ? { field_visibility: {} } : {}) }),
           d.gmBody,
           now,
           now,

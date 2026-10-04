@@ -1,0 +1,34 @@
+export async function npcDetailV1Integration({req,check,localSql,sqlQuote}){
+  const defaulted=await req('/api/entities/npc','gm','POST',{title:'V1 UNRELEASED NAME',canonStatus:'draft',playState:null,defaultVisibility:'player_visible',profile:{alias:'V1 UNRELEASED ALIAS'},blocks:[],retainedRelationships:[],addedRelationships:[]});
+  const defaultRead=(await req('/api/entities?id='+defaulted.d.id,'a')).d.entities[0];
+  check(defaultRead.title==='Unbekannte Persönlichkeit'&&!('alias' in defaultRead.content),'V1 new NPC without field map defaults to secret fields');
+  const create={title:'V1 SECRET NAME',canonStatus:'confirmed',playState:'unplayed',defaultVisibility:'sl_secret',profile:{title:'V1_SECRET_TITLE',role:'V1_SECRET_ROLE',clan:'V1_SECRET_CLAN',generation:6,npc_status:'Aktiv',image_primary:'/api/files?id=v1-secret-primary',image_secondary:'/api/files?id=v1-secret-secondary',field_visibility:{}},blocks:[{kind:'short_profile',content:'V1_PRIVATE_SHORT',visibility:'sl_secret',position:0},{kind:'biography',content:'V1_PRIVATE_BIO',visibility:'sl_secret',position:1},{kind:'personality',content:'V1_PRIVATE_PERSONALITY',visibility:'sl_secret',position:2},{kind:'sl_secrets',content:'V1_PRIVATE_SECRETS',visibility:'sl_secret',position:3}],retainedRelationships:[],addedRelationships:[]};
+  const made=await req('/api/entities/npc','gm','POST',create),id=made.d.id;check(made.s===200,'V1 creates all-secret structured NPC');
+  for(const path of ['/api/entities?id=','/api/content-blocks?entityId=','/api/relationships?entityId='])check((await req(path+id,'a')).s===404,'V1 secret NPC denies '+path);
+  check(!(await req('/api/entities?type=NPC','a')).d.entities.some(e=>e.id===id),'V1 secret NPC absent from player list');
+  const snapshot=async()=>(await req('/api/entities/npc?id='+id,'gm')).d;
+  const payload=d=>({...create,id,revision:d.revision,blocks:d.blocks.map(({entityId,...b})=>b),retainedRelationships:d.relationships.map(r=>r.id)});
+  const partial=payload(await snapshot());partial.defaultVisibility='player_visible';partial.profile.field_visibility={name:'player_visible',role:'player_visible'};
+  check((await req('/api/entities/npc','gm','POST',partial)).s===200,'V1 explicit subset release saves on same original');
+  const player=(await req('/api/entities?id='+id,'a')).d.entities[0];
+  check(player.title===create.title&&player.content.role==='V1_SECRET_ROLE','V1 only explicitly released name/role delivered');
+  for(const field of ['clan','generation','title','npc_status','image_primary','image_secondary'])check(!(field in player.content),'V1 excludes unreleased field '+field);
+  check((await req('/api/content-blocks?entityId='+id,'a')).d.blocks.length===0,'V1 NPC release does not release text blocks');
+  const target=(await req('/api/entities','gm','POST',{type:'NPC',title:'V1 Public target',text:'Target',defaultVisibility:'player_visible'})).d.id;
+  const genericRead=(await req('/api/entities?id='+target,'a')).d.entities[0];
+  check(genericRead.title==='Unbekannte Persönlichkeit'&&!('text' in genericRead.content),'V1 generic creation cannot bypass individual field releases');
+  const secret=(await req('/api/entities','gm','POST',{type:'NPC',title:'V1 SECRET TARGET',text:'Target',defaultVisibility:'sl_secret'})).d.id;
+  const publicRel=await req('/api/relationships','gm','POST',{sourceId:id,targetId:target,type:'related_to',visibility:'group',note:'V1 PUBLIC NOTE'});
+  check(publicRel.s===201||publicRel.s===200,'V1 optional relation note persists');
+  await req('/api/relationships','gm','POST',{sourceId:id,targetId:target,type:'related_to',visibility:'sl',note:'V1 PRIVATE NOTE'});
+  await req('/api/relationships','gm','POST',{sourceId:id,targetId:secret,type:'related_to',visibility:'group',note:'V1 SECRET TARGET NOTE'});
+  const relations=(await req('/api/relationships?entityId='+id,'a')).d.relationships;
+  check(relations.length===1&&relations[0].note==='V1 PUBLIC NOTE','V1 no secret relation note or secret target reaches player');
+  check((await req('/api/content-blocks','gm','POST',{entityId:id,kind:'sl_agenda',content:'V1_CORRUPT_AGENDA',visibility:'player_visible',position:4})).s===400,'V1 block CRUD rejects public SL kind');
+  localSql(`INSERT INTO entity_content_blocks(id,campaign_id,entity_id,kind,content,visibility,position) VALUES('v1-corrupt','chronik-von-kleve',${sqlQuote(id)},'sl_agenda','V1_CORRUPT_AGENDA','player_visible',4);`);
+  check(!JSON.stringify((await req('/api/content-blocks?entityId='+id,'a')).d).includes('V1_CORRUPT_AGENDA'),'V1 SQL projection excludes incorrectly public SL kind');
+  check((await req('/api/content-blocks?entityId='+id+'&id=v1-corrupt','a')).s===404,'V1 direct corrupt SL-block read fails closed');
+  const draft=await snapshot(),revoked=payload(draft);revoked.defaultVisibility='player_visible';revoked.profile.field_visibility={name:'sl_secret',role:'sl_secret'};revoked.blocks=revoked.blocks.filter(b=>b.id!=='v1-corrupt');
+  check((await req('/api/entities/npc','gm','POST',revoked)).s===200,'V1 explicit field release can be revoked');
+  const after=(await req('/api/entities?id='+id,'a')).d.entities[0];check(after.title==='Unbekannte Persönlichkeit'&&!("role" in after.content),'V1 revocation removes name and role server-side');
+}

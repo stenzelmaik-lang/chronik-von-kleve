@@ -15,7 +15,7 @@ test('M1 journal snapshots and applied SQL agree on columns, defaults and foreig
       if(entry.idx<8) continue;
       const snapshot=read('drizzle/meta/'+String(entry.idx).padStart(4,'0')+'_snapshot.json');
       assert.equal(snapshot.prevId,previous);previous=snapshot.id;
-      for(const table of ['entities',...(entry.idx>=9?['entity_content_blocks']:[])]) {
+      for(const table of ['entities',...(entry.idx>=9?['entity_content_blocks']:[]),...(entry.idx>=11?['relationships']:[])]) {
         const actual=db.prepare(`PRAGMA table_info('${table}')`).all();
         assert.deepEqual(actual.map(c=>c.name).sort(),Object.keys(snapshot.tables[table].columns).sort());
         for(const c of actual) {

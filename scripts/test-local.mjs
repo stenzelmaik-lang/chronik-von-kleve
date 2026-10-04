@@ -1,4 +1,5 @@
 import {seedInventoryDemo} from "../tests/fixtures/inventory-demo.mjs";
+import {seedSilasNPC} from '../tests/fixtures/silas-npc.mjs';
 import {engineFixture} from "../tests/fixtures/engine-character.mjs";
 import {spawnSync,spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -16,7 +17,8 @@ const inventoryDemo=process.argv.includes('--inventory');
 const accessDemo=process.argv.includes('--access-alpha');
 const storyWork=process.argv.includes('--story-workspace');
 const commandDemo=process.argv.includes('--command-center-2');
-const interactive=storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const npcDemo=process.argv.includes('--npc-detail');
+const interactive=npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const preserve=storyWork||commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const state=preserve?resolve(storyWork?'.local-work/story-workspace':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
@@ -135,6 +137,7 @@ try{
 
   // Existing accepted reference fixture, only in this fresh isolated local DB.
   if(!inventoryDemo)await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
+  if(npcDemo)await seedSilasNPC({db:localDb,base:env.CVK_TEST_URL,cookie:fixtureCookie,primary:process.argv.find(a=>a.startsWith('--npc-primary='))?.slice('--npc-primary='.length),secondary:process.argv.find(a=>a.startsWith('--npc-secondary='))?.slice('--npc-secondary='.length)});
   if(commandDemo){
    const command=async(cookie,id,action,extra={})=>{const view=await (await fetch(env.CVK_TEST_URL+'/api/character-engine?id='+id,{headers:{Cookie:cookie}})).json();const response=await fetch(env.CVK_TEST_URL+'/api/character-engine',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:cookie},body:JSON.stringify({id,version:view.version,action,...extra})});if(!response.ok)throw new Error('Synthetic character command failed: '+action+' '+response.status);};
    await command(playerCookie,engineId,'review');
