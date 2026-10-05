@@ -17,6 +17,7 @@ export const npcProfileSchema=z.object({
   affiliation:z.array(z.string().trim().min(1).max(200)).max(20).optional(), known_for:z.array(z.string().trim().min(1).max(200)).max(20).optional(),
   npc_status:z.string().max(200).optional(), location_note:z.string().max(200).optional(),
   image_primary:image.optional(), image_secondary:image.optional(), field_visibility:npcFieldVisibilitySchema.optional(),
+  hero_zoom:z.number().min(1).max(2.5).optional(),hero_position:z.number().min(0).max(100).optional(),hero_mist:z.number().min(0).max(100).optional(),
 }).strict();
 export const npcSLKinds=['sl_secrets','sl_agenda','sl_playstyle'] as const;
 export const isNPCSLKind=(kind:string)=>npcSLKinds.includes(kind as typeof npcSLKinds[number]);
@@ -33,5 +34,7 @@ export function projectNPCFields(content:JsonObject):JsonObject{
   if(!hasNPCFieldVisibility(content))return content;
   const clean:JsonObject={field_visibility:{}};
   for(const [key,value] of Object.entries(content))if(key!=='field_visibility' && npcFieldVisibility(content,key)==='player_visible')clean[key]=value;
+  // Presentation settings are meaningful only alongside an explicitly released image.
+  if(clean.image_primary)for(const key of ['hero_zoom','hero_position','hero_mist'])if(typeof content[key]==='number')clean[key]=content[key];
   return clean;
 }

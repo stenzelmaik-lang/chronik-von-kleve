@@ -43,7 +43,10 @@ export async function saveNPC(db:D1Database,a:Actor,input:NPCSave){
   const allRawRelations=s?JSON.parse(s.r??'[]') as {id:string}[]:[];
   const invisibleRelations=allRawRelations.filter(r=>!existingRelations.some(old=>old.id===r.id)).map(r=>r.id);
   const targets=await loadEntitiesForIds(db,a.campaignId,d.addedRelationships.map(r=>r.targetId));
-  if(d.addedRelationships.some(r=>!targets.some(e=>e.id===r.targetId&&projectEntity(a,e,[]))))throw new NPCAuthoringError(400,'Beziehungsziel nicht in dieser Kampagne verfügbar.');
+  if(d.addedRelationships.some(r=>!targets.some(e=>e.id===r.targetId&&['NPC','CHARACTER'].includes(e.type)&&projectEntity(a,e,[]))))throw new NPCAuthoringError(400,'Beziehungen sind hier nur mit NPCs und Spielercharakteren dieser Kampagne möglich.');
+  const updates=d.updatedRelationships??[];
+  const updatedTargets=await loadEntitiesForIds(db,a.campaignId,updates.flatMap(update=>{const r=existingRelations.find(r=>r.id===update.id);return r?[r.sourceId===id?r.targetId:r.sourceId]:[];}));
+  if(updates.some(update=>{const r=existingRelations.find(r=>r.id===update.id);return !r||!updatedTargets.some(e=>e.id===(r.sourceId===id?r.targetId:r.sourceId)&&['NPC','CHARACTER'].includes(e.type)&&projectEntity(a,e,[]));}))throw new NPCAuthoringError(400,'Nur Charakterbeziehungen dieser Akte dürfen freigegeben werden.');
   const previous=parseObject(s?.raw.content??'{}');
   const content={...previous,...d.profile,...(!s||d.profile.field_visibility?{field_visibility:{...(previous.field_visibility&&typeof previous.field_visibility==='object'&&!Array.isArray(previous.field_visibility)?previous.field_visibility:{}),...d.profile.field_visibility}}:{})};
   const statements:D1PreparedStatement[]=[];
@@ -60,6 +63,7 @@ export async function saveNPC(db:D1Database,a:Actor,input:NPCSave){
   }
   const retained=[...d.retainedRelationships,...invisibleRelations];
   for(const old of existingRelations.filter(r=>!retained.includes(r.id)))statements.push(db.prepare(`DELETE FROM relationships WHERE campaign_id=? AND id=? AND ${guard}`).bind(a.campaignId,old.id,eventId));
+  for(const update of updates)statements.push(db.prepare(`UPDATE relationships SET visibility=? WHERE campaign_id=? AND id=? AND ${guard}`).bind(update.visibility,a.campaignId,update.id,eventId));
   for(const r of d.addedRelationships)statements.push(db.prepare(`INSERT INTO relationships(id,campaign_id,source_id,target_id,type,visibility,note,created_at) SELECT ?,?,?,?,?,?,?,? WHERE ${guard}`).bind(crypto.randomUUID(),a.campaignId,id,r.targetId,r.type,r.visibility,r.note??null,now,eventId));
   const results=await db.batch(statements);
   if(!results[0].meta.changes)throw new NPCAuthoringError(409,'Die Akte wurde inzwischen geändert. Bitte neu öffnen.');

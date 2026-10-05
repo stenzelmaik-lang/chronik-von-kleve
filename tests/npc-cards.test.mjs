@@ -40,7 +40,7 @@ test('NPC card uses the biography portrait while the hero retains the primary im
   const css=readFileSync(new URL('../app/spielbereich/modules/npc-dossier.module.css',import.meta.url),'utf8');
   assert.match(panel,/safeImage\(e.content.image_secondary\)\|\|safeImage\(e.content.image_primary\)/);
   assert.match(dossier,/image=safeImage\(entity.content.image_primary\)/);
-  assert.match(css,/\.npcHero \.portrait img[^}]*mask-image:linear-gradient/);
-  assert.match(css,/\.npcHero \.portrait:has\(img\)::after[^}]*pointer-events:none/);
+  assert.match(css,/\.portraitFrame:has\(img\)[^}]*mask-image:linear-gradient/);
+  assert.match(css,/\.portraitFrame:has\(img\)::after[^}]*pointer-events:none/);
   assert.doesNotMatch(css,/animation\s*:/);
 });

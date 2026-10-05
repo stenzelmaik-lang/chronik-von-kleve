@@ -14,14 +14,17 @@ export const npcSaveSchema = z.object({
   // A patch of existing optional content keys, not a new profile model.
   profile: npcProfileSchema,
   blocks: z.array(contentBlockInputSchema.omit({entityId:true}).extend({id:id.optional()})).max(100),
-  // Existing relationships remain immutable except explicit removal.
+  // Endpoints and types stay stable; only explicit character-relation release changes.
   retainedRelationships: z.array(id).max(100),
+  updatedRelationships:z.array(z.object({id,visibility:z.enum(['sl','group'])}).strict()).max(100).optional(),
   addedRelationships: z.array(z.object({targetId:id,type:coreRelationshipTypeSchema,visibility:z.enum(['sl','group']),note:z.string().max(2000).optional()}).strict()).max(100),
 }).strict().superRefine((d,ctx)=>{
   if (!!d.id !== !!d.revision) ctx.addIssue({code:'custom',message:'Bestehende Akte benötigt ihren Lesestand.'});
   const ids=d.blocks.flatMap(b=>b.id?[b.id]:[]);
   if(new Set(ids).size!==ids.length || new Set(d.retainedRelationships).size!==d.retainedRelationships.length)ctx.addIssue({code:'custom',message:'Doppelte Referenz.'});
   if(!d.id && (ids.length || d.retainedRelationships.length))ctx.addIssue({code:'custom',message:'Neue Akte darf keine fremden Inhalte übernehmen.'});
+  const updates=d.updatedRelationships??[];
+  if(new Set(updates.map(r=>r.id)).size!==updates.length||updates.some(r=>!d.retainedRelationships.includes(r.id)))ctx.addIssue({code:'custom',message:'Nur erhaltene Beziehungen dürfen freigegeben werden.'});
   if(d.addedRelationships.some(r=>r.targetId===d.id))ctx.addIssue({code:'custom',message:'Keine Selbstbeziehungen.'});
   if(d.blocks.some(b=>isNPCSLKind(b.kind)&&b.visibility!=='sl_secret'))ctx.addIssue({code:'custom',message:'SL-Inhalte müssen SL-intern bleiben.'});
 });

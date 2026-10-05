@@ -5,10 +5,10 @@ import { Search } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import type { Entity } from '@/domain/types';
 import { api } from './api-client';
 import { describeDataError, requestPlayerData, invalidatePlayerData } from './player-data-cache';
-import { loadNPCList, npcListPath } from './npc-data';
+import { loadNPCList, npcListPath,isRedactedNPC,type NPCListEntry } from './npc-data';
+import {npcTopSecretImage} from './npc-top-secret';
 import { safeImage } from './shared';
 import { NPCDossier } from './npc-dossier';
 import { NPCEditor } from './npc-editor';
@@ -17,12 +17,12 @@ import { npcCardData } from './npc-card-data';
 import cards from './npc-cards.module.css';
 
 export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) {
-  const [entities, setEntities] = useState<Entity[] | null>(null);
+  const [entities, setEntities] = useState<NPCListEntry[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [refreshing, setRefreshing] = useState(true);
   const [search, setSearch] = useState('');
-  const [frames, setFrames] = useState<{id:string;title:string;scroll:number}[]>([]);
+  const [frames, setFrames] = useState<{id:string;title:string;scroll:number;redacted?:boolean}[]>([]);
   const selected=frames.at(-1);
   const [editing,setEditing]=useState<{id?:string}|null>(null),[saving,setSaving]=useState(false),[detailRevision,setDetailRevision]=useState(0);
   const dialogRef=useRef<HTMLDivElement>(null),opener=useRef<HTMLButtonElement|null>(null),pendingScroll=useRef(0),overviewScroll=useRef(0);
@@ -57,6 +57,7 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
     {!entities && !error ? <div className="entry-grid">{[1, 2, 3].map(i => <Skeleton key={i} className="h-56 w-full" />)}</div> : entities && <>
       <div className="search-row"><Search size={18} /><input aria-label="NPC durchsuchen" placeholder="Persönlichkeiten durchsuchen …" value={search} onChange={e => setSearch(e.target.value)} /><span>{list.length} Einträge</span></div>
       {!list.length ? <Empty className="empty-night"><EmptyHeader><EmptyTitle>{search ? 'Keine passenden Einträge' : 'Hier beginnt die nächste Geschichte.'}</EmptyTitle><EmptyDescription>{search ? 'Versuche einen anderen Suchbegriff.' : gm ? 'Noch keine NPC-Originalobjekte vorhanden.' : 'Die Spielleitung hat hier noch keine Inhalte freigegeben.'}</EmptyDescription></EmptyHeader></Empty> : <div className={cards.grid}>{list.map(e => {
+        if(isRedactedNPC(e))return <button key={e.id} className={cards.card} aria-label="TOP SECRET – anonyme Akte öffnen" onClick={event=>{opener.current=event.currentTarget;overviewScroll.current=window.scrollY;pendingScroll.current=0;setFrames([{id:e.id,title:'TOP SECRET',scroll:0,redacted:true}]);}}><span className={cards.portrait} aria-hidden="true"><img src={npcTopSecretImage} alt="" loading="lazy"/></span><span className={cards.body}><span className={cards.name}>TOP SECRET</span><span className={cards.redaction} aria-hidden="true"><span/><span/><span/></span><span className={cards.open}>Versiegelte Akte</span></span></button>;
         const image = safeImage(e.content.image_secondary)||safeImage(e.content.image_primary)||safeImage(e.content.image);
         const card = npcCardData(e,gm);
         return <button key={e.id} className={cards.card} aria-label={`${e.title}${card.alias ? ` · ${card.alias}` : ''} – Akte öffnen`} onClick={event => {opener.current=event.currentTarget;overviewScroll.current=window.scrollY;pendingScroll.current=0;setFrames([{id:e.id,title:e.title,scroll:0}]);}}>

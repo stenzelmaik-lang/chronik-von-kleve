@@ -1,0 +1,2 @@
+import styles from './npc-editor.module.css';
+export function NPCVisibilityButton({label,visible,onChange,locked=false}:{label:string;visible:boolean;onChange:(visible:boolean)=>void;locked?:boolean}){return <button type="button" className={`${styles.visibilityButton} ${visible?styles.visible:styles.hidden}`} aria-label={`${label} · ${visible?'Spieler sichtbar':'SL-intern'}`} aria-pressed={visible} disabled={locked} onClick={()=>onChange(!visible)}>{visible?'● Spieler sichtbar':'● SL-intern'}{locked?' · gesperrt':''}</button>;}

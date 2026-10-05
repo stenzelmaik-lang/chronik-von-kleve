@@ -1,10 +1,14 @@
 import type { Entity, Relationship } from '../../../domain/types.ts';
 import type { ContentBlock } from '../../../domain/content-blocks.ts';
 
-export const npcListPath = '/api/entities?type=NPC';
+export const npcListPath = '/api/entities?type=NPC&includeRedacted=1';
+export type RedactedNPC={id:string;type:'NPC';title:'TOP SECRET';content:Record<string,never>;redacted:true};
+export type NPCListEntry=Entity|RedactedNPC;
+export const isRedactedNPC=(entry:NPCListEntry):entry is RedactedNPC=>'redacted' in entry&&entry.redacted===true;
 type Request = <T>(path: string) => Promise<T>;
-export async function loadNPCList(request: Request): Promise<Entity[]> {
-  return (await request<{ entities: Entity[] }>(npcListPath)).entities.filter(e => e.type === 'NPC');
+export async function loadNPCList(request: Request): Promise<NPCListEntry[]> {
+  const data=await request<{entities:Entity[];redactedNPCs?:{id:string}[]}>(npcListPath);
+  return [...data.entities.filter(e=>e.type==='NPC'),...(data.redactedNPCs??[]).map(e=>({id:e.id,type:'NPC' as const,title:'TOP SECRET' as const,content:{},redacted:true as const}))];
 }
 export async function loadNPCDetail(request: Request, id: string, gm: boolean) {
   return loadEntityDossier(request, id, gm, true);

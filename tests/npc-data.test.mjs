@@ -6,7 +6,7 @@ import { loadNPCList, loadNPCDetail } from '../app/spielbereich/modules/npc-data
 test('NPC list uses M1 entities only', async () => {
   const paths = [];
   const result = await loadNPCList(async path => { paths.push(path); return {entities:[{id:'npc',type:'NPC'},{id:'place',type:'PLACE'}]}; });
-  assert.deepEqual(paths, ['/api/entities?type=NPC']);
+  assert.deepEqual(paths, ['/api/entities?type=NPC&includeRedacted=1']);
   assert.deepEqual(result.map(e => e.id), ['npc']);
 });
 test('NPC detail loads original, ordered blocks and relationships; player presentation excludes secrets', async () => {

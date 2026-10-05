@@ -106,3 +106,11 @@
 }
 @media (prefers-reduced-motion: reduce) { .card { transition: none; } .card:hover { transform: none; } }
 :global(.user-reduced-motion) .card { transition: none; transform: none; }
+.redaction { display:grid; gap:9px; width:100%; margin:12px 0; }
+.redaction span { display:block; height:12px; width:90%; background:#030607; border:1px solid #b0976633; }
+.redaction span:nth-child(2) { width:65%; }
+.redaction span:nth-child(3) { width:78%; }
+.redactedDossier { padding:32px; text-align:center; color:#e9dcc0; }
+.redactedDossier img { display:block; max-height:420px; max-width:100%; margin:0 auto 24px; }
+.redactedDossier h1 { font:32px Georgia,serif; color:#d4877b; }
+.redactedDossier .redaction { max-width:320px; margin:24px auto; }

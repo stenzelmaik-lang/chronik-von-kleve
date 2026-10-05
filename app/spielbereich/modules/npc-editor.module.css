@@ -23,3 +23,10 @@
 .relations li span { min-width:0; }
 .editor button { white-space:normal; }
 @media(max-width:600px){.fields{grid-template-columns:1fr;gap:0}.editor fieldset{padding:16px 12px}.relations li{align-items:flex-start;flex-direction:column}}
+.visibilityButton { min-height:40px; padding:8px 12px; border-radius:5px; font:inherit; font-size:12px; cursor:pointer; }
+.visible { color:#d9f6d8; background:#193c2c; border:1px solid #64b987; }
+.hidden { color:#ffded7; background:#442929; border:1px solid #c78578; }
+.field { min-width:0; }
+.field label { margin-bottom:8px; }
+.preview { max-width:440px; margin:16px auto; background:linear-gradient(140deg,#172b2d,#11191b 72%,#332a20); padding:12px; border:1px solid #9d805c66; }
+.preview [class*="portrait"] { position:relative; height:360px; overflow:hidden; -webkit-mask-image:linear-gradient(to bottom,#000 var(--npc-fade-start,72%),transparent 100%); mask-image:linear-gradient(to bottom,#000 var(--npc-fade-start,72%),transparent 100%); }

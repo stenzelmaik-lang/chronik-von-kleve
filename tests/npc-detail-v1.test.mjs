@@ -41,7 +41,7 @@ test('Explicit SL block kinds cannot be authored publicly and remain hidden on c
 test('NPC detail has exact section ordering, no empty placeholders, and protected image references',()=>{
   const source=readFileSync('app/spielbereich/modules/npc-dossier.tsx','utf8').split("if(entity.type==='NPC'){")[1].split('return <article className={styles.dossier}>')[0];
   const full=readFileSync('app/spielbereich/modules/npc-dossier.tsx','utf8');
-  let position=full.indexOf("if(entity.type==='NPC'){");for(const label of ['Kurzprofil','Biografie','Persönlichkeit','Beziehungen','Weltverknüpfungen','SL-INTERN']){const next=full.indexOf('aria-label="'+label+'"',position);assert.ok(next>position,label);position=next;}
+  let position=full.indexOf("if(entity.type==='NPC'){");for(const label of ['Kurzprofil','Biografie','Persönlichkeit','Beziehungen','SL-INTERN']){const next=full.indexOf('aria-label="'+label+'"',position);assert.ok(next>position,label);position=next;}
   assert.match(source,/image_secondary/);assert.match(full,/relation.note/);assert.match(full,/reading.biography.length>0\|\|legacyBio/);assert.doesNotMatch(full,/Wird später vollständig ausgearbeitet/);
   const editor=readFileSync('app/spielbereich/modules/npc-editor.tsx','utf8');assert.match(editor,/id=\{'npc-profile-'\+key\}/);assert.match(editor,/id="npc-title"/);
 });
