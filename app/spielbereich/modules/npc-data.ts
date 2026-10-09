@@ -6,6 +6,9 @@ export type RedactedNPC={id:string;type:'NPC';title:'TOP SECRET';content:Record<
 export type NPCListEntry=Entity|RedactedNPC;
 export const isRedactedNPC=(entry:NPCListEntry):entry is RedactedNPC=>'redacted' in entry&&entry.redacted===true;
 type Request = <T>(path: string) => Promise<T>;
+export function loadNPCPlayerPreview(request:Request,id:string){
+  return request<Awaited<ReturnType<typeof loadEntityDossier>>|{redacted:true}>('/api/entities/npc-preview?id='+encodeURIComponent(id));
+}
 export async function loadNPCList(request: Request): Promise<NPCListEntry[]> {
   const data=await request<{entities:Entity[];redactedNPCs?:{id:string}[]}>(npcListPath);
   return [...data.entities.filter(e=>e.type==='NPC'),...(data.redactedNPCs??[]).map(e=>({id:e.id,type:'NPC' as const,title:'TOP SECRET' as const,content:{},redacted:true as const}))];

@@ -37,5 +37,5 @@ test('Direct visibility controls are labeled and character relations exclude wor
   assert.match(button,/aria-pressed=/);assert.match(button,/aria-label=/);assert.match(button,/type="button"/);
   const editor=readFileSync('app/spielbereich/modules/npc-editor.tsx','utf8');
   assert.match(editor,/\['NPC','CHARACTER'\]\.includes\(e.type\)/);assert.match(editor,/retainedRelationships:relations.filter/);
-  assert.match(editor,/fieldSwitch\('text'\)/);assert.match(editor,/URL.revokeObjectURL/);
+  assert.doesNotMatch(editor,/Freigabe bestehender Inhalte/);assert.match(editor,/Alles freigeben/);assert.match(editor,/URL.revokeObjectURL/);
 });

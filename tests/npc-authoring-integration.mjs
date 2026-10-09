@@ -1,4 +1,5 @@
 import {htmlToRichText,richTextToPlainText,readRichText} from '../domain/location-rich-text.ts';
+import {releaseNPCDraft} from '../domain/npc-release.ts';
 
 export async function npcAuthoringIntegration({req,check,localSql,sqlQuote}){
   const path='/api/entities/npc';
@@ -59,6 +60,21 @@ export async function npcAuthoringIntegration({req,check,localSql,sqlQuote}){
   check((await req('/api/entities?id='+id+'&type=NPC&includeRedacted=1','a')).s===400,'Anonymous list cannot bypass secret detail guard');
   check((await req('/api/entities?type=PLACE&includeRedacted=1','a')).s===400,'Anonymous cards are restricted to NPC overview');
   check((await req('/api/content-blocks?entityId='+id,'a')).s===404&&(await req('/api/relationships?entityId='+id,'a')).s===404,'Secret blocks and relationships remain server-denied');
+  const previewPath='/api/entities/npc-preview?id='+id;
+  for(const role of ['a','b','blockedGm','pendingGm','explicitBlockedGm'])check([401,403].includes((await req(previewPath,role)).s),'Preview is SL-only: '+role);
+  check(JSON.stringify((await req(previewPath,'gm')).d)==='{"redacted":true}','SL player preview of secret NPC contains no original information');
+  const beforeRelease=await get(),all=releaseNPCDraft(build(beforeRelease),build(beforeRelease).blocks);
+  all.draft.blocks=all.blocks;
+  all.draft.addedRelationships=[{targetId:target.d.id,type:'related_to',visibility:'group'}];
+  check((await req(path,'gm','POST',all.draft)).s===200,'Explicit whole-card release saves on original NPC');
+  const preview=await req(previewPath,'gm'),actual=(await req('/api/entities?id='+id,'a')).d.entities[0];
+  check(preview.s===200&&JSON.stringify(preview.d.entity)===JSON.stringify(actual),'SL preview uses exactly the real general player entity projection');
+  check(preview.d.entity.title==='M24 Edited NPC'&&preview.d.blocks.length===1&&!JSON.stringify(preview.d).includes('NPC_RICH_SECRET')&&!('gmBody' in preview.d.entity),'Whole release preview excludes protected SL block and gmBody');
+  check(JSON.stringify(preview.d.blocks)===JSON.stringify((await req('/api/content-blocks?entityId='+id,'a')).d.blocks),'Preview blocks match actual player blocks');
+  check(JSON.stringify(preview.d.relationships)===JSON.stringify((await req('/api/relationships?entityId='+id,'a')).d.relationships),'Preview relations match actual player relations');
+  const hiddenTarget=await req('/api/entities','gm','POST',{type:'NPC',title:'PREVIEW_HIDDEN_TARGET',text:'PREVIEW_TARGET_SECRET',defaultVisibility:'sl_secret'});
+  await req('/api/relationships','gm','POST',{sourceId:id,targetId:hiddenTarget.d.id,type:'related_to',visibility:'group'});
+  check(!JSON.stringify((await req(previewPath,'gm')).d).includes(hiddenTarget.d.id),'Preview hides group relationship to a secret target');
   const legacyRelation=await req('/api/relationships','gm','POST',{sourceId:id,targetId:place.d.id,type:'located_at',visibility:'sl'});
   check(legacyRelation.s===201,'Generic relations still support existing world links');
   const preserve=build(await get());preserve.profile.hero_zoom=1.8;preserve.profile.hero_position=15;preserve.profile.hero_mist=80;preserve.profile.npc_status='Antagonist';

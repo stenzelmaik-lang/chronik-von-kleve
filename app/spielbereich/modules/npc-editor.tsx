@@ -5,6 +5,7 @@ import type {ContentBlock} from '@/domain/content-blocks';
 import {npcSaveSchema,npcProfilePatch,type NPCSave} from '@/domain/npc-authoring';
 import {npcFieldNames,npcProfileSchema,isNPCSLKind} from '@/domain/npc-profile';
 import {npcFigureKinds,npcPortraitSettings} from '@/domain/npc-presentation';
+import {releaseNPCDraft} from '@/domain/npc-release';
 import {NPCVisibilityButton} from './npc-visibility-button';
 import {NPCPortrait} from './npc-portrait';
 import {safeImage} from './shared';
@@ -91,8 +92,13 @@ export function NPCEditor({id,onCancel,onSaved,onBusy}:{id?:string;onCancel:()=>
   if(!loaded)return <section className={styles.editor}>{error?<><p role="alert">{error}</p><button className="button" onClick={()=>setRetry(n=>n+1)}>Erneut laden</button></>:<p role="status">Bearbeitungsstand wird geladen …</p>}<button className="button" onClick={onCancel}>Abbrechen</button></section>;
   const titleFor=(other:string)=>entities.find(e=>e.id===other)?.title??other;
   const characterTargets=entities.filter(e=>['NPC','CHARACTER'].includes(e.type));
+  function releaseAll(){
+    const released=releaseNPCDraft(draft,blocks);setDraft(released.draft);setBlocks(released.blocks);
+    setRelationReleases(previous=>({...previous,...Object.fromEntries(relations.filter(r=>!removed.includes(r.id)&&characterTargets.some(e=>e.id===(r.sourceId===id?r.targetId:r.sourceId))).map(r=>[r.id,'group' as const]))}));
+  }
   return <form ref={formRef} className={styles.editor} onSubmit={save}>
     <h1>{id?'NPC bearbeiten':'NPC anlegen'}</h1><p>Erst „Speichern“ übernimmt alle Änderungen. Neue NPCs und Inhaltsblöcke sind zunächst SL-intern.</p>
+    <div className={styles.releaseAll}><button type="button" disabled={busy} onClick={releaseAll}>Alles freigeben</button><small>Gesamte Akte freigeben · SL-INTERN bleibt geschützt · erst beim Speichern wirksam.</small></div>
     {error&&<p role="alert" className="error-box">{error}</p>}
     <fieldset disabled={busy}><legend>Kernmetadaten</legend><div className={styles.fields}>
       <div className={styles.field}><label htmlFor="npc-title">Name / Titel<input id="npc-title" required maxLength={200} value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})}/></label>{fieldSwitch('name')}</div>
@@ -106,7 +112,6 @@ export function NPCEditor({id,onCancel,onSaved,onBusy}:{id?:string;onCancel:()=>
       {'generation' in draft.profile&&<div className={styles.field}><label htmlFor="npc-generation">Generation (optional)<input id="npc-generation" type="number" min={1} max={20} value={draft.profile.generation??''} onChange={e=>setDraft({...draft,profile:{...draft.profile,generation:e.target.value?Number(e.target.value):null}})}/></label>{fieldSwitch('generation')}</div>}
       {(['affiliation','known_for'] as const).filter(key=>key in draft.profile).map(key=><div key={key} className={styles.field}><label htmlFor={'npc-'+key}>{npcFieldNames[key]} (mit Komma trennen)<input id={'npc-'+key} value={listInputs[key]} onChange={e=>{setListInputs({...listInputs,[key]:e.target.value});setDraft({...draft,profile:{...draft.profile,[key]:e.target.value.split(',').map(v=>v.trim()).filter(Boolean)}});}}/></label>{fieldSwitch(key)}</div>)}
     </div>{'summary' in draft.profile&&<div className={styles.field}><label htmlFor="npc-summary">Kurzprofil (optional)<textarea id="npc-summary" rows={3} maxLength={2000} value={draft.profile.summary} onChange={e=>setDraft({...draft,profile:{...draft.profile,summary:e.target.value}})}/></label>{fieldSwitch('summary')}</div>}</fieldset>
-    <fieldset disabled={busy}><legend>Freigabe bestehender Inhalte</legend><p>Bestehende Konzept- und Textinhalte bleiben unverändert.</p>{fieldSwitch('concept')}{fieldSwitch('text')}</fieldset>
     <fieldset disabled={busy}><legend>Bildausschnitt im Kopfbereich</legend><p>Zoom und Ausschnitt gleichen unterschiedliche Bildgrößen an. Die Bilddatei bleibt unverändert.</p><div className={styles.fields}>{([{key:'hero_zoom',label:'Bildzoom',min:1,max:2.5,step:.05,value:portraitSettings.zoom},{key:'hero_position',label:'Vertikaler Ausschnitt',min:0,max:100,step:1,value:portraitSettings.position},{key:'hero_mist',label:'Nebelstärke',min:0,max:100,step:1,value:portraitSettings.mist}] as const).map(control=><label key={control.key}>{control.label} · {control.key==='hero_zoom'?control.value.toFixed(2)+'×':control.value+'%'}<input type="range" aria-label={control.label} min={control.min} max={control.max} step={control.step} value={control.value} onChange={e=>setDraft({...draft,profile:{...draft.profile,[control.key]:Number(e.target.value)}})}/></label>)}</div><div className={styles.preview}><NPCPortrait image={primaryPreview||safeImage(draft.profile.image_primary)||safeImage(draft.profile.image)} title={draft.title||'NPC'} content={draft.profile} initials="Vorschau"/></div></fieldset>
     <fieldset disabled={busy}><legend>Content-Blöcke</legend><p>Die Sichtbarkeit eines Blocks gilt zusätzlich zur Freigabe des NPCs. Bestehender Entity-Text bleibt unverändert.</p>
       {blocks.map((b,index)=><section className={`${styles.block} ${b.visibility==='sl_secret'?styles.secret:''}`} key={b.key} aria-label={`Inhaltsblock ${index+1}`}><h2>Block {index+1} · {b.visibility==='sl_secret'?'SL-INTERN':'Spieler sichtbar'}</h2><div className={styles.fields}>

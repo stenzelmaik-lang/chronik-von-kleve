@@ -22,6 +22,8 @@
 .relations li { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #9d805c66; }
 .relations li span { min-width:0; }
 .editor button { white-space:normal; }
+.releaseAll { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 16px; border:1px solid #64b98766; border-radius:8px; background:#193c2c44; }
+.releaseAll button { padding:10px 16px; color:#d9f6d8; background:#193c2c; border:1px solid #64b987; border-radius:6px; cursor:pointer; font:inherit; }
 @media(max-width:600px){.fields{grid-template-columns:1fr;gap:0}.editor fieldset{padding:16px 12px}.relations li{align-items:flex-start;flex-direction:column}}
 .visibilityButton { min-height:40px; padding:8px 12px; border-radius:5px; font:inherit; font-size:12px; cursor:pointer; }
 .visible { color:#d9f6d8; background:#193c2c; border:1px solid #64b987; }

@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { api } from './api-client';
-import { loadEntityDossier } from './npc-data';
+import { loadEntityDossier,loadNPCPlayerPreview } from './npc-data';
 import { npcCardData } from './npc-card-data';
 import { dossierSections, dossierRelations, blockKindNames, relationNames, entityTypeNames,npcReadingSections,npcIdentityFacts } from './npc-dossier-data';
 import {npcFieldVisibility,hasNPCFieldVisibility} from '@/domain/npc-profile';
@@ -14,22 +14,24 @@ import {NPCTopSecret} from './npc-top-secret';
 import {NPCPortrait} from './npc-portrait';
 
 type Dossier = Awaited<ReturnType<typeof loadEntityDossier>>;
-export function NPCDossier({ id, gm, onOpen, onDenied, onReady, onEdit }: { id: string; gm: boolean; onOpen: (id: string, title: string) => void; onDenied: () => void; onReady: () => void; onEdit?: (id:string)=>void }) {
-  const [detail,setDetail]=useState<Dossier|null>(null);
+export function NPCDossier({ id, gm:sl, preview=false, onOpen, onDenied, onReady, onEdit }: { id: string; gm: boolean; preview?:boolean; onOpen: (id: string, title: string) => void; onDenied: () => void; onReady: () => void; onEdit?: (id:string)=>void }) {
+  const gm=sl&&!preview;
+  const [detail,setDetail]=useState<Dossier|{redacted:true}|null>(null);
   const [error,setError]=useState<Error|null>(null);
   const [retry,setRetry]=useState(0);
   useEffect(()=>{
     if(/^redacted-[a-f0-9]{64}$/.test(id))return;
     let alive=true;
-    loadEntityDossier(api,id,gm).then(d=>{if(alive)setDetail(d);}).catch(e=>{if(alive){setError(e);if(describeDataError(e).permission)onDenied();}});
+    (preview?loadNPCPlayerPreview(api,id):loadEntityDossier(api,id,gm)).then(d=>{if(alive)setDetail(d);}).catch(e=>{if(alive){setError(e);if(describeDataError(e).permission)onDenied();}});
     return ()=>{alive=false;};
     // Parent render changes must not restart protected requests.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[id,gm,retry]);
+  },[id,gm,preview,retry]);
   useEffect(()=>{if(detail)onReady();},[detail,onReady]);
   if(/^redacted-[a-f0-9]{64}$/.test(id))return <NPCTopSecret/>;
   if(error)return <section role="alert" className="error-box"><h2>Akte nicht verfügbar</h2><p>{error.message}</p><button className="button" onClick={()=>{setError(null);setRetry(n=>n+1);}}>Erneut versuchen</button></section>;
   if(!detail)return <p role="status">Akte wird geladen …</p>;
+  if('redacted' in detail)return <NPCTopSecret/>;
   const {entity,blocks,relationships,relatedEntities}=detail;
   const card=npcCardData(entity,gm), image=safeImage(entity.content.image_primary)||safeImage(entity.content.image);
   const sections=dossierSections(entity,blocks,gm);

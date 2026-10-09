@@ -2,6 +2,9 @@
 :global(body):has(.dialog) :global([data-slot="dialog-overlay"]) { z-index:100; }
 .toolbar { position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:12px; padding:18px 52px 18px 24px; border-bottom:1px solid #ab90603d; background:#10191b; }
 .toolbar button { white-space:normal; text-align:left; }
+.previewSwitch { margin-left:auto; flex-shrink:0; width:36px; height:36px; display:grid; place-items:center; color:#b8c5ba; border:1px solid #9d805c66; border-radius:50%; cursor:pointer; background:#192528; }
+.previewSwitch[aria-pressed="true"] { color:#d9f6d8; background:#193c2c; border-color:#64b987; }
+.previewSwitch:focus-visible { outline:3px solid #e4c890; outline-offset:3px; }
 .dossier { color:#e6e1d5; overflow-wrap:anywhere; }
 .hero { display:grid; grid-template-columns:minmax(180px, .8fr) minmax(0, 1.2fr); gap:clamp(24px,4vw,52px); padding:32px; background:radial-gradient(ellipse at 18% 32%,#50635c55,transparent 60%),linear-gradient(140deg,#172b2d,#11191b 72%,#332a20); border-bottom:1px solid #ab90604d; }
 .portrait { display:grid; place-items:center; min-width:0; height:360px; overflow:hidden; color:#cfb782; font:72px/1 Georgia,serif; }
