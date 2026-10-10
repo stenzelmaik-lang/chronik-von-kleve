@@ -17,7 +17,7 @@ export const chapterSchema=z.object({id:z.string(),title:z.string(),sections:z.a
 export type Chapter=z.infer<typeof chapterSchema>;
 export type Section=z.infer<typeof sectionSchema>;
 export type Source=z.infer<typeof sourceSchema>;
-export type Book={id:string;title:string;edition:Edition;type:string;format:string;rights:'own'|'pending';readerReady:boolean;modified:string;hash:string;reviewOnly?:boolean;quality?:string};
+export type Book={id:string;title:string;edition:Edition;type:string;format:string;rights:'own'|'licensed'|'pending';readerReady:boolean;modified:string;hash:string;reviewOnly?:boolean;quality?:string;canManage?:boolean;canRelease?:boolean;playerReleased?:boolean};
 export type Contents={book:Book;chapters:{id:string;title:string;source:Source;bookmarks?:z.infer<typeof bookmarkSchema>[]}[];outline?:{title:string;level:number;sectionId:string;chapterId:string}[]};
 export type Hit={bookId:string;title:string;edition:Edition;chapterId:string;chapter:string;sectionId:string;heading:string;snippet:string;source:Source};
 

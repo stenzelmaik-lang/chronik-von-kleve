@@ -1,8 +1,13 @@
-import {actor,database,json,failure,HttpError} from '@/server/access';
-import {library,contents,readChapter,search,pageAsset,CodexError} from '@/server/codex';
+import {actor,database,json,failure,HttpError,sameOrigin,input,gmOnly} from '@/server/access';
+import {library,contents,readChapter,search,pageAsset,setBookRelease,CodexError} from '@/server/codex';
+import {z} from 'zod';
 import {env} from 'cloudflare:workers';
 import {editions,type Edition} from '@/domain/codex';
 export const dynamic='force-dynamic';
+export async function PATCH(req:Request){
+  try{sameOrigin(req);const a=await actor();gmOnly(a);const d=z.object({book:z.string().min(1).max(200),playerReleased:z.boolean()}).strict().safeParse(await input(req));if(!d.success)throw new HttpError(400,'Ungültige Buchfreigabe.');return json({book:await setBookRelease(database(),a,d.data.book,d.data.playerReleased)});}
+  catch(e){return failure(e instanceof CodexError?new HttpError(e.status,e.message):e,req);}
+}
 export async function GET(req:Request){
   try{
     const a=await actor(),db=database(),p=new URL(req.url).searchParams;

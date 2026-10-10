@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {prepareDocument,sectionText,searchExpression} from '../domain/codex.ts';
-import {library,contents,readChapter,search,pageAsset} from '../server/codex.ts';
+import {library,contents,readChapter,search,pageAsset,setBookRelease} from '../server/codex.ts';
 import {readContentBlocks,writeContentBlock,deleteContentBlock} from '../server/content-blocks.ts';
 
 const para=(text,start,style='NORMAL_TEXT',bold=false)=>({startIndex:start,endIndex:start+text.length,paragraph:{paragraphStyle:{namedStyleType:style},elements:[{textRun:{content:text,textStyle:{bold}}}]}});
@@ -50,7 +50,7 @@ test('Codex permissions apply to books, TOC, chapters and indexed search, includ
   assert.equal((await contents(db,player,'own')).chapters.length,2);
   assert.equal((await contents(db,gm,'own')).chapters.length,3);
   await assert.rejects(contents(db,player,'pending'),e=>e.status===403);
-  await assert.rejects(contents(db,gm,'pending'),e=>e.status===403);
+  assert.equal((await contents(db,gm,'pending')).chapters.length,3);
   await assert.rejects(contents(db,player,'hidden'),e=>e.status===404);
   await assert.rejects(contents(db,gm,'foreign'),e=>e.status===404);
   const toc=await contents(db,player,'own'),chapter=await readChapter(db,player,'own',toc.chapters[0].id);
@@ -67,8 +67,8 @@ test('Codex permissions apply to books, TOC, chapters and indexed search, includ
   sql.prepare("UPDATE entity_content_blocks SET visibility='sl_secret' WHERE id=?").run(toc.chapters[0].id);
   assert.deepEqual(await search(db,player,'Willenskraft'),[]);
   sql.prepare("UPDATE entities SET content=json_set(content,'$.rights','pending') WHERE id='own'").run();
-  assert.ok((await search(db,gm,'STRESS_SENTINEL')).every(h=>h.bookId!=='own'));
-  await assert.rejects(readChapter(db,gm,'own',toc.chapters[1].id),e=>e.status===403);
+  assert.ok((await search(db,gm,'STRESS_SENTINEL')).some(h=>h.bookId==='own'));
+  await assert.rejects(readChapter(db,player,'own',toc.chapters[1].id),e=>e.status===403);
   await assert.rejects(library(db,{...player,status:'blocked'}),e=>e.status===403);
  }finally{sql.close();}
 });
@@ -79,18 +79,18 @@ test('Search index trigger update and cascade deletion do not leave phantom hits
   sql.exec("UPDATE codex_sections SET plain_text='NEW_SENTINEL' WHERE plain_text LIKE '%STRESS_SENTINEL%'");
   assert.equal((await search(db,gm,'STRESS_SENTINEL')).length,0);
   assert.ok((await search(db,gm,'NEW_SENTINEL')).length);
-  sql.exec("DELETE FROM entity_content_blocks WHERE entity_id IN ('own','hidden')");
+  sql.exec("DELETE FROM entity_content_blocks WHERE entity_id IN ('own','hidden','pending')");
   assert.deepEqual(await search(db,gm,'NEW_SENTINEL'),[]);
   assert.deepEqual(sql.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{sql.close();}
 });
-test('Technical review is explicitly local, SL-only and never a player publication grant; page assets share chapter checks',async()=>{
+test('Full SL access is independent of local review and never a player publication grant; page assets share chapter checks',async()=>{
  const {db,sql,gm,player}=fixture();
  try{
   sql.exec("UPDATE entities SET content=json_set(content,'$.localReview',json('true')) WHERE id='pending'");
   assert.equal((await library(db,gm,true)).find(b=>b.id==='pending').readerReady,true);
   assert.equal((await library(db,player,true)).find(b=>b.id==='pending').readerReady,false);
-  assert.equal((await library(db,gm,false)).find(b=>b.id==='pending').readerReady,false);
+  assert.equal((await library(db,gm,false)).find(b=>b.id==='pending').readerReady,true);
   await assert.rejects(contents(db,player,'pending',true),e=>e.status===403);
   await assert.rejects(contents(db,{...player,gm:true},'pending',true),e=>e.status===403);
   assert.ok((await search(db,gm,'STRESS_SENTINEL',undefined,true)).some(h=>h.bookId==='pending'));
@@ -104,7 +104,27 @@ test('Technical review is explicitly local, SL-only and never a player publicati
   assert.equal(requested,'codex-pages/'+hash+'/page-1.jpg');
   await assert.rejects(pageAsset(db,bucket,player,'pending',chapterId,1,true),e=>e.status===403);
   await assert.rejects(pageAsset(db,bucket,gm,'pending',chapterId,2,true),e=>e.status===404);
-  await assert.rejects(pageAsset(db,bucket,gm,'pending',chapterId,1,false),e=>e.status===403);
+  assert.equal((await pageAsset(db,bucket,gm,'pending',chapterId,1,false)).status,200);
+ }finally{sql.close();}
+});
+test('Central publication requires real SL role and separately evidenced rights; revocation is immediate',async()=>{
+ const {db,sql,gm,player}=fixture();
+ try{
+  for(const a of [player,{...player,gm:true},{...gm,status:'blocked'}])await assert.rejects(setBookRelease(db,a,'own',true),e=>e.status===403);
+  await assert.rejects(setBookRelease(db,gm,'foreign',true),e=>e.status===404);
+  await assert.rejects(setBookRelease(db,gm,'pending',true),e=>e.status===403);
+  sql.exec("UPDATE entities SET content=json_set(content,'$.rights','licensed') WHERE id='pending'");
+  await assert.rejects(setBookRelease(db,gm,'pending',true),e=>e.status===403);
+  sql.exec("UPDATE entities SET content=json_set(content,'$.rightsEvidence','separate-test-confirmation','$.rightsConfirmedAt','2026-10-10') WHERE id='pending'");
+  await assert.rejects(contents(db,player,'pending'),e=>e.status===403);
+  assert.equal((await setBookRelease(db,gm,'pending',true)).playerReleased,true);
+  assert.equal((await contents(db,player,'pending')).chapters.length,3);
+  assert.ok((await search(db,player,'STRESS_SENTINEL')).some(h=>h.bookId==='pending'));
+  assert.equal((await setBookRelease(db,gm,'pending',false)).playerReleased,false);
+  await assert.rejects(contents(db,player,'pending'),e=>e.status===403);
+  assert.ok((await search(db,player,'STRESS_SENTINEL')).every(h=>h.bookId!=='pending'));
+  assert.ok((await contents(db,gm,'pending')).chapters.length);
+  assert.equal(sql.prepare("SELECT content FROM entities WHERE id='own'").get().content.includes('releaseActor'),false);
  }finally{sql.close();}
 });
 test('0012 is additive, matches its Drizzle snapshot and leaves existing domain data unchanged',()=>{

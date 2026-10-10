@@ -20,11 +20,17 @@ export async function codexIntegration({req,check,localSql,sqlQuote}){
  const read=await req('/api/codex?book=codex-qa-public&chapter=codex-qa-public-chapter','a');
  check(read.s===200&&JSON.stringify(read.d).includes('CODEX_PUBLIC_SENTINEL'),'Authorized player loads one prepared chapter');
  for(const who of ['a','gm']){
-   check((await req('/api/codex?book=codex-qa-pending&chapter=codex-qa-pending-chapter',who)).s===403,'Pending publisher rights deny chapter delivery even to '+who);
+   check((await req('/api/codex?book=codex-qa-pending&chapter=codex-qa-pending-chapter',who)).s===(who==='gm'?200:403),'Separate full SL access and pending publisher player denial for '+who);
    check((await req('/api/codex?book=codex-qa-foreign',who)).s===404,'Codex campaign boundaries hold for '+who);
  }
  check((await req('/api/codex?book=codex-qa-secret','a')).s===404,'Secret book cannot be opened by guessed ID');
  check((await req('/api/codex?book=codex-qa-secret','gm')).s===200,'SL can open authorized SL-only own rules');
+ check((await req('/api/codex','a','PATCH',{book:'codex-qa-public',playerReleased:false})).s===403,'Player cannot change book grants');
+ check((await req('/api/codex','gm','PATCH',{book:'codex-qa-pending',playerReleased:true})).s===403,'SL cannot substitute release for pending rights');
+ check((await req('/api/codex','gm','PATCH',{book:'codex-qa-public',playerReleased:false,rights:'own'})).s===400,'Publication endpoint cannot alter rights');
+ check((await req('/api/codex','gm','PATCH',{book:'codex-qa-public',playerReleased:false})).s===200,'SL revokes own book');
+ check((await req('/api/codex?book=codex-qa-public','a')).s===403,'Revocation blocks player chapter access immediately');
+ check((await req('/api/codex','gm','PATCH',{book:'codex-qa-public',playerReleased:true})).s===200,'SL explicitly republishes own book');
  const hits=await req('/api/codex?q=Willenskraft','a');
  check(hits.s===200&&hits.d.hits.length===1&&hits.d.hits[0].sectionId==='section-t.0-1'&&!JSON.stringify(hits.d).includes('SECRET'),'FTS results enforce visibility and contain direct section anchors');
  check((await req('/api/codex?q=Willenskraft&edition=V5','a')).d.hits.length===0,'Search does not mix editions');

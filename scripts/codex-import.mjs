@@ -35,7 +35,7 @@ export async function importCodexSources({db,bucket,base,root,owner='command-gm'
   for(const p of plans){
     const {m,pdf,hash,doc,facsimile,chapters,id}=p,stamp=new Date().toISOString();
     const warnings=pdf?`Originalseiten sind verbindlich. ${doc.quality.pagesWithoutText.length} Seiten ohne Textschicht; ergänzende OCR-Suchfundstellen sind ausdrücklich ungeprüft, keine kanonischen Regeltexte.`:'Textansicht mit nativen Fundstellen. Grafiken, Seitenfuß und vollständiges Layout bleiben in den zusätzlichen Originalansicht-Kapiteln erhalten.';
-    const content={documentKind:'codex_book',edition:m.edition,rights:m.rights,readerReady:false,localReview:true,bookType:m.type,format:m.format,sourceModified:m.modified,sourceHash:hash,qualityNote:warnings};
+    const content={documentKind:'codex_book',edition:m.edition,rights:m.rights,playerReleased:m.rights==='own',readerReady:false,localReview:true,bookType:m.type,format:m.format,sourceModified:m.modified,sourceHash:hash,qualityNote:warnings};
     await db.prepare("INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,default_visibility,title,content,created_at,updated_at) VALUES(?,'chronik-von-kleve','RULE','confirmed',?,'group','player_visible',?,?,?,?)").bind(id,owner,m.title,JSON.stringify(content),stamp,stamp).run();
     // Offline Node process, one bounded source at a time. R2 requires known
     // content length; no PDF parsing/buffering happens in the HTTP Worker.

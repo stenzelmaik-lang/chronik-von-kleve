@@ -15,7 +15,7 @@ Die Erweiterung verwendet weiterhin RULE-Entities, `entity_content_blocks` und d
 
 ## Schutz und Bereitstellungsrechte
 
-Ein ungeklärtes Werk kann nur im ausdrücklich isolierten lokalen Testmodus von aktiver Kampagnen-SL technisch geprüft werden. Dafür sind **beide** Bedingungen notwendig: bestehende serverseitige Test-Bindung `AUTH_ACCESS_ENVIRONMENT=local-test` und Loopback-Request. URL-Parameter oder gefälschte SL-Flags reichen nicht. In Produktion bleibt dieser Prüfweg gesperrt.
+Die Live-Vorbereitung vom 10.10.2026 erweitert den bisherigen lokalen Prüfmodus: aktive Kampagnen-SL erhält vollständigen Reader-Zugriff unabhängig von der Umgebung. Spielerrechte bleiben davon getrennt und verlangen bestätigte Nutzungsberechtigung plus ausdrückliche Buchfreigabe. Gefälschte SL-Flags reichen nicht; maßgeblich ist die serverseitig aufgelöste aktive SL-/Owner-Rolle. Details: `docs/codex-live-preparation.md`.
 
 Spieler erhalten ausschließlich ausdrücklich freigegebene eigene Inhalte. Kapitel, Seitenbilder und Suchausschnitte ungeklärter Verlagswerke bleiben serverseitig gesperrt. Die Spieleransicht kann deren Bibliotheksmetadaten zeigen, keine vollständigen Inhalte. Keine automatische Inhaltsfreigabe für Hausregeln mit SL-Beispielen.
 
@@ -23,7 +23,7 @@ Die Aussage „nicht öffentlich zugänglich“ allein dokumentiert keine Lizenz
 
 Originale erhalten keinen `files`-Eintrag und keine öffentliche Originalroute. Die Seitenbild-API prüft dieselben Buch-, Kampagnen-, Rollen-, Rechte- und Kapitelgrenzen wie der Reader und streamt nur die berechtigte einzelne Seite aus R2. Keine Bildoptimierung über einen öffentlichen Proxy. Alle Antworten sind `private, no-store`; Entzug wirkt beim nächsten Request. Die generische Content-Block-API kann den Schutz nicht umgehen.
 
-Ein späterer Produktivbetrieb setzt separat geprüfte private R2-Konfiguration voraus. Diese wurde nicht geändert oder als live abgenommen behauptet. Anzeigen kann Kopieren/Abfotografieren nicht absolut verhindern.
+Die Produktions-R2-Konfiguration wurde am 10.10.2026 ausschließlich lesend geprüft: r2.dev deaktiviert, keine Custom Domains. Keine Änderung und keine Live-Reader-Abnahme erfolgt. Anzeigen kann Kopieren/Abfotografieren nicht absolut verhindern.
 
 ## Reproduzierbare lokale Vorbereitung
 

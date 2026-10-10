@@ -6,13 +6,30 @@ export class CodexError extends Error {status:number;constructor(status:number,m
 const sl=(a:Actor)=>a.gm&&a.status==='active'&&['campaign_gm','campaign_owner'].includes(a.role);
 function book(e:Entity,review:boolean):Book{
   const c=e.content;
-  return {id:e.id,title:e.title,edition:editions.includes(c.edition as Edition)?c.edition as Edition:'UNKNOWN',type:String(c.bookType??'Regelwerk'),format:String(c.format??''),rights:c.rights==='own'?'own':'pending',readerReady:c.readerReady===true&&(c.rights==='own'||(review&&c.localReview===true)),modified:String(c.sourceModified??''),hash:String(c.sourceHash??''),reviewOnly:c.rights!=='own'&&review&&c.localReview===true,quality:String(c.qualityNote??'')};
+  const rights=c.rights==='own'?'own':c.rights==='licensed'&&typeof c.rightsEvidence==='string'&&c.rightsEvidence.trim()&&typeof c.rightsConfirmedAt==='string'&&c.rightsConfirmedAt.trim()?'licensed':'pending';
+  const released=c.playerReleased===true||(c.playerReleased===undefined&&rights==='own');
+  return {id:e.id,title:e.title,edition:editions.includes(c.edition as Edition)?c.edition as Edition:'UNKNOWN',type:String(c.bookType??'Regelwerk'),format:String(c.format??''),rights,readerReady:c.readerReady===true&&(review||(rights!=='pending'&&released)),modified:String(c.sourceModified??''),hash:String(c.sourceHash??''),reviewOnly:review&&(rights==='pending'||!released),quality:String(c.qualityNote??''),...(review?{canManage:true,canRelease:rights!=='pending'&&c.readerReady===true,playerReleased:released}:{})};
 }
 export async function library(db:D1Database,a:Actor,localReview=false):Promise<Book[]>{
   if(a.status!=='active')throw new CodexError(403,'Zugang nicht aktiv.');
   const viewer={...a,gm:sl(a)},grants=await grantsFor(db,viewer);
   const rows=await db.prepare("SELECT id FROM entities WHERE campaign_id=? AND type='RULE' AND json_extract(content,'$.documentKind')='codex_book'").bind(a.campaignId).all<{id:string}>();
-  return (await loadEntitiesForIds(db,a.campaignId,rows.results.map(r=>r.id))).filter(e=>projectEntity(viewer,e,grants)).map(e=>book(e,localReview&&sl(a)));
+  void localReview;
+  return (await loadEntitiesForIds(db,a.campaignId,rows.results.map(r=>r.id))).filter(e=>projectEntity(viewer,e,grants)).map(e=>book(e,sl(a)));
+}
+// Publication is distinct from rights confirmation. This endpoint cannot grant
+// a licence, mutate originals, or bypass campaign roles. D1 batch is atomic.
+export async function setBookRelease(db:D1Database,a:Actor,id:string,released:boolean){
+  if(!sl(a))throw new CodexError(403,'Nur für die Spielleitung.');
+  const b=(await library(db,a)).find(b=>b.id===id);
+  if(!b)throw new CodexError(404,'Regelwerk nicht verfügbar.');
+  if(released&&!b.canRelease)throw new CodexError(403,'Nutzungsberechtigung muss gesondert bestätigt sein.');
+  const now=new Date().toISOString();
+  await db.batch([
+    db.prepare("UPDATE entities SET content=json_set(content,'$.playerReleased',json(?),'$.releaseActor',?,'$.releaseChangedAt',?), default_visibility=CASE WHEN ? THEN 'player_visible' ELSE default_visibility END,updated_at=?,version=version+1 WHERE id=? AND campaign_id=? AND type='RULE' AND json_extract(content,'$.documentKind')='codex_book'").bind(JSON.stringify(released),a.id,now,released?1:0,now,id,a.campaignId),
+    ...(released?[db.prepare("UPDATE entity_content_blocks SET visibility='player_visible' WHERE entity_id=? AND campaign_id=? AND kind='codex_chapter'").bind(id,a.campaignId)]:[]),
+  ]);
+  return (await library(db,a)).find(b=>b.id===id)!;
 }
 async function readable(db:D1Database,a:Actor,id:string,localReview=false){
   const found=(await library(db,a,localReview)).find(b=>b.id===id);
