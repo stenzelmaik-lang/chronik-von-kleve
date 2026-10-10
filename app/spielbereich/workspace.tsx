@@ -48,6 +48,7 @@ import { CommandCenter } from "./modules/command-center";
 import { Choice, safeImage, visibilityNames } from "./modules/shared";
 import { CharacterDetail } from "./modules/character-detail";
 import { NPCPanel } from "./modules/npc-panel";
+import { CodexPanel } from "./modules/codex-panel";
 import { InventoryPanel } from "./modules/inventory";
 import { SLWorkspaceShell } from "./modules/sl-workspace-shell";
 import { WorkspaceShell } from "./modules/shell";
@@ -270,7 +271,7 @@ export default function Workspace({
   const Shell = surface === "sl" ? SLWorkspaceShell : WorkspaceShell;
   return (
     <Shell a={a} section={section} navigate={navigate}>
-      {!worldExperienceActive && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
+      {!worldExperienceActive && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -313,6 +314,8 @@ export default function Workspace({
         <WorldExperience a={a} dataScope={dataScope} />
       ) : section === "ortscms" ? (
         <LocationCMS a={a} dataScope={dataScope} />
+      ) : section === "regelwerk" ? (
+        <CodexPanel key={dataScope} dataScope={dataScope} />
       ) : loading ? (
         <div className="entry-grid">
           {[1, 2, 3].map((i) => (

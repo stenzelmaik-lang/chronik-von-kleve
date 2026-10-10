@@ -15,7 +15,6 @@ const plannedWorldSections = [
   { title: "Händler", icon: Store },
   { title: "Archiv", icon: BookOpen },
   { title: "Chronikbuch", icon: ScrollText },
-  { title: "Regelwerke", icon: Compass },
 ];
 
 export function WorkspaceShell({
@@ -80,6 +79,7 @@ export function WorkspaceShell({
           </button>
           <button type="button" className={section === "chronik" ? shellStyles.worldNavActive : ""} aria-current={section === "chronik" ? "page" : undefined} onClick={() => navigate("chronik")}><BookOpen size={17} aria-hidden="true" /><span>Chronik</span></button>
           <button type="button" className={section === "nscs" ? shellStyles.worldNavActive : ""} aria-current={section === "nscs" ? "page" : undefined} onClick={() => navigate("nscs")}><Users size={17} aria-hidden="true" /><span>Persönlichkeiten</span></button>
+          <button type="button" className={section === "regelwerk" ? shellStyles.worldNavActive : ""} aria-current={section === "regelwerk" ? "page" : undefined} onClick={() => navigate("regelwerk")}><BookOpen size={17} aria-hidden="true" /><span>Codex Noctis</span></button>
           {plannedWorldSections.map(({ title, icon: Icon }) => <span className={shellStyles.worldNavPlanned} aria-disabled="true" key={title}><Icon size={16} aria-hidden="true" /><span>{title}</span><small>Demnächst</small></span>)}
         </div>
         <button type="button" className={shellStyles.worldNavReturn} onClick={() => navigate("dashboard")}><ArrowLeftIcon /><span>Zum Spieltisch</span></button>

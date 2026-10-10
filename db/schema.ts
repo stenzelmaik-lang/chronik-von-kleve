@@ -215,6 +215,15 @@ export const entityContentBlocks = sqliteTable('entity_content_blocks', {
   check('entity_content_blocks_content_check', sql`length(${t.content}) <= 90000`),
 ]);
 
+// Derived search rows only. Books and chapters remain RULE entities / content blocks.
+export const codexSections = sqliteTable('codex_sections', {
+  id: text('id').primaryKey(),
+  blockId: text('block_id').notNull().references(() => entityContentBlocks.id, {onDelete:'cascade'}),
+  heading: text('heading').notNull(),
+  plainText: text('plain_text').notNull(),
+  source: text('source').notNull(),
+}, t => [index('idx_codex_sections_block').on(t.blockId)]);
+
 export const relationships = sqliteTable(
   "relationships",
   {

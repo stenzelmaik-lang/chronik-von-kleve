@@ -85,6 +85,13 @@
       "when": 1791095836144,
       "tag": "0011_npc_detail_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791562215924,
+      "tag": "0012_codex_reader_index",
+      "breakpoints": true
     }
   ]
 }
