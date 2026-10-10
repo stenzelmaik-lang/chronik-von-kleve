@@ -1,14 +1,15 @@
 import {readFileSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
-import {prepareDocument,preparePDF,indexText} from '../domain/codex.ts';
+import {CODEX_PRE_ALPHA_DECISION,prepareDocument,preparePDF,indexText} from '../domain/codex.ts';
 
 const sha=data=>createHash('sha256').update(data).digest('hex');
 export const codexBookId=id=>'codex-'+sha(id).slice(0,24);
 // Not an HTTP import endpoint. The caller must supply bindings from the fresh,
 // isolated local test harness, never production Wrangler or existing game data.
-export async function importCodexSources({db,bucket,base,root,owner='command-gm'}){
+export async function importCodexSources({db,bucket,base,root,owner='command-gm',playerAccessDecision}){
   if(new URL(base).hostname!=='127.0.0.1'||!new URL(base).port)throw Error('Import is strictly isolated/local-only.');
+  if(playerAccessDecision!==undefined&&playerAccessDecision!==CODEX_PRE_ALPHA_DECISION)throw Error('Unknown operator decision.');
   const directory=resolve(root),inventory=JSON.parse(readFileSync(new URL('../tests/fixtures/codex-inventory.json',import.meta.url),'utf8'));
   const plans=inventory.map(m=>{
     const pdf=m.format==='PDF',original=join(directory,'sources',m.sourceId+(pdf?'.pdf':'.json'));
@@ -35,7 +36,8 @@ export async function importCodexSources({db,bucket,base,root,owner='command-gm'
   for(const p of plans){
     const {m,pdf,hash,doc,facsimile,chapters,id}=p,stamp=new Date().toISOString();
     const warnings=pdf?`Originalseiten sind verbindlich. ${doc.quality.pagesWithoutText.length} Seiten ohne Textschicht; ergänzende OCR-Suchfundstellen sind ausdrücklich ungeprüft, keine kanonischen Regeltexte.`:'Textansicht mit nativen Fundstellen. Grafiken, Seitenfuß und vollständiges Layout bleiben in den zusätzlichen Originalansicht-Kapiteln erhalten.';
-    const content={documentKind:'codex_book',edition:m.edition,rights:m.rights,playerReleased:m.rights==='own',readerReady:false,localReview:true,bookType:m.type,format:m.format,sourceModified:m.modified,sourceHash:hash,qualityNote:warnings};
+    const operatorDecision=playerAccessDecision===CODEX_PRE_ALPHA_DECISION;
+    const content={documentKind:'codex_book',edition:m.edition,rights:m.rights,playerReleased:operatorDecision||m.rights==='own',...(operatorDecision?{playerAccessBasis:'operator_pre_alpha',playerAccessDecision,playerAccessDecisionRecordedAt:stamp}:{}),readerReady:false,localReview:true,bookType:m.type,format:m.format,sourceModified:m.modified,sourceHash:hash,qualityNote:warnings};
     await db.prepare("INSERT INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,default_visibility,title,content,created_at,updated_at) VALUES(?,'chronik-von-kleve','RULE','confirmed',?,'group','player_visible',?,?,?,?)").bind(id,owner,m.title,JSON.stringify(content),stamp,stamp).run();
     // Offline Node process, one bounded source at a time. R2 requires known
     // content length; no PDF parsing/buffering happens in the HTTP Worker.
@@ -45,7 +47,7 @@ export async function importCodexSources({db,bucket,base,root,owner='command-gm'
     let rows=0;
     for(const [position,chapter] of chapters.entries()){
       const blockId=id+'-'+chapter.id,stored={...chapter,id:blockId};
-      const statements=[db.prepare("INSERT INTO entity_content_blocks(id,campaign_id,entity_id,kind,content,visibility,position) VALUES(?,'chronik-von-kleve',?,'codex_chapter',?,?,?)").bind(blockId,id,JSON.stringify(stored),m.rights==='own'?'player_visible':'sl_secret',position)];
+      const statements=[db.prepare("INSERT INTO entity_content_blocks(id,campaign_id,entity_id,kind,content,visibility,position) VALUES(?,'chronik-von-kleve',?,'codex_chapter',?,?,?)").bind(blockId,id,JSON.stringify(stored),operatorDecision||m.rights==='own'?'player_visible':'sl_secret',position)];
       let heading=chapter.title;
       for(const section of chapter.sections){
         const text=indexText(section);if(section.kind==='heading')heading=text.trim();

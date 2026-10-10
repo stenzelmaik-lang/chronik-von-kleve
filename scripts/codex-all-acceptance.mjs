@@ -4,17 +4,19 @@ import {createHash} from 'node:crypto';
 import {prepareDocument,preparePDF,indexText} from '../domain/codex.ts';
 import {codexBookId} from './codex-import.mjs';
 
-const root='.local-work/codex-all',base='http://127.0.0.1:8804';
+const playerPublication=process.argv.includes('--players-pre-alpha');
+const root='.local-work/codex-all',base=playerPublication?'http://127.0.0.1:8805':'http://127.0.0.1:8804';
 const inventory=JSON.parse(readFileSync('tests/fixtures/codex-inventory.json','utf8'));
 const audit=JSON.parse(readFileSync(root+'/import-audit.json','utf8'));
 let checks=0;
 const verify=(ok,label)=>{assert.ok(ok,label);checks++;};
 const login=async email=>{const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({email,password:'ChroniPlay-Demo-2036!'})});verify(r.status===200,'Synthetic login');return r.headers.get('set-cookie').split(';')[0];};
-const gm=await login('command-gm@example.invalid'),player=await login('command-a@example.invalid');
+const sl=await login('command-gm@example.invalid'),player=await login('command-a@example.invalid'),gm=playerPublication?player:sl;
 async function get(path,cookie){const start=performance.now(),r=await fetch(base+path,{headers:cookie?{Cookie:cookie}:{}}),body=await r.text();verify(r.headers.get('cache-control')==='private, no-store','Permission-safe cache');return {status:r.status,ms:performance.now()-start,bytes:Buffer.byteLength(body),data:JSON.parse(body)};}
 const list=await get('/api/codex',gm),players=await get('/api/codex',player);
-verify(list.status===200&&list.data.books.length===15&&list.data.books.every(b=>b.readerReady),'All 15 sources readable for local SL review');
-verify(players.data.books.length===15&&players.data.books.filter(b=>b.readerReady).length===1,'No pending publication rights for players');
+verify(list.status===200&&list.data.books.length===15&&list.data.books.every(b=>b.readerReady),'All 15 sources readable for the tested '+(playerPublication?'player':'SL'));
+verify(players.data.books.length===15&&players.data.books.filter(b=>b.readerReady).length===(playerPublication?15:1),'Only explicitly configured player publication');
+if(playerPublication)verify(players.data.books.every(b=>b.publicationBasis==='operator_pre_alpha')&&players.data.books.filter(b=>b.rights==='pending').length===14,'Operator decision is not a licence assertion');
 verify(!JSON.stringify(list.data).includes('google.com'),'No source URLs exposed');
 verify((await get('/api/codex')).status===401,'Anonymous denied');
 for(const path of ['/.local-work/codex-all/inventory.json','/.local-work/codex-all/import-audit.json','/tests/fixtures/codex-inventory.json','/codex-originals/guess.pdf']){
@@ -44,10 +46,10 @@ for(const source of inventory){
   const r=await fetch(base+path,{headers:{Cookie:gm}}),body=Buffer.from(await r.arrayBuffer());
   verify(r.status===200&&r.headers.get('content-type')==='image/jpeg','Authenticated original page');
   verify(createHash('sha256').update(body).digest('hex')===facsimile.pages[number-1].imageHash,'Exact prepared original-page image');
-  if(source.rights!=='own')verify((await fetch(base+path,{headers:{Cookie:player}})).status===403,'Publisher page denied to player');
+  if(source.rights!=='own')verify((await fetch(base+path,{headers:{Cookie:player}})).status===(playerPublication?200:403),'Publisher page follows explicit player access decision');
   verify((await fetch(base+path)).status===401,'Anonymous page denied');
  }
- if(source.rights!=='own')verify((await get('/api/codex?book='+id,player)).status===403,'Publisher reader denied to player');
+ if(source.rights!=='own')verify((await get('/api/codex?book='+id,player)).status===(playerPublication?200:403),'Publisher reader follows explicit player access decision');
  verify((await get('/api/content-blocks?entityId='+id,gm)).data.blocks.length===0,'Generic API does not expose reader originals');
  verify((await get('/api/files?id='+encodeURIComponent('codex-originals/'+audit.find(a=>a.id===id).hash+'.pdf'),gm)).status===404,'No original download through files');
  // Choose actual distinctive source words. Search stays global, edition-labelled.
@@ -56,13 +58,14 @@ for(const source of inventory){
   const words=indexText(s).match(/[\p{L}]{4,}/gu)??[];
   const query=words.slice(2,5).join(' ');if(query.length<8)continue;
   const hits=await get('/api/codex?q='+encodeURIComponent(query)+'&edition='+source.edition,gm);
-  if(hits.data.hits.some(h=>h.bookId===id)){found=true;break;}
+  const hit=hits.data.hits.find(h=>h.bookId===id);
+  if(hit){const target=await get('/api/codex?book='+id+'&chapter='+encodeURIComponent(hit.chapterId),gm);verify(target.status===200&&target.data.chapter.sections.some(section=>section.id===hit.sectionId),'Search hit opens its exact source section');found=true;break;}
  }
  verify(found,'Each source contributes clickable indexed search results: '+source.title);
  reports.push({title:source.title,pages:facsimile.pageCount,chapters:expected.length,chapterMaxBytes:Math.max(...parts.map(p=>p.bytes)),chapterMedianMs:parts.map(p=>p.ms).sort((a,b)=>a-b)[Math.floor(parts.length/2)],tocBytes:toc.bytes,tocMs:toc.ms,ocrUnverified:facsimile.quality.ocrUnverified??[]});
 }
 const searchTimes=[];
 for(let i=0;i<20;i++){const r=await get('/api/codex?q=Willenskraft',gm);verify(r.status===200,'FTS lookup');searchTimes.push(r.ms);}
-const playerHits=await get('/api/codex?q=Willenskraft',player);verify(playerHits.data.hits.every(h=>h.bookId===players.data.books.find(b=>b.readerReady).id),'No publisher snippets leak to players');
+const playerHits=await get('/api/codex?q=Willenskraft',player);verify(playerHits.data.hits.every(h=>players.data.books.some(b=>b.id===h.bookId&&b.readerReady)),'Only released books contribute player snippets');
 searchTimes.sort((a,b)=>a-b);
-console.log(JSON.stringify({checks,books:15,pages:reports.reduce((n,r)=>n+r.pages,0),reports,library:{ms:list.ms,bytes:list.bytes},search:{medianMs:searchTimes[10],p95Ms:searchTimes[18]},productionUsed:false,publisherPlayerRelease:false},null,2));
+console.log(JSON.stringify({checks,books:15,pages:reports.reduce((n,r)=>n+r.pages,0),reports,library:{ms:list.ms,bytes:list.bytes},search:{medianMs:searchTimes[10],p95Ms:searchTimes[18]},productionUsed:false,publisherPlayerRelease:playerPublication,licencesConfirmed:false},null,2));

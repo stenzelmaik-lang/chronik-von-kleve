@@ -2,6 +2,7 @@ import {seedInventoryDemo} from "../tests/fixtures/inventory-demo.mjs";
 import {seedSilasNPC} from '../tests/fixtures/silas-npc.mjs';
 import {seedCodex} from '../tests/fixtures/codex-demo.mjs';
 import {importCodexSources} from './codex-import.mjs';
+import {CODEX_PRE_ALPHA_DECISION} from '../domain/codex.ts';
 import {engineFixture} from "../tests/fixtures/engine-character.mjs";
 import {spawnSync,spawn} from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -20,7 +21,8 @@ const accessDemo=process.argv.includes('--access-alpha');
 const storyWork=process.argv.includes('--story-workspace');
 const commandDemo=process.argv.includes('--command-center-2');
 const npcDemo=process.argv.includes('--npc-detail');
-const codexAll=process.argv.includes('--codex-all');
+const codexPlayers=process.argv.includes('--codex-players');
+const codexAll=process.argv.includes('--codex-all')||codexPlayers;
 const codexDemo=process.argv.includes('--codex')||codexAll;
 const interactive=codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const preserve=storyWork||commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
@@ -36,7 +38,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const port=codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const port=codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 if(interactive){const probe=createServer();await new Promise((ok,fail)=>{probe.once('error',()=>fail(new Error('Der lokale Port '+port+' ist bereits belegt. Öffne die laufende Anwendung; kein anderer Prozess wird beendet.')));probe.listen(port,'127.0.0.1',()=>probe.close(ok));});}
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:'+port,CVK_TEST_STATE:state};
 if(!resumed)for(const migration of migrations){
@@ -142,7 +144,7 @@ try{
   // Existing accepted reference fixture, only in this fresh isolated local DB.
   if(!inventoryDemo)await author('/api/locations/migrate',{placeId:'place.electric-taberna'});
   if(npcDemo)await seedSilasNPC({db:localDb,base:env.CVK_TEST_URL,cookie:fixtureCookie,primary:process.argv.find(a=>a.startsWith('--npc-primary='))?.slice('--npc-primary='.length),secondary:process.argv.find(a=>a.startsWith('--npc-secondary='))?.slice('--npc-secondary='.length)});
-  if(codexAll){const audit=await importCodexSources({db:localDb,bucket:await mf.getR2Bucket('BUCKET'),base:env.CVK_TEST_URL,root:'.local-work/codex-all'});writeFileSync('.local-work/codex-all/import-audit.json',JSON.stringify(audit,null,2));}
+  if(codexAll){const audit=await importCodexSources({db:localDb,bucket:await mf.getR2Bucket('BUCKET'),base:env.CVK_TEST_URL,root:'.local-work/codex-all',...(codexPlayers?{playerAccessDecision:CODEX_PRE_ALPHA_DECISION}:{})});writeFileSync(codexPlayers?join(state,'codex-player-import-audit.json'):'.local-work/codex-all/import-audit.json',JSON.stringify(audit,null,2));}
   else if(codexDemo)await seedCodex({db:localDb,bucket:await mf.getR2Bucket('BUCKET'),base:env.CVK_TEST_URL,sourcePath:process.argv.find(a=>a.startsWith('--codex-source='))?.slice('--codex-source='.length)??'.local-work/codex-v1/source.json'});
   if(commandDemo){
    const command=async(cookie,id,action,extra={})=>{const view=await (await fetch(env.CVK_TEST_URL+'/api/character-engine?id='+id,{headers:{Cookie:cookie}})).json();const response=await fetch(env.CVK_TEST_URL+'/api/character-engine',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:cookie},body:JSON.stringify({id,version:view.version,action,...extra})});if(!response.ok)throw new Error('Synthetic character command failed: '+action+' '+response.status);};

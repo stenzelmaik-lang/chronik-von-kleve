@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {prepareDocument,sectionText,searchExpression} from '../domain/codex.ts';
+import {CODEX_PRE_ALPHA_DECISION,prepareDocument,sectionText,searchExpression} from '../domain/codex.ts';
 import {library,contents,readChapter,search,pageAsset,setBookRelease} from '../server/codex.ts';
 import {readContentBlocks,writeContentBlock,deleteContentBlock} from '../server/content-blocks.ts';
 
@@ -127,6 +127,38 @@ test('Central publication requires real SL role and separately evidenced rights;
   assert.equal(sql.prepare("SELECT content FROM entities WHERE id='own'").get().content.includes('releaseActor'),false);
  }finally{sql.close();}
 });
+test('Documented pre-alpha access does not claim a licence and revokes reader, search and originals immediately',async()=>{
+ const {db,sql,gm,player}=fixture();
+ try{
+  const originalOwn=sql.prepare("SELECT * FROM entities WHERE id='own'").get();
+  sql.exec("UPDATE entities SET content=json_set(content,'$.playerAccessBasis','operator_pre_alpha','$.playerReleased',json('true')) WHERE id='pending'");
+  await assert.rejects(contents(db,player,'pending'),e=>e.status===403);
+  sql.prepare("UPDATE entities SET content=json_set(content,'$.playerAccessDecision',?) WHERE id='pending'").run(CODEX_PRE_ALPHA_DECISION);
+  assert.equal((await library(db,gm)).find(b=>b.id==='pending').canRelease,true);
+  await assert.rejects(setBookRelease(db,player,'pending',true),e=>e.status===403);
+  await setBookRelease(db,gm,'pending',true);
+  const b=(await library(db,player)).find(b=>b.id==='pending');
+  assert.equal(b.rights,'pending');assert.equal(b.publicationBasis,'operator_pre_alpha');assert.equal(b.readerReady,true);
+  const c=await contents(db,player,'pending');assert.equal(c.chapters.length,3);
+  assert.ok((await search(db,player,'STRESS_SENTINEL')).some(h=>h.bookId==='pending'));
+  for(const h of await search(db,player,'STRESS_SENTINEL'))assert.ok((await readChapter(db,player,h.bookId,h.chapterId)).sections.some(s=>s.id===h.sectionId));
+  const chapterId=c.chapters[0].id,hash='b'.repeat(64);
+  sql.prepare("UPDATE entities SET content=json_set(content,'$.sourceHash',?) WHERE id='pending'").run(hash);
+  sql.prepare('UPDATE entity_content_blocks SET content=? WHERE id=?').run(JSON.stringify({id:chapterId,title:'Original',sections:[{id:'page-1',kind:'page',level:0,runs:[],rows:[],source:{tab:'PDF',start:0,end:0,page:1}}]}),chapterId);
+  let reads=0;const bucket={get:async()=>{reads++;return {body:'IMAGE'};}};
+  const image=await pageAsset(db,bucket,player,'pending',chapterId,1);assert.equal(image.headers.get('cache-control'),'private, no-store');assert.equal(await image.text(),'IMAGE');
+  for(const a of [{...player,status:'blocked'},{...player,status:'pending'},{...player,campaignId:'other'}])await assert.rejects(contents(db,a,'pending'),e=>[403,404].includes(e.status));
+  await setBookRelease(db,gm,'pending',false);
+  await assert.rejects(contents(db,player,'pending'),e=>e.status===403);
+  await assert.rejects(readChapter(db,player,'pending',chapterId),e=>e.status===403);
+  await assert.rejects(pageAsset(db,bucket,player,'pending',chapterId,1),e=>e.status===403);assert.equal(reads,1);
+  assert.ok((await search(db,player,'STRESS_SENTINEL')).every(h=>h.bookId!=='pending'));
+  const content=JSON.parse(sql.prepare("SELECT content FROM entities WHERE id='pending'").get().content);
+  assert.equal(content.rights,'pending');assert.equal(content.rightsEvidence,undefined);assert.equal(content.rightsConfirmedAt,undefined);
+  assert.deepEqual(sql.prepare("SELECT * FROM entities WHERE id='own'").get(),originalOwn);
+ }finally{sql.close();}
+});
+
 test('0012 is additive, matches its Drizzle snapshot and leaves existing domain data unchanged',()=>{
  const sql=new DatabaseSync(':memory:');
  try{

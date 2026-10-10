@@ -1,5 +1,5 @@
 import type {Actor,Entity} from '../domain/types.ts';
-import {chapterSchema,editions,sourceSchema,searchExpression,type Book,type Edition,type Contents,type Hit} from '../domain/codex.ts';
+import {CODEX_PRE_ALPHA_DECISION,chapterSchema,editions,sourceSchema,searchExpression,type Book,type Edition,type Contents,type Hit} from '../domain/codex.ts';
 import {loadEntitiesForIds,grantsFor,projectEntity} from './entities.ts';
 
 export class CodexError extends Error {status:number;constructor(status:number,message:string){super(message);this.status=status;}}
@@ -8,7 +8,9 @@ function book(e:Entity,review:boolean):Book{
   const c=e.content;
   const rights=c.rights==='own'?'own':c.rights==='licensed'&&typeof c.rightsEvidence==='string'&&c.rightsEvidence.trim()&&typeof c.rightsConfirmedAt==='string'&&c.rightsConfirmedAt.trim()?'licensed':'pending';
   const released=c.playerReleased===true||(c.playerReleased===undefined&&rights==='own');
-  return {id:e.id,title:e.title,edition:editions.includes(c.edition as Edition)?c.edition as Edition:'UNKNOWN',type:String(c.bookType??'Regelwerk'),format:String(c.format??''),rights,readerReady:c.readerReady===true&&(review||(rights!=='pending'&&released)),modified:String(c.sourceModified??''),hash:String(c.sourceHash??''),reviewOnly:review&&(rights==='pending'||!released),quality:String(c.qualityNote??''),...(review?{canManage:true,canRelease:rights!=='pending'&&c.readerReady===true,playerReleased:released}:{})};
+  const operatorDecision=c.playerAccessBasis==='operator_pre_alpha'&&c.playerAccessDecision===CODEX_PRE_ALPHA_DECISION;
+  const mayPublish=rights!=='pending'||operatorDecision;
+  return {id:e.id,title:e.title,edition:editions.includes(c.edition as Edition)?c.edition as Edition:'UNKNOWN',type:String(c.bookType??'Regelwerk'),format:String(c.format??''),rights,readerReady:c.readerReady===true&&(review||(mayPublish&&released)),modified:String(c.sourceModified??''),hash:String(c.sourceHash??''),reviewOnly:review&&(!mayPublish||!released),quality:String(c.qualityNote??''),...(operatorDecision?{publicationBasis:'operator_pre_alpha' as const}:{}),...(review?{canManage:true,canRelease:mayPublish&&c.readerReady===true,playerReleased:released}:{})};
 }
 export async function library(db:D1Database,a:Actor,localReview=false):Promise<Book[]>{
   if(a.status!=='active')throw new CodexError(403,'Zugang nicht aktiv.');
@@ -23,7 +25,7 @@ export async function setBookRelease(db:D1Database,a:Actor,id:string,released:bo
   if(!sl(a))throw new CodexError(403,'Nur für die Spielleitung.');
   const b=(await library(db,a)).find(b=>b.id===id);
   if(!b)throw new CodexError(404,'Regelwerk nicht verfügbar.');
-  if(released&&!b.canRelease)throw new CodexError(403,'Nutzungsberechtigung muss gesondert bestätigt sein.');
+  if(released&&!b.canRelease)throw new CodexError(403,'Dokumentierte Bereitstellungsgrundlage fehlt.');
   const now=new Date().toISOString();
   await db.batch([
     db.prepare("UPDATE entities SET content=json_set(content,'$.playerReleased',json(?),'$.releaseActor',?,'$.releaseChangedAt',?), default_visibility=CASE WHEN ? THEN 'player_visible' ELSE default_visibility END,updated_at=?,version=version+1 WHERE id=? AND campaign_id=? AND type='RULE' AND json_extract(content,'$.documentKind')='codex_book'").bind(JSON.stringify(released),a.id,now,released?1:0,now,id,a.campaignId),

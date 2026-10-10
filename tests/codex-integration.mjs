@@ -1,3 +1,5 @@
+import {CODEX_PRE_ALPHA_DECISION} from '../domain/codex.ts';
+
 export async function codexIntegration({req,check,localSql,sqlQuote}){
  const campaign='chronik-von-kleve';
  const source={tab:'t.0',start:1,end:50};
@@ -40,6 +42,16 @@ export async function codexIntegration({req,check,localSql,sqlQuote}){
  localSql("UPDATE entity_content_blocks SET visibility='sl_secret' WHERE id='codex-qa-public-chapter'");
  check((await req('/api/codex?q=Willenskraft','a')).d.hits.length===0,'Search respects chapter visibility revocation immediately');
  check((await req('/api/codex?book=codex-qa-public&chapter=codex-qa-public-chapter','a')).s===404,'Chapter read respects visibility revocation immediately');
+ localSql("UPDATE entities SET content=json_set(content,'$.playerAccessBasis','operator_pre_alpha','$.playerAccessDecision',"+sqlQuote(CODEX_PRE_ALPHA_DECISION)+") WHERE id='codex-qa-pending'");
+ check((await req('/api/codex','gm','PATCH',{book:'codex-qa-pending',playerReleased:true})).s===200,'SL releases documented operator decision without a licence claim');
+ const operatorBook=(await req('/api/codex','a')).d.books.find(b=>b.id==='codex-qa-pending');
+ check(operatorBook.readerReady&&operatorBook.rights==='pending'&&operatorBook.publicationBasis==='operator_pre_alpha','Player access and unresolved rights remain distinct');
+ check((await req('/api/codex?book=codex-qa-pending&chapter=codex-qa-pending-chapter','a')).s===200,'Player reads full released operator-decision chapter');
+ check((await req('/api/codex?q=Willenskraft','a')).d.hits.some(h=>h.bookId==='codex-qa-pending'),'Player searches operator-decision book');
+ check((await req('/api/codex','a','PATCH',{book:'codex-qa-pending',playerReleased:false})).s===403,'Player cannot revoke or publish books');
+ check((await req('/api/codex','gm','PATCH',{book:'codex-qa-pending',playerReleased:false})).s===200,'SL can immediately revoke operator-decision book');
+ check((await req('/api/codex?book=codex-qa-pending','a')).s===403,'Revoked operator-decision reader denied');
+ check(!(await req('/api/codex?q=Willenskraft','a')).d.hits.some(h=>h.bookId==='codex-qa-pending'),'Revoked operator-decision search denied');
  localSql("DELETE FROM entities WHERE id IN ('codex-qa-public','codex-qa-secret','codex-qa-pending','codex-qa-foreign')");
  check((await req('/api/codex?q=Willenskraft','a')).d.hits.length===0,'Cascade removal leaves no search ghosts');
 }
