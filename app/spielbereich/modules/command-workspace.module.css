@@ -9,6 +9,18 @@
 .panelBody [aria-label="Veröffentlichte Szene"]{padding:16px;min-height:0}
 .panelBody [aria-label="Veröffentlichte Szene"] h2{font-size:25px;line-height:1.2;overflow-wrap:anywhere;margin:10px 0}
 .panelBody [aria-label="Veröffentlichte Szene"] p{font-size:12px}
+.mobileContext{border:1px solid var(--cc-line);border-radius:8px;min-width:0}
+.groupStand{padding:10px 12px;border-left:2px solid var(--cc-brass);background:#d2b47b08;margin:12px 0}.groupStand strong{font-size:13px}.groupStand p{margin:4px 0;font-size:14px}.groupStand small{color:var(--cc-muted);font-size:11px}
+.narrowBoard{gap:12px}.panelBody p{font-size:16px;line-height:1.7}.panelBody h2{font:normal 27px/1.25 Georgia,serif}.root .toolRail button{min-height:44px}
+.mobileContext>summary{padding:12px;min-height:44px;cursor:pointer;overflow-wrap:anywhere;color:var(--cc-brass)}
+.narrowBoard>* { min-width:0; max-width:100%; }
+.panel,.panelBody,.panelHeading>div { min-width:0; }
+.panelHeading small { overflow:hidden; text-overflow:ellipsis; }
+.contextFold>summary,.liveTools>summary { min-height:44px; padding:10px 0; cursor:pointer; color:var(--cc-brass); }
+.contextFold>summary,.liveTools>summary { display:none; }
+.groupStand>summary { cursor:pointer; min-height:44px; overflow-wrap:anywhere; }
+@media(max-width:850px){.contextFold>summary,.liveTools>summary{display:list-item}.topbar{padding:10px 0;gap:6px}.brandSeal,.modes{display:none}.brand h1{font-size:22px}.topActions{gap:6px}.contextFold,.liveTools{margin:4px 0}.groupStand{margin:6px 0;padding:8px}.groupStand strong{font-size:13px}.root{padding:0 8px}.toolRail{flex-wrap:wrap}.root select,.root input{min-width:0;max-width:100%}.panelBody{padding:10px}.panelHeading{padding:6px}.panelHeading small{max-width:180px}.panelMenu{max-width:100%}}
+@media(max-width:850px){.root button,.root :global(.button){min-height:44px}.root h3{font-size:18px}.panelBody{overflow-wrap:anywhere}.panelHeading{flex-wrap:wrap}.iconButton{min-width:44px}}
 @media(prefers-reduced-motion:reduce){.root button{transition:none}}
 
 .root .returnButton{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 9px;color:var(--cc-brass);border:1px solid #d2b47b55;background:#d2b47b12;font-size:11px;white-space:nowrap}

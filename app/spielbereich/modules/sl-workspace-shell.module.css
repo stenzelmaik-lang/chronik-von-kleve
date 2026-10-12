@@ -6,3 +6,6 @@
 @media(max-width:1000px){.header{gap:10px;padding:0 10px}.header>span{display:none}.shell{grid-template-columns:155px minmax(0,1fr)}.content{padding:12px}}
 
 .liveLink{display:block;padding:13px 10px;color:#ddd8cd;text-decoration:none;font-size:13px}
+.mobileMenu{display:none}
+.tools details{margin-top:16px;color:#b5c1c9;font-size:12px}.tools summary{cursor:pointer;padding:12px 0}.shell :is(button,a,summary):focus-visible{outline:2px solid #e4c589;outline-offset:2px}
+@media(max-width:760px){.shell{height:auto;min-height:100dvh;display:flex;flex-direction:column;overflow:visible}.header{min-height:48px;flex-wrap:wrap;padding:12px;gap:12px}.header>strong{font-size:11px}.mobileMenu{display:block;background:#101b29;color:#e4c589;border:1px solid #695b3e;padding:12px;margin:8px 12px;min-height:44px}.tools{display:none;border-right:0}.toolsOpen{display:block}.content{overflow:visible;padding:12px;width:100%}.inspection{flex-wrap:wrap}.shell button,.liveLink{min-height:44px}.content input,.content select,.content textarea{max-width:100%}}

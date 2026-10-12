@@ -106,6 +106,8 @@ export function projectEntity(
   character?: CharacterKnowledgeContext,
 ): Entity | null {
   if (a.status !== "active" || a.campaignId !== e.campaignId) return null;
+  // Collaboration internals are authorized only by the dedicated room API.
+  if (['live-table','live-table-signal'].includes(String(e.content.context))) return null;
   // Recipient privacy is stronger than knowledge grants and generic GM access.
   if (e.content.context === "sl-message") {
     if (e.ownerId !== a.id && !(a.gm && e.content.senderId === a.id)) return null;

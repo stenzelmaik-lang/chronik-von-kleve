@@ -85,11 +85,11 @@ export function EconomyPanel({
       <div className="economy-hero">
         <div>
           <p className="eyebrow">BANK UND LEDGER</p>
-          <h2>{money.toLocaleString("de-DE")} €</h2>
-          <p className="muted">Verfügbares Vermögen · private Daten</p>
+          <h2>{initial.money_euro !== undefined || initial.money !== undefined ? `${money.toLocaleString("de-DE")} €` : "Vermögen nicht erfasst"}</h2>
+          <p className="muted">Private Wirtschaft · Eingaben werden erst beim Speichern übernommen</p>
         </div>
         <div className="economy-income">
-          <span>Monatlicher Zufluss</span>
+          <span>Vorschau monatlicher Zufluss</span>
           <strong>+{income.toLocaleString("de-DE")} €</strong>
           <small>
             Ressourcen {resources} · Finanzproben {successes}
@@ -100,10 +100,11 @@ export function EconomyPanel({
         <section className="panel">
           <h3>Ressourcen</h3>
           <p className="muted">
-            Der Hintergrund bestimmt deinen monatlichen Spielraum.
+            Der Hintergrund bestimmt deinen monatlichen Spielraum. Fehlende Werte sind nur ungespeicherte Eingabevorschläge.
           </p>
           <input
             className="range-input"
+            aria-label="Ressourcen"
             type="range"
             min="0"
             max="5"
@@ -168,13 +169,13 @@ export function EconomyPanel({
             <div>
               <span>„Rost“</span>
               <strong>
-                {Number(initial.debt_rost ?? 0).toLocaleString("de-DE")} €
+                {initial.debt_rost !== undefined ? `${Number(initial.debt_rost).toLocaleString("de-DE")} €` : "Nicht erfasst"}
               </strong>
             </div>
             <div>
               <span>Der Kurator</span>
               <strong>
-                {Number(initial.debt_kurator ?? 0).toLocaleString("de-DE")} €
+                {initial.debt_kurator !== undefined ? `${Number(initial.debt_kurator).toLocaleString("de-DE")} €` : "Nicht erfasst"}
               </strong>
             </div>
           </div>

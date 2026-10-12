@@ -97,7 +97,7 @@ export async function GET(req: Request) {
     const entities = await loadEntitiesForIds(db, a.campaignId, rows.results.map((row) => row.id));
     const index = new Map(entities.map((e) => [e.id, e]));
     const records = rows.results.flatMap((r) => {
-      if (legacyBody(r.body).context === "sl-message") return [];
+      if (["sl-message", "appointment-vote", "live-table", "live-table-signal"].includes(String(legacyBody(r.body).context))) return [];
       const entity = index.get(r.id);
       if (!entity) return [];
       if (a.gm && !canRead(a, r)) return [];
@@ -159,6 +159,10 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Gegenstände bitte über das Charakterinventar bearbeiten. Dort werden Belegung und Version geprüft.");
     if (d.body.context === "sl-message" || (old && legacyBody(old.body).context === "sl-message"))
       throw new HttpError(403, "Private Nachrichten werden ausschließlich über den Nachrichtenweg verwaltet.");
+    if (d.body.context === "appointment-vote" || (old && legacyBody(old.body).context === "appointment-vote"))
+      throw new HttpError(403, "Terminantworten werden ausschließlich über die Terminabstimmung verwaltet.");
+    if (["live-table", "live-table-signal"].includes(String(d.body.context)) || (old && ["live-table", "live-table-signal"].includes(String(legacyBody(old.body).context))))
+      throw new HttpError(403, "Spielraumdaten werden ausschließlich im gemeinsamen Spielraum verwaltet.");
     if (d.kind === "charaktere") {
       const previous = old ? legacyBody(old.body) : undefined;
       Object.assign(d.body, withCreationBaseValues(d.body));
@@ -272,6 +276,8 @@ export async function DELETE(req: Request) {
     if (r.kind === "inventory_carry" || (r.kind === "inventar" && await db.prepare("SELECT 1 AS present FROM entities WHERE id=? AND campaign_id=? AND type='ITEM'").bind(r.id, a.campaignId).first()))
       throw new HttpError(403, "Inventardaten bleiben erhalten. Gegenstände lassen sich im Charakterinventar archivieren.");
     if (legacyBody(r.body).context === "sl-message") throw new HttpError(403, "Das Nachrichtenarchiv bleibt erhalten.");
+    if (legacyBody(r.body).context === "appointment-vote") throw new HttpError(403, "Terminantworten bleiben bei der Abstimmung erhalten.");
+    if (["live-table", "live-table-signal"].includes(String(legacyBody(r.body).context))) throw new HttpError(403, "Spielraumdaten sind geschützt.");
     const result = await db
       .prepare("DELETE FROM records WHERE id=? AND version=?")
       .bind(r.id, Number(d.version))

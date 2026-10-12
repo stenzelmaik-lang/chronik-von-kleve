@@ -1,0 +1,51 @@
+import {randomUUID} from 'node:crypto';
+export async function liveTableIntegration({req,check}) {
+  const before=(await req('/api/command-center','gm')).d;
+  const session=await req('/api/records','gm','POST',{kind:'sitzungen',title:'SYNTHETIC shared table session',visibility:'group',body:{scene:'Original scene must remain',status:'Läuft'}});
+  const secret=await req('/api/records','gm','POST',{kind:'sitzungen',title:'SYNTHETIC secret session',visibility:'sl',body:{scene:'Secret'}});
+  const sessionId=session.d.id,gmPeer=randomUUID(),aPeer=randomUUID(),bPeer=randomUUID();
+  const post=(who,action,extra={})=>req('/api/live-table',who,'POST',{action,sessionId,peerId:who==='gm'?gmPeer:who==='a'?aPeer:bPeer,...extra});
+  const read=(who,peerId)=>req('/api/live-table?sessionId='+sessionId+(peerId?'&peerId='+peerId:''),who);
+  check((await req('/api/live-table')).s===401,'TABLE anonymous read denied');
+  check((await post(undefined,'open')).s===401,'TABLE anonymous write denied');
+  check((await req('/api/live-table','otherCampaign')).s===403,'TABLE foreign campaign denied');
+  check(!(await req('/api/live-table','a')).d.sessions.some(item=>item.id===secret.d.id),'TABLE player list excludes secret session');
+  check((await req('/api/live-table','gm','POST',{action:'open',sessionId:secret.d.id})).s===404,'TABLE cannot open hidden session to players');
+  check((await post('a','open')).s===403,'TABLE only SL opens shared room');
+  check((await post('gm','open')).s===200,'TABLE SL opens room without altering existing session');
+  check((await post('gm','join')).s===200&&(await post('a','join')).s===200&&(await post('b','join')).s===200,'TABLE separate accounts join room');
+  check((await post('a','draw',{padding:'x'.repeat(33000)})).s===413,'TABLE request stream is bounded before JSON parsing');
+  check((await post('b','join',{peerId:aPeer})).s===403,'TABLE cannot take over another account peer ID');
+  const element={id:randomUUID(),color:'#abcdef',points:[[10,20],[30,40]],text:'SYNTHETIC shared clue',memberId:'forged'};
+  check((await post('a','draw',{element,epoch:0})).s===200,'TABLE player draws shared board');
+  const board=(await read('b',bPeer)).d.room;
+  check(board.elements.length===1&&board.elements[0].memberId==='sprint1-a','TABLE shared board visible to other participant with server identity');
+  check((await post('a','draw',{element,epoch:0})).s===200&&(await read('b',bPeer)).d.room.elements.length===1,'TABLE retries do not duplicate drawing');
+  const parallel=await Promise.all([post('a','draw',{element:{...element,id:randomUUID()},epoch:0}),post('b','draw',{element:{...element,id:randomUUID()},epoch:0})]);
+  check(parallel.every(result=>result.s===200)&&(await read('gm',gmPeer)).d.room.elements.length===3,'TABLE concurrent drawings do not overwrite each other');
+  check((await post('a','clear',{epoch:0})).s===403,'TABLE player cannot clear shared board');
+  const screenId=randomUUID();check((await post('a','startScreen',{screenId})).s===200,'TABLE participant explicitly claims screen slot');
+  check((await post('b','startScreen',{screenId:randomUUID()})).s===409,'TABLE second presenter cannot overwrite screen');
+  const signal={type:'offer',sdp:'v=0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n'};
+  check((await post('a','signal',{target:bPeer,screenId,signal})).s===200,'TABLE presenter sends scoped offer');
+  check((await read('b',bPeer)).d.signals.length===1&&(await read('gm',gmPeer)).d.signals.length===0,'TABLE signals go only to intended peer');
+  check((await read('gm',bPeer)).d.signals.length===0,'TABLE querying another peer does not reveal its signals');
+  check((await post('b','signal',{target:gmPeer,screenId,signal})).s===403,'TABLE viewer cannot impersonate screen presenter');
+  check((await post('a','signal',{target:gmPeer,screenId,signal:{type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n'}})).s===400,'TABLE audio negotiation rejected');
+  for(const who of ['a','gm']){
+    check((await req('/api/records?kind=notizen',who)).d.records.every(record=>!['live-table','live-table-signal'].includes(record.body.context)),'TABLE internals absent from generic notes for '+who);
+    check((await req('/api/entities',who)).d.entities.every(entity=>!['live-table','live-table-signal'].includes(entity.content.context)),'TABLE internals absent from generic Entity reader for '+who);
+  }
+  check((await post('a','stopScreen')).s===200&&(await read('b',bPeer)).d.room.screen===null,'TABLE presenter can stop share');
+  check((await post('a','signal',{target:bPeer,screenId,signal})).s===404,'TABLE stopped share refuses further signaling');
+  check((await post('gm','clear',{epoch:0})).s===200,'TABLE SL clears board deliberately');
+  check((await post('a','draw',{element:{...element,id:randomUUID()},epoch:0})).s===409,'TABLE stale pre-clear drawing cannot return silently');
+  check((await post('a','draw',{element:{...element,id:randomUUID()},epoch:1})).s===200,'TABLE current board epoch accepts new drawing');
+  check((await post('gm','close')).s===200,'TABLE SL closes room');
+  check((await read('a')).d.room.elements.length===0,'TABLE closed room does not expose saved drawing');
+  check((await post('a','draw',{element:{...element,id:randomUUID()},epoch:1})).s===409,'TABLE closed room rejects drawing');
+  check((await post('gm','open')).s===200&&(await read('a')).d.room.elements.length===1,'TABLE reopening preserves original shared board');
+  check((await req('/api/records?kind=sitzungen','gm')).d.records.find(item=>item.id===sessionId).version===1,'TABLE original session stays unchanged');
+  const after=(await req('/api/command-center','gm')).d;
+  for(const key of ['characters','stories','scenes'])check(JSON.stringify(before[key])===JSON.stringify(after[key]),'TABLE preserves existing '+key);
+}

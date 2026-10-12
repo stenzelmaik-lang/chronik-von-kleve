@@ -12,6 +12,8 @@
 @media(max-width:950px){.bar{gap:14px;flex-wrap:wrap}.split{grid-template-columns:1fr}.split .toolPanel{max-height:none;padding-right:0}.toolbar{flex-wrap:wrap}.tools{width:100%}.parallel{margin-left:auto}.work{padding:18px}.roster{padding:12px 18px}}
 @media(max-width:600px){.bar{padding:18px}.bar h1,.playerTitle h1{font-size:28px}.toolbar{padding:8px}.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.tools button{padding:10px 8px;justify-content:center}.work{padding:12px}.sessionChoice{flex-wrap:wrap}.sessionChoice select{flex-basis:100%}.root .player{padding:12px}.playerHandouts{padding:18px}.context{flex-wrap:wrap}.toolPanel :global(.command-vitals){gap:8px}.rosterLabel{display:none}.footer{padding:12px}.notice{padding:12px 18px}}
 @media(prefers-reduced-motion:reduce){.toolPanel{animation:none}}
+.player :global(.empty-night){min-height:0;padding:18px}
+.waitingActions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.waitingActions a{display:inline-flex;align-items:center;min-height:44px;padding:8px 12px;border:1px solid #b9985b55;border-radius:6px;color:#e4c589;text-decoration:none}
 /* Compact character attention queue; platform administration remains outside. */
 .reviewQueue{border:1px solid #c9a26640;background:linear-gradient(120deg,#101c2b,#0b1420);border-radius:5px;margin:16px 0;color:#d8d6cf}
 .reviewQueue header{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 15px;font-size:13px;color:#e1c392}.reviewQueue header span{margin-left:auto;font-size:12px;color:#aab9c9}

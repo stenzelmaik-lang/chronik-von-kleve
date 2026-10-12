@@ -1,0 +1,17 @@
+.stack{display:grid;gap:20px;max-width:1100px;margin:auto;min-width:0}
+.heading,.month{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.month h3{font-size:22px;margin:0;text-transform:capitalize}
+.calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:16px 0}
+.weekday{text-align:center;color:#cbb98e;font-size:13px}
+.day{display:flex;justify-content:space-between;align-items:center;min-height:60px;border:1px solid #75654455;border-radius:6px;color:#ede4d1;background:#101c22;padding:10px;cursor:pointer}
+.outside{opacity:.5}
+.day[aria-pressed=true]{border-color:#e4c589;background:#c7a86924;opacity:1}
+.day:focus-visible{outline:2px solid #e4c589;outline-offset:2px}
+.event{display:grid;gap:5px;padding:14px 0;border-top:1px solid #75654455}
+.event time{color:#d7bd86}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.poll{overflow-x:auto;max-width:100%;margin:14px 0}
+.poll table{border-collapse:collapse;width:100%}
+.poll th,.poll td{padding:10px;border:1px solid #75654455;text-align:left;min-width:110px}
+.poll caption{text-align:left;margin-bottom:8px;color:#cbb98e}
+@media(max-width:500px){.day{padding:5px;min-height:44px;flex-direction:column}.month h3{font-size:18px}.calendar{gap:3px}.stack{gap:12px}}

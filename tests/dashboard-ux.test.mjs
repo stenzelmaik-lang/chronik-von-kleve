@@ -1,0 +1,61 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import test from 'node:test';
+
+const dashboard=readFileSync(new URL('../app/spielbereich/modules/dashboard.tsx',import.meta.url),'utf8');
+const shell=readFileSync(new URL('../app/spielbereich/modules/shell.tsx',import.meta.url),'utf8');
+const command=readFileSync(new URL('../app/spielbereich/modules/command-workspace.tsx',import.meta.url),'utf8');
+test('overview DOM follows the visual and keyboard order',()=>{
+  const blocks=['dashboard-banner','panel dashboard-next','dashboard-quick-actions','dashboard-grid','dashboard-detail-grid'].map(name=>dashboard.indexOf(`className="${name}"`));
+  assert.ok(blocks.every(index=>index>=0));
+  assert.deepEqual(blocks,[...blocks].sort((a,b)=>a-b));
+});
+test('overview does not promise a protocol deep link or silently confirm legacy XP',()=>{
+  assert.ok(!dashboard.includes('Protokoll lesen'));
+  assert.ok(dashboard.includes('Zur Sitzung'));
+  assert.ok(dashboard.includes('kein bestätigter XP-Ledger-Saldo'));
+  assert.ok(dashboard.includes('view.favors ? `${openFavors} offene Gefallen` : "Noch nicht erfasst"'));
+});
+test('mobile icon actions retain accessible names and neutral context',()=>{
+  assert.ok(shell.includes('aria-label="Startseite öffnen"'));
+  assert.ok(command.includes('Veröffentlichten Gruppenblick öffnen'));
+  assert.ok(!shell.includes('Aktive Nacht'));
+  assert.ok(shell.includes('const compactName = s.name'));
+});
+test('mobile scene ordering copies panels and contextual tools remain mounted',()=>{
+  const board=readFileSync(new URL('../app/spielbereich/modules/command-board.tsx',import.meta.url),'utf8');
+  assert.ok(board.includes('[...workspace.panels].sort'));
+  assert.ok(board.includes('<SceneToolDrawer'));
+  assert.ok(board.includes('content:frame(p)'));
+  assert.ok(command.includes('In der Regie ausgewählte Sitzung'));
+});
+test('player in-context dice reuse the existing raw-roll tool without preview exposure',()=>{
+  const player=readFileSync(new URL('../app/spielbereich/modules/command-player-session.tsx',import.meta.url),'utf8');
+  assert.ok(player.includes("import { DicePanel } from './dice'"));
+  assert.ok(player.includes('!preview && <SceneToolDrawer'));
+  assert.ok(player.includes('Rohwurf ohne Buchung'));
+});
+test('overview current scene comes from the authenticated player projection',()=>{
+  const scene=readFileSync(new URL('../app/spielbereich/modules/dashboard-scene.tsx',import.meta.url),'utf8');
+  assert.ok(scene.includes('/api/session-scenes'));
+  assert.ok(!scene.includes('/api/command-center'));
+  assert.ok(scene.includes("run.status === 'active'"));
+  assert.ok(scene.includes('result.key === key'));
+});
+test('layout resizing is only available in the explicit arrangement mode',()=>{
+  const board=readFileSync(new URL('../app/spielbereich/modules/command-board.tsx',import.meta.url),'utf8');
+  assert.equal((board.match(/<Separator disabled=\{!arranging\}/g)||[]).length,2);
+});
+test('private quick note drafts remain actor-scoped and require an explicit save',()=>{
+  const note=readFileSync(new URL('../app/spielbereich/modules/scene-quick-note.tsx',import.meta.url),'utf8');
+  assert.ok(note.includes("visibility:'private'"));
+  assert.ok(note.includes('${a.campaignId}:${a.id}'));
+  assert.ok(note.includes('Entwurf verwerfen'));
+  assert.ok(!note.includes('localStorage'));
+});
+test('player read errors are not presented as an empty scene or unopened session',()=>{
+  const player=readFileSync(new URL('../app/spielbereich/modules/command-player-session.tsx',import.meta.url),'utf8');
+  assert.ok(player.includes('!error&&<ScenePlayerView'));
+  assert.ok(player.includes('!loading&&!error&&<SessionPanel'));
+  assert.ok(player.includes('Freigegebener Spielstand wird geladen …'));
+});

@@ -1,0 +1,19 @@
+.table{margin:0 0 24px;padding:20px;border:1px solid #78664466;border-radius:12px;background:#101b22;color:#e8dfca;min-width:0}
+.table header{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}
+.table h2{font-size:25px;margin:0 0 8px}
+.table label{display:grid;gap:6px;font-size:14px;min-width:0}
+.table select,.table input:not([type=color]){min-height:44px;max-width:100%;background:#0b161c;border:1px solid #78664488;border-radius:6px;color:#e8dfca;padding:8px}
+.table header select{width:min(320px,100%)}
+.actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0}
+.actions input[type=color]{width:44px;min-height:44px;background:transparent;border:0}
+.peers{font-size:14px;color:#cbb78c}
+.warning{padding:12px;border-left:3px solid #cbb78c;background:#cbb78c10;font-size:14px}
+.board{width:100%;display:block;border:1px solid #78664488;border-radius:8px;touch-action:none;max-height:65vh}
+.textForm{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:14px}
+.textForm label{flex:1;min-width:180px}
+.sharedTexts{margin-top:12px;overflow-wrap:anywhere;white-space:pre-wrap}
+.video{margin:12px 0;max-width:100%;background:#070e12;border-radius:8px;overflow:hidden}
+.video video{display:block;width:100%;max-height:60vh;object-fit:contain}
+.video figcaption{padding:8px 12px;color:#cbb78c;font-size:14px}
+.table :focus-visible{outline:2px solid #e4c589;outline-offset:3px}
+@media(max-width:500px){.table{padding:12px}.table header label{width:100%}.table h2{font-size:22px}.actions{gap:6px}}

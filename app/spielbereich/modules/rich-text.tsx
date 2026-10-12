@@ -64,6 +64,7 @@ export function RichTextEditor({
   placeholder,
   advanced = false,
   files = [],
+  compactTools = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -71,12 +72,14 @@ export function RichTextEditor({
   maximumPlainLength: number;
   placeholder: string;
   advanced?:boolean;
-  files?:{id:string;name:string;mime:string}[];
+  files?:{id:string;name:string;mime:string;visibility?:string}[];
+  compactTools?: boolean;
 }) {
   const [htmlMode,setHtmlMode]=useState(false),[htmlDraft,setHtmlDraft]=useState(''),[htmlError,setHtmlError]=useState(''),[imageId,setImageId]=useState('');
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
   const [link, setLink] = useState("");
+  const [extraTools,setExtraTools]=useState(!compactTools),[linkOpen,setLinkOpen]=useState(!compactTools),[imageOpen,setImageOpen]=useState(!compactTools),[imageSearch,setImageSearch]=useState('');
   const [plainLength, setPlainLength] = useState(richTextToPlainText(value).length);
   const [limitExceeded, setLimitExceeded] = useState(false);
   const initialValueRef = useRef(value);
@@ -129,7 +132,8 @@ export function RichTextEditor({
 
   function sourceChange(raw:string){setHtmlDraft(raw);try{const next=htmlToRichText(raw);if(richTextToPlainText(next).length>maximumPlainLength)throw new Error('Text zu lang.');setHtmlError('');onChange(next);}catch(e){setHtmlError((e as Error).message);}}
   return <div className={styles.editor}>
-    {advanced&&<div className={styles.toolbar}><button type="button" aria-pressed={!htmlMode} onClick={()=>{setHtmlMode(false);if(editorRef.current)replaceEditorContents(editorRef.current,value);}}>Visuell</button><button type="button" aria-pressed={htmlMode} onClick={()=>{setHtmlDraft(richTextToHtml(value));setHtmlMode(true);}}>HTML</button><small>Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.</small></div>}
+    {compactTools&&<div className={styles.toolbar}><button type="button" aria-expanded={linkOpen} onMouseDown={preserveSelection} onClick={()=>setLinkOpen(!linkOpen)}>Link</button>{advanced&&<button type="button" aria-expanded={imageOpen} onMouseDown={preserveSelection} onClick={()=>setImageOpen(!imageOpen)}>Bild</button>}<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button></div>}
+    {advanced&&extraTools&&<div className={styles.toolbar}><button type="button" aria-pressed={!htmlMode} onClick={()=>{setHtmlMode(false);if(editorRef.current)replaceEditorContents(editorRef.current,value);}}>Visuell</button><button type="button" aria-pressed={htmlMode} onClick={()=>{setHtmlDraft(richTextToHtml(value));setHtmlMode(true);}}>HTML · Expertenansicht</button><small>Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.</small></div>}
     {htmlMode?<textarea aria-label={label+' HTML'} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>:<>
     <div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h2>")} aria-label="Überschrift groß">H2</button>
@@ -141,11 +145,12 @@ export function RichTextEditor({
       <span aria-hidden="true" />
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertUnorderedList")} aria-label="Aufzählung einfügen">• Liste</button>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertOrderedList")} aria-label="Nummerierte Liste einfügen">1. Liste</button>
-      {advanced&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><td>Spalte 1</td><td>Spalte 2</td></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button></>}
+      {advanced&&extraTools&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><td>Spalte 1</td><td>Spalte 2</td></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button></>}
       <label className={styles.colorControl}><span>Textfarbe</span><select aria-label="Textfarbe" defaultValue="#d6b36f" onMouseDown={()=>{const selection=window.getSelection();if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange();}} onChange={event => command("foreColor", event.target.value)}>{richTextColors.map(color => <option key={color} value={color}>{color === "#d6b36f" ? "Gold" : color === "#eee6d6" ? "Elfenbein" : color === "#a9c3cf" ? "Nebelblau" : "Rostrot"}</option>)}</select></label>
     </div>
-    <div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>
-    {advanced&&<div className={styles.linkRow}><label>Geschütztes Bild<select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')).map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
+    {linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
+    {advanced&&imageOpen&&<div className={styles.linkRow}><label>Geschütztes Bild<input aria-label={label+' Bilder suchen'} placeholder="Dateiname oder ID …" value={imageSearch} onChange={e=>setImageSearch(e.target.value)}/><select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')&&(f.name+' '+f.id).toLowerCase().includes(imageSearch.toLowerCase())).map(f=><option key={f.id} value={f.id}>{f.name} · {f.id}{f.visibility ? ` · Dateiregel: ${f.visibility==='group'?'Gruppe':f.visibility==='sl'?'SL':'Eigentümer'}` : ''}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
+    {advanced&&imageOpen&&imageId&&<figure><img src={'/api/files?id='+encodeURIComponent(imageId)} alt="Vorschau des ausgewählten geschützten Bildes" style={{maxWidth:180,maxHeight:140,objectFit:'contain'}}/><figcaption>Geschützter Dateispeicher · Dateiregel: {files.find(file=>file.id===imageId)?.visibility==='group'?'Gruppe':files.find(file=>file.id===imageId)?.visibility==='sl'?'SL':files.find(file=>file.id===imageId)?.visibility==='private'?'Eigentümer':'nicht angegeben'}. Auswahl veröffentlicht nichts; der Server prüft den tatsächlichen Zugriff.</figcaption></figure>}
     <div
       ref={editorRef}
       className={styles.editable}

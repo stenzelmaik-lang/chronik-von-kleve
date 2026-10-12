@@ -120,8 +120,8 @@ export const sections: Section[] = [
     id: "termine",
     name: "Termine",
     icon: CalendarDays,
-    desc: "Die nächste Zusammenkunft.",
-    group: "SPIELWELT",
+    desc: "Kalender, Spielabende und gemeinsame Terminabstimmung.",
+    group: "DEINE SPUREN",
   },
   {
     id: "neuigkeiten",
