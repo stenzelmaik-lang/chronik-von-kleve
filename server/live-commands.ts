@@ -4,8 +4,8 @@ import {liveAudience,liveRoll,LIVE_MEDIA_TYPES,type LiveEvent} from '@/domain/li
 import {readScene} from './story-scenes';
 export const LIVE_ACTIONS=['start','end','showScene','showMedia','mediaIndex','hideMedia','roll'];
 type Command={action:string;sessionId:string;runId?:string;eventId?:string;title?:string;create?:boolean;audience?:unknown;sceneId?:string;sceneVersion?:number;fileIds?:string[];pool?:number;target?:number;index?:number};
-export async function liveEvents(a:Actor,sessionId:string){
- const {room}=await readLiveRoom(a,sessionId);if(!room.open||!room.started)return [];
+export async function liveEvents(a:Actor,sessionId:string,knownRoom?:LiveRoom){
+ const room=knownRoom||(await readLiveRoom(a,sessionId)).room;if(!room.open||!room.started)return [];
  const rows=await Promise.all(['scene','media','roll'].map(kind=>database().prepare("SELECT body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.kind')=? AND json_extract(body,'$.runId')=? AND (?=1 OR json_extract(body,'$.recipients') IS NULL OR EXISTS(SELECT 1 FROM json_each(records.body,'$.recipients') WHERE value=?)) ORDER BY created_at DESC,id DESC LIMIT ?").bind(a.campaignId,sessionId,kind,room.runId||'',a.gm?1:0,a.id,kind==='roll'?30:1).all<{body:string}>()));
  return rows.flatMap(r=>r.results).map(r=>JSON.parse(r.body) as LiveEvent).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).map(e=>e.hidden?{id:e.id,kind:e.kind,authorId:e.authorId,authorName:e.authorName,at:e.at,recipients:e.recipients,hidden:true}:e);
 }

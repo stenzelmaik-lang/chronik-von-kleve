@@ -6,12 +6,12 @@ import type {LiveAudience,LiveEvent,LiveMedia} from '@/domain/live-game';
 import type {SceneView,SceneSummary} from '@/domain/story-scene';
 import {api,ApiError} from './api-client';
 import {LiveTable} from './live-table';
+import type {TableResult} from './use-table-screen';
 import {RichTextView} from './rich-text';
 import {DicePanel} from './dice';
 import {LivePdf} from './live-pdf';
 import styles from './live-session.module.css';
-type Session={id:string;title:string;open:boolean;started?:boolean};
-type Snapshot={room:{open:boolean;started:boolean;runId:string;title:string}|null;events:LiveEvent[];members:{id:string;name:string}[]};
+type Snapshot=TableResult&{events:LiveEvent[];members:{id:string;name:string}[];unchanged?:boolean};
 function Audience({value,onChange,members,disabled=false}:{value:LiveAudience;onChange:(a:LiveAudience)=>void;members:{id:string;name:string}[];disabled?:boolean}){
  const name=useId();
  return <fieldset className={styles.audience} disabled={disabled}><legend>Wer sieht das?</legend><label><input type="radio" name={name} checked={value.scope==='all'} onChange={()=>onChange({scope:'all'})}/> Alle in dieser Runde</label><label><input type="radio" name={name} checked={value.scope==='players'} onChange={()=>onChange({scope:'players',playerIds:[]})}/> Spieler auswählen</label>{value.scope==='players'&&<div>{members.map(member=><label key={member.id}><input type="checkbox" checked={value.playerIds.includes(member.id)} onChange={e=>onChange({scope:'players',playerIds:e.target.checked?[...value.playerIds,member.id]:value.playerIds.filter(id=>id!==member.id)})}/>{member.name}</label>)}</div>}</fieldset>;
@@ -29,15 +29,20 @@ export function LiveSession({a}:{a:Actor}){
  const [files,setFiles]=useState<LiveMedia[]>([]),[fileIds,setFileIds]=useState<string[]>([]),[mediaSearch,setMediaSearch]=useState('');
  const [scope,setScope]=useState<LiveAudience>({scope:'all'}),[rollScope,setRollScope]=useState<LiveAudience>({scope:'all'});
  const [tool,setTool]=useState<'scene'|'media'|'roll'>('scene'),[dismissed,setDismissed]=useState('');
- const dialog=useRef<HTMLDialogElement>(null),boardDirty=useRef(false),flight=useRef(false),alive=useRef(true),request=useRef<{signature:string;id:string}|null>(null),newSession=useRef<string|null>(null);
+ const dialog=useRef<HTMLDialogElement>(null),boardDirty=useRef(false),flight=useRef<Promise<void>|null>(null),alive=useRef(true),request=useRef<{signature:string;id:string}|null>(null),newSession=useRef<string|null>(null);
  const latestRoll=useRef<number[]>([]);
+ const cursor=useRef(''),activeRoom=useRef(false),lastCheck=useRef(0);
  const loadCatalog=useCallback(async()=>{if(!a.gm)return;const [c,f]=await Promise.all([api<typeof catalog>('/api/command-center'),api<{files:LiveMedia[]}>('/api/files')]);setCatalog(c);setFiles(f.files);},[a.gm]);
  useEffect(()=>{queueMicrotask(()=>void loadCatalog().catch(issue=>setError(issue.message)));},[loadCatalog]);
- const refresh=useCallback(async()=>{
-  if(flight.current)return;flight.current=true;
-  try{const list=await api<{sessions:Session[]}>('/api/live-table');if(!alive.current)return;const active=list.sessions.find(s=>s.started&&s.open);if(active){const snapshot=await api<Snapshot>('/api/live-table?sessionId='+encodeURIComponent(active.id));if(alive.current){setData(snapshot);setSessionId(active.id);}}else{setData(null);setSessionId('');}setSyncError('');}catch(issue){if(alive.current){setSyncError((issue as Error).message);if(issue instanceof ApiError&&[401,403,404].includes(issue.status)){setData(null);setSessionId('');setCatalog({sessions:[],scenes:[]});setFiles([]);setScene(null);}}}finally{flight.current=false;if(alive.current)setLoading(false);}
+ const refresh=useCallback(async function update(force=false):Promise<void>{
+  if(force)cursor.current='';
+  if(flight.current){await flight.current;if(force)return update(true);return;}
+  lastCheck.current=Date.now();
+  const task=(async()=>{try{const snapshot=await api<Snapshot>('/api/live-table?view=active&cursor='+encodeURIComponent(cursor.current));if(!alive.current)return;if(!snapshot.unchanged){cursor.current=snapshot.cursor||'';activeRoom.current=!!snapshot.room?.open;setData(snapshot.room?snapshot:null);setSessionId(snapshot.room?.sessionId||'');}setSyncError('');}catch(issue){if(alive.current){setSyncError((issue as Error).message);if(issue instanceof ApiError&&[401,403,404].includes(issue.status)){cursor.current='';activeRoom.current=false;setData(null);setSessionId('');setCatalog({sessions:[],scenes:[]});setFiles([]);setScene(null);}}}finally{if(alive.current)setLoading(false);}})();
+  flight.current=task;try{await task;}finally{if(flight.current===task)flight.current=null;}
  },[]);
- useEffect(()=>{alive.current=true;queueMicrotask(()=>void refresh());const timer=window.setInterval(()=>{if(document.visibilityState==='visible')void refresh();},2000);window.addEventListener('focus',refresh);return()=>{alive.current=false;window.clearInterval(timer);window.removeEventListener('focus',refresh);};},[refresh]);
+ const refreshShared=useCallback(()=>refresh(true),[refresh]);
+ useEffect(()=>{alive.current=true;const check=()=>{if(document.visibilityState==='visible'&&Date.now()-lastCheck.current>=(activeRoom.current?350:2000))void refresh();};queueMicrotask(()=>void refresh());const timer=window.setInterval(check,100);const focus=()=>void refresh(true);window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);return()=>{alive.current=false;window.clearInterval(timer);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus);};},[refresh]);
  useEffect(()=>{if(!sceneId)return;let current=true;api<{scene:SceneView}>('/api/command-center/scenes?id='+encodeURIComponent(sceneId)).then(r=>{if(current)setScene(r.scene);}).catch(issue=>current&&setError(issue.message));return()=>{current=false;};},[sceneId]);
  const running=!!(sessionId&&data?.room?.open&&data.room.started),events=data?.events||[],currentScene=events.findLast(e=>e.kind==='scene'),media=events.findLast(e=>e.kind==='media');
  useEffect(()=>{if(running)newSession.current=null;},[running]);
@@ -66,7 +71,7 @@ export function LiveSession({a}:{a:Actor}){
    {((a.gm&&tool==='roll')||!a.gm)&&<section className="panel"><h2>Gemeinsam würfeln</h2><Audience value={rollScope} onChange={setRollScope} members={data.members} disabled={busy}/><DicePanel disabled={busy||!audienceValid(rollScope)} sharedRoll={async(pool,target)=>{if(!await command('roll',{pool,target,audience:rollScope}))throw new Error('Wurf wurde nicht gesendet. Bitte Fehlermeldung prüfen.');return latestRoll.current;}}/><small>Serverseitiger Rohwurf. Keine automatische Änderung von Charakterwerten.</small></section>}
    {events.some(e=>e.kind==='roll')&&<section className="panel" aria-label="Geteilte Würfelwürfe"><h2>Würfe für dich</h2>{events.filter(e=>e.kind==='roll'&&!e.hidden).slice(-10).reverse().map(e=><article key={e.id}><strong>{e.authorName}</strong><div className="dice-results">{e.roll?.dice.map((die,i)=><span key={i} className={die>=(e.roll?.target||6)?'die success':'die'}>{die}</span>)}</div><p>{e.roll?.dice.filter(d=>d>=e.roll!.target).length} Würfel erreichen Schwelle {e.roll?.target}.</p></article>)}</section>}
    {media&&!media.hidden&&selectedFile&&<button className="button" onClick={()=>setDismissed('')}>Aktuelle Medienansicht öffnen</button>}
-   <LiveTable key={`${a.campaignId}:${a.id}:${sessionId}`} a={a} selectedSessionId={sessionId} managed onDirty={dirty=>{boardDirty.current=dirty;}}/>
+   <LiveTable key={`${a.campaignId}:${a.id}:${sessionId}`} a={a} selectedSessionId={sessionId} snapshot={data} onRefresh={refreshShared} managed onDirty={dirty=>{boardDirty.current=dirty;}}/>
   </>}
   <dialog ref={dialog} className={styles.dialog} aria-label="Gemeinsame Medienansicht" onClose={()=>{if(media)setDismissed(media.id);}} onCancel={()=>{if(media)setDismissed(media.id);}}>{media&&!media.hidden&&selectedFile&&<><header><h2>{selectedFile.name}</h2><button className="button" onClick={()=>{setDismissed(media.id);dialog.current?.close();}}>Ansicht schließen</button></header><MediaView key={selectedFile.id} file={selectedFile} url={'/api/live-table/media?sessionId='+encodeURIComponent(sessionId)+'&eventId='+media.id+'&fileId='+selectedFile.id}/><p>Medium {(media.index||0)+1} von {media.files?.length}. Audio/Video bei Bedarf im Browser selbst starten.</p>{a.gm&&<div className={styles.tabs}><button disabled={busy||(media.index||0)===0} onClick={()=>void command('mediaIndex',{eventId:media.id,index:(media.index||0)-1})}>Vorheriges für alle Empfänger</button><button disabled={busy||(media.index||0)>=(media.files?.length||0)-1} onClick={()=>void command('mediaIndex',{eventId:media.id,index:(media.index||0)+1})}>Nächstes für alle Empfänger</button><button disabled={busy} onClick={()=>void command('hideMedia',{eventId:media.id})}>Medien für Zielgruppe ausblenden</button></div>}</>}</dialog>
  </div>;
