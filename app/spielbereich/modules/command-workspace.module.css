@@ -24,4 +24,5 @@
 @media(prefers-reduced-motion:reduce){.root button{transition:none}}
 
 .root .returnButton{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:5px 9px;color:var(--cc-brass);border:1px solid #d2b47b55;background:#d2b47b12;font-size:11px;white-space:nowrap}
+.liveTools>summary{display:list-item}.root .narrowBoard>div:first-child{max-height:none}.root .narrowBoard>div:first-child .panelBody{max-height:none;overflow:visible}.root .narrowBoard{margin-bottom:24px}
 @media(max-width:450px){.returnButton span{display:none}}

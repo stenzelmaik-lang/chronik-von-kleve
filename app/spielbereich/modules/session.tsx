@@ -26,6 +26,7 @@ export function SessionPanel({
   a,
   onRefresh,
   compact = false,
+  showStage = true,
   onDraftChange,
   onSaved,
 }: {
@@ -33,6 +34,7 @@ export function SessionPanel({
   a: Actor;
   onRefresh: () => void;
   compact?: boolean;
+  showStage?: boolean;
   onDraftChange?: (dirty: boolean) => void;
   onSaved?: (entry: Entry) => void;
 }) {
@@ -154,7 +156,7 @@ export function SessionPanel({
     );
   return (
     <div className="session-stack" data-compact={compact}>
-      <SessionStage scene={String(initial.scene||"")} subtitle={String(initial.subtitle||"")} status={String(initial.status||"Bereit")} round={Number(initial.round||1)}/>
+      {showStage&&<SessionStage scene={String(initial.scene||"")} subtitle={String(initial.subtitle||"")} status={String(initial.status||"Bereit")} round={Number(initial.round||1)}/>}
       {a.gm&&<div className="session-control"><Choice label="Sitzungsstatus" value={status} onChange={next=>{setStatus(next);void save({scene,subtitle,status:next,round,turn,initiative,log});}} options={["Bereit","Läuft","Pause","Abgeschlossen"].map(x=>[x,x] as [string,string])}/></div>}
       <SceneToolDrawer tools={[
         {id:'session-initiative',label:'Initiative',icon:Swords,content:<section className="panel initiative-panel">
