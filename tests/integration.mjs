@@ -10,6 +10,7 @@ import {storyPreparationIntegration} from './story-preparation-integration.mjs';
 import {workspaceUxIntegration} from './workspace-ux-integration.mjs';
 import {appointmentsIntegration} from './appointments-integration.mjs';
 import {liveTableIntegration} from './live-table-integration.mjs';
+import {liveGameIntegration} from './live-game-integration.mjs';
 import {engineFixture} from "./fixtures/engine-character.mjs";
 import {weekendIntegration} from "./weekend-integration.mjs";
 import {accountAccessIntegration} from "./account-access-integration.mjs";
@@ -1022,5 +1023,6 @@ await storyPreparationIntegration({req,check,localSql,sqlQuote,session:regieStor
 await workspaceUxIntegration({req,check});
 await appointmentsIntegration({req,check});
 await liveTableIntegration({req,check});
+await liveGameIntegration({req,check,base,ids});
 await accountAccessIntegration({req,check,localSql,sqlQuote,base,testPassword,testPasswordHash});
 console.log(checks+' integration checks passed. All writes were confined to the isolated local test database.');

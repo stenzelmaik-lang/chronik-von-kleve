@@ -1,9 +1,9 @@
 export type BoardPoint = [number, number];
-export type BoardElement = { id:string; memberId:string; name:string; color:string; points:BoardPoint[]; text?:string };
+export type BoardElement = { id:string; memberId:string; name:string; color:string; points:BoardPoint[]; text?:string; fileId?:string };
 export type TablePeer = {id:string;memberId:string;name:string;seen:number};
 export type TableScreen = {peerId:string;screenId:string};
 export const TABLE_PEER_TTL = 30000;
-export const TABLE_CONTEXTS = ['live-table','live-table-signal'];
+export const TABLE_CONTEXTS = ['live-table','live-table-signal','live-table-event'];
 export function tablePeerId(value:unknown):value is string { return typeof value==='string'&&/^[a-f0-9-]{36}$/.test(value); }
 export function boardElement(value:unknown):Omit<BoardElement,'memberId'|'name'> {
   if(!value||typeof value!=='object')throw new Error('Ungültiger Whiteboard-Eintrag.');
@@ -14,7 +14,8 @@ export function boardElement(value:unknown):Omit<BoardElement,'memberId'|'name'>
     return point.map(number=>Math.round(number)) as BoardPoint;
   });
   if(d.text!==undefined&&(typeof d.text!=='string'||!d.text.trim()||d.text.length>500))throw new Error('Whiteboard-Text darf höchstens 500 Zeichen lang sein.');
-  return {id:d.id,color:d.color,points,...(typeof d.text==='string'?{text:d.text.trim()}:{})};
+  if(d.fileId!==undefined&&(typeof d.fileId!=='string'||d.fileId.length>160||!d.fileId))throw new Error('Ungültiges Whiteboard-Bild.');
+  return {id:d.id,color:d.color,points,...(typeof d.text==='string'?{text:d.text.trim()}:{}),...(typeof d.fileId==='string'?{fileId:d.fileId}:{})};
 }
 export function tableSignal(value:unknown):{type:'offer'|'answer'|'candidate';payload:RTCSessionDescriptionInit|RTCIceCandidateInit} {
   if(!value||typeof value!=='object')throw new Error('Ungültiges Verbindungssignal.');

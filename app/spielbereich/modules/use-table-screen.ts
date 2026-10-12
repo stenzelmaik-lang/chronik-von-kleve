@@ -2,7 +2,7 @@
 import { useCallback,useEffect,useRef,useState } from 'react';
 import { api } from './api-client';
 import type { BoardElement,TablePeer,TableScreen } from '@/domain/live-table';
-export type TableResult={room:{version:number;open:boolean;epoch:number;elements:BoardElement[];peers:TablePeer[];screen:TableScreen|null}|null;signals?:{id:string;from:string;screenId:string;type:'offer'|'answer'|'candidate';payload:RTCSessionDescriptionInit|RTCIceCandidateInit}[];iceServers?:RTCIceServer[];relayConfigured?:boolean;mediaError?:string};
+export type TableResult={room:{version:number;open:boolean;started?:boolean;title?:string;epoch:number;elements:BoardElement[];peers:TablePeer[];screen:TableScreen|null}|null;events?:import('@/domain/live-game').LiveEvent[];signals?:{id:string;from:string;screenId:string;type:'offer'|'answer'|'candidate';payload:RTCSessionDescriptionInit|RTCIceCandidateInit}[];iceServers?:RTCIceServer[];relayConfigured?:boolean;mediaError?:string};
 type Connection={pc:RTCPeerConnection;screenId:string;pending:RTCIceCandidateInit[];offered:boolean};
 export function useTableScreen(sessionId:string,peerId:string|null) {
   const [local,setLocal]=useState<MediaStream|null>(null),[remote,setRemote]=useState<MediaStream|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false);

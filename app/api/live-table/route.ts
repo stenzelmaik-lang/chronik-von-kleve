@@ -1,10 +1,12 @@
 import { env } from 'cloudflare:workers';
-import { actor,database,sameOrigin,json,failure,HttpError,gmOnly } from '@/server/access';
+import { actor,database,sameOrigin,json,failure,HttpError,gmOnly,type Actor } from '@/server/access';
 import { GET as recordsGET } from '../records/route';
 import type { Entry,LegacyRecordRow } from '@/domain/legacy';
-import { boardElement,tableSignal,tablePeerId,TABLE_PEER_TTL,type BoardElement,type TablePeer,type TableScreen } from '@/domain/live-table';
+import { boardElement,tableSignal,tablePeerId,TABLE_PEER_TTL,type TablePeer } from '@/domain/live-table';
+import {LIVE_ACTIONS,liveCommand,liveEvents} from '@/server/live-commands';
+import {roomAllowed,liveFile,liveMembers,type LiveRoom} from '@/server/live-game';
 export const dynamic='force-dynamic';
-type TableBody={context:'live-table';sessionId:string;open:boolean;epoch:number;elements:BoardElement[];peers:Record<string,TablePeer>;screen:TableScreen|null};
+type TableBody=LiveRoom;
 async function tableInput(req:Request) {
   if(!(req.headers.get('content-type')||'').includes('application/json'))throw new HttpError(415,'JSON erwartet.');
   if(!req.body)throw new HttpError(400,'Spielraumaktion fehlt.');
@@ -15,11 +17,14 @@ async function tableInput(req:Request) {
   }finally{reader.releaseLock();}
   try{return JSON.parse(text);}catch{throw new HttpError(400,'Ungültige Spielraumaktion.');}
 }
-async function sessions(req:Request):Promise<Entry[]> {
+async function sessions(req:Request,viewer:Actor):Promise<Entry[]> {
   const url=new URL(req.url);url.search='?kind=sitzungen';
   const response=await recordsGET(new Request(url,{headers:req.headers}));
   if(!response.ok)throw new HttpError(response.status,'Sitzungen sind nicht verfügbar.');
-  return (await response.json() as {records:Entry[]}).records.filter(entry=>entry.visibility==='group');
+  const available=(await response.json() as {records:Entry[]}).records.filter(entry=>entry.visibility==='group');
+  const rows=await database().prepare("SELECT json_object('sessionId',json_extract(body,'$.sessionId'),'title',json_extract(body,'$.title'),'participants',json_extract(body,'$.participants')) AS body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table' AND json_extract(body,'$.started')=1 AND json_extract(body,'$.open')=1").bind(viewer.campaignId).all<{body:string}>();
+  for(const row of rows.results){const room=JSON.parse(row.body) as LiveRoom;if(roomAllowed(viewer,room)&&!available.some(session=>session.id===room.sessionId))available.push({id:room.sessionId,title:room.title||'Live-Spielabend',kind:'sitzungen',visibility:'group',body:{},version:1});}
+  return available;
 }
 function bodyOf(row:LegacyRecordRow):TableBody {
   const body=JSON.parse(row.body);
@@ -40,16 +45,18 @@ function iceConfiguration():RTCIceServer[] {
 }
 export async function GET(req:Request) {
   try {
-    const a=await actor();const available=await sessions(req);const db=database();
+    const a=await actor();const available=await sessions(req,a);const db=database();
     const sessionId=new URL(req.url).searchParams.get('sessionId');
     const rows=sessionId
       ? await db.prepare("SELECT * FROM records WHERE campaign_id=? AND id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table'").bind(a.campaignId,`live-table:${a.campaignId}:${sessionId}`).all<LegacyRecordRow>()
-      : await db.prepare("SELECT id,json_object('context','live-table','sessionId',json_extract(body,'$.sessionId'),'open',json_extract(body,'$.open'),'elements',json('[]'),'peers',json('{}')) AS body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table'").bind(a.campaignId).all<LegacyRecordRow>();
-    if(!sessionId)return json({sessions:available.map(session=>({id:session.id,title:session.title,open:rows.results.some(row=>bodyOf(row).sessionId===session.id&&bodyOf(row).open)}))});
+      : await db.prepare("SELECT id,json_object('context','live-table','sessionId',json_extract(body,'$.sessionId'),'open',json_extract(body,'$.open'),'started',json_extract(body,'$.started'),'title',json_extract(body,'$.title'),'participants',json_extract(body,'$.participants'),'elements',json('[]'),'peers',json('{}')) AS body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table'").bind(a.campaignId).all<LegacyRecordRow>();
+    const accessibleRooms=rows.results.map(bodyOf).filter(room=>roomAllowed(a,room));
+    for(const room of accessibleRooms.filter(room=>room.started&&room.open))if(!available.some(session=>session.id===room.sessionId))available.push({id:room.sessionId,title:room.title||'Live-Spielabend',kind:'sitzungen',visibility:'group',body:{},version:1});
+    if(!sessionId)return json({sessions:available.map(session=>({id:session.id,title:accessibleRooms.find(room=>room.sessionId===session.id&&room.started)?.title||session.title,open:accessibleRooms.some(room=>room.sessionId===session.id&&room.open),started:accessibleRooms.some(room=>room.sessionId===session.id&&room.open&&room.started)}))});
     if(!available.some(session=>session.id===sessionId))throw new HttpError(404,'Spielraum nicht verfügbar.');
     const row=rows.results.find(row=>bodyOf(row).sessionId===sessionId);
     if(!row)return json({room:null});
-    const room=bodyOf(row);const now=Date.now();
+    const room=bodyOf(row);if(!roomAllowed(a,room))throw new HttpError(404,'Spielraum nicht verfügbar.');const now=Date.now();
     const peers=Object.values(room.peers).filter(peer=>peer.seen>now-TABLE_PEER_TTL);
     const screen=room.open&&room.screen&&peers.some(peer=>peer.id===room.screen?.peerId)?room.screen:null;
     const peerId=new URL(req.url).searchParams.get('peerId');
@@ -57,18 +64,19 @@ export async function GET(req:Request) {
     const signalRows=peer&&screen?await db.prepare("SELECT id,body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-signal' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.target')=? AND json_extract(body,'$.screenId')=? AND updated_at>? ORDER BY created_at,id LIMIT 100").bind(a.campaignId,sessionId,peer.id,screen.screenId,new Date(now-45000).toISOString()).all<{id:string;body:string}>():{results:[]};
     let iceServers:RTCIceServer[]=[];let mediaError='';
     if(peer)try{iceServers=iceConfiguration();}catch(error){mediaError=(error as Error).message;}
-    return json({room:{version:row.version,open:room.open,epoch:room.epoch,elements:room.open?room.elements:[],peers:room.open?peers:[],screen},signals:signalRows.results.map(signal=>({id:signal.id,...JSON.parse(signal.body)})),iceServers,mediaError,relayConfigured:iceServers.some(server=>[server.urls].flat().some(url=>/^turns?:/.test(url)))});
+    return json({room:{version:row.version,open:room.open,started:room.started||false,startedAt:room.startedAt||'',runId:room.runId||'',title:room.title||'',epoch:room.epoch,elements:room.open?room.elements:[],peers:room.open?peers:[],screen},members:room.started&&room.open?(await liveMembers(a)).filter(m=>room.participants?.includes(m.id)):[],events:room.started&&room.open?await liveEvents(a,sessionId):[],signals:signalRows.results.map(signal=>({id:signal.id,...JSON.parse(signal.body)})),iceServers,mediaError,relayConfigured:iceServers.some(server=>[server.urls].flat().some(url=>/^turns?:/.test(url)))});
   }catch(error){return failure(error,req);}
 }
 export async function POST(req:Request) {
   try {
     sameOrigin(req);const a=await actor();const d=await tableInput(req);
     if(!d||typeof d!=='object'||typeof d.sessionId!=='string'||d.sessionId.length>160)throw new HttpError(400,'Ungültiger Spielraum.');
-    const available=await sessions(req);const session=available.find(session=>session.id===d.sessionId);
+    if(LIVE_ACTIONS.includes(d.action))return json(await liveCommand(a,d));
+    const available=await sessions(req,a);const session=available.find(session=>session.id===d.sessionId);
     if(!session)throw new HttpError(404,'Nur eine für die Gruppe freigegebene Sitzung kann einen Spielraum erhalten.');
     const db=database(),id=`live-table:${a.campaignId}:${session.id}`,now=Date.now(),stamp=new Date(now).toISOString();
     const row=await db.prepare('SELECT * FROM records WHERE campaign_id=? AND id=?').bind(a.campaignId,id).first<LegacyRecordRow>();
-    if(row)bodyOf(row);
+    if(row&&!roomAllowed(a,bodyOf(row)))throw new HttpError(404,'Spielraum nicht verfügbar.');
     if(d.action==='open'){
       gmOnly(a);
       if(!row){
@@ -106,6 +114,7 @@ export async function POST(req:Request) {
     }
     if(d.action==='draw'){
       let element;try{element={...boardElement(d.element),memberId:a.id,name:a.name};}catch(error){throw new HttpError(400,(error as Error).message);}
+      if(element.fileId){const file=await liveFile(a,element.fileId);if(!file.mime.startsWith('image/'))throw new HttpError(400,'Nur Bilder auf dem Whiteboard.');}
       if(room.elements.some(item=>item.id===element.id)){
         const previous=room.elements.find(item=>item.id===element.id);
         if(JSON.stringify(previous)!==JSON.stringify(element))throw new HttpError(409,'Diese Zeichenkennung ist bereits belegt.');

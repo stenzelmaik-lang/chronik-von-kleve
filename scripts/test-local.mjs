@@ -84,7 +84,7 @@ try{
    if(pathname.startsWith('/_next/static/')) {
     const clientRoot=resolve('dist/client'),assetPath=resolve(clientRoot,'.'+decodeURIComponent(pathname));
     if(!assetPath.startsWith(clientRoot+'\\')&&!assetPath.startsWith(clientRoot+'/')){res.statusCode=403;return res.end();}
-    try{const data=readFileSync(assetPath);res.setHeader('Content-Type',assetPath.endsWith('.js')?'text/javascript':assetPath.endsWith('.css')?'text/css':'application/octet-stream');res.setHeader('X-Content-Type-Options','nosniff');return res.end(data);}catch{res.statusCode=404;return res.end('Asset not found');}
+    try{const data=readFileSync(assetPath);res.setHeader('Content-Type',/\.m?js$/.test(assetPath)?'text/javascript':assetPath.endsWith('.css')?'text/css':'application/octet-stream');res.setHeader('X-Content-Type-Options','nosniff');return res.end(data);}catch{res.statusCode=404;return res.end('Asset not found');}
    }
    const headers=new Headers();
    for(const [key,value] of Object.entries(req.headers))if(typeof value==='string')headers.set(key,value);

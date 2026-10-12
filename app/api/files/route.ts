@@ -1,6 +1,7 @@
 import type { FileRow } from "@/domain/legacy";
 import { env } from "cloudflare:workers";
 import {canReadNPCFile} from '@/server/npc-file-access';
+import {LIVE_MEDIA_TYPES,validMediaBytes} from '@/domain/media-upload';
 import {
   actor,
   database,
@@ -12,7 +13,7 @@ import {
   input,
 } from "@/server/access";
 export const dynamic = "force-dynamic";
-const types = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+const types = LIVE_MEDIA_TYPES;
 export async function GET(req: Request) {
   try {
     const a = await actor();
@@ -55,7 +56,10 @@ export async function POST(req: Request) {
     const a = await actor();
     if (Number(req.headers.get("content-length") || 0) > 11 * 1024 * 1024)
       throw new HttpError(413, "Bitte maximal 10 MB hochladen.");
-    const form = await req.formData();
+    if(!req.body)throw new HttpError(400,'Datei fehlt.');
+    const reader=req.body.getReader(),chunks:Uint8Array<ArrayBuffer>[]=[];let total=0;
+    try{while(true){const part=await reader.read();if(part.done)break;total+=part.value.byteLength;if(total>11*1024*1024){await reader.cancel();throw new HttpError(413,'Bitte maximal 10 MB hochladen.');}chunks.push(part.value.slice());}}finally{reader.releaseLock();}
+    const form=await new Request(req.url,{method:'POST',headers:req.headers,body:new Blob(chunks)}).formData();
     const file = form.get("file");
     const visibility = String(form.get("visibility") || "private");
     if (
@@ -66,22 +70,14 @@ export async function POST(req: Request) {
     )
       throw new HttpError(
         400,
-        "Erlaubt sind JPG, PNG, WebP und PDF bis 10 MB.",
+        "Erlaubt sind Bilder, PDF, MP3/OGG/WAV/M4A und MP4/WebM bis 10 MB.",
       );
     if (!["private", "sl", "group"].includes(visibility))
       throw new HttpError(400, "Ungültige Sichtbarkeit.");
     if (visibility === "sl" && !a.gm)
       throw new HttpError(403, "SL-Dateien können nur von der Spielleitung angelegt werden.");
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const sig = String.fromCharCode(...bytes.slice(0, 12));
-    const valid =
-      file.type === "image/png"
-        ? bytes[0] === 137 && sig.slice(1, 4) === "PNG"
-        : file.type === "image/jpeg"
-          ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-          : file.type === "image/webp"
-            ? sig.startsWith("RIFF") && sig.slice(8) === "WEBP"
-            : sig.startsWith("%PDF-");
+    const valid=validMediaBytes(file.type,bytes);
     if (!valid)
       throw new HttpError(
         400,

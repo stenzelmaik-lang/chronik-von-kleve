@@ -81,7 +81,7 @@ export async function GET(req: Request) {
       lastSession: sessions[0] || null,
       economy: by("wirtschaft").find(available) || null,
       favors: by("gefallen").find(available) || null,
-      notes: by("notizen").filter(entry => available(entry) && !['appointment-vote','live-table','live-table-signal'].includes(String(entry.body.context))).slice(0, 5),
+      notes: by("notizen").filter(entry => available(entry) && !['appointment-vote','live-table','live-table-signal','live-table-event'].includes(String(entry.body.context))).slice(0, 5),
       message: by("neuigkeiten").find(available) || null,
     });
   } catch (error) {
