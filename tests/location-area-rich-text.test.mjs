@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {encodeRichText,htmlToRichText,inspectRichTextSource,isRichTextWithinLimit,parseRichTextDocument,readRichText,richHtmlPrefix,richTextClasses,richTextToHtml,richTextToPlainText,sanitizeRichTextInput} from '../domain/location-rich-text.ts';
+import {encodeRichText,htmlToRichText,inspectRichTextSource,isRichTextWithinLimit,parseRichTextDocument,readRichText,richHtmlPrefix,richTextClasses,richTextToHtml,richTextToPlainText,sanitizeRichTextInput,splitRichTextIntroduction} from '../domain/location-rich-text.ts';
 import {parsePlayerPayload} from '../domain/location-cms.ts';
 
 test('Server schema rejects parse errors as validation failures, never a secondary runtime exception',()=>{
@@ -75,6 +75,37 @@ test('Plain descriptions including literal HTML and line breaks are not automati
   assert.equal(richTextToPlainText(encodeRichText(readRichText(old))),old);
 });
 
+test('Area presentation isolates only the first contiguous marked introduction without losing blocks',()=>{
+  const value=htmlToRichText('<h2>Vorhandener Titel</h2><p class="cp-intro">Erste <strong>Einleitung</strong>.</p><p class="cp-intro cp-note">Zweiter Einleitungsabsatz.</p><h3>Beschreibung</h3><p>Danach <span class="cp-highlight">Gold</span>.</p><blockquote class="cp-note">Ein Echo.</blockquote><hr class="cp-divider"><p class="cp-intro">Spätere Hervorhebung bleibt hier.</p>');
+  const before=readRichText(value),snapshot=JSON.stringify(before);
+  const split=splitRichTextIntroduction(value);
+  assert.equal(richTextToPlainText(split.introduction),'Erste Einleitung.\nZweiter Einleitungsabsatz.');
+  assert.deepEqual(readRichText(split.description).blocks,[before.blocks[0],...before.blocks.slice(3)]);
+  assert.equal(JSON.stringify(readRichText(value)),snapshot);
+  const retained=[...readRichText(split.introduction).blocks,...readRichText(split.description).blocks];
+  assert.deepEqual(retained.map(b=>JSON.stringify(b)).sort(),before.blocks.map(b=>JSON.stringify(b)).sort());
+});
+
+test('Unmarked and literal plaintext descriptions stay below the image without an inferred introduction',()=>{
+  for(const value of ['Alte Einleitung\n\nBeschreibung',htmlToRichText('<h2>Abschnitt</h2><p>Keine Markierung</p>'),'<p class="cp-intro">Wörtlicher Klartext</p>','']){
+    assert.deepEqual(splitRichTextIntroduction(value),{introduction:null,description:value});
+  }
+  const partlyMarked=htmlToRichText('<p><span class="cp-intro">Markiert</span> und normal.</p>');
+  assert.equal(splitRichTextIntroduction(partlyMarked).introduction,null);
+});
+
+test('A complete inline introduction and a long introduction retain all text and formatting',()=>{
+  const inline=splitRichTextIntroduction(htmlToRichText('<p><span class="cp-intro">Nur <em>Einleitung</em>.</span></p><p>Beschreibung.</p>'));
+  assert.equal(richTextToPlainText(inline.introduction),'Nur Einleitung.');
+  assert.equal(richTextToPlainText(inline.description),'Beschreibung.');
+  const longText='Die lange Einleitung bleibt vollständig lesbar. '.repeat(20);
+  const value=htmlToRichText('<p class="cp-intro">'+longText+'</p><h2>Danach</h2><ul><li>Erster Hinweis</li></ul>');
+  const split=splitRichTextIntroduction(value);
+  assert.equal(richTextToPlainText(split.introduction),longText);
+  assert.equal(richTextToHtml(split.description),'<h2>Danach</h2>\n<ul><li>Erster Hinweis</li></ul>');
+  assert.equal(splitRichTextIntroduction(split.introduction).description,'');
+});
+
 test('Unsafe and oversized HTML cannot fall back to raw rendering or unbounded parsing',()=>{
   assert.throws(()=>sanitizeRichTextInput(richHtmlPrefix+'x'.repeat(65001)));
   assert.throws(()=>htmlToRichText('<div>'.repeat(45)+'Text'+'</div>'.repeat(45)));
@@ -87,7 +118,15 @@ test('Area presentation reuses the safe renderer, private sources and accessible
   const css=readFileSync(new URL('../app/spielbereich/modules/world-experience.module.css',import.meta.url),'utf8');
   const editor=readFileSync(new URL('../app/spielbereich/modules/location-cms.tsx',import.meta.url),'utf8');
   assert.ok(!view.includes('dangerouslySetInnerHTML'));
-  assert.ok(view.includes('currentArea.playerHint} readable'));
+  assert.ok(view.includes('splitRichTextIntroduction(currentArea?.playerHint'));
+  assert.ok(view.includes('value={areaCopy.introduction} readable'));
+  assert.ok(view.includes('value={areaCopy.description} readable'));
+  assert.ok(view.indexOf('value={areaCopy.introduction} readable')<view.indexOf('value={areaCopy.description} readable'));
+  assert.ok(!css.includes('float:'));
+  assert.match(css,/\.areaBody \{ display: grid; gap: 24px/);
+  assert.match(css,/\.areaOpeningWithIntro \{ grid-template-columns: minmax\(0,min\(42%,400px\)\) minmax\(0,1fr\)/);
+  assert.match(css,/\.areaDetail \{[^}]*max-width: none/);
+  assert.match(css,/\.areaBody \.areaHint \{[^}]*16px\/1\.6 Georgia/);
   assert.ok(view.includes('aria-label={`Bild vergrößern: ${currentArea.title}`}'));
   assert.ok(view.includes('boundedImageOffset'));
   assert.ok(view.includes('preventScroll:true'));

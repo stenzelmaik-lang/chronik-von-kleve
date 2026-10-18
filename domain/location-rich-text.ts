@@ -146,6 +146,27 @@ export function encodeRichText(document: RichTextDocument): string {
   return parsed ? richTextPrefix + JSON.stringify(parsed) : "";
 }
 
+// Presentation only: the stored document is never rewritten or truncated.
+export function splitRichTextIntroduction(value: string): { introduction: string | null; description: string } {
+  const document = readRichText(value);
+  const isIntro = (block: RichTextBlock) => {
+    if (block.className?.split(" ").includes("cp-intro")) return true;
+    // Also support an introduction wrapped in an existing allowed <span>.
+    if (block.type !== "paragraph") return false;
+    const content = block.children.filter(part => part.text.trim());
+    return content.length > 0 && content.every(part => part.className?.split(" ").includes("cp-intro"));
+  };
+  const start = document.blocks.findIndex(isIntro);
+  if (start < 0) return { introduction: null, description: value };
+  let end = start + 1;
+  while (end < document.blocks.length && isIntro(document.blocks[end])) end++;
+  const remaining = [...document.blocks.slice(0, start), ...document.blocks.slice(end)];
+  return {
+    introduction: encodeRichText({ version: 1, blocks: document.blocks.slice(start, end) }),
+    description: remaining.length ? encodeRichText({ version: 1, blocks: remaining }) : "",
+  };
+}
+
 export function richTextToPlainText(value: string): string {
   return readRichText(value).blocks.map(block => {
     if(block.type==='divider')return '';

@@ -31,6 +31,7 @@ import { type ComponentType, type MouseEvent, useEffect, useMemo, useRef, useSta
 import { toast } from "sonner";
 
 import type { Entry } from "@/domain/legacy";
+import { splitRichTextIntroduction } from "@/domain/location-rich-text";
 
 import { api } from "./api-client";
 import { RichTextView, richTextToPlainText } from "./rich-text";
@@ -211,6 +212,7 @@ export function WorldExperience({
   const mapPreviewPlace = selected;
   const areaList = useMemo(() => location?.areas ?? [], [location]);
   const currentArea = areaList.find((area) => area.viewKey === activeArea) ?? areaList[0] ?? null;
+  const areaCopy = splitRichTextIntroduction(currentArea?.playerHint ?? "");
   const cachedNotes = readPlayerData<NotesPayload>(dataScope, NOTES_KEY);
   const notes = noteState?.scope === dataScope ? noteState.records : cachedNotes?.value.records ?? [];
   const relatedNotes = notes.filter((note) => note.body?.locationId === location?.id);
@@ -523,11 +525,14 @@ export function WorldExperience({
                   {groupVisibilityFor(currentArea.viewKey)}
                   {slNotesFor(currentArea.viewKey)}
                   <div className={styles.areaBody}>
-                    {currentArea.image && !currentArea.redacted && <button type="button" className={styles.areaImageButton} aria-label={`Bild vergrößern: ${currentArea.title}`} onClick={event=>openImage(event,currentArea.image!,currentArea.title)}>
-                      <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
-                      <span><ZoomIn size={16} aria-hidden="true"/>Bild vergrößern</span>
-                    </button>}
-                    {currentArea.playerHint && <RichTextView value={currentArea.playerHint} readable className={styles.areaHint}/>}
+                    {((currentArea.image && !currentArea.redacted) || areaCopy.introduction) && <div className={`${styles.areaOpening} ${currentArea.image && !currentArea.redacted && areaCopy.introduction ? styles.areaOpeningWithIntro : ""}`}>
+                      {currentArea.image && !currentArea.redacted && <button type="button" className={styles.areaImageButton} aria-label={`Bild vergrößern: ${currentArea.title}`} onClick={event=>openImage(event,currentArea.image!,currentArea.title)}>
+                        <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
+                        <span><ZoomIn size={16} aria-hidden="true"/>Bild vergrößern</span>
+                      </button>}
+                      {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable className={`${styles.areaHint} ${styles.areaIntroduction}`}/>}
+                    </div>}
+                    {areaCopy.description && <RichTextView value={areaCopy.description} readable className={styles.areaHint}/>}
                   </div>
                   {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
                   {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {slNotesFor(room.viewKey)} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
