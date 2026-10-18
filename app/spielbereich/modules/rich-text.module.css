@@ -1,4 +1,25 @@
 .editor { display: grid; gap: 8px; min-width: 0; }
+.editorLabel { color: #e4dac8; font-size: 14px; }
+.content :global(.cp-intro), .editable :global(.cp-intro) { color: #eee6d6; font-size: 1.125em; line-height: 1.6; }
+.content :global(.cp-highlight), .editable :global(.cp-highlight) { color: #d6b36f; }
+.content :global(.cp-note), .editable :global(.cp-note) { color: #b8c9ce; font-style: italic; }
+.content :global(.cp-divider), .editable :global(.cp-divider) { padding-block-start: 16px; border-block-start: 1px solid rgba(214,179,111,.4); }
+.sourceEditor .editable, .preview { font-size: 16px; line-height: 1.65; overflow-wrap: anywhere; }
+.sourceEditor .editable { white-space: pre-wrap; }
+.sourceEditor > textarea { font-size: 16px; }
+.sourceEditor .toolbar > button, .sourceEditor .linkRow > button, .sourceEditor select { min-height: 44px; font-size: 13px; }
+.sourceEditor .toolbar > button[aria-pressed="true"] { border-color: #d6b36f; color: #f3e5cb; background: #2a2b24; }
+.sourceEditor .toolbar > button:disabled { opacity: .55; cursor: not-allowed; }
+.sourceEditor .toolbar small { color: #b4b9b0; font-size: 12px; }
+.sourceEditor .toolbar button:focus-visible, .sourceEditor textarea:focus-visible, .sourceEditor .editable:focus-visible { outline: 2px solid #d6b36f; outline-offset: 3px; }
+.sourceHelp { margin: 0; color: #b4b9b0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.sourceHelp code { color: #e7d5ad; }
+.sourceEditor .editorFooter { color: #b4b9b0; font-size: 12px; }
+.sourceEditor .editorFooter small { font-size: 12px; }
+.preview { min-height: 160px; padding: 20px; border: 1px solid rgba(205,166,107,.28); background: rgba(6,11,13,.7); }
+.preview .view { max-width: 75ch; gap: 1em; }
+.preview .view h2, .preview .view h3 { margin-top: .6em; }
+.content p, .content blockquote { white-space: pre-wrap; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; border: 1px solid rgba(205,166,107,.22); background: rgba(6,11,13,.82); }
 .toolbar > button, .linkRow > button { min-height: 31px; padding: 0 9px; border: 1px solid rgba(205,166,107,.18); color: #d8d0c1; background: #151d1f; font-size: 10px; cursor: pointer; }
 .toolbar > button:hover, .toolbar > button:focus-visible, .linkRow > button:hover, .linkRow > button:focus-visible { border-color: #c6a36c; color: #f5dfb2; outline: none; }

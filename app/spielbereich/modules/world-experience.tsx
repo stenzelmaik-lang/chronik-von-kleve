@@ -18,13 +18,16 @@ import {
   Image as ImageIcon,
   MapPin,
   Maximize2,
+  RotateCcw,
   NotebookPen,
   Search,
   Shield,
   Sparkles,
   X,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
-import { type ComponentType, useEffect, useMemo, useRef, useState } from "react";
+import { type ComponentType, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { Entry } from "@/domain/legacy";
@@ -49,7 +52,7 @@ type NotesPayload = { records: Entry[] };
 type LocationState = { key: string; projection: PlaceProjection };
 type HubState = { key: string; places: WorldHubPlace[] };
 type NoteState = { scope: string; records: Entry[] };
-type WorldOverlay = { kind: "image" } | { kind: "clue"; title: string; text: string } | null;
+type WorldOverlay = { kind: "image"; src: string; title: string } | { kind: "clue"; title: string; text: string } | null;
 type WorldMapViewProps = {
   places: WorldMapMarker[];
   visibleIds: string[];
@@ -104,6 +107,12 @@ export function WorldExperience({
   const [mapStatus, setMapStatus] = useState<"loading" | "ready" | "error">("loading");
   const [WorldMapView, setWorldMapView] = useState<ComponentType<WorldMapViewProps> | null>(null);
   const imageDialog = useRef<HTMLDialogElement>(null);
+  const imageStage = useRef<HTMLDivElement>(null);
+  const fullImage = useRef<HTMLImageElement>(null);
+  const imageDrag = useRef<{pointer:number;x:number;y:number;offset:{x:number;y:number}} | null>(null);
+  const [imageZoom, setImageZoom] = useState(1);
+  const [imageOffset, setImageOffset] = useState({x:0,y:0});
+  const [imageError, setImageError] = useState(false);
   const clueDialog = useRef<HTMLDialogElement>(null);
   const lastOverlayTrigger = useRef<HTMLButtonElement | null>(null);
   const returnScrollY = useRef(0);
@@ -206,6 +215,8 @@ export function WorldExperience({
   const notes = noteState?.scope === dataScope ? noteState.records : cachedNotes?.value.records ?? [];
   const relatedNotes = notes.filter((note) => note.body?.locationId === location?.id);
   const unresolvedArea = areaList.find((area) => area.redacted && area.playerHint);
+  // A lightbox never keeps a source that has disappeared from the current safe projection.
+  const activeImage = overlay?.kind === "image" && (overlay.src === location?.image || areaList.some(area => !area.redacted && area.image === overlay.src)) ? overlay : null;
 
   useEffect(() => {
     if (embeddedDossier || !detail) return;
@@ -218,16 +229,26 @@ export function WorldExperience({
   }, [dataScope, detail, embeddedDossier]);
 
   useEffect(() => {
-    if (!overlay) return;
+    if (!activeImage && overlay?.kind !== "clue") return;
     const previousOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
     return () => {
       document.documentElement.style.overflow = previousOverflow;
     };
-  }, [overlay]);
+  }, [overlay, activeImage]);
+
+  useEffect(()=>{
+    if(!activeImage)return;
+    const cancelDrag=()=>{
+      const drag=imageDrag.current;imageDrag.current=null;
+      if(drag&&imageStage.current?.hasPointerCapture(drag.pointer))imageStage.current.releasePointerCapture(drag.pointer);
+    };
+    window.addEventListener('blur',cancelDrag);
+    return()=>{window.removeEventListener('blur',cancelDrag);cancelDrag();};
+  },[activeImage]);
 
   useEffect(() => {
-    if (overlay?.kind === "image") {
+    if (activeImage) {
       imageDialog.current?.showModal();
     } else {
       imageDialog.current?.close();
@@ -237,7 +258,28 @@ export function WorldExperience({
     } else {
       clueDialog.current?.close();
     }
-  }, [overlay]);
+  }, [overlay, activeImage]);
+
+  function openImage(event: MouseEvent<HTMLButtonElement>, src: string, title: string) {
+    lastOverlayTrigger.current = event.currentTarget;
+    setImageZoom(1); setImageOffset({x:0,y:0}); setImageError(false); imageDrag.current=null;
+    setOverlay({kind:"image",src,title});
+  }
+
+  function boundedImageOffset(x:number,y:number,zoom=imageZoom) {
+    const stage=imageStage.current?.getBoundingClientRect(), image=fullImage.current;
+    if(!stage||!image?.naturalWidth)return {x:0,y:0};
+    const fit=Math.min(stage.width/image.naturalWidth,stage.height/image.naturalHeight);
+    const maxX=Math.max(0,(image.naturalWidth*fit*zoom-stage.width)/2),maxY=Math.max(0,(image.naturalHeight*fit*zoom-stage.height)/2);
+    return {x:Math.max(-maxX,Math.min(maxX,x)),y:Math.max(-maxY,Math.min(maxY,y))};
+  }
+
+  function zoomImage(amount:number) {
+    const next=Math.max(1,Math.min(4,imageZoom+amount));
+    setImageZoom(next);setImageOffset(current=>boundedImageOffset(current.x,current.y,next));
+  }
+
+  function panImage(x:number,y:number) { setImageOffset(current=>boundedImageOffset(current.x+x,current.y+y)); }
 
   function openPlace(id: string) {
     returnScrollY.current = window.scrollY;
@@ -344,7 +386,7 @@ export function WorldExperience({
   function closeOverlay() {
     setOverlay(null);
     requestAnimationFrame(() => {
-      lastOverlayTrigger.current?.focus();
+      lastOverlayTrigger.current?.focus({preventScroll:true});
     });
   }
 
@@ -451,33 +493,42 @@ export function WorldExperience({
           {location.image && <img className={styles.locationHeroImage} src={location.image} alt={`${location.title} in der Spielwelt`} fetchPriority="high" />}
           <div className={styles.heroVeil} />
           <div className={styles.heroTopline}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} />{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button>{location.district && <span className={styles.heroLocation}><MapPin size={14} />{location.district}</span>}</div>
-          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <div className={styles.heroSummary}><RichTextView value={location.summary}/></div>}<div className={styles.heroActions}>{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { setActiveArea(areaList[0]?.viewKey ?? null); document.getElementById("known-areas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "image" }); }}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
+          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <div className={styles.heroSummary}><RichTextView value={location.summary}/></div>}<div className={styles.heroActions}>{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { setActiveArea(areaList[0]?.viewKey ?? null); document.getElementById("known-areas")?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "instant" : "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={event=>openImage(event,location.image!,location.title)}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
           <span className={styles.heroIndex} aria-hidden="true">01 <i>/</i> ORT</span>
         </section>
 
-        <section className={styles.locationContent}>
-          <div className={styles.locationMain}>
+        <section className={styles.locationContent} data-has-intro={Boolean(location.atmosphere)}>
+          <div className={styles.locationIntro}>
             {location.atmosphere && <section className={styles.impression}>
               <div className={styles.proseEyebrow}><span>01</span><p className={styles.kicker}>DEIN EINDRUCK</p></div>
               <div><h2>Dein Eindruck</h2><RichTextView value={location.atmosphere} className={styles.richProse}/><span className={styles.sourceContext}><Sparkles size={14} />Freigegebener Eindruck{location.district ? ` · ${location.district}` : ""}</span></div>
             </section>}
+          </div>
 
             {areaList.length > 0 && <section className={styles.areasSection} id="known-areas" aria-labelledby="areas-title">
               <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>WAS DU HIER KENNST</p><h2 id="areas-title">Bekannte Bereiche</h2></div><span className={styles.sectionCounter}>{String(areaList.length).padStart(2, "0")} <small>Einträge deiner Projektion</small></span></header>
               <div className={styles.areaLayout}>
-                <div className={styles.areaList} role="tablist" aria-label="Bekannte Bereiche">
-                  {areaList.map((area, index) => <button className={`${styles.areaTab} ${currentArea?.viewKey === area.viewKey ? styles.areaTabActive : ""} ${area.redacted ? styles.areaTabUnclear : ""}`} key={area.viewKey} type="button" role="tab" aria-selected={currentArea?.viewKey === area.viewKey} aria-controls={`area-detail-${index}`} id={`area-tab-${index}`} onClick={() => setActiveArea(area.viewKey)}>
+                <div className={styles.areaList} role="tablist" aria-label="Bekannte Bereiche" aria-orientation="vertical">
+                  {areaList.map((area, index) => <button className={`${styles.areaTab} ${currentArea?.viewKey === area.viewKey ? styles.areaTabActive : ""} ${area.redacted ? styles.areaTabUnclear : ""}`} key={area.viewKey} type="button" role="tab" tabIndex={currentArea?.viewKey===area.viewKey?0:-1} aria-selected={currentArea?.viewKey === area.viewKey} aria-controls={currentArea?.viewKey===area.viewKey?`area-detail-${index}`:undefined} id={`area-tab-${index}`} onClick={() => setActiveArea(area.viewKey)} onKeyDown={event=>{
+                    const next=event.key==='Home'?0:event.key==='End'?areaList.length-1:['ArrowDown','ArrowRight'].includes(event.key)?(index+1)%areaList.length:['ArrowUp','ArrowLeft'].includes(event.key)?(index+areaList.length-1)%areaList.length:null;
+                    if(next===null)return;event.preventDefault();setActiveArea(areaList[next].viewKey);document.getElementById(`area-tab-${next}`)?.focus();
+                  }}>
                     <span className={styles.areaNumber}>{String(index + 1).padStart(2, "0")}</span><span className={styles.areaTabCopy}><strong>{area.redacted ? "Ungeklärt" : area.title}</strong><small>{area.redacted ? "Hinweis vorhanden" : `${area.rooms.length} bekannte Räume`}</small></span>{area.redacted ? <CircleHelp size={16} /> : <ArrowRight size={15} />}
                   </button>)}
                   {!areaList.length && <p className={styles.mutedText}>Für diesen Ort sind noch keine Bereiche freigegeben.</p>}
                 </div>
-                {currentArea && <section className={`${styles.areaDetail} ${currentArea.redacted ? styles.unclearDetail : ""}`} role="tabpanel" id={`area-detail-${areaList.indexOf(currentArea)}`} aria-labelledby={`area-tab-${areaList.indexOf(currentArea)}`}>
+                {currentArea && <section className={`${styles.areaDetail} ${currentArea.redacted ? styles.unclearDetail : ""}`} role="tabpanel" tabIndex={0} id={`area-detail-${areaList.indexOf(currentArea)}`} aria-labelledby={`area-tab-${areaList.indexOf(currentArea)}`}>
                   <div className={styles.areaDetailHeader}><span className={styles.detailOverline}>{currentArea.redacted ? "HINWEIS · NICHT ERSCHLOSSEN" : `BEREICH ${String(currentArea.order).padStart(2, "0")}`}</span><span className={styles.discoveryTag}>{currentArea.redacted ? "Ungeklärt" : discoveryLabel(currentArea.discovery)}</span></div>
                   <h3>{currentArea.redacted ? "Ein Hinweis bleibt offen." : currentArea.title}</h3>
                   {groupVisibilityFor(currentArea.viewKey)}
                   {slNotesFor(currentArea.viewKey)}
-                  {currentArea.image && !currentArea.redacted && <img className={styles.areaImage} src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} loading="lazy"/>}
-                  {currentArea.playerHint && <RichTextView value={currentArea.playerHint} className={styles.areaHint}/>}
+                  <div className={styles.areaBody}>
+                    {currentArea.image && !currentArea.redacted && <button type="button" className={styles.areaImageButton} aria-label={`Bild vergrößern: ${currentArea.title}`} onClick={event=>openImage(event,currentArea.image!,currentArea.title)}>
+                      <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
+                      <span><ZoomIn size={16} aria-hidden="true"/>Bild vergrößern</span>
+                    </button>}
+                    {currentArea.playerHint && <RichTextView value={currentArea.playerHint} readable className={styles.areaHint}/>}
+                  </div>
                   {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
                   {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {slNotesFor(room.viewKey)} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
                   {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
@@ -486,6 +537,7 @@ export function WorldExperience({
               </div>
             </section>}
 
+          <div className={styles.locationMain}>
             {unresolvedArea?.playerHint && <button type="button" className={styles.clueCard} aria-label="Offenen Orts-Hinweis öffnen" onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: "Offener Orts-Hinweis", text: unresolvedArea.playerHint! }); }}>
               <span className={styles.clueGlyph}><CircleHelp size={20} /></span><span className={styles.clueCopy}><span className={styles.kicker}>OFFENER HINWEIS · UNGEKLÄRT</span><strong>Offener Orts-Hinweis</strong><span>{richTextToPlainText(unresolvedArea.playerHint)}</span></span><ArrowUpRight className={styles.clueArrow} size={17} />
             </button>}
@@ -504,7 +556,7 @@ export function WorldExperience({
           </div>
 
           <aside className={styles.locationAside}>
-            {location.image && <button type="button" className={styles.photoCard} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "image" }); }}><span className={styles.photoImage}><img src={location.image} alt="" loading="lazy" /><span><ImageIcon size={15} />Bild öffnen</span></span><span className={styles.photoCaption}>{location.title}{location.district && <> <i>·</i> {location.district}</>}</span></button>}
+            {location.image && <button type="button" className={styles.photoCard} onClick={event=>openImage(event,location.image!,location.title)}><span className={styles.photoImage}><img src={location.image} alt="" loading="lazy" /><span><ImageIcon size={15} />Bild öffnen</span></span><span className={styles.photoCaption}>{location.title}{location.district && <> <i>·</i> {location.district}</>}</span></button>}
             {(location.district || location.address || location.worldState !== "active") && <section className={styles.factCard}><p className={styles.kicker}>EINORDNUNG</p>{location.district && <div className={styles.factRow}><span>Gebiet</span><strong>{location.district}</strong></div>}{location.address && <div className={styles.factRow}><span>Adresse</span><strong>{location.address}</strong></div>}{location.worldState !== "active" && <div className={styles.factRow}><span>Ortszustand</span><strong>{stateLabel(location.worldState)}</strong></div>}</section>}
             {location.knownInformation.some((info) => info.title === "Atmosphäre") && <section className={styles.knownNote}><span><FileText size={16} /></span><div><p className={styles.kicker}>BEKANNTE ATMOSPHÄRE</p><RichTextView value={location.knownInformation.find((info) => info.title === "Atmosphäre")?.text||""} className={styles.richProse}/></div></section>}
             {!embeddedDossier && <section className={styles.notesSection}><header><span><NotebookPen size={16} />Deine Notizen</span><small>privat</small></header><label className={styles.srOnly} htmlFor="world-note">Private Notiz zu {location.title}</label><textarea id="world-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Ein Gedanke, den nur du siehst …" rows={3} maxLength={2500} /><button type="button" className={styles.noteSave} disabled={busy || !noteDraft.trim()} onClick={saveNote}>{busy ? "Speichert …" : "Private Notiz sichern"}<ArrowRight size={14} /></button><div className={styles.savedNotes}>{relatedNotes.length ? relatedNotes.slice(0, 3).map((note) => <article key={note.id}><Check size={13} /><div><strong>{note.title}</strong><p>{String(note.body.text ?? "")}</p></div></article>) : <p>Noch keine eigenen Ortsnotizen.</p>}</div></section>}
@@ -516,8 +568,27 @@ export function WorldExperience({
     </>}
 
     {location && <>
-      {location.image && <dialog ref={imageDialog} className={`${styles.overlay} ${styles.imageOverlay}`} aria-label={`Bildansicht: ${location.title}`} onClose={closeOverlay} onClick={(event) => { if (event.target === imageDialog.current) imageDialog.current?.close(); }}>
-        <div className={styles.overlayFrame}><div className={styles.overlayTop}><span><ImageIcon size={15} />{location.title}{location.district && <> <i>·</i> {location.district}</>}</span><button type="button" aria-label="Bildansicht schließen" onClick={() => imageDialog.current?.close()}><X size={19} /></button></div><img src={location.image} alt={`${location.title} in der Spielwelt`} /><p>Vorhandenes Ortsbild · {location.title}</p></div>
+      {activeImage && <dialog ref={imageDialog} className={`${styles.overlay} ${styles.imageOverlay}`} aria-label={`Bildansicht: ${activeImage.title}`} onClose={closeOverlay} onClick={(event) => { if (event.target === imageDialog.current) imageDialog.current?.close(); }}>
+        <div className={styles.overlayFrame}>
+          <div className={styles.overlayTop}><span><ImageIcon size={15} aria-hidden="true"/>{activeImage.title}</span><button type="button" aria-label="Bildansicht schließen" onClick={() => imageDialog.current?.close()}><X size={19} aria-hidden="true"/></button></div>
+          <div className={styles.imageControls} role="group" aria-label="Bildansicht steuern">
+            <button type="button" aria-label="Bild verkleinern" disabled={imageZoom<=1||imageError} onClick={()=>zoomImage(-.5)}><ZoomOut size={18} aria-hidden="true"/></button>
+            <output aria-live="polite" aria-label="Bildzoom">{Math.round(imageZoom*100)} %</output>
+            <button type="button" aria-label="Bild vergrößern" disabled={imageZoom>=4||imageError} onClick={()=>zoomImage(.5)}><ZoomIn size={18} aria-hidden="true"/></button>
+            <button type="button" onClick={()=>{setImageZoom(1);setImageOffset({x:0,y:0});}}><RotateCcw size={16} aria-hidden="true"/>Einpassen</button>
+            {imageZoom>1&&<div className={styles.panControls} role="group" aria-label="Vergrößertes Bild verschieben">{[['links',-40,0],['rechts',40,0],['oben',0,-40],['unten',0,40]].map(([direction,x,y])=><button key={direction} type="button" aria-label={`Bild nach ${direction} verschieben`} onClick={()=>panImage(Number(x),Number(y))}><ArrowRight size={16} aria-hidden="true" style={{transform:`rotate(${direction==='links'?180:direction==='oben'?-90:direction==='unten'?90:0}deg)`}}/></button>)}</div>}
+          </div>
+          <div ref={imageStage} className={styles.imageStage} data-zoomed={imageZoom>1} tabIndex={0} role="group" aria-label="Vergrößerbares Ortsbild" aria-describedby="location-image-help" onKeyDown={event=>{
+            if(['+','='].includes(event.key)){event.preventDefault();zoomImage(.5);}else if(event.key==='-'){event.preventDefault();zoomImage(-.5);}else if(event.key==='0'){event.preventDefault();setImageZoom(1);setImageOffset({x:0,y:0});}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();panImage(event.key==='ArrowLeft'?-40:event.key==='ArrowRight'?40:0,event.key==='ArrowUp'?-40:event.key==='ArrowDown'?40:0);}
+          }} onPointerDown={event=>{
+            if(imageZoom<=1||event.button!==0||imageDrag.current)return;event.preventDefault();imageDrag.current={pointer:event.pointerId,x:event.clientX,y:event.clientY,offset:imageOffset};event.currentTarget.setPointerCapture(event.pointerId);
+          }} onPointerMove={event=>{
+            const drag=imageDrag.current;if(!drag||drag.pointer!==event.pointerId)return;setImageOffset(boundedImageOffset(drag.offset.x+event.clientX-drag.x,drag.offset.y+event.clientY-drag.y));
+          }} onPointerUp={event=>{if(imageDrag.current?.pointer!==event.pointerId)return;imageDrag.current=null;if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={event=>{if(imageDrag.current?.pointer===event.pointerId)imageDrag.current=null;}} onLostPointerCapture={event=>{if(imageDrag.current?.pointer===event.pointerId)imageDrag.current=null;}}>
+            {imageError?<p role="alert">Das Bild konnte nicht geladen werden. Schließe die Ansicht und versuche es erneut.</p>:<img ref={fullImage} src={activeImage.src} alt={activeImage.title} width={1200} height={900} draggable={false} onError={()=>setImageError(true)} style={{transform:`translate(${imageOffset.x}px,${imageOffset.y}px) scale(${imageZoom})`}}/>}
+          </div>
+          <p id="location-image-help">Vollständiges Bild · Mit +/− zoomen, vergrößert ziehen oder mit Pfeiltasten verschieben. Escape schließt die Ansicht.</p>
+        </div>
       </dialog>}
 
       <dialog ref={clueDialog} className={`${styles.overlay} ${styles.clueOverlay}`} aria-label={overlay?.kind === "clue" ? overlay.title : "Freigegebener Hinweis"} onClose={closeOverlay} onClick={(event) => { if (event.target === clueDialog.current) clueDialog.current?.close(); }}>

@@ -1,8 +1,14 @@
 import { z } from "zod";
-import { isRichTextWithinLimit } from "./location-rich-text";
+import { isRichTextWithinLimit, sanitizeRichTextInput } from "./location-rich-text.ts";
 
 const cleanText = (max: number) => z.string().trim().max(max);
-const richText = (max: number) => z.string().refine(value => isRichTextWithinLimit(value, max), `Text darf höchstens ${max} Zeichen enthalten und muss sichere Formatierungen verwenden.`);
+const richText = (max: number) => z.string().transform((value, context) => {
+  try { return sanitizeRichTextInput(value); }
+  catch {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "HTML ist zu lang oder zu komplex. Bitte vereinfache die Beschreibung." });
+    return z.NEVER;
+  }
+}).pipe(z.string().refine(value => isRichTextWithinLimit(value, max), `Text darf höchstens ${max} sichtbare Zeichen enthalten und muss sichere Formatierungen verwenden.`));
 
 export const geographyDraftSchema = z.discriminatedUnion("status", [
   z.object({ status: z.literal("unknown") }).strict(),
