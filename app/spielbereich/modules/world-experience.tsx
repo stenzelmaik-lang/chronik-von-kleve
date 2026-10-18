@@ -530,7 +530,7 @@ export function WorldExperience({
                         <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
                         <span><ZoomIn size={16} aria-hidden="true"/>Bild vergrößern</span>
                       </button>}
-                      {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable className={`${styles.areaHint} ${styles.areaIntroduction}`}/>}
+                      {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable className={styles.areaHint}/>}
                     </div>}
                     {areaCopy.description && <RichTextView value={areaCopy.description} readable className={styles.areaHint}/>}
                   </div>
