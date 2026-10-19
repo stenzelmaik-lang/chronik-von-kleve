@@ -6,7 +6,10 @@ import {
   encodeRichText,
   htmlToRichText, inspectRichTextSource, richHtmlPrefix, richTextToHtml,
   readRichText,
+  parseRichTextDocument,
+  proseInlineParts,
   richTextColors,
+  richTextPrefix,
   richTextToPlainText,
   type RichTextDocument,
   type RichTextInline,
@@ -25,9 +28,13 @@ function documentFromEditor(root:HTMLElement):RichTextDocument { return readRich
 function replaceEditorContents(editor:HTMLElement,value:string) { editor.innerHTML=richTextToHtml(value); }
 function canonicalRichText(value:string) { try { return htmlToRichText(value.startsWith(richHtmlPrefix)?value.slice(richHtmlPrefix.length):richTextToHtml(value)); } catch { return value; } }
 
-function inlineElements(parts: RichTextInline[], keyPrefix: string) {
-  return parts.map((part, index) => {
-    let node: ReactNode = part.text;
+function inlineElements(parts: RichTextInline[], keyPrefix: string, flowing = false) {
+  return (flowing ? proseInlineParts(parts) : parts).map((part, index) => {
+    // The existing importer records explicit <br> and nested block boundaries as
+    // standalone newline parts. Keep those while HTML source indentation flows.
+    let node: ReactNode = flowing && /^(?:\r?\n)+$/.test(part.text)
+      ? part.text.split(/\r?\n/).slice(1).map((_, line) => <br key={line}/>)
+      : part.text;
     if (part.bold) node = <strong>{node}</strong>;
     if (part.italic) node = <em>{node}</em>;
     if (part.underline) node = <u>{node}</u>;
@@ -38,19 +45,24 @@ function inlineElements(parts: RichTextInline[], keyPrefix: string) {
   });
 }
 
-export function RichTextView({ value, className, readable = false }: { value: string; className?: string; readable?: boolean }) {
+export function RichTextView({ value, className, readable = false, flowing = false }: { value: string; className?: string; readable?: boolean; flowing?: boolean }) {
   const documentModel = readRichText(value);
-  return <div className={[styles.content, readable ? styles.view : "", className].filter(Boolean).join(" ")}>
+  let proseFlow = false;
+  if (flowing && value.startsWith(richTextPrefix)) {
+    try { proseFlow = Boolean(parseRichTextDocument(JSON.parse(value.slice(richTextPrefix.length)))); }
+    catch { /* Malformed historical documents keep their literal fallback. */ }
+  }
+  return <div data-rich-flow={proseFlow ? "prose" : undefined} className={[styles.content, readable ? styles.view : "", className].filter(Boolean).join(" ")}>
     {documentModel.blocks.map((block, index) => {
       if(block.type==='divider')return <hr key={index} className={block.className}/>;
       if(block.type==='image')return <img key={index} src={'/api/files?id='+encodeURIComponent(block.fileId)} alt={block.alt} style={{maxWidth:'100%',height:'auto'}}/>;
-      if(block.type==='table')return <div key={index} style={{overflowX:'auto'}}><table className={block.className}><tbody>{block.rows.map((r,ri)=><tr key={ri}>{r.map((c,ci)=><td key={ci}>{inlineElements(c,`t${index}-${ri}-${ci}`)}</td>)}</tr>)}</tbody></table></div>;
-      if(block.type==='quote')return <blockquote key={index} className={block.className}>{inlineElements(block.children,`q${index}`)}</blockquote>;
+      if(block.type==='table')return <div key={index} style={{overflowX:'auto'}}><table className={block.className}><tbody>{block.rows.map((r,ri)=><tr key={ri}>{r.map((c,ci)=><td key={ci}>{inlineElements(c,`t${index}-${ri}-${ci}`,proseFlow)}</td>)}</tr>)}</tbody></table></div>;
+      if(block.type==='quote')return <blockquote key={index} className={block.className}>{inlineElements(block.children,`q${index}`,proseFlow)}</blockquote>;
       if (block.type === "bulletList" || block.type === "orderedList") {
         const List = block.type === "bulletList" ? "ul" : "ol";
-        return <List key={`list-${index}`} className={block.className}>{block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`}>{inlineElements(item, `l${index}-${itemIndex}`)}</li>)}</List>;
+        return <List key={`list-${index}`} className={block.className}>{block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`}>{inlineElements(item, `l${index}-${itemIndex}`,proseFlow)}</li>)}</List>;
       }
-      const children = inlineElements(block.children, `b${index}`);
+      const children = inlineElements(block.children, `b${index}`,proseFlow);
       if (block.type === "heading2") return <h2 key={`block-${index}`} className={block.className}>{children}</h2>;
       if (block.type === "heading3") return <h3 key={`block-${index}`} className={block.className}>{children}</h3>;
       return <p key={`block-${index}`} className={block.className}>{children}</p>;

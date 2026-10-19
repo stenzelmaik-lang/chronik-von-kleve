@@ -146,6 +146,25 @@ export function encodeRichText(document: RichTextDocument): string {
   return parsed ? richTextPrefix + JSON.stringify(parsed) : "";
 }
 
+// Read-only presentation of indented HTML, never a storage/editor conversion.
+// v1 does not record the origin of every newline: ambiguous unindented breaks
+// are retained rather than silently erased, including after HTML roundtrips.
+export function proseInlineParts(parts: RichTextInline[]): RichTextInline[] {
+  const indented = /\r?\n[\t ]+/.test(parts.map(part => part.text).join(""));
+  return parts.flatMap((part, index) => {
+    let text = part.text;
+    if (indented && !/^(?:\r?\n)+$/.test(text)) {
+      text = text.replace(/\r?\n[\t ]+/g, " ");
+      if (index === 0) text = text.replace(/^[\t\r\n\f ]+/, "");
+      if (index === parts.length - 1) text = text.replace(/[\t\r\n\f ]+$/, "");
+    }
+    return text.split(/\r?\n/).flatMap((line, lineIndex) => [
+      ...(lineIndex ? [{ ...part, text: "\n" }] : []),
+      ...(line ? [{ ...part, text: line }] : []),
+    ]);
+  });
+}
+
 // Presentation only: the stored document is never rewritten or truncated.
 export function splitRichTextIntroduction(value: string): { introduction: string | null; description: string } {
   const document = readRichText(value);
@@ -261,7 +280,9 @@ export function inspectRichTextSource(html:string, maximumPlainLength:number):{v
 const escapeHtml=(s:string)=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export function richTextToHtml(value:string):string {
   const classes=(value:unknown)=>{const safe=allowedClasses(value);return safe?' class="'+safe+'"':'';};
-  const parts=(v:RichTextInline[])=>v.map(p=>{let t=escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.className)t='<span'+classes(p.className)+'>'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
+  // Keep separately recorded hard breaks separate on export/reimport, even
+  // when the following text starts with spaces. Other source whitespace stays literal.
+  const parts=(v:RichTextInline[])=>v.map(p=>{let t=/^(?:\r?\n)+$/.test(p.text)?p.text.replace(/\r?\n/g,'<br>'):escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.className)t='<span'+classes(p.className)+'>'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
   return readRichText(value).blocks.map(b=>{
     const decoration=classes(b.className);
     if(b.type==='divider')return '<hr'+decoration+'>';

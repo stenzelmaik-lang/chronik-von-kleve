@@ -22,7 +22,7 @@ export async function seedLocationAreaDemo({base,cookie}) {
   const place=await create('location','SYNTHETISCH – Nachtarchiv');
   await release(place,{title:place.title,subtitle:'Ausschließlich lokale Darstellungsprüfung',summary:'Kein echter Kampagnenort. Diese Daten bleiben in der isolierten Vorschau.',atmosphere:'Ein ruhiger Ort für die lokale Prüfung von langen Beschreibungen, Lageplänen und sicheren Freigaben.\n\nDie vorhandene Karte dient nur als Bild-Testfläche.'},media.id);
   const area=await create('area','Eingangshalle und Vorplatz',place.id);
-  const description='<h2>Der erste Eindruck</h2><p class="cp-intro">Kühles Licht fällt auf den Vorplatz. Unter dem Vordach sammeln sich Reisende, während die Stadt im Regen liegt.</p><p>Zwischen den Türen, den alten Wegweisern und dem offenen Platz bleibt genug Raum für Gespräche. Das Bild ist eine lokale Testfläche: Seine Ränder dürfen in der Vorschau und der großen Ansicht nicht abgeschnitten werden.</p><h3>Was dir auffällt</h3><ul><li><span class="cp-highlight">Eine beleuchtete Passage</span> führt in die Halle.</li><li>Die Wegweiser sind auch im Dunkeln lesbar.</li></ul><blockquote class="cp-note">Ein einzelner Schritt hallt durch den überdachten Eingang.</blockquote><hr class="cp-divider"><p>Die vollständige Beschreibung steht immer unter Bild und Einleitung, unabhängig von deren Höhe.</p>';
+  const description='<h2>Der erste Eindruck</h2><p class="cp-intro">Kühles Licht fällt auf den Vorplatz. Unter dem Vordach sammeln sich Reisende, während die Stadt im Regen liegt.</p><p>Zwischen den Türen, den alten Wegweisern und dem offenen Platz bleibt genug Raum für Gespräche. Das Bild ist eine lokale Testfläche: Seine Ränder dürfen in der Vorschau und der großen Ansicht nicht abgeschnitten werden.</p><h3>Was dir auffällt</h3><ul><li><span class="cp-highlight">Eine beleuchtete Passage</span> führt in die Halle.</li><li>Die Wegweiser sind auch im Dunkeln lesbar.</li></ul><blockquote class="cp-note">Ein einzelner Schritt hallt durch den überdachten Eingang.</blockquote><hr class="cp-divider"><p>Einleitung und Beschreibung bleiben gemeinsam in der Textspalte. Die Fläche unter dem Bild bleibt auf dem Desktop frei.</p>';
   await release(area,{title:area.title,playerHint:richHtmlPrefix+description},media.id);
   const room=await create('room','Wartebereich',area.id);
   await release(room,{title:room.title,short:'Alter Klartext bleibt lesbar.\nAuch ein zweiter Absatz bleibt erhalten.'});
@@ -31,7 +31,23 @@ export async function seedLocationAreaDemo({base,cookie}) {
   const longIntro=await create('area','Lange Einleitung mit Bild',place.id);
   await release(longIntro,{title:longIntro.title,playerHint:richHtmlPrefix+'<p class="cp-intro">'+('Die Ankunft im Archiv erfordert Geduld. Der Blick folgt den Türen, während sich das Licht im Regen spiegelt. '.repeat(8))+'</p><h2>Unterhalb der Einleitung</h2><p>Dieser Abschnitt muss unter dem längeren Einleitungstext beginnen.</p>'},media.id);
   const noIntro=await create('area','Bild ohne markierte Einleitung',place.id);
-  await release(noIntro,{title:noIntro.title,playerHint:richHtmlPrefix+'<h2>Keine Einleitung erraten</h2><p>Dieser normale Absatz gehört vollständig unter das Bild.</p><h3>Weitere Angaben</h3><p>Alle bisherigen Inhalte bleiben erhalten.</p>'},media.id);
+  await release(noIntro,{title:noIntro.title,playerHint:richHtmlPrefix+'<h2>Keine Einleitung erraten</h2><p>Auch ohne markierte Einleitung bleibt dieser Absatz auf dem Desktop neben dem Bild.</p><h3>Weitere Angaben</h3><p>Alle bisherigen Inhalte bleiben erhalten.</p>'},media.id);
+  const formatted=await create('area','Lesefluss und bewusste Umbrüche',place.id);
+  await release(formatted,{title:formatted.title,playerHint:richHtmlPrefix+`<p class="cp-intro">
+  Ein ruhiger Vorplatz zwischen den alten Fassaden
+  und dem Licht der Stadt. Die Einleitung nutzt
+  die verfügbare Breite ohne künstliche Kurzzeilen.
+</p>
+<h2>Zwischen den Türen</h2>
+<p>
+  Reisende ziehen ihre Koffer durch die Passage.
+  Dieser eingerückte HTML-Quelltext ist ein normaler Absatz,
+  keine Folge fester Kurzzeilen. Ein <strong>bekannter Weg</strong>
+  führt in die Halle.
+</p>
+<h3>Orientierung</h3><ul><li>Zum <span class="cp-highlight">Vorplatz</span> gehen.</li><li>Auf das Licht achten.</li></ul>
+<hr class="cp-divider"><p>Bewusster Umbruch:<br>Zweite Zeile.</p>
+<p class="cp-note">Eine ergänzende Beobachtung, die ruhig und gut lesbar bleibt.</p>`},media.id);
   const secret=await create('area','AREA_PREVIEW_NEVER_PLAYER',place.id);
   await request('/api/cms/drafts','PATCH',{revisionId:secret.revisionId,expectedVersion:1,payload:{title:secret.title,playerHint:'AREA_PREVIEW_HIDDEN_DESCRIPTION'},heroFileId:media.id});
   await request('/api/cms/drafts','POST',{entityId:area.id,audience:'gm',gmSecret:{text:'AREA_PREVIEW_SL_ONLY – Diese Notiz darf nur die Spielleitung sehen.'}});

@@ -508,7 +508,7 @@ export function WorldExperience({
           </div>
 
             {areaList.length > 0 && <section className={styles.areasSection} id="known-areas" aria-labelledby="areas-title">
-              <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>WAS DU HIER KENNST</p><h2 id="areas-title">Bekannte Bereiche</h2></div><span className={styles.sectionCounter}>{String(areaList.length).padStart(2, "0")} <small>Einträge deiner Projektion</small></span></header>
+              <header className={styles.detailSectionHeader}><h2 id="areas-title">Bekannte Bereiche</h2><span className={styles.sectionCounter}>{String(areaList.length).padStart(2, "0")} <small>bekannte Bereiche</small></span></header>
               <div className={styles.areaLayout}>
                 <div className={styles.areaList} role="tablist" aria-label="Bekannte Bereiche" aria-orientation="vertical">
                   {areaList.map((area, index) => <button className={`${styles.areaTab} ${currentArea?.viewKey === area.viewKey ? styles.areaTabActive : ""} ${area.redacted ? styles.areaTabUnclear : ""}`} key={area.viewKey} type="button" role="tab" tabIndex={currentArea?.viewKey===area.viewKey?0:-1} aria-selected={currentArea?.viewKey === area.viewKey} aria-controls={currentArea?.viewKey===area.viewKey?`area-detail-${index}`:undefined} id={`area-tab-${index}`} onClick={() => setActiveArea(area.viewKey)} onKeyDown={event=>{
@@ -520,24 +520,23 @@ export function WorldExperience({
                   {!areaList.length && <p className={styles.mutedText}>Für diesen Ort sind noch keine Bereiche freigegeben.</p>}
                 </div>
                 {currentArea && <section className={`${styles.areaDetail} ${currentArea.redacted ? styles.unclearDetail : ""}`} role="tabpanel" tabIndex={0} id={`area-detail-${areaList.indexOf(currentArea)}`} aria-labelledby={`area-tab-${areaList.indexOf(currentArea)}`}>
-                  <div className={styles.areaDetailHeader}><span className={styles.detailOverline}>{currentArea.redacted ? "HINWEIS · NICHT ERSCHLOSSEN" : `BEREICH ${String(currentArea.order).padStart(2, "0")}`}</span><span className={styles.discoveryTag}>{currentArea.redacted ? "Ungeklärt" : discoveryLabel(currentArea.discovery)}</span></div>
-                  <h3>{currentArea.redacted ? "Ein Hinweis bleibt offen." : currentArea.title}</h3>
+                  <header className={styles.areaDetailHeader}><h3>{currentArea.redacted ? "Ein Hinweis bleibt offen." : currentArea.title}</h3><span className={styles.discoveryTag}>{currentArea.redacted ? "Ungeklärt" : discoveryLabel(currentArea.discovery)}</span></header>
                   {groupVisibilityFor(currentArea.viewKey)}
                   {slNotesFor(currentArea.viewKey)}
-                  <div className={styles.areaBody}>
-                    {((currentArea.image && !currentArea.redacted) || areaCopy.introduction) && <div className={`${styles.areaOpening} ${currentArea.image && !currentArea.redacted && areaCopy.introduction ? styles.areaOpeningWithIntro : ""}`}>
-                      {currentArea.image && !currentArea.redacted && <button type="button" className={styles.areaImageButton} aria-label={`Bild vergrößern: ${currentArea.title}`} onClick={event=>openImage(event,currentArea.image!,currentArea.title)}>
-                        <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
-                        <span><ZoomIn size={16} aria-hidden="true"/>Bild vergrößern</span>
-                      </button>}
-                      {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable className={styles.areaHint}/>}
-                    </div>}
-                    {areaCopy.description && <RichTextView value={areaCopy.description} readable className={styles.areaHint}/>}
+                  <div className={`${styles.areaBody} ${currentArea.image && !currentArea.redacted ? styles.areaBodyWithImage : ""}`}>
+                    {currentArea.image && !currentArea.redacted && <button type="button" className={styles.areaImageButton} aria-label={`Bild vergrößern: ${currentArea.title}`} onClick={event=>openImage(event,currentArea.image!,currentArea.title)}>
+                      <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
+                      <span><ZoomIn size={16} aria-hidden="true"/>Bild vergrößern</span>
+                    </button>}
+                    <div className={styles.areaText}>
+                      {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable flowing className={`${styles.areaHint} ${styles.areaIntroduction}`}/>}
+                      {areaCopy.description && <RichTextView value={areaCopy.description} readable flowing className={styles.areaHint}/>}
+                      {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
+                      {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {slNotesFor(room.viewKey)} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
+                      {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
+                      {currentArea.redacted && <div className={styles.unclearSeal}><CircleHelp size={15} />Keine Raumdetails freigegeben</div>}
+                    </div>
                   </div>
-                  {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
-                  {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {slNotesFor(room.viewKey)} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
-                  {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
-                  {currentArea.redacted && <div className={styles.unclearSeal}><CircleHelp size={15} />Keine Raumdetails freigegeben</div>}
                 </section>}
               </div>
             </section>}

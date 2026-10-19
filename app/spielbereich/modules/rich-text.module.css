@@ -20,6 +20,7 @@
 .preview .view { max-width: 75ch; gap: 1em; }
 .preview .view h2, .preview .view h3 { margin-top: .6em; }
 .content p, .content blockquote { white-space: pre-wrap; }
+.content[data-rich-flow="prose"] :is(p, blockquote, li, td) { white-space: normal; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; border: 1px solid rgba(205,166,107,.22); background: rgba(6,11,13,.82); }
 .toolbar > button, .linkRow > button { min-height: 31px; padding: 0 9px; border: 1px solid rgba(205,166,107,.18); color: #d8d0c1; background: #151d1f; font-size: 10px; cursor: pointer; }
 .toolbar > button:hover, .toolbar > button:focus-visible, .linkRow > button:hover, .linkRow > button:focus-visible { border-color: #c6a36c; color: #f5dfb2; outline: none; }

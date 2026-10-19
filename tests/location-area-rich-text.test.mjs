@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {encodeRichText,htmlToRichText,inspectRichTextSource,isRichTextWithinLimit,parseRichTextDocument,readRichText,richHtmlPrefix,richTextClasses,richTextToHtml,richTextToPlainText,sanitizeRichTextInput,splitRichTextIntroduction} from '../domain/location-rich-text.ts';
+import {encodeRichText,htmlToRichText,inspectRichTextSource,isRichTextWithinLimit,parseRichTextDocument,proseInlineParts,readRichText,richHtmlPrefix,richTextClasses,richTextToHtml,richTextToPlainText,sanitizeRichTextInput,splitRichTextIntroduction} from '../domain/location-rich-text.ts';
 import {parsePlayerPayload} from '../domain/location-cms.ts';
 
 test('Server schema rejects parse errors as validation failures, never a secondary runtime exception',()=>{
@@ -86,7 +86,7 @@ test('Area presentation isolates only the first contiguous marked introduction w
   assert.deepEqual(retained.map(b=>JSON.stringify(b)).sort(),before.blocks.map(b=>JSON.stringify(b)).sort());
 });
 
-test('Unmarked and literal plaintext descriptions stay below the image without an inferred introduction',()=>{
+test('Unmarked and literal plaintext descriptions stay in the description without an inferred introduction',()=>{
   for(const value of ['Alte Einleitung\n\nBeschreibung',htmlToRichText('<h2>Abschnitt</h2><p>Keine Markierung</p>'),'<p class="cp-intro">Wörtlicher Klartext</p>','']){
     assert.deepEqual(splitRichTextIntroduction(value),{introduction:null,description:value});
   }
@@ -123,10 +123,15 @@ test('Area presentation reuses the safe renderer, private sources and accessible
   assert.ok(view.includes('value={areaCopy.description} readable'));
   assert.ok(view.indexOf('value={areaCopy.introduction} readable')<view.indexOf('value={areaCopy.description} readable'));
   assert.ok(!css.includes('float:'));
-  assert.match(css,/\.areaBody \{ display: grid; gap: 24px/);
-  assert.match(css,/\.areaOpeningWithIntro \{ grid-template-columns: minmax\(0,min\(42%,400px\)\) minmax\(0,1fr\)/);
+  assert.match(css,/\.areaBody \{[^}]*grid-template-columns: minmax\(0,1fr\); align-items: start; gap: 28px/);
+  assert.match(css,/\.areaBodyWithImage \{ grid-template-columns: minmax\(0,min\(42%,400px\)\) minmax\(0,1fr\)/);
   assert.match(css,/\.areaDetail \{[^}]*max-width: none/);
-  assert.match(css,/\.areaBody \.areaHint \{[^}]*16px\/1\.6 Georgia/);
+  assert.match(css,/\.areaBody \.areaHint \{[^}]*16px\/1\.6 var\(--font-sans/);
+  assert.match(css,/\.areaIntroduction \{/);
+  assert.match(css,/\.areaBody \.areaHint > ul \{ list-style-type: disc/);
+  assert.match(css,/\.areaBody \.areaHint > ol \{ list-style-type: decimal/);
+  assert.ok(view.includes('value={areaCopy.introduction} readable flowing'));
+  assert.ok(view.includes('value={areaCopy.description} readable flowing'));
   assert.ok(view.includes('aria-label={`Bild vergrößern: ${currentArea.title}`}'));
   assert.ok(view.includes('boundedImageOffset'));
   assert.ok(view.includes('preventScroll:true'));
@@ -135,4 +140,59 @@ test('Area presentation reuses the safe renderer, private sources and accessible
   assert.match(css,/\.areaImageButton > img[^}]*object-fit: contain/s);
   assert.match(css,/\.imageStage > img[^}]*object-fit: contain/s);
   assert.match(editor,/<RichTextEditor htmlSource[^\n]*maximumPlainLength=\{1200\}/);
+});
+
+test('Image has its own column while all area text stays together with no flow beneath it',()=>{
+  const view=readFileSync(new URL('../app/spielbereich/modules/world-experience.tsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../app/spielbereich/modules/world-experience.module.css',import.meta.url),'utf8');
+  const start=view.indexOf('<div className={`${styles.areaBody}');
+  const body=view.slice(start,view.indexOf('</section>}',start));
+  const text=body.slice(body.indexOf('<div className={styles.areaText}>'));
+  assert.ok(start>0&&body.includes('currentArea.image && !currentArea.redacted ? styles.areaBodyWithImage : ""'));
+  assert.ok(body.indexOf('className={styles.areaImageButton}')<body.indexOf('className={styles.areaText}'));
+  for(const expected of ['value={areaCopy.introduction}','value={areaCopy.description}','className={styles.areaContext}','className={styles.roomList}','Zu diesem Bereich sind keine Räume freigegeben.'])assert.ok(text.includes(expected));
+  assert.match(css,/\.areaText \{ display: grid; align-content: start; gap: 24px; min-width: 0/);
+  assert.ok(!view.includes('styles.areaOpening'));
+  assert.match(css,/@media \(min-width: 1024px\) \{\s*@container area-detail \(min-width: 680px\) \{\s*\.areaBodyWithImage/);
+});
+
+test('Reading flow removes HTML indentation without rewriting stored text or inline marks',()=>{
+  const value=htmlToRichText('<p>\n  Ein <strong>ruhiger</strong> Ort mit\n  Türen und <em>Licht</em>.\n</p>');
+  const parts=readRichText(value).blocks[0].children,snapshot=JSON.stringify(parts);
+  const reading=proseInlineParts(parts);
+  assert.equal(reading.map(p=>p.text).join(''),'Ein ruhiger Ort mit Türen und Licht.');
+  assert.ok(reading.some(p=>p.text==='ruhiger'&&p.bold));
+  assert.ok(reading.some(p=>p.text==='Licht'&&p.italic));
+  assert.equal(JSON.stringify(parts),snapshot);
+  assert.ok(richTextToPlainText(value).includes('\n  Türen'));
+});
+
+test('Reading flow preserves explicit and ambiguous breaks including after HTML export/reimport',()=>{
+  for(const source of ['<p>A<br>B</p>','<p><strong>A<br><br>B</strong></p>','<p>A<br> B</p>','<p><em>A<br>  B</em></p>','<p>A<br>\tB</p>']){
+    const original=htmlToRichText(source),roundtrip=htmlToRichText(richTextToHtml(original));
+    const text=value=>proseInlineParts(readRichText(value).blocks[0].children).map(p=>p.text).join('');
+    assert.equal(text(original),text(roundtrip));
+    assert.ok(text(original).includes('\n'));
+    if(source.includes('<br><br>'))assert.equal(text(original),'A\n\nB');
+    assert.equal(richTextToPlainText(roundtrip),richTextToPlainText(original));
+    assert.ok(richTextToHtml(roundtrip).includes('<br>'));
+  }
+  assert.deepEqual(proseInlineParts([{text:'A\nB'}]),[{text:'A'},{text:'\n'},{text:'B'}]);
+});
+
+test('Reading flow handles CRLF/tabs and preserves punctuation, inline spaces and NBSP',()=>{
+  const value=htmlToRichText('<p>\r\n\tEin <strong>Ort</strong>, <em>zwei</em>\r\n\tWege und A&nbsp;B.\r\n</p>');
+  const parts=readRichText(value).blocks[0].children;
+  assert.equal(proseInlineParts(parts).map(p=>p.text).join(''),'Ein Ort, zwei Wege und A\u00a0B.');
+  assert.equal(proseInlineParts([{text:'vor '},{text:'Gold',bold:true},{text:' danach'}]).map(p=>p.text).join(''),'vor Gold danach');
+});
+
+test('Flow is opt-in only and does not replace the editor, plain text or safe renderer',()=>{
+  const renderer=readFileSync(new URL('../app/spielbereich/modules/rich-text.tsx',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../app/spielbereich/modules/rich-text.module.css',import.meta.url),'utf8');
+  assert.ok(renderer.includes('flowing = false'));
+  assert.ok(renderer.includes('if (flowing && value.startsWith(richTextPrefix))'));
+  assert.ok(renderer.includes('parseRichTextDocument(JSON.parse'));
+  assert.match(css,/\.content\[data-rich-flow="prose"\] :is\(p, blockquote, li, td\) \{ white-space: normal/);
+  assert.ok(renderer.includes('<RichTextView value={value} readable/>'),'Editor preview retains its existing rendering');
 });
