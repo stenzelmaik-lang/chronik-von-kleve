@@ -35,6 +35,7 @@ import { splitRichTextIntroduction } from "@/domain/location-rich-text";
 
 import { api } from "./api-client";
 import { RichTextView, richTextToPlainText } from "./rich-text";
+import { LocationSLDossier } from "./location-sl-dossier";
 import { activeMapMarkersForPlace, visibleWorldPlaces, type WorldHubPlace, type WorldMapMarker } from "./world-map-contract";
 import {
   describeDataError,
@@ -101,6 +102,8 @@ export function WorldExperience({
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState(false);
   const [activeArea, setActiveArea] = useState<string | null>(null);
+  const [areaContext, setAreaContext] = useState<{ placeId: string; order: number } | null>(null);
+  const [activeDossierId, setActiveDossierId] = useState("");
   const [overlay, setOverlay] = useState<WorldOverlay>(null);
   const [noteState, setNoteState] = useState<NoteState | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -211,7 +214,10 @@ export function WorldExperience({
   const visibleMapIds = useMemo(() => mapMarkers.map((marker) => marker.id), [mapMarkers]);
   const mapPreviewPlace = selected;
   const areaList = useMemo(() => location?.areas ?? [], [location]);
-  const currentArea = areaList.find((area) => area.viewKey === activeArea) ?? areaList[0] ?? null;
+  const contextualArea = areaContext && areaContext.placeId === location?.id ? areaList.find(area => area.order === areaContext.order) : undefined;
+  const currentArea = areaList.find((area) => area.viewKey === activeArea) ?? contextualArea ?? areaList[0] ?? null;
+  const dossierNodeExists = activeDossierId === location?.id || areaList.some(area => area.viewKey === activeDossierId || area.rooms.some(room => room.viewKey === activeDossierId)) || location?.knownInformation.some(info => info.id === activeDossierId);
+  const dossierNodeId = dossierNodeExists ? activeDossierId : contextualArea?.viewKey || location?.id || '';
   const areaCopy = splitRichTextIntroduction(currentArea?.playerHint ?? "");
   const cachedNotes = readPlayerData<NotesPayload>(dataScope, NOTES_KEY);
   const notes = noteState?.scope === dataScope ? noteState.records : cachedNotes?.value.records ?? [];
@@ -285,6 +291,7 @@ export function WorldExperience({
 
   function openPlace(id: string) {
     returnScrollY.current = window.scrollY;
+    setActiveArea(null);setAreaContext(null);setActiveDossierId('');
     setSelectedId(id);
     setDetail(true);
     const url = new URL(window.location.href);
@@ -309,6 +316,12 @@ export function WorldExperience({
     url.searchParams.delete("ort");
     history.replaceState(null, "", url);
     requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
+  }
+
+  function chooseArea(id: string) {
+    setActiveArea(id);
+    const area=areaList.find(item=>item.viewKey===id);
+    if(area&&location)setAreaContext({placeId:location.id,order:area.order});
   }
 
   async function saveNote() {
@@ -374,11 +387,6 @@ export function WorldExperience({
     }catch(reason){toast.error(reason instanceof Error?reason.message:"Die Freigabe konnte nicht geändert werden.");}
     finally{setBusy(false);}
   }
-  function slNotesFor(entityId: string) {
-    if(projection?.view!=="sl")return null;
-    const notes=location?.slNotes?.filter(note=>note.entityId===entityId&&(note.text||note.source||note.image))??[];
-    return notes.map((note,index)=><aside className={styles.slConfidential} key={entityId+index}><p className={styles.kicker}>VERTRAULICH · NUR SPIELLEITUNG · GESPEICHERTER STAND</p>{note.text&&<RichTextView value={note.text}/>} {note.source&&<p className={styles.mutedText}>Quelle: {note.source}</p>}{note.image&&<img className={styles.areaImage} src={note.image} alt="Vertrauliches SL-Bild" loading="lazy"/>}</aside>);
-  }
   function groupVisibilityFor(entityId: string) {
     const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
     if(projection?.view!=="sl"||!state||embeddedDossier)return null;
@@ -398,14 +406,15 @@ export function WorldExperience({
       <span className={styles.stateIcon}><Shield size={19} /></span>
       <div><p className={styles.kicker}>SPIELWELT · ZUGRIFF</p><h1>{detail ? "Der Ort ist gerade nicht verfügbar." : "Die Ortsdaten sind gerade nicht verfügbar."}</h1><p>{visibleError}</p></div>
       <button className={styles.secondaryButton} onClick={() => window.location.reload()} type="button">Erneut versuchen</button>
+      {a.gm && view === "player" && <button className={styles.secondaryButton} onClick={() => setView("sl")} type="button">SL-Dossier öffnen</button>}
     </section>;
   }
 
   if (!embeddedDossier && loading) {
     return <div className={styles.worldRoot} data-world-experience="world" aria-busy="true">
-      <header className={styles.worldIntro}><div><p className={styles.kicker}>DOMÄNE KLEVE · NACHTATLAS</p><h1>Spielwelt</h1></div><div className={styles.introMeta}>Die bekannten Orte deiner Chronik</div></header>
-      <div className={`${styles.mapStage} ${styles.mapLoading}`} aria-label="Stadtkarte wird geladen"><div className={styles.mapImage} /><span className={styles.loadingMark}><Compass size={17} /> Kartendaten werden geladen</span></div>
-      <div className={styles.loadingLine} role="status">Freigegebene Ortsdaten werden geladen …</div>
+      <header className={styles.worldIntro}><div><p className={styles.kicker}>DOMÄNE KLEVE · NACHTATLAS</p><h1>{detail ? "Ortsdossier" : "Spielwelt"}</h1></div><div className={styles.introMeta}>Die bekannten Orte deiner Chronik</div></header>
+      {!detail && <div className={`${styles.mapStage} ${styles.mapLoading}`} aria-label="Stadtkarte wird geladen"><div className={styles.mapImage} /><span className={styles.loadingMark}><Compass size={17} /> Kartendaten werden geladen</span></div>}
+      <div className={styles.loadingLine} role="status">{detail ? "Ortsansicht wird geladen …" : "Freigegebene Ortsdaten werden geladen …"}</div>
     </div>;
   }
 
@@ -420,10 +429,10 @@ export function WorldExperience({
         <h1>{showingDossier ? "Ortsdossier" : view === "sl" ? "Ortsbestand der Chronik" : "Die Stadt bei Nacht"}</h1>
       </div>
       <div className={styles.introRight}>
-      <p>{showingDossier ? embeddedLabel || "Ein Ort, wie dein Charakter ihn kennt." : view === "sl" ? "Alle angelegten Orte der Chronik." : "Orte, die deinem Charakter bekannt sind."}</p>
-        {a.gm && !embeddedDossier && <div className={styles.viewSwitch} aria-label="Ansicht wählen">
-          <button type="button" className={view === "player" ? styles.switchActive : ""} onClick={() => setView("player")}><Eye size={14} />Spieleransicht</button>
-          <button type="button" className={view === "sl" ? styles.switchActive : ""} onClick={() => setView("sl")}><Shield size={14} />SL-Ansicht</button>
+      <p>{showingDossier ? embeddedLabel || (view === "sl" ? "Internes Ortswissen, nach Bereichen und Kapiteln." : "Ein Ort, wie dein Charakter ihn kennt.") : view === "sl" ? "Alle angelegten Orte der Chronik." : "Orte, die deinem Charakter bekannt sind."}</p>
+        {a.gm && !embeddedDossier && <div className={styles.viewSwitch} role="group" aria-label="Ortsansicht wählen">
+          <button type="button" aria-pressed={view === "player"} className={view === "player" ? styles.switchActive : ""} onClick={() => { setOverlay(null); setView("player"); }}><Eye size={14} aria-hidden="true"/>Spieleransicht</button>
+          <button type="button" aria-pressed={view === "sl"} className={view === "sl" ? styles.switchActive : ""} onClick={() => { if(view === "player")setActiveDossierId(activeArea || selectedId); setOverlay(null); setView("sl"); }}><Shield size={14} aria-hidden="true"/>{showingDossier ? "SL-Dossier" : "SL-Ortsbestand"}</button>
         </div>}
         {a.gm && !embeddedDossier && view === "player" && <span className={styles.previewBadge}><Eye size={13} />Gruppenprojektion</span>}
       </div>
@@ -489,13 +498,21 @@ export function WorldExperience({
           {matchingPlaces.length === 0 && <p className={styles.emptySearch}>Keine bekannten Orte passen zu deiner Suche.</p>}
         </div>
       </section>
-    </> : <>
+    </> : projection.view === "sl" ? <article className={styles.slDossierPage} aria-label="SL-Dossier">
+      <div className={styles.slDossierNavigation}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} aria-hidden="true"/>{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button></div>
+      <LocationSLDossier key={location.id} projection={projection} selectedId={dossierNodeId} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
+      {groupVisibilityFor(dossierNodeId)}
+      {location.preparedActions && location.preparedActions.length > 0 && <section className={styles.gmActions}>
+        <header className={styles.detailSectionHeader}><h2>Vorbereitete Aktionen</h2><Shield size={18} aria-hidden="true"/></header>
+        {location.preparedActions.map(action => <div className={styles.gmActionRow} key={action.id}><span><strong>{action.label}</strong><small>{action.target}</small></span><button type="button" className={styles.secondaryButton} disabled={busy || action.status === "triggered"} onClick={() => triggerAction(action.id)}>{action.status === "triggered" ? "Ausgelöst" : "Auslösen"}</button></div>)}
+      </section>}
+    </article> : <>
       <article className={styles.locationPage} aria-labelledby="location-title">
         <section className={styles.locationHero}>
           {location.image && <img className={styles.locationHeroImage} src={location.image} alt={`${location.title} in der Spielwelt`} fetchPriority="high" />}
           <div className={styles.heroVeil} />
           <div className={styles.heroTopline}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} />{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button>{location.district && <span className={styles.heroLocation}><MapPin size={14} />{location.district}</span>}</div>
-          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <div className={styles.heroSummary}><RichTextView value={location.summary}/></div>}<div className={styles.heroActions}>{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { setActiveArea(areaList[0]?.viewKey ?? null); document.getElementById("known-areas")?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "instant" : "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={event=>openImage(event,location.image!,location.title)}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
+          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <div className={styles.heroSummary}><RichTextView value={location.summary}/></div>}<div className={styles.heroActions}>{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { if(areaList[0])chooseArea(areaList[0].viewKey); document.getElementById("known-areas")?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "instant" : "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={event=>openImage(event,location.image!,location.title)}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
           <span className={styles.heroIndex} aria-hidden="true">01 <i>/</i> ORT</span>
         </section>
 
@@ -511,9 +528,9 @@ export function WorldExperience({
               <header className={styles.detailSectionHeader}><h2 id="areas-title">Bekannte Bereiche</h2><span className={styles.sectionCounter}>{String(areaList.length).padStart(2, "0")} <small>bekannte Bereiche</small></span></header>
               <div className={styles.areaLayout}>
                 <div className={styles.areaList} role="tablist" aria-label="Bekannte Bereiche" aria-orientation="vertical">
-                  {areaList.map((area, index) => <button className={`${styles.areaTab} ${currentArea?.viewKey === area.viewKey ? styles.areaTabActive : ""} ${area.redacted ? styles.areaTabUnclear : ""}`} key={area.viewKey} type="button" role="tab" tabIndex={currentArea?.viewKey===area.viewKey?0:-1} aria-selected={currentArea?.viewKey === area.viewKey} aria-controls={currentArea?.viewKey===area.viewKey?`area-detail-${index}`:undefined} id={`area-tab-${index}`} onClick={() => setActiveArea(area.viewKey)} onKeyDown={event=>{
+                  {areaList.map((area, index) => <button className={`${styles.areaTab} ${currentArea?.viewKey === area.viewKey ? styles.areaTabActive : ""} ${area.redacted ? styles.areaTabUnclear : ""}`} key={area.viewKey} type="button" role="tab" tabIndex={currentArea?.viewKey===area.viewKey?0:-1} aria-selected={currentArea?.viewKey === area.viewKey} aria-controls={currentArea?.viewKey===area.viewKey?`area-detail-${index}`:undefined} id={`area-tab-${index}`} onClick={() => chooseArea(area.viewKey)} onKeyDown={event=>{
                     const next=event.key==='Home'?0:event.key==='End'?areaList.length-1:['ArrowDown','ArrowRight'].includes(event.key)?(index+1)%areaList.length:['ArrowUp','ArrowLeft'].includes(event.key)?(index+areaList.length-1)%areaList.length:null;
-                    if(next===null)return;event.preventDefault();setActiveArea(areaList[next].viewKey);document.getElementById(`area-tab-${next}`)?.focus();
+                    if(next===null)return;event.preventDefault();chooseArea(areaList[next].viewKey);document.getElementById(`area-tab-${next}`)?.focus();
                   }}>
                     <span className={styles.areaNumber}>{String(index + 1).padStart(2, "0")}</span><span className={styles.areaTabCopy}><strong>{area.redacted ? "Ungeklärt" : area.title}</strong><small>{area.redacted ? "Hinweis vorhanden" : `${area.rooms.length} bekannte Räume`}</small></span>{area.redacted ? <CircleHelp size={16} /> : <ArrowRight size={15} />}
                   </button>)}
@@ -522,7 +539,6 @@ export function WorldExperience({
                 {currentArea && <section className={`${styles.areaDetail} ${currentArea.redacted ? styles.unclearDetail : ""}`} role="tabpanel" tabIndex={0} id={`area-detail-${areaList.indexOf(currentArea)}`} aria-labelledby={`area-tab-${areaList.indexOf(currentArea)}`}>
                   <header className={styles.areaDetailHeader}><h3>{currentArea.redacted ? "Ein Hinweis bleibt offen." : currentArea.title}</h3><span className={styles.discoveryTag}>{currentArea.redacted ? "Ungeklärt" : discoveryLabel(currentArea.discovery)}</span></header>
                   {groupVisibilityFor(currentArea.viewKey)}
-                  {slNotesFor(currentArea.viewKey)}
                   <div className={`${styles.areaBody} ${currentArea.image && !currentArea.redacted ? styles.areaBodyWithImage : ""}`}>
                     {currentArea.image && !currentArea.redacted && <button type="button" className={styles.areaImageButton} aria-label={`Bild vergrößern: ${currentArea.title}`} onClick={event=>openImage(event,currentArea.image!,currentArea.title)}>
                       <img src={currentArea.image} alt={`Freigegebenes Bild: ${currentArea.title}`} width={400} height={300} loading="lazy"/>
@@ -532,7 +548,7 @@ export function WorldExperience({
                       {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable flowing className={`${styles.areaHint} ${styles.areaIntroduction}`}/>}
                       {areaCopy.description && <RichTextView value={areaCopy.description} readable flowing className={styles.areaHint}/>}
                       {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
-                      {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {slNotesFor(room.viewKey)} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
+                      {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
                       {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
                       {currentArea.redacted && <div className={styles.unclearSeal}><CircleHelp size={15} />Keine Raumdetails freigegeben</div>}
                     </div>
@@ -551,12 +567,7 @@ export function WorldExperience({
               <div className={styles.informationList}>{location.knownInformation.map((info) => <button type="button" className={styles.informationRow} key={info.id} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: info.title, text: info.text }); }}><span><Sparkles size={15} /></span><span><strong>{info.title}</strong><small>{richTextToPlainText(info.text)}</small></span><ArrowUpRight size={15} /></button>)}</div>
             </section>}
 
-            {slNotesFor(projection.location.id)}
             {groupVisibilityFor(projection.location.id)}
-            {projection.view === "sl" && projection.location.preparedActions && <section className={styles.gmActions}>
-              <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>NUR FÜR DIE SPIELLEITUNG</p><h2>Vorbereitete Aktionen</h2></div><Shield size={18} /></header>
-              {projection.location.preparedActions.map((action) => <div className={styles.gmActionRow} key={action.id}><span><strong>{action.label}</strong><small>{action.target}</small></span><button type="button" className={styles.secondaryButton} disabled={busy || action.status === "triggered"} onClick={() => triggerAction(action.id)}>{action.status === "triggered" ? "Ausgelöst" : "Auslösen"}</button></div>)}
-            </section>}
           </div>
 
           <aside className={styles.locationAside}>

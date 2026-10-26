@@ -12,6 +12,11 @@
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.slDossierPage { padding: 28px 32px 32px; border: 1px solid var(--world-line); background: var(--world-ground); }
+.slDossierNavigation { display: flex; margin-bottom: 24px; }
+.slDossierPage .slVisibility { margin-top: 24px; }
+@media (max-width: 600px) { .slDossierPage { padding: 18px 15px; } }
+
 .srOnly {
   position: absolute;
   width: 1px;

@@ -4,6 +4,7 @@ import type { Actor } from "@/domain/types";
 import type { DiscoveryState,PlaceProjection } from "@/domain/location-types";
 import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
 import { locationCreationParent } from "@/domain/location-creation";
+import { appendSlDossierChapter, slDossierChapterTitles, slDossierEditorValue } from "@/domain/location-dossier";
 import { Check,ChevronRight,Eye,FileImage,Plus,RefreshCw,Save,Search,Send,ShieldCheck,Slash } from "lucide-react";
 import { type FormEvent,useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { toast } from "sonner";
@@ -46,6 +47,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const [draftId,setDraftId]=useState("");
   const [payload,setPayload]=useState<Record<string,unknown>>({});
   const [gmSecret,setGmSecret]=useState<Record<string,unknown>>({});
+  const [chapterTitle,setChapterTitle]=useState<string>(slDossierChapterTitles[0]);
+  const [gmEditorVersion,setGmEditorVersion]=useState(0);
   const [geo,setGeo]=useState<Geography>({status:"unknown"});
   const [pickedCoordinates,setPickedCoordinates]=useState<[number,number]|null>(null);
   const [discoveryState,setDiscoveryState]=useState<DiscoveryState>("known");
@@ -366,7 +369,12 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
             {activeSection==="content"&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
               <div className={cmsStyles.panelIntro}><p className="eyebrow">{scope==="gm"?"INTERNER SPIELLEITUNGSINHALT":"BESTEHENDE ORTSINFORMATION"}</p><h3>{scope==="gm"?"Vertraulicher Vermerk":isRoot?"Grunddaten und Beschreibungen":node.level==="information"?"Erkenntnis und Handout":"Bereich und Raum"}</h3><p>{scope==="gm"?"Nur die Spielleitung kann diesen Inhalt sehen. Er kann nicht für Spieler freigegeben werden.":"Diese Angaben verwenden die vorhandene Ortsidentität und werden nur über eine passende Revision ausgespielt."}</p></div>
               <fieldset className={cmsStyles.editorFieldset} disabled={!editable||busy}>
-                {scope==="gm"?<div className={cmsStyles.fieldStack}><label className="field"><span>Interner Text</span><textarea rows={10} value={String(gmSecret.text||"")} onChange={event=>setGmSecret(current=>({...current,text:event.target.value}))}/></label><label className="field"><span>Herkunft</span><input value={String(gmSecret.source||"")} onChange={event=>setGmSecret(current=>({...current,source:event.target.value}))}/></label></div>:node.level==="location"?<div className={cmsStyles.fieldStack}>
+                {scope==="gm"?<div className={cmsStyles.fieldStack}>
+                  <div className={cmsStyles.chapterComposer}><label className="field"><span>SL-Kapitel</span><select value={chapterTitle} onChange={event=>setChapterTitle(event.target.value)}>{slDossierChapterTitles.map(title=><option key={title}>{title}</option>)}</select></label><button type="button" className="button" onClick={()=>{try{const text=appendSlDossierChapter(String(gmSecret.text||""),chapterTitle);setGmSecret(current=>({...current,text}));setGmEditorVersion(version=>version+1);}catch(error){toast.error((error as Error).message);}}}><Plus size={16} aria-hidden="true"/> Kapitel hinzufügen</button></div>
+                  <p className={cmsStyles.chapterHint}>H2 beginnt ein aufklappbares Kapitel. H3 gliedert den Text darin. „Schnellübersicht“ bleibt beim Lesen direkt sichtbar. Dein bisheriger Text bleibt erhalten.</p>
+                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:gm:${gmEditorVersion}`} value={slDossierEditorValue(String(gmSecret.text||""))} onChange={text=>setGmSecret(current=>({...current,text}))} label="Interner Text" maximumPlainLength={5000} placeholder="Vertrauliche Ortsinformationen für die Spielleitung …"/>
+                  <label className="field"><span>Herkunft</span><input value={String(gmSecret.source||"")} onChange={event=>setGmSecret(current=>({...current,source:event.target.value}))}/></label>
+                </div>:node.level==="location"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label><label className="field"><span>Untertitel</span><input value={String(payload.subtitle||"")} onChange={event=>setField("subtitle",event.target.value)} placeholder="Kurze Einordnung für die Ortsseite"/></label></div>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Stadtteil</span><input value={String(payload.district||"")} onChange={event=>setField("district",event.target.value)}/></label><label className="field"><span>Freigegebene Adresse</span><input value={String(payload.address||"")} onChange={event=>setField("address",event.target.value)}/></label></div>
                   <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>

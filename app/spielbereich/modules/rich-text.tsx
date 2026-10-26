@@ -96,6 +96,7 @@ export function RichTextEditor({
   const [preview, setPreview] = useState(false);
   const helpId = useId();
   const editorRef = useRef<HTMLDivElement>(null);
+  const lastEditorHtml = useRef('');
   const savedRange = useRef<Range | null>(null);
   const [link, setLink] = useState("");
   const [extraTools,setExtraTools]=useState(!compactTools),[linkOpen,setLinkOpen]=useState(!compactTools),[imageOpen,setImageOpen]=useState(!compactTools),[imageSearch,setImageSearch]=useState('');
@@ -105,12 +106,18 @@ export function RichTextEditor({
   const canonicalValueRef=useRef(canonicalRichText(value));
   useLayoutEffect(()=>{initialValueRef.current=value.startsWith(richHtmlPrefix)?canonicalRichText(value):value;canonicalValueRef.current=canonicalRichText(value);},[value]);
   useLayoutEffect(() => {
-    if (editorRef.current) replaceEditorContents(editorRef.current, initialValueRef.current);
+    if (editorRef.current) {
+      replaceEditorContents(editorRef.current, initialValueRef.current);
+      lastEditorHtml.current = editorRef.current.innerHTML;
+    }
   }, [htmlMode, preview]);
 
   function commit() {
     const editor = editorRef.current;
     if (!editor) return;
+    // A focus/blur roundtrip must not convert or dirty untouched legacy text,
+    // including historical documents beyond today's formatting limits.
+    if (editor.innerHTML === lastEditorHtml.current) return;
     let next:string;try{next=encodeRichText(documentFromEditor(editor));}catch(e){setHtmlError((e as Error).message);if(htmlSource)onChange(richHtmlPrefix+editor.innerHTML);return;}
     const length = richTextToPlainText(next).length;
     setPlainLength(length);
@@ -118,6 +125,7 @@ export function RichTextEditor({
     setHtmlError(length > maximumPlainLength ? `Bitte kürze den sichtbaren Text auf ${maximumPlainLength} Zeichen.` : '');
     // Keep an invalid draft dirty too: saving must not silently write the previous valid value.
     if ((htmlSource || length <= maximumPlainLength) && next!==canonicalValueRef.current) onChange(next);
+    lastEditorHtml.current = editor.innerHTML;
   }
 
   function preserveSelection(event: MouseEvent) {

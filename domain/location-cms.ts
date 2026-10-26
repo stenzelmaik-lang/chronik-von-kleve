@@ -76,7 +76,7 @@ const informationPayload = z.object({
 }).strict();
 
 const gmSecretPayload = z.object({
-  text: cleanText(5000).optional(),
+  text: richText(5000).optional(),
   source: cleanText(500).optional(),
 }).strict();
 
