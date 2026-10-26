@@ -18,6 +18,7 @@ type MediaRow = { revision_id: string; file_id: string };
 
 export type RevisionOverlay = {
   managedIds: Set<string>;
+  blockedIds:Set<string>;
   playerPayloads: Map<string, Record<string, unknown>>;
   geographies: Map<string, Record<string, unknown>>;
   selectedRevisionIds: Map<string, string>;
@@ -70,7 +71,7 @@ export async function loadRevisionOverlay(
   preview?: PreviewRevision,
 ): Promise<RevisionOverlay> {
   const overlay: RevisionOverlay = {
-    managedIds: new Set(), playerPayloads: new Map(), geographies: new Map(),
+    managedIds: new Set(),blockedIds:new Set(), playerPayloads: new Map(), geographies: new Map(),
     selectedRevisionIds: new Map(), previewRevisionIds: new Set(), selectedMediaFileIds: new Map(), publicKnownIds: new Set(), extraKnowledge: [],
   };
   const ids = [...new Set(nodes.map(node => node.entity_id))];
@@ -98,7 +99,7 @@ export async function loadRevisionOverlay(
     for (const [scope,key] of targetKeys(target, viewerId)) {
       const row = latest.get(`${id}\u0000${scope}\u0000${key}`);
       if (!row) continue;
-      if (row.transition === "block") break;
+      if (row.transition === "block") {overlay.blockedIds.add(id);break;}
       if (row.transition === "revoke") continue;
       if (!grantAllows(row, grants, actor, viewerId)) continue;
       if (!row.revision_id || !row.player_payload_json || !row.geography_json) continue;
@@ -116,7 +117,7 @@ export async function loadRevisionOverlay(
       .first<{campaign_id:string;entity_id:string;audience_scope:string;audience_key:string;status:string;player_payload_json:string;geography_json:string}>();
     if (revision && revision.audience_scope === preview.scope && revision.audience_key === preview.key &&
       ["draft","in_review","approved"].includes(revision.status)) {
-      overlay.managedIds.add(preview.entityId);
+      overlay.managedIds.add(preview.entityId);overlay.blockedIds.delete(preview.entityId);
       overlay.playerPayloads.set(preview.entityId,parseObject(revision.player_payload_json));
       overlay.geographies.set(preview.entityId,parseObject(revision.geography_json));
       overlay.selectedRevisionIds.set(preview.entityId,preview.revisionId);

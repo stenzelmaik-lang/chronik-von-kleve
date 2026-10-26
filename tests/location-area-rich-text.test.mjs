@@ -139,7 +139,7 @@ test('Area presentation reuses the safe renderer, private sources and accessible
   assert.match(css,/\.areasSection \{ grid-column: 1 \/ -1/);
   assert.match(css,/\.areaImageButton > img[^}]*object-fit: contain/s);
   assert.match(css,/\.imageStage > img[^}]*object-fit: contain/s);
-  assert.match(editor,/<RichTextEditor htmlSource[^\n]*maximumPlainLength=\{1200\}/);
+  assert.match(editor,/<RichTextEditor htmlSource[^\n]*maximumPlainLength=\{25000\}/);
 });
 
 test('Image has its own column while all area text stays together with no flow beneath it',()=>{

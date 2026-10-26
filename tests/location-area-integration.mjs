@@ -43,8 +43,8 @@ export async function locationAreaIntegration({req,check,base,ids}) {
   check((await fetch(base+previewArea.image,{headers:ids.a})).status===403,'AREA draft image preview cannot be used by a player');
   const beforeRelease=(await req('/api/locations?place='+root.id+'&view=player&target=player','a')).d;
   check(!JSON.stringify(beforeRelease).includes('AREA_QA beschriebener Bereich'),'AREA HTML editing does not automatically publish content');
-  const tooLong=await req('/api/cms/drafts','gm','PATCH',{revisionId:area.revisionId,expectedVersion:persisted.version,payload:{title:area.title,playerHint:richHtmlPrefix+'<p>'+'x'.repeat(1201)+'</p>'}});
-  check(tooLong.s===400,'AREA 1200-character limit is enforced against visible text server-side');
+  const tooLong=await req('/api/cms/drafts','gm','PATCH',{revisionId:area.revisionId,expectedVersion:persisted.version,payload:{title:area.title,playerHint:richHtmlPrefix+'<p>'+'x'.repeat(25001)+'</p>'}});
+  check(tooLong.s===400,'AREA 25000-character limit is enforced against visible text server-side');
   const forged='cvk-rich-v1:'+JSON.stringify({version:1,blocks:[{type:'paragraph',className:'cp-intro hidden',children:[{text:'FORGED'}]}]});
   check((await req('/api/cms/drafts','gm','PATCH',{revisionId:area.revisionId,expectedVersion:persisted.version,payload:{title:area.title,playerHint:forged}})).s===400,'AREA direct structured input cannot bypass the CSS class allowlist');
   check((await req('/api/cms/drafts','gm','PATCH',{revisionId:area.revisionId,expectedVersion:persisted.version,payload:{title:area.title,playerHint:richHtmlPrefix+'x'.repeat(65001)}})).s===400,'AREA unbounded HTML fails safely in the Workers runtime');

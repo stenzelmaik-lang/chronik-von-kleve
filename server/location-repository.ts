@@ -1,3 +1,4 @@
+import {locationPublicKey} from '@/domain/location-public-key';
 import { discoveryOrder, validDiscovery, locationIsSecret } from "@/domain/location-discovery";
 import type {
   DiscoveryState,
@@ -18,6 +19,8 @@ import {
 } from "@/domain/location-model";
 import { projectLocationGeography } from "@/server/location-geography";
 import { parseGeography } from "@/domain/location-cms";
+import {loadLocationMedia} from './location-media';
+import type {PublicLocationMedia} from '@/domain/location-library';
 import { loadSlDossierExtras, loadRevisionOverlay, type PreviewRevision, type RevisionOverlay } from "@/server/location-revision-projector";
 
 type NodeRow = {
@@ -80,7 +83,7 @@ function attrs(row: NodeRow): Record<string, unknown> {
   };
 }
 
-type LoadedRows = { rows: NodeRow[]; actions: ActionRow[]; grants: KnowledgeRow[]; overlay?: RevisionOverlay };
+type LoadedRows = { rows: NodeRow[]; actions: ActionRow[]; grants: KnowledgeRow[]; overlay?: RevisionOverlay; media?:Map<string,PublicLocationMedia[]> };
 
 function buildPersistedProjection(
   actor: Actor,
@@ -102,8 +105,9 @@ function buildPersistedProjection(
     if (!current || discoveryOrder.indexOf(validDiscovery(grant.discovery_state)) > discoveryOrder.indexOf(current)) grantMap.set(grant.entity_id, validDiscovery(grant.discovery_state));
   }
   const blocked = new Set(rows.filter(row => locationIsSecret(row.canon_status, jsonObject(row.entity_content), attrs(row))).map(row => row.entity_id));
+  if(!sl)for(const id of overlay?.blockedIds||[])blocked.add(id);
   for (let pass = 0; pass < rows.length; pass++) for (const row of rows) if (row.parent_id && blocked.has(row.parent_id)) blocked.add(row.entity_id);
-  const availableRows = sl ? rows : rows.filter(row => !blocked.has(row.entity_id));
+  const availableRows = sl ? rows.filter(row=>!['archived','deleted'].includes(String(attrs(row).lifecycle))) : rows.filter(row => !blocked.has(row.entity_id));
   const root = availableRows.find(row => row.level === "location" && row.entity_id === placeId);
   if (!root) return null;
   const attrsFor = (row: NodeRow) => sl
@@ -125,7 +129,7 @@ function buildPersistedProjection(
   const gmOnlyInformation = (row: NodeRow) => row.level === "information" && attrs(row).visibility === "gm";
   const visibleNode = (row: NodeRow) => sl || (!gmOnlyInformation(row) && fullDiscovery(row) !== "hidden" &&
     (!overlay?.managedIds.has(row.entity_id) || overlay.playerPayloads.has(row.entity_id)));
-  if (!sl && fullDiscovery(root) === "hidden") return null;
+  if (!sl && !availableRows.some(row=>visibleNode(row))) return null;
   const rootGrants = grantsForNode(root);
   const groupGrant = rootGrants.some(grant => grant.audience === "public" || grant.audience === "group");
   const playerGrant = rootGrants.some(grant => grant.audience === "player" && grant.subject_id === actor.id);
@@ -140,7 +144,8 @@ function buildPersistedProjection(
     const data = attrsFor(row);
     return { id: row.entity_id, order: row.position, title: String(data.title || row.entity_title || ""), discovery: fullDiscovery(row),
       worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
-      visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), short: typeof data.short === "string" ? data.short : undefined };
+      visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), short: typeof data.short === "string" ? data.short : undefined,
+      media:loaded.media?.get(row.entity_id),dossierHref:`/spielbereich?bereich=schauplaetze&ort=${encodeURIComponent(placeId)}&eintrag=${encodeURIComponent(sl?row.entity_id:locationPublicKey(row.entity_id))}` };
   };
   const buildArea = (row: NodeRow): PlaceArea => {
     const data = attrsFor(row);
@@ -150,7 +155,8 @@ function buildPersistedProjection(
       worldState: worldVisible(row) ? worldState(row.world_state) : "active", markers: worldVisible(row) ? parseMarkers(row.markers) : [],
       visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility),
       ...(areaImageId && revisionId ? { image: `/api/cms/media?id=${encodeURIComponent(areaImageId)}&entityId=${encodeURIComponent(row.entity_id)}&revisionId=${encodeURIComponent(revisionId)}${overlay?.previewRevisionIds.has(revisionId) ? "&preview=1" : ""}` } : {}),
-      playerHint: typeof data.playerHint === "string" ? data.playerHint : undefined, rooms: byParent(row.entity_id, "room").map(buildRoom) };
+      playerHint: typeof data.playerHint === "string" ? data.playerHint : undefined, rooms: byParent(row.entity_id, "room").map(buildRoom),
+      media:loaded.media?.get(row.entity_id),dossierHref:`/spielbereich?bereich=schauplaetze&ort=${encodeURIComponent(placeId)}&eintrag=${encodeURIComponent(sl?row.entity_id:locationPublicKey(row.entity_id))}` };
   };
   const rootRevisionId = overlay?.selectedRevisionIds.get(placeId);
   const heroFileId = rootRevisionId ? overlay?.selectedMediaFileIds.get(rootRevisionId) : undefined;
@@ -171,20 +177,27 @@ function buildPersistedProjection(
     markers: worldVisible(root) ? parseMarkers(root.markers) : [],
     factionSignals: Array.isArray(rootAttrs.factionSignals) ? rootAttrs.factionSignals as PlaceModel["factionSignals"] : [],
     areas: byParent(placeId, "area").map(buildArea),
-    knownInformation: byParent(placeId, "information").map((row): PlaceNote => {
+    knownInformation: availableRows.filter(row=>row.level==='information'&&visibleNode(row)).map((row): PlaceNote => {
       const data = attrsFor(row);
       return { id: row.entity_id, title: String(data.title || row.entity_title || "Information"), text: String(data.text || ""),
         noteType: (data.noteType as PlaceNote["noteType"]) || "note", pinned: data.pinned === true,
-        visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), targetId: placeId };
+        visibility: !sl && fullDiscovery(row) !== "hidden" ? "group" : visibility(data.visibility || row.world_visibility), targetId: row.parent_id||placeId,media:loaded.media?.get(row.entity_id),dossierHref:`/spielbereich?bereich=schauplaetze&ort=${encodeURIComponent(placeId)}&eintrag=${encodeURIComponent(sl?row.entity_id:locationPublicKey(row.entity_id))}` };
     }),
     activity: Array.isArray(rootAttrs.activity) ? (rootAttrs.activity as PlaceActivity[]).filter(item => sl || (["public", "group"].includes(item.visibility) && availableRows.some(row => row.entity_id === item.targetId && fullDiscovery(row) !== "hidden"))) : [],
     preparedActions: actions.map((row): PreparedPlaceAction => {
       const data = jsonObject(row.definition); const status = ["ready", "triggered", "open"].includes(row.status) ? row.status as PreparedActionStatus : "ready";
       return { id: row.id, label: String(data.label || row.id), target: String(data.target || "Gruppe"), targetId: row.target_id, status, visibility: "gm" };
     }),
-    sourceLabel: String(rootAttrs.sourceLabel || ""),
+    sourceLabel: String(rootAttrs.sourceLabel || ""),media:loaded.media?.get(placeId),
   };
+  const hero=model.media?.find(item=>item.hero&&item.mime.startsWith('image/'));if(hero)model.image=hero.url;
+  for(const area of model.areas){const hero=area.media?.find(item=>item.hero&&item.mime.startsWith('image/'));if(hero)area.image=hero.url;}
   if (sl) return projectLocationForSl(Object.fromEntries(model.preparedActions.map(action => [action.id, action.status])), model);
+  // A known child may supply a navigation path, never the undiscovered parent's
+  // name, description, image, coordinates or private information.
+  if(model.discovery==='hidden'&&model.areas.some(area=>area.discovery!=='hidden'||area.rooms.some(room=>room.discovery!=='hidden'))||model.discovery==='hidden'&&model.knownInformation.length){
+    Object.assign(model,{title:'Übergeordneter Ort',subtitle:'Zugang zu entdecktem Ortswissen',district:'',address:'',image:'',summary:'',atmosphere:'',geography:{status:'unknown'},discovery:'known',media:[],factionSignals:[],activity:[],navigationOnly:true});
+  }
   return projectLocationForPlayer("player", target, model);
 }
 
@@ -233,13 +246,21 @@ export async function loadPersistedLocation(
   // for player-facing content remain restricted to the explicit CMS preview; hidden SL nodes retain their
   // original data when no matching release exists.
   data.overlay = await loadRevisionOverlay(db, actor, rows, data.grants, target, viewerId, options.preview);
+  data.media=await loadLocationMedia(db,actor.campaignId,rows.map(row=>row.entity_id),requestedView==='sl'&&actor.gm);
   const projectionActor = viewerId === actor.id ? actor : { ...actor, id: viewerId, role: "player" as const, gm: false };
   const projection = buildPersistedProjection(projectionActor, placeId, {
     rows,
     actions: data.actions.filter((row) => (row as ActionRow & { location_id?: string }).location_id === placeId),
     grants: data.grants,
     overlay: data.overlay,
+    media:data.media,
   }, requestedView, target);
+  if(projection?.view==='player'&&actor.gm&&viewerId!==actor.id){
+    const bind=(url:string)=>url.startsWith('/api/cms/media?')||url.startsWith('/api/locations/media?')?url+'&viewerId='+encodeURIComponent(viewerId):url;
+    const l=projection.location;l.image=bind(l.image);for(const m of l.media||[])m.url=bind(m.url);
+    for(const area of l.areas){if(area.image)area.image=bind(area.image);for(const m of area.media||[])m.url=bind(m.url);for(const room of area.rooms)for(const m of room.media||[])m.url=bind(m.url);}
+    for(const info of l.knownInformation)for(const m of info.media||[])m.url=bind(m.url);
+  }
   if (projection?.view === "sl" && actor.status === "active" && ["campaign_owner", "campaign_gm"].includes(actor.role)) {
     const visibleIds = [projection.location.id, ...projection.location.areas.flatMap(area => [area.viewKey, ...area.rooms.map(room => room.viewKey)]), ...projection.location.knownInformation.map(info => info.id)];
     Object.assign(projection.location, await loadSlDossierExtras(db, actor, visibleIds));
@@ -255,12 +276,13 @@ export async function loadLocationHub(db: D1Database, actor: Actor, requestedVie
   if (!placeIds.length) return [];
   const loaded = await selectLocationData(db, actor, placeIds, target);
   loaded.overlay = await loadRevisionOverlay(db, actor, loaded.rows, loaded.grants, target);
+  loaded.media=await loadLocationMedia(db,actor.campaignId,loaded.rows.map(row=>row.entity_id),requestedView==='sl'&&actor.gm);
   const byPlace = new Map<string, NodeRow[]>();
   const actionsByPlace = new Map<string, ActionRow[]>();
   for (const row of loaded.rows) byPlace.set(row.location_id, [...(byPlace.get(row.location_id) ?? []), row]);
   for (const row of loaded.actions as (ActionRow & { location_id: string })[]) actionsByPlace.set(row.location_id, [...(actionsByPlace.get(row.location_id) ?? []), row]);
   return placeIds.flatMap(placeId => {
-    const projection = buildPersistedProjection(actor, placeId, { rows: byPlace.get(placeId) ?? [], actions: actionsByPlace.get(placeId) ?? [], grants: loaded.grants, overlay: loaded.overlay }, requestedView, target);
+    const projection = buildPersistedProjection(actor, placeId, { rows: byPlace.get(placeId) ?? [], actions: actionsByPlace.get(placeId) ?? [], grants: loaded.grants, overlay: loaded.overlay,media:loaded.media }, requestedView, target);
     return projection ? [projection] : [];
   });
 }

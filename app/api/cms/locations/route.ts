@@ -1,3 +1,5 @@
+import {loadPersistedLocation} from "@/server/location-repository";
+import {locationPublicKey} from "@/domain/location-public-key";
 import { z } from "zod";
 import { actor,database,failure,HttpError,input,json,sameOrigin } from "@/server/access";
 import { isPlayerSafeCanon } from "@/domain/location-cms";
@@ -11,7 +13,7 @@ const createNodeSchema=z.discriminatedUnion("level",[
   z.object({level:z.literal("room"),title:z.string().trim().min(1).max(160),parentId:z.string().trim().min(1).max(160)}).strict(),
   z.object({level:z.literal("information"),title:z.string().trim().min(1).max(160),parentId:z.string().trim().min(1).max(160)}).strict(),
 ]);
-type CmsNode={entity_id:string;location_id:string;parent_id:string|null;level:"location"|"area"|"room"|"information";position:number;attributes:string;canon_status:string;content:string;title:string};
+type CmsNode={entity_id:string;location_id:string;parent_id:string|null;level:"location"|"area"|"room"|"information";position:number;revision:number;group_publication:string|null;attributes:string;canon_status:string;content:string;title:string};
 const parse=(raw:string)=>{try{const x:unknown=JSON.parse(raw);return x&&typeof x==="object"&&!Array.isArray(x)?x as Record<string,unknown>:{};}catch{return {};}};
 
 export async function GET(req:Request){
@@ -28,7 +30,8 @@ export async function GET(req:Request){
     }
     const root=await getLocationNode(db,a,params.data.place);
     if(root.level!=="location"||root.location_id!==root.entity_id)throw new HttpError(404,"Ort nicht gefunden.");
-    const rows=await db.prepare(`SELECT n.entity_id,n.location_id,n.parent_id,n.level,n.position,n.attributes,e.canon_status,e.content,e.title
+    const rows=await db.prepare(`SELECT n.entity_id,n.location_id,n.parent_id,n.level,n.position,n.revision,n.attributes,e.canon_status,e.content,e.title,
+      (SELECT transition FROM entity_revision_releases r WHERE r.campaign_id=n.campaign_id AND r.entity_id=n.entity_id AND r.audience_scope='group' AND r.audience_key='@group' ORDER BY r.release_version DESC LIMIT 1) AS group_publication
       FROM location_nodes n JOIN entities e ON e.campaign_id=n.campaign_id AND e.id=n.entity_id
       WHERE n.campaign_id=? AND n.location_id=? ORDER BY n.position,n.entity_id`).bind(a.campaignId,root.entity_id).all<CmsNode>();
     const safe=rows.results.filter(row=>isPlayerSafeCanon(row.canon_status,parse(row.content),parse(row.attributes))&&!(a.role==="campaign_editor"&&isGmOnlyLocationInfo({level:row.level,attributes:row.attributes})));
@@ -38,7 +41,9 @@ export async function GET(req:Request){
       while(parent){if(++seen>16)return false;const p=byId.get(parent);if(!p)return false;parent=p.parent_id;}
       return true;
     });
-    return json({location:{id:root.entity_id,title:String(parse(root.attributes).title||root.entity_title||"")},nodes:visible.map(row=>({id:row.entity_id,locationId:row.location_id,parentId:row.parent_id,level:row.level,position:row.position,title:String(parse(row.attributes).title||row.title||""),visibility:isGmOnlyLocationNode({attributes:row.attributes})?"gm":"player"}))});
+    const group=await loadPersistedLocation(db,a,root.entity_id,'player','group');
+    const known=new Map<string,string>();if(group){const l=group.location;if(!l.navigationOnly)known.set(root.entity_id,l.discovery);for(const area of l.areas){if(!area.redacted&&area.dossierHref)known.set(new URL(area.dossierHref,'https://chroniplay.invalid').searchParams.get('eintrag')!,area.discovery);for(const room of area.rooms)if(room.dossierHref)known.set(new URL(room.dossierHref,'https://chroniplay.invalid').searchParams.get('eintrag')!,room.discovery);}for(const info of l.knownInformation)if(info.dossierHref)known.set(new URL(info.dossierHref,'https://chroniplay.invalid').searchParams.get('eintrag')!,'known');}
+    return json({location:{id:root.entity_id,title:String(parse(root.attributes).title||root.entity_title||"")},nodes:visible.map(row=>({id:row.entity_id,locationId:row.location_id,parentId:row.parent_id,level:row.level,position:row.position,revision:row.revision,groupDiscovery:known.get(row.entity_id)||known.get(locationPublicKey(row.entity_id))||"hidden",groupPublication:row.group_publication||"draft",lifecycle:parse(row.attributes).lifecycle||"active",title:String(parse(row.attributes).title||row.title||""),visibility:isGmOnlyLocationNode({attributes:row.attributes})?"gm":"player"}))});
   }catch(error){return failure(error,req);}
 }
 

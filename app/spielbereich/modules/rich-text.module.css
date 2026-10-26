@@ -56,3 +56,5 @@
 }
 
 .editable table,.view table{border-collapse:collapse;width:100%;margin:12px 0}.editable td,.view td{border:1px solid #a9c3cf55;padding:8px;min-width:70px}.editable blockquote,.view blockquote{border-left:3px solid #d6b36f;padding:8px 14px;margin:10px 0;background:#d6b36f0b}.editable img{max-width:100%;max-height:480px;object-fit:contain}.editor>textarea{width:100%;min-height:260px;color:#eee6d6;background:#091523;border:1px solid #a9c3cf55;padding:12px;font:13px/1.6 monospace}.view hr,.editable hr{border:0;border-top:1px solid #d6b36f66;margin:16px 0}
+
+.editable th,.view th,.content th{border:1px solid #a9c3cf55;padding:8px;min-width:70px;text-align:left;background:#d6b36f15}.editable details,.view details,.content details{margin:1rem 0;padding:.8rem;border:1px solid #d6b36f38}.editable summary,.view summary,.content summary{cursor:pointer;min-height:36px}

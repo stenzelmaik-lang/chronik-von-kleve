@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { discoveryStates, worldStateIds, type PlaceProjection } from "@/domain/location-types";
+import { requireActivePlayer,requireCmsPublisher } from "@/server/location-cms-service";
 import { loadLocationHub, loadPersistedLocation } from "@/server/location-repository";
 import { hasMapCoordinates } from "@/server/location-geography";
 import { actor, database, failure, gmOnly, HttpError, json } from "@/server/access";
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
     if (requestedView === "sl" && !a.gm) gmOnly(a);
     const target = parsed.data.target || (a.gm ? "group" : "player");
     const db = database();
+    const viewerId=url.searchParams.get("viewerId")||undefined;if(viewerId){requireCmsPublisher(a);await requireActivePlayer(db,a.campaignId,viewerId);if(requestedView!=="player")throw new HttpError(400,"Spielervorschau benötigt Spieleransicht.");}
     let placeId = parsed.data.place;
     if (parsed.data.node) {
       // Resolve only existing campaign-scoped identities. This SL shortcut never
@@ -78,7 +80,7 @@ export async function GET(req: Request) {
       return json({ places: projections.map(summary), states: { discovery: discoveryStates, worldState: worldStateIds } });
     }
 
-    const projection = await loadPersistedLocation(db, a, placeId, requestedView, target);
+    const projection = await loadPersistedLocation(db, a, placeId, requestedView, target,{viewerId});
     if (!projection) throw new HttpError(404, "Ort nicht gefunden.");
     const marker = mapMarker(projection);
     return json({ projection, ...(marker ? { mapMarker: marker } : {}), places: [summary(projection)], states: { discovery: discoveryStates, worldState: worldStateIds } });

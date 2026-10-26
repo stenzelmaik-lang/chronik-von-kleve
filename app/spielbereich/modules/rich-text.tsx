@@ -54,9 +54,10 @@ export function RichTextView({ value, className, readable = false, flowing = fal
   }
   return <div data-rich-flow={proseFlow ? "prose" : undefined} className={[styles.content, readable ? styles.view : "", className].filter(Boolean).join(" ")}>
     {documentModel.blocks.map((block, index) => {
+      if(block.type==='details')return <details key={index} className={block.className}><summary>{block.summary}</summary><RichTextView value={encodeRichText(block.content)} readable={readable} flowing={flowing}/></details>;
       if(block.type==='divider')return <hr key={index} className={block.className}/>;
       if(block.type==='image')return <img key={index} src={'/api/files?id='+encodeURIComponent(block.fileId)} alt={block.alt} style={{maxWidth:'100%',height:'auto'}}/>;
-      if(block.type==='table')return <div key={index} style={{overflowX:'auto'}}><table className={block.className}><tbody>{block.rows.map((r,ri)=><tr key={ri}>{r.map((c,ci)=><td key={ci}>{inlineElements(c,`t${index}-${ri}-${ci}`,proseFlow)}</td>)}</tr>)}</tbody></table></div>;
+      if(block.type==='table')return <div key={index} style={{overflowX:'auto'}}><table className={block.className}><tbody>{block.rows.map((r,ri)=><tr key={ri}>{r.map((c,ci)=>block.header&&ri===0?<th key={ci} scope="col">{inlineElements(c,`t${index}-${ri}-${ci}`,proseFlow)}</th>:<td key={ci}>{inlineElements(c,`t${index}-${ri}-${ci}`,proseFlow)}</td>)}</tr>)}</tbody></table></div>;
       if(block.type==='quote')return <blockquote key={index} className={block.className}>{inlineElements(block.children,`q${index}`,proseFlow)}</blockquote>;
       if (block.type === "bulletList" || block.type === "orderedList") {
         const List = block.type === "bulletList" ? "ul" : "ol";
@@ -147,6 +148,19 @@ export function RichTextEditor({
     commit();
   }
 
+  function tableEdit(action:'row'|'column'|'removeRow'|'removeColumn'|'header') {
+    const editor=editorRef.current;if(!editor)return;
+    const selection=window.getSelection(),range=savedRange.current||(selection?.rangeCount?selection.getRangeAt(0):null),element=range?.startContainer instanceof Element?range.startContainer:range?.startContainer.parentElement;
+    const cell=element?.closest('td,th') as HTMLTableCellElement|null,table=cell?.closest('table');
+    if(!cell||!table||!editor.contains(table)){setHtmlError('Setze den Cursor zuerst in eine Tabellenzelle.');return;}
+    const row=cell.parentElement as HTMLTableRowElement;
+    if(action==='row'&&table.rows.length<30){const next=table.insertRow(row.rowIndex+1);for(let i=0;i<row.cells.length;i++)next.insertCell().textContent=' ';}
+    if(action==='column'&&row.cells.length<10)Array.from(table.rows).forEach(r=>{r.insertCell(Math.min(cell.cellIndex+1,r.cells.length)).textContent=' ';});
+    if(action==='removeRow')row.remove();
+    if(action==='removeColumn'){const index=cell.cellIndex;Array.from(table.rows).forEach(r=>r.cells[index]?.remove());}
+    if(action==='header')Array.from(table.rows[0].cells).forEach(c=>{const n=document.createElement(c.tagName==='TH'?'td':'th');n.innerHTML=c.innerHTML;c.replaceWith(n);});
+    savedRange.current=null;commit();
+  }
   function insertLink() {
     const href = safeHref(link.trim());
     if (!href) return;
@@ -157,7 +171,8 @@ export function RichTextEditor({
   function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain");
-    const formatted = htmlSource ? htmlTextToRichText(text) : null;
+    const sheet=text.includes('\t')?'<table><tbody>'+text.trimEnd().split(/\r?\n/).slice(0,30).map(row=>'<tr>'+row.split('\t').slice(0,10).map(cell=>'<td>'+cell.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</td>').join('')+'</tr>').join('')+'</tbody></table>':null;
+    const formatted = htmlSource ? htmlTextToRichText(sheet||text)||htmlTextToRichText(event.clipboardData.getData('text/html')) : null;
     if (formatted && editorRef.current) {
       const selection = window.getSelection();
       const whole = document.createRange();
@@ -202,9 +217,10 @@ export function RichTextEditor({
       <span aria-hidden="true" />
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertUnorderedList")} aria-label="Aufzählung einfügen">• Liste</button>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertOrderedList")} aria-label="Nummerierte Liste einfügen">1. Liste</button>
-      {(htmlSource||advanced&&extraTools)&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button>{advanced&&<button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><td>Spalte 1</td><td>Spalte 2</td></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button>}</>}
+      {(htmlSource||advanced&&extraTools)&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><th>Spalte 1</th><th>Spalte 2</th></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<details><summary>Weiterlesen</summary><p>Beschreibung</p></details><p><br></p>')}>Aufklappbarer Abschnitt</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<p class="cp-note">Hinweis</p>')}>Hinweiskasten</button></>}
       <label className={styles.colorControl}><span>Textfarbe</span><select aria-label="Textfarbe" defaultValue="#d6b36f" onMouseDown={()=>{const selection=window.getSelection();if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange();}} onChange={event => command("foreColor", event.target.value)}>{richTextColors.map(color => <option key={color} value={color}>{color === "#d6b36f" ? "Gold" : color === "#eee6d6" ? "Elfenbein" : color === "#a9c3cf" ? "Nebelblau" : "Rostrot"}</option>)}</select></label>
     </div>
+    {htmlSource&&!htmlMode&&!preview&&<div className={styles.toolbar} aria-label="Tabelle bearbeiten">{([['row','Zeile +'],['column','Spalte +'],['removeRow','Zeile entfernen'],['removeColumn','Spalte entfernen'],['header','Kopfzeile']] as const).map(([action,title])=><button type="button" key={action} onMouseDown={preserveSelection} onClick={()=>tableEdit(action)}>{title}</button>)}</div>}
     {linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
     {advanced&&imageOpen&&<div className={styles.linkRow}><label>Geschütztes Bild<input aria-label={label+' Bilder suchen'} placeholder="Dateiname oder ID …" value={imageSearch} onChange={e=>setImageSearch(e.target.value)}/><select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')&&(f.name+' '+f.id).toLowerCase().includes(imageSearch.toLowerCase())).map(f=><option key={f.id} value={f.id}>{f.name} · {f.id}{f.visibility ? ` · Dateiregel: ${f.visibility==='group'?'Gruppe':f.visibility==='sl'?'SL':'Eigentümer'}` : ''}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
     {advanced&&imageOpen&&imageId&&<figure><img src={'/api/files?id='+encodeURIComponent(imageId)} alt="Vorschau des ausgewählten geschützten Bildes" style={{maxWidth:180,maxHeight:140,objectFit:'contain'}}/><figcaption>Geschützter Dateispeicher · Dateiregel: {files.find(file=>file.id===imageId)?.visibility==='group'?'Gruppe':files.find(file=>file.id===imageId)?.visibility==='sl'?'SL':files.find(file=>file.id===imageId)?.visibility==='private'?'Eigentümer':'nicht angegeben'}. Auswahl veröffentlicht nichts; der Server prüft den tatsächlichen Zugriff.</figcaption></figure>}

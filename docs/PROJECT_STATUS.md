@@ -31,3 +31,9 @@ Die letzte vor diesem Auftrag verifizierte Veröffentlichung war `2e1c0245027032
 - Keine Migration und keine automatische Änderung bestehender Ortsinhalte oder Freigaben.
 
 Die lokale Rollenprüfung ersetzt keine echte Spielerabnahme auf einem physischen Mobilgerät. Bei der Veröffentlichung werden öffentliche/geschützte Endpunkte und die vorhandene SL-Sitzung zusätzlich lesend geprüft. Es werden keine synthetischen Testobjekte in Produktion angelegt.
+
+## Laufende Erweiterung: dauerhaftes Ortsdossier-System
+
+Auf Basis von `855ec4c` lokal erweitert: unabhängige SL-Kapitel (25.000 Zeichen), Tabellen/aufklappbare Abschnitte, mehrere private Medien, separate Entdeckung, Strukturpflege mit Archiv/Wiederherstellung, sichere Suche/Verknüpfungen und Export. Keine neue Datenbank, Migration oder Spieltischintegration. Einzelheiten und aktuelle Nachweise: [Ortsdossier-System](ortsdossier-system.md).
+
+Dieser Abschnitt ist **kein Live-Nachweis**. Die vollständige Browser-/Mobil-/Tastatur-Abnahme der neuen Oberfläche ist wegen beendeter Browsersteuerung offen; es wurde für diesen Auftrag nichts produktiv veröffentlicht.

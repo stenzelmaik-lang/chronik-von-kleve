@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { actor,database,failure,HttpError,json,sameOrigin } from "@/server/access";
 import { isPlayerSafeCanon } from "@/domain/location-cms";
 import { loadPersistedLocation } from "@/server/location-repository";
-import { cmsPublisher,getLocationNode,requireCmsEditor,requireCmsRevisionAudience } from "@/server/location-cms-service";
+import { cmsPublisher,getLocationNode,requireCmsEditor,requireCmsPublisher,requireActivePlayer,requireCmsRevisionAudience } from "@/server/location-cms-service";
 export const dynamic="force-dynamic";
 type FileRow={id:string;campaign_id:string;owner_id:string;visibility:string;name:string;mime:string;size:number;key:string;created_at:string};
 const imageTypes=["image/jpeg","image/png","image/webp"];
@@ -47,7 +47,8 @@ export async function GET(req:Request){
       return json({files:result.results});
     }
     if(!id||!entityId||!revisionId)throw new HttpError(404,"Bild nicht gefunden.");
-    const db=database();const node=await getLocationNode(db,a,entityId);
+    const db=database(),viewerId=url.searchParams.get("viewerId")||undefined;if(viewerId){requireCmsPublisher(a);await requireActivePlayer(db,a.campaignId,viewerId);}
+    const node=await getLocationNode(db,a,entityId);
     const revision=await db.prepare("SELECT audience_scope,audience_key,status FROM entity_revisions WHERE campaign_id=? AND entity_id=? AND id=?")
       .bind(a.campaignId,entityId,revisionId).first<{audience_scope:string;audience_key:string;status:string}>();
     if(!revision)throw new HttpError(404,"Bild nicht gefunden.");
@@ -66,9 +67,9 @@ export async function GET(req:Request){
       !imageTypes.includes(file.mime)||!isPlayerSafeCanon(node.canon_status,JSON.parse(node.entity_content||"{}"),JSON.parse(node.attributes||"{}")))
       throw new HttpError(404,"Bild nicht gefunden.");
     if(!preview){
-      const target=a.gm?"group":"player";
-      const projection=await loadPersistedLocation(db,a,node.location_id,"player",target);
-      const expected=`/api/cms/media?id=${encodeURIComponent(id)}&entityId=${encodeURIComponent(entityId)}&revisionId=${encodeURIComponent(revisionId)}`;
+      const target=viewerId?"player":a.gm?"group":"player";
+      const projection=await loadPersistedLocation(db,a,node.location_id,"player",target,{viewerId});
+      const expected=`/api/cms/media?id=${encodeURIComponent(id)}&entityId=${encodeURIComponent(entityId)}&revisionId=${encodeURIComponent(revisionId)}${viewerId?"&viewerId="+encodeURIComponent(viewerId):""}`;
       const isReleasedRootImage=projection?.location.image===expected;
       const isReleasedAreaImage=projection?.location.areas.some(area=>!area.redacted&&area.image===expected)===true;
       if(!isReleasedRootImage&&!isReleasedAreaImage)throw new HttpError(404,"Bild nicht gefunden.");

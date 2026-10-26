@@ -26,7 +26,7 @@ test('Room and information selection never turns an area into a main place or a 
   const information={id:'information.note',locationId:root.id,parentId:root.id,level:'information',title:'Beobachtung'};
   for(const selected of [room,information]){
     assert.equal(locationCreationParent('area',[...nodes,information],root.id,selected.id),root);
-    assert.equal(locationCreationParent('information',[...nodes,information],root.id,selected.id),root);
+    assert.equal(locationCreationParent('information',[...nodes,information],root.id,selected.id),selected.level==='information'?root:selected);
     assert.equal(locationCreationParent('room',[...nodes,information],root.id,selected.id),null);
   }
 });
