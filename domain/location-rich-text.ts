@@ -209,6 +209,15 @@ export function isRichTextWithinLimit(value: string, maximumPlainLength: number)
 
 // HTML is parsed into the existing typed document. Raw markup is never rendered or stored.
 export const richHtmlPrefix='cvk-html-v1:';
+
+/** Recognize an explicitly pasted HTML fragment, not angle brackets in prose.
+ * Recognition is only a format hint; the existing parser remains the sanitizer. */
+export function htmlTextToRichText(value:string):string|null {
+  if (!/^\s*<(?:p|h[1-4]|ul|ol|blockquote|table|div|section|article|strong|b|em|i|u|span|hr|br)(?:\s|\/?>)/i.test(value)
+    || !/(?:<\/(?:p|h[1-4]|ul|ol|blockquote|table|div|section|article|strong|b|em|i|u|span)\s*>|<(?:hr|br)\b[^>]*\/?>)\s*$/i.test(value)) return null;
+  try { return htmlToRichText(value); }
+  catch { return null; } // Preserve the original text if formatting cannot be represented safely.
+}
 type HtmlNode={nodeName:string;tagName?:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:HtmlNode[]};
 const forbidden=new Set(['script','style','iframe','object','embed','svg','math','template','noscript','form','input','button','video','audio']);
 export function htmlToRichText(html:string):string {
@@ -255,7 +264,10 @@ export function htmlToRichText(html:string):string {
       blocks.push({type:'table',rows,...decoration});return;
     }
     if(tag==='ul'||tag==='ol'){blocks.push({type:tag==='ul'?'bulletList':'orderedList',items:(n.childNodes||[]).filter(c=>c.tagName==='li').map(c=>inline(c)),...decoration});return;}
-    if(['p','h1','h2','h3','h4','blockquote'].includes(tag)){
+    // Browsers create inline-only <div> lines (including <div><br></div>)
+    // for Enter/pasted newlines. Preserve them as paragraphs, not loose text.
+    const editorLine = tag === 'div' && !(n.childNodes || []).some(child => /^(?:p|div|section|article|h[1-6]|ul|ol|table|blockquote)$/.test(child.tagName || ''));
+    if(['p','h1','h2','h3','h4','blockquote'].includes(tag)||editorLine){
       blocks.push({type:tag==='blockquote'?'quote':['h1','h2'].includes(tag)?'heading2':['h3','h4'].includes(tag)?'heading3':'paragraph',children:(n.childNodes?.length===1&&n.childNodes[0].tagName==='br')?[]:inline(n),...decoration});
       (n.childNodes||[]).filter(c=>c.tagName==='img'||c.tagName==='hr').forEach(c=>walk(c,depth+1));return;
     }
@@ -278,11 +290,11 @@ export function inspectRichTextSource(html:string, maximumPlainLength:number):{v
 }
 
 const escapeHtml=(s:string)=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
-export function richTextToHtml(value:string):string {
+export function richTextToHtml(value:string,flowing=false):string {
   const classes=(value:unknown)=>{const safe=allowedClasses(value);return safe?' class="'+safe+'"':'';};
   // Keep separately recorded hard breaks separate on export/reimport, even
   // when the following text starts with spaces. Other source whitespace stays literal.
-  const parts=(v:RichTextInline[])=>v.map(p=>{let t=/^(?:\r?\n)+$/.test(p.text)?p.text.replace(/\r?\n/g,'<br>'):escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.className)t='<span'+classes(p.className)+'>'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
+  const parts=(v:RichTextInline[])=>(flowing?proseInlineParts(v):v).map(p=>{let t=/^(?:\r?\n)+$/.test(p.text)?p.text.replace(/\r?\n/g,'<br>'):escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.className)t='<span'+classes(p.className)+'>'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
   return readRichText(value).blocks.map(b=>{
     const decoration=classes(b.className);
     if(b.type==='divider')return '<hr'+decoration+'>';
@@ -290,6 +302,6 @@ export function richTextToHtml(value:string):string {
     if(b.type==='table')return '<table'+decoration+'><tbody>'+b.rows.map(r=>'<tr>'+r.map(c=>'<td>'+parts(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
     if(b.type==='bulletList'||b.type==='orderedList'){const tag=b.type==='bulletList'?'ul':'ol';return '<'+tag+decoration+'>'+b.items.map(i=>'<li>'+parts(i)+'</li>').join('')+'</'+tag+'>';}
     const tag=b.type==='heading2'?'h2':b.type==='heading3'?'h3':b.type==='quote'?'blockquote':'p';return '<'+tag+decoration+'>'+parts(b.children)+'</'+tag+'>';
-  }).join('\n');
+  }).join(flowing ? '' : '\n');
 }
 export function richTextFileIds(value:string):string[] { return readRichText(value).blocks.flatMap(b=>b.type==='image'?[b.fileId]:[]); }

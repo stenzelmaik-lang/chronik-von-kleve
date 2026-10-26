@@ -1,4 +1,5 @@
-import {richHtmlPrefix,richTextPrefix,richTextToHtml} from '../domain/location-rich-text.ts';
+import {encodeRichText,richHtmlPrefix,richTextPrefix,richTextToHtml} from '../domain/location-rich-text.ts';
+import {slDossierChapters,slDossierEditorValue} from '../domain/location-dossier.ts';
 
 export async function locationDossierIntegration({req,check,base,ids}) {
   if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Dossier QA is restricted to isolated local resources.');
@@ -64,6 +65,21 @@ export async function locationDossierIntegration({req,check,base,ids}) {
   check(invalid.s===400,'DOSSIER oversized visible SL text is rejected server-side');
   const unchanged=(await req('/api/cms/drafts?entityId='+hall.id,'gm')).d.drafts.find(r=>r.id===confidential.d.id);
   check(unchanged.version===imageSave.d.version&&JSON.parse(unchanged.gm_secret_json).text===stored,'DOSSIER failed HTML save cannot overwrite the existing valid SL content');
+  const pasted=encodeRichText({version:1,blocks:[{type:'heading2',children:[{text:'Schnellübersicht'}]},...['<p class="cp-intro">DOSSIER_PASTED_SECRET<br>Manuelle Zeile.</p>','<ul><li>Nur SL.</li></ul>'].map(text=>({type:'paragraph',children:[{text}]})),{type:'heading2',children:[{text:'Architektur und räumlicher Aufbau'}]},...['<p>Erster Absatz.</p>','<p>Zweiter Absatz.</p>','<h3>Galerie</h3>'].map(text=>({type:'paragraph',children:[{text}]}))]});
+  const pastedDraft=await req('/api/cms/drafts','gm','POST',{entityId:room.id,audience:'gm',gmSecret:{text:pasted,source:'DOSSIER_PASTED_SOURCE'}});
+  check(pastedDraft.s===201&&pastedDraft.d.gmSecret.text===pasted,'DOSSIER prior literal HTML is retained byte-for-byte in its existing private record');
+  const reopened=(await req('/api/locations?node='+room.id+'&view=sl','gm')).d.projection.location.slNotes.find(note=>note.entityId===room.id);
+  const recovered=slDossierChapters(reopened.text);
+  check(recovered.length===2&&recovered[0].overview&&richTextToHtml(recovered[0].content).includes('<ul>'),'DOSSIER saved literal markup reads as sanitized chapters and a real list');
+  check(!richTextToHtml(recovered[1].content).includes('&lt;p')&&richTextToHtml(recovered[1].content).includes('<h3>'),'DOSSIER recovered chapter renders paragraphs and subheading without visible tags');
+  const beforeExplicitSave=(await req('/api/cms/drafts?entityId='+room.id,'gm')).d.drafts.find(d=>d.id===pastedDraft.d.id);
+  check(beforeExplicitSave.version===1&&JSON.parse(beforeExplicitSave.gm_secret_json).text===pasted,'DOSSIER compatibility reading never migrates or overwrites stored SL content');
+  const explicitValue=slDossierEditorValue(pasted);
+  const savedAgain=await req('/api/cms/drafts','gm','PATCH',{revisionId:pastedDraft.d.id,expectedVersion:1,gmSecret:{text:explicitValue,source:'DOSSIER_PASTED_SOURCE'}});
+  check(savedAgain.s===200&&savedAgain.d.version===2,'DOSSIER explicit editor save persists the sanitized representation in the same record');
+  const afterExplicitSave=(await req('/api/cms/drafts?entityId='+room.id,'gm')).d.drafts.find(d=>d.id===pastedDraft.d.id);
+  check(JSON.parse(afterExplicitSave.gm_secret_json).text===explicitValue&&afterExplicitSave.version===2,'DOSSIER leave and reopen retains the formatted private chapter structure');
+  check(JSON.stringify((await req(playerPath,'a')).d)===JSON.stringify(beforePlayer),'DOSSIER HTML repair and resave do not change any player release or expose private markup');
   check(JSON.stringify((await req('/api/members','gm')).d)===JSON.stringify(membersBefore),'DOSSIER account-linked members and roles remain unchanged');
   check(JSON.stringify((await req('/api/records?kind=charaktere','gm')).d)===JSON.stringify(charactersBefore),'DOSSIER player character records remain unchanged');
 }

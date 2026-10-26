@@ -1,5 +1,5 @@
 import type { PlaceProjection } from './location-types.ts';
-import { encodeRichText, isRichTextWithinLimit, readRichText, richTextToPlainText, sanitizeRichTextInput, type RichTextBlock } from './location-rich-text.ts';
+import { encodeRichText, htmlTextToRichText, isRichTextWithinLimit, readRichText, richHtmlPrefix, richTextToPlainText, sanitizeRichTextInput, type RichTextBlock } from './location-rich-text.ts';
 
 export const slDossierChapterTitles = [
   'Schnellübersicht',
@@ -21,12 +21,40 @@ export type SlDossierEntry = {
 
 const normalized = (text: string) => text.toLocaleLowerCase('de-DE').trim();
 
-/** Read-only grouping. Plain text is never guessed to be HTML or rewritten. */
+/** Read compatibility for HTML previously pasted as literal paragraph text.
+ * Keep real headings/formatting and untouched prose; never mutate stored input. */
+export function slDossierReadableValue(value: string): string {
+  if (value.startsWith(richHtmlPrefix)) {
+    try { return sanitizeRichTextInput(value); } catch { return value; }
+  }
+  const document = readRichText(value);
+  const blocks: RichTextBlock[] = [];
+  let changed = false;
+  const plain = (block: RichTextBlock) => block.type === 'paragraph' && !block.className && block.children.every(part => Object.keys(part).every(key => key === 'text'));
+  for (let index = 0; index < document.blocks.length;) {
+    if (!plain(document.blocks[index])) { blocks.push(document.blocks[index++]); continue; }
+    const start = index;
+    while (index < document.blocks.length && plain(document.blocks[index])) index++;
+    const run = document.blocks.slice(start, index);
+    const texts = run.map(block => block.type === 'paragraph' ? block.children.map(part => part.text).join('') : '');
+    const first = texts.findIndex(text => /^\s*<(?:p|h[1-4]|ul|ol|blockquote|table|div|section|article|strong|b|em|i|u|span|hr|br)(?:\s|\/?>)/i.test(text));
+    if (first < 0) { blocks.push(...run); continue; }
+    let last = texts.length - 1;
+    while (last >= first && !/(?:<\/[a-z][a-z0-9]*\s*>|<(?:hr|br)\b[^>]*\/?>)\s*$/i.test(texts[last])) last--;
+    const formatted = first >= 0 && last >= first ? htmlTextToRichText(texts.slice(first, last + 1).join('\n')) : null;
+    if (!formatted) blocks.push(...run);
+    else { changed = true; blocks.push(...run.slice(0, first), ...readRichText(formatted).blocks, ...run.slice(last + 1)); }
+  }
+  return changed ? encodeRichText({version:1,blocks}) || value : value;
+}
+
+/** Read-only grouping; compatibility formatting never writes a revision. */
 export function slDossierChapters(value: string): SlDossierChapter[] {
   if (!value.trim()) return [];
-  const document = readRichText(value);
+  const readable = slDossierReadableValue(value);
+  const document = readRichText(readable);
   if (!document.blocks.some(block => block.type === 'heading2')) {
-    return [{ key: 'notes', title: 'Ergänzende SL-Notizen', content: value, searchText: richTextToPlainText(value), overview: false }];
+    return [{ key: 'notes', title: 'Ergänzende SL-Notizen', content: readable, searchText: richTextToPlainText(readable), overview: false }];
   }
   const groups: { title: string; blocks: RichTextBlock[]; heading?: RichTextBlock }[] = [];
   for (const block of document.blocks) {
@@ -45,6 +73,7 @@ export function slDossierChapters(value: string): SlDossierChapter[] {
 /** Presentation only: retain long historical plain text within the existing
  * editor's structural limit. No value is saved until an explicit user edit. */
 export function slDossierEditorValue(value: string): string {
+  value = slDossierReadableValue(value);
   if (readRichText(value).blocks.length <= 120) return value;
   return encodeRichText({ version: 1, blocks: [{ type: 'paragraph', children: [{ text: value }] }] }) || value;
 }
