@@ -115,6 +115,7 @@ export function projectEntity(
   }
   if (e.type === "CHARACTER" && e.ownerId !== a.id && !canManageCampaignCharacter(a, e.campaignId)) return null;
   if (a.gm) return e;
+  if (['archived','deleted'].includes(String(e.content.locationLifecycle))) return null;
   if (e.defaultVisibility === 'sl_secret') return null;
   // Scene preparation and runtime metadata require the dedicated allowlist
   // projector. A generic grant must never disclose the private scene dossier.

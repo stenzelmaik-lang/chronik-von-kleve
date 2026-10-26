@@ -29,7 +29,8 @@ export type RichTextBlock = (
   | { type: "bulletList"; items: RichTextInline[][] }
   | { type: "orderedList"; items: RichTextInline[][] }
   | { type: "quote"; children: RichTextInline[] }
-  | { type: "table"; rows: RichTextInline[][][] }
+  | { type: "table"; rows: RichTextInline[][][]; header?: boolean }
+  | { type: "details"; summary: string; content: RichTextDocument }
   | { type: "image"; fileId: string; alt: string }
   | { type: "divider" }
 ) & { className?: string };
@@ -51,7 +52,7 @@ function parseInline(value: unknown): RichTextInline | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   if (Object.keys(row).some(key => !["text", "bold", "italic", "underline", "color", "href", "className"].includes(key))) return null;
-  if (typeof row.text !== "string" || row.text.length > 10000) return null;
+  if (typeof row.text !== "string" || row.text.length > 25000) return null;
   if (row.bold !== undefined && row.bold !== true || row.italic !== undefined && row.italic !== true || row.underline !== undefined && row.underline !== true) return null;
   if (row.color !== undefined && !richTextColors.includes(row.color as RichTextColor)) return null;
   const href = row.href === undefined ? undefined : safeHref(row.href);
@@ -69,7 +70,8 @@ function parseInline(value: unknown): RichTextInline | null {
   };
 }
 
-export function parseRichTextDocument(value: unknown): RichTextDocument | null {
+export function parseRichTextDocument(value: unknown, nesting = 0): RichTextDocument | null {
+  if(nesting>4)return null;
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
   if (Object.keys(row).some(key => key !== "version" && key !== "blocks")) return null;
@@ -105,8 +107,12 @@ export function parseRichTextDocument(value: unknown): RichTextDocument | null {
     } else if (block.type === "image") {
       if (Object.keys(block).some(k => !['type','fileId','alt'].includes(k)) || typeof block.fileId !== 'string' || !/^[a-zA-Z0-9_.-]{1,100}$/.test(block.fileId) || typeof block.alt !== 'string' || block.alt.length > 300) return null;
       blocks.push({type:'image', fileId:block.fileId, alt:block.alt});
+    } else if (block.type === 'details') {
+      if(Object.keys(block).some(k=>!['type','summary','content'].includes(k))||typeof block.summary!=='string'||!block.summary.trim()||block.summary.length>200)return null;
+      const content=parseRichTextDocument(block.content,nesting+1);if(!content)return null;
+      blocks.push({type:'details',summary:block.summary,content});
     } else if (block.type === 'table') {
-      if(Object.keys(block).some(k=>!['type','rows'].includes(k)) || !Array.isArray(block.rows) || block.rows.length>30) return null;
+      if(Object.keys(block).some(k=>!['type','rows','header'].includes(k)) || !Array.isArray(block.rows) || block.rows.length>30) return null;
       const rows: RichTextInline[][][]=[];
       for(const raw of block.rows) {
         if(!Array.isArray(raw)||raw.length>10)return null;
@@ -118,7 +124,8 @@ export function parseRichTextDocument(value: unknown): RichTextDocument | null {
         }
         rows.push(cells);
       }
-      blocks.push({type:'table',rows});
+      if(block.header!==undefined&&typeof block.header!=='boolean')return null;
+      blocks.push({type:'table',rows,...(block.header?{header:true}:{})});
     } else return null;
     if (className) blocks[blocks.length - 1].className = className;
     if (inlineCount > 800) return null;
@@ -188,6 +195,7 @@ export function splitRichTextIntroduction(value: string): { introduction: string
 
 export function richTextToPlainText(value: string): string {
   return readRichText(value).blocks.map(block => {
+    if(block.type==='details')return block.summary+'\n'+richTextToPlainText(encodeRichText(block.content));
     if(block.type==='divider')return '';
     if(block.type==='image')return block.alt;
     if(block.type==='table')return block.rows.map(row=>row.map(c=>c.map(p=>p.text).join('')).join(' | ')).join('\n');
@@ -221,7 +229,7 @@ export function htmlTextToRichText(value:string):string|null {
 type HtmlNode={nodeName:string;tagName?:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:HtmlNode[]};
 const forbidden=new Set(['script','style','iframe','object','embed','svg','math','template','noscript','form','input','button','video','audio']);
 export function htmlToRichText(html:string):string {
-  if(html.length>65000)throw new Error('HTML zu lang.');
+  if(html.length>85000)throw new Error('HTML zu lang.');
   const root=parseFragment(html) as unknown as HtmlNode;
   let visited=0;
   const inline=(n:HtmlNode,marks:Omit<RichTextInline,'text'>={},depth=0):RichTextInline[]=>{
@@ -258,10 +266,16 @@ export function htmlToRichText(html:string):string {
       const src=n.attrs?.find(a=>a.name==='src')?.value||'';const match=src.match(/^\/api\/files\?id=([a-zA-Z0-9_.-]{1,100})$/);
       if(match)blocks.push({type:'image',fileId:match[1],alt:(n.attrs?.find(a=>a.name==='alt')?.value||'Ortsunabhängiges SL-Bild').slice(0,300)});return;
     }
+    if(tag==='details'){
+      const summary=(n.childNodes||[]).find(c=>c.tagName==='summary');
+      const start=blocks.length;(n.childNodes||[]).filter(c=>c!==summary).forEach(c=>walk(c,depth+1));
+      const content=blocks.splice(start);blocks.push({type:'details',summary:(summary?inline(summary).map(p=>p.text).join(''):'Weiterlesen').trim().slice(0,200)||'Weiterlesen',content:{version:1,blocks:content},...decoration});return;
+    }
     if(tag==='table'){
       const rows:RichTextInline[][][]=[];
       const tr=(node:HtmlNode,d=0)=>{if(d>40)throw new Error('Tabelle zu komplex.');if(node.tagName==='tr')rows.push((node.childNodes||[]).filter(c=>['td','th'].includes(c.tagName||'')).map(c=>inline(c)));else(node.childNodes||[]).forEach(c=>{if(++visited>5000)throw new Error('Tabelle zu komplex.');tr(c,d+1);});};tr(n);
-      blocks.push({type:'table',rows,...decoration});return;
+      const hasHeader=(node:HtmlNode):boolean=>node.tagName==='th'||(node.childNodes||[]).some(hasHeader);
+      blocks.push({type:'table',rows,...(hasHeader(n)?{header:true}:{}),...decoration});return;
     }
     if(tag==='ul'||tag==='ol'){blocks.push({type:tag==='ul'?'bulletList':'orderedList',items:(n.childNodes||[]).filter(c=>c.tagName==='li').map(c=>inline(c)),...decoration});return;}
     // Browsers create inline-only <div> lines (including <div><br></div>)
@@ -299,9 +313,10 @@ export function richTextToHtml(value:string,flowing=false):string {
     const decoration=classes(b.className);
     if(b.type==='divider')return '<hr'+decoration+'>';
     if(b.type==='image')return '<img src="/api/files?id='+escapeHtml(b.fileId)+'" alt="'+escapeHtml(b.alt)+'">';
-    if(b.type==='table')return '<table'+decoration+'><tbody>'+b.rows.map(r=>'<tr>'+r.map(c=>'<td>'+parts(c)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+    if(b.type==='details')return '<details'+decoration+'><summary>'+escapeHtml(b.summary)+'</summary>'+richTextToHtml(encodeRichText(b.content),flowing)+'</details>';
+    if(b.type==='table')return '<table'+decoration+'><tbody>'+b.rows.map((r,i)=>'<tr>'+r.map(c=>{const tag=b.header&&i===0?'th':'td';return '<'+tag+'>'+parts(c)+'</'+tag+'>';}).join('')+'</tr>').join('')+'</tbody></table>';
     if(b.type==='bulletList'||b.type==='orderedList'){const tag=b.type==='bulletList'?'ul':'ol';return '<'+tag+decoration+'>'+b.items.map(i=>'<li>'+parts(i)+'</li>').join('')+'</'+tag+'>';}
     const tag=b.type==='heading2'?'h2':b.type==='heading3'?'h3':b.type==='quote'?'blockquote':'p';return '<'+tag+decoration+'>'+parts(b.children)+'</'+tag+'>';
   }).join(flowing ? '' : '\n');
 }
-export function richTextFileIds(value:string):string[] { return readRichText(value).blocks.flatMap(b=>b.type==='image'?[b.fileId]:[]); }
+export function richTextFileIds(value:string):string[] { return readRichText(value).blocks.flatMap(b=>b.type==='image'?[b.fileId]:b.type==='details'?richTextFileIds(encodeRichText(b.content)):[]); }

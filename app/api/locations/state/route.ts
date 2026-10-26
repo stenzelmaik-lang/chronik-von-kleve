@@ -10,6 +10,7 @@ const schema = z.object({
   audience: z.enum(["group", "player"]).optional(), playerId: z.string().max(200).optional(),
   discoveryState: z.enum(discoveryStates).optional(), worldState: z.enum(worldStateIds).optional(),
   markers: z.array(z.enum(stateMarkerIds)).max(8).optional(), expectedRevision: z.number().int().nonnegative().optional(),
+  administrativeCorrection:z.boolean().optional(),
   reason: z.string().trim().min(1).max(500),
 }).strict();
 
@@ -54,19 +55,19 @@ export async function POST(req: Request) {
     const current = await db.prepare("SELECT version,discovery_state FROM knowledge WHERE campaign_id=? AND entity_id=? AND audience=? AND subject_id=?").bind(a.campaignId,d.entityId,d.audience,subject).first<{version:number;discovery_state:string|null}>();
     const expected = d.expectedRevision;
     if ((current?.version ?? 0) !== expected) throw new HttpError(409, "Diese Discovery wurde inzwischen geändert. Bitte lade sie neu.");
-    if (!canAdvanceDiscovery(current?.discovery_state, d.discoveryState))
+    if (!d.administrativeCorrection && !canAdvanceDiscovery(current?.discovery_state, d.discoveryState))
       throw new HttpError(400, "Discovery darf im normalen Spielbetrieb nicht zurückgestuft werden.");
     // The conditional write and its event run in one atomic D1 batch. changes()
     // refers to this batch's preceding statement, never another request's event/time.
     const write = current
-      ? db.prepare("UPDATE knowledge SET discovery_state=?,state=CASE WHEN state='UNKNOWN' AND ?<>'hidden' THEN 'DISCOVERED' ELSE state END,version=version+1,granted_by=?,updated_at=? WHERE campaign_id=? AND entity_id=? AND audience=? AND subject_id=? AND version=?")
+      ? db.prepare("UPDATE knowledge SET discovery_state=?,state=CASE WHEN ?='hidden' THEN 'UNKNOWN' WHEN state='UNKNOWN' THEN 'DISCOVERED' ELSE state END,version=version+1,granted_by=?,updated_at=? WHERE campaign_id=? AND entity_id=? AND audience=? AND subject_id=? AND version=?")
         .bind(d.discoveryState,d.discoveryState,a.id,now,a.campaignId,d.entityId,d.audience,subject,expected)
       : db.prepare("INSERT INTO knowledge(id,campaign_id,entity_id,audience,subject_id,state,discovery_state,version,granted_by,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(campaign_id,entity_id,audience,subject_id) DO NOTHING")
         .bind(crypto.randomUUID(),a.campaignId,d.entityId,d.audience,subject,d.discoveryState === "hidden" ? "UNKNOWN" : "DISCOVERED",d.discoveryState,1,a.id,now,now);
     const result = await db.batch([
       write,
       db.prepare("INSERT INTO world_events(id,campaign_id,entity_id,actor_id,type,payload,created_at) SELECT ?,?,?,?,?,?,? WHERE changes()=1")
-        .bind(crypto.randomUUID(),a.campaignId,d.entityId,a.id,"location.discovery.changed",JSON.stringify({audience:d.audience,subjectId:subject,previousState:current?.discovery_state || "hidden",nextState:d.discoveryState,reason:d.reason,expectedRevision:expected,nextRevision:expected+1}),now),
+        .bind(crypto.randomUUID(),a.campaignId,d.entityId,a.id,"location.discovery.changed",JSON.stringify({audience:d.audience,subjectId:subject,administrativeCorrection:!!d.administrativeCorrection,previousState:current?.discovery_state || "hidden",nextState:d.discoveryState,reason:d.reason,expectedRevision:expected,nextRevision:expected+1}),now),
     ]);
     if (!result[0].meta.changes) throw new HttpError(409, "Diese Discovery wurde inzwischen geändert. Bitte lade sie neu.");
     return json({ok:true,mode:d.mode,entityId:d.entityId,audience:d.audience,revision:expected+1});

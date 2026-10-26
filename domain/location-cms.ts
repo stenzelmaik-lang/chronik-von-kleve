@@ -41,7 +41,7 @@ const rootPayload = z.object({
   district: cleanText(120).optional(),
   address: cleanText(240).optional(),
   summary: richText(1600).optional(),
-  atmosphere: richText(3000).optional(),
+  atmosphere: richText(25000).optional(),
   image: z.string().regex(/^\/images\/[a-zA-Z0-9_.-]+$/).optional(),
   factionSignals: z.array(z.object({
     label: cleanText(160).min(1),
@@ -60,17 +60,17 @@ const rootPayload = z.object({
 
 const areaPayload = z.object({
   title: cleanText(160).min(1),
-  playerHint: richText(1200).optional(),
+  playerHint: richText(25000).optional(),
 }).strict();
 
 const roomPayload = z.object({
   title: cleanText(160).min(1),
-  short: richText(1000).optional(),
+  short: richText(25000).optional(),
 }).strict();
 
 const informationPayload = z.object({
   title: cleanText(160).min(1),
-  text: richText(3000).optional(),
+  text: richText(25000).optional(),
   noteType: z.enum(["note", "suspicion", "insight", "question", "task", "memory", "theory"]).optional(),
   pinned: z.boolean().optional(),
 }).strict();

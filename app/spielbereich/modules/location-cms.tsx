@@ -1,10 +1,14 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- Images are streamed through the private, authorization-checked media route. */
 import type { Actor } from "@/domain/types";
 import type { DiscoveryState,PlaceProjection } from "@/domain/location-types";
 import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
 import { locationCreationParent } from "@/domain/location-creation";
-import { appendSlDossierChapter, slDossierChapterTitles, slDossierEditorValue } from "@/domain/location-dossier";
+import { LocationConnections } from "./location-connections";
+import { LocationKnowledgeSearch } from "./location-knowledge-search";
+import { LocationChapters } from "./location-chapters";
+import { LocationMediaManager } from "./location-media-manager";
+import { LocationStructureControls } from "./location-structure-controls";
+import libraryStyles from "./location-library.module.css";
 import { Check,ChevronRight,Eye,FileImage,Plus,RefreshCw,Save,Search,Send,ShieldCheck,Slash } from "lucide-react";
 import { type FormEvent,useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { toast } from "sonner";
@@ -13,16 +17,14 @@ import { WorldMapLibre } from "./world-maplibre";
 import type { WorldMapMarker } from "./world-map-contract";
 import mapStyles from "./world-experience.module.css";
 import cmsStyles from "./location-cms.module.css";
-import dossierStyles from "./location-sl-dossier.module.css";
 import { RichTextEditor } from "./rich-text";
 import { WorldExperience } from "./world-experience";
 
 type Scope="gm"|"public"|"group"|"player";
 type LocationOption={id:string;title:string;position:number};
-type NodeOption={id:string;locationId:string;parentId:string|null;level:"location"|"area"|"room"|"information";position:number;title:string;visibility?:string};
+type NodeOption={id:string;locationId:string;parentId:string|null;level:"location"|"area"|"room"|"information";position:number;revision:number;groupDiscovery:string;groupPublication:string;lifecycle:string;title:string;visibility?:string};
 type PlayerOption={id:string;name:string};
-type MediaItem={id:string;name:string;mime:string;size:number};
-type Draft={id:string;revision_no:number;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string;version:number;player_payload_json:string;gm_secret_json?:string;geography_json:string;hero_file_id?:string|null};
+type Draft={id:string;entity_id:string;revision_no:number;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string;version:number;player_payload_json:string;gm_secret_json?:string;geography_json:string;hero_file_id?:string|null};
 type ReleaseEntry={revision_id:string|null;transition:string;release_version:number};
 type NewNodeDraft={level:"location"|"area"|"room"|"information";parentId:string|null;title:string};
 type Geography={status:"unknown"}|{status:"exact";coordinates:[number,number];source:string;reference?:string;reviewedAt:string}|{status:"approximate";coordinates:[number,number];accuracyMeters:number;source:string;reference?:string;reviewedAt:string};
@@ -46,18 +48,19 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const [playerId,setPlayerId]=useState("");
   const [drafts,setDrafts]=useState<Draft[]>([]);
   const [draftId,setDraftId]=useState("");
+  const draftIdRef=useRef("");
+  useEffect(()=>{draftIdRef.current=draftId;},[draftId]);
   const [payload,setPayload]=useState<Record<string,unknown>>({});
   const [gmSecret,setGmSecret]=useState<Record<string,unknown>>({});
-  const [chapterTitle,setChapterTitle]=useState<string>(slDossierChapterTitles[0]);
-  const [gmEditorVersion,setGmEditorVersion]=useState(0);
+  const [chapterDirty,setChapterDirty]=useState(false);
+  const [mediaDirty,setMediaDirty]=useState(false);
+  const [collapsed,setCollapsed]=useState<Set<string>>(new Set());
   const [geo,setGeo]=useState<Geography>({status:"unknown"});
   const [pickedCoordinates,setPickedCoordinates]=useState<[number,number]|null>(null);
   const [discoveryState,setDiscoveryState]=useState<DiscoveryState>("known");
   const [heroFileId,setHeroFileId]=useState<string|null>(null);
-  const [mediaLibrary,setMediaLibrary]=useState<MediaItem[]>([]);
-  const [loadingMedia,setLoadingMedia]=useState(false);
   const [pendingImageUrl,setPendingImageUrl]=useState<string|null>(null);
-  const [release,setRelease]=useState<{currentVersion:number;currentTransition:string|null;history:ReleaseEntry[]}>({currentVersion:0,currentTransition:null,history:[]});
+  const [release,setRelease]=useState<{currentVersion:number;currentTransition:string|null;history:ReleaseEntry[];discovery?:{state:string;version:number;history?:{createdAt:string;previousState:string;nextState:string;reason:string;administrativeCorrection:boolean}[]}}>({currentVersion:0,currentTransition:null,history:[]});
   const [preview,setPreview]=useState<Preview|null>(null);
   const [publishedProjection,setPublishedProjection]=useState<PlaceProjection|null>(null);
   const [previewMode,setPreviewMode]=useState<"draft"|"published"|null>(null);
@@ -68,18 +71,15 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const [loading,setLoading]=useState(true);
   const [busy,setBusy]=useState(false);
   const [mapState,setMapState]=useState<"loading"|"ready"|"error">("loading");
-  const uploadRef=useRef<HTMLInputElement>(null);
   const nodeRowRefs=useRef(new Map<string,HTMLButtonElement>());
   const node=nodes.find(item=>item.id===nodeId)||null;
   const areaParent=locationCreationParent("area",nodes,placeId,nodeId);
   const roomParent=locationCreationParent("room",nodes,placeId,nodeId);
-  const selectedDraft=drafts.find(item=>item.id===draftId)||null;
+  const selectedDraft=drafts.find(item=>item.id===draftId&&item.entity_id===nodeId&&item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerId))||null;
   const isRoot=node?.level==="location";
   const editable=selectedDraft?.status==="draft";
   const selectedIsCurrentRelease=Boolean(selectedDraft&&release.history[0]?.transition==="publish"&&release.history[0]?.revision_id===selectedDraft.id);
   const playerTarget=scope==="player"?playerId:"";
-  const mediaCandidate=Boolean(heroFileId&&selectedDraft?.hero_file_id!==heroFileId);
-  const mediaUrl=useMemo(()=>heroFileId&&selectedDraft?`/api/cms/media?id=${encodeURIComponent(heroFileId)}&entityId=${encodeURIComponent(nodeId)}&revisionId=${encodeURIComponent(selectedDraft.id)}&preview=1${mediaCandidate?"&candidate=1":""}`:"",[heroFileId,nodeId,selectedDraft,mediaCandidate]);
   useEffect(()=>()=>{if(pendingImageUrl)URL.revokeObjectURL(pendingImageUrl);},[pendingImageUrl]);
   const dirty=useMemo(()=>{
     if(!selectedDraft||selectedDraft.status!=="draft")return false;
@@ -105,21 +105,21 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   },[nodes]);
   const filteredNodes=useMemo(()=>{
     const needle=directorySearch.trim().toLocaleLowerCase("de-DE");
-    if(!needle)return orderedNodes;
+    if(!needle)return orderedNodes.filter(item=>{let parent=item.parentId;while(parent){if(collapsed.has(parent))return false;parent=orderedNodes.find(n=>n.id===parent)?.parentId||null;}return true;});
     const matches=new Set(orderedNodes.filter(item=>`${item.title} ${item.level} ${item.visibility||""}`.toLocaleLowerCase("de-DE").includes(needle)).map(item=>item.id));
     // Keep each matching node's parent chain visible so the directory retains context.
     for(const item of orderedNodes){if(matches.has(item.id)){let parent=item.parentId;while(parent){matches.add(parent);parent=orderedNodes.find(candidate=>candidate.id===parent)?.parentId||null;}}}
     return orderedNodes.filter(item=>matches.has(item.id));
-  },[directorySearch,orderedNodes]);
+  },[directorySearch,orderedNodes,collapsed]);
   const sections=[
     {id:"content" as const,label:isRoot?"Grunddaten":node?.level==="information"?"Erkenntnisse":"Inhalt"},
-    ...(isRoot||node?.level==="area"||node?.level==="room"&&scope==="gm"?[{id:"media" as const,label:"Bilder & Skizzen"}]:[]),
+
     ...(isRoot?[{id:"map" as const,label:"Karte & Geodaten"}]:[]),
     {id:"release" as const,label:"Vorschau & Freigabe"},
   ];
 
   function canLeaveEditor(){
-    return !dirty||window.confirm("Es gibt ungespeicherte Änderungen. Wenn du fortfährst, werden diese Änderungen verworfen. Möchtest du weitergehen?");
+    return !(dirty||chapterDirty||mediaDirty)||window.confirm("Es gibt ungespeicherte Änderungen. Wenn du fortfährst, werden diese Änderungen verworfen. Möchtest du weitergehen?");
   }
 
   function beginNodeCreation(level:NewNodeDraft["level"]){
@@ -180,27 +180,22 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     return()=>{alive=false;window.clearTimeout(timer);};
   },[placeId]);
   useEffect(()=>{nodeRowRefs.current.get(nodeId)?.scrollIntoView({block:"nearest"});},[nodeId,filteredNodes.length]);
-  const refreshDrafts=useCallback(async(selectNewest=false)=>{
+  const refreshDrafts=useCallback(async(selectNewest=false,isCurrent:()=>boolean=()=>true)=>{
     if(!nodeId){setDrafts([]);setDraftId("");return;}
     const result=await api<{drafts:Draft[]}>(`/api/cms/drafts?entityId=${encodeURIComponent(nodeId)}`);
+    if(!isCurrent())return;
     const scoped=result.drafts.filter(item=>item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerTarget));
     setDrafts(result.drafts);
-    const current=selectNewest?"":draftId;
+    const current=selectNewest?"":draftIdRef.current;
     const selected=scoped.find(item=>item.id===current)||scoped[0]||null;
     setDraftId(selected?.id||"");
     if(selected){setPayload(parse(selected.player_payload_json));setGmSecret(parse(selected.gm_secret_json||"{}"));const selectedGeo=(parse(selected.geography_json) as unknown as Geography)||{status:"unknown"};setGeo(selectedGeo);setPickedCoordinates(selectedGeo.status==="unknown"?null:selectedGeo.coordinates);setHeroFileId(selected.hero_file_id||null);}
     else {setPayload({});setGmSecret({});setGeo({status:"unknown"});setPickedCoordinates(null);setHeroFileId(null);setPreview(null);setPublishedProjection(null);setPreviewMode(null);}
-  },[nodeId,scope,playerTarget,draftId]);
-  const refreshMediaLibrary=useCallback(async()=>{
-    if(!nodeId||!selectedDraft){setMediaLibrary([]);return;}
-    setLoadingMedia(true);
-    try{const result=await api<{files:MediaItem[]}>(`/api/cms/media?library=1&entityId=${encodeURIComponent(nodeId)}&revisionId=${encodeURIComponent(selectedDraft.id)}`);setMediaLibrary(result.files);}
-    catch(error){toast.error((error as Error).message);}
-    finally{setLoadingMedia(false);}
-  },[nodeId,selectedDraft]);
+  },[nodeId,scope,playerTarget]);
   useEffect(()=>{
-    const timer=window.setTimeout(()=>{void refreshDrafts(true).catch(error=>toast.error((error as Error).message));},0);
-    return()=>window.clearTimeout(timer);
+    let active=true;
+    const timer=window.setTimeout(()=>{void refreshDrafts(true,()=>active).catch(error=>{if(active)toast.error((error as Error).message);});},0);
+    return()=>{active=false;window.clearTimeout(timer);};
   },[refreshDrafts]);
   const refreshRelease=useCallback(async()=>{
     if(!publisher||!nodeId||scope==="gm") {setRelease({currentVersion:0,currentTransition:null,history:[]});return;}
@@ -211,12 +206,6 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     const timer=window.setTimeout(()=>{void refreshRelease();},0);
     return()=>window.clearTimeout(timer);
   },[refreshRelease]);
-  useEffect(()=>{
-    if(activeSection!=="media")return;
-    const timer=window.setTimeout(()=>{void refreshMediaLibrary();},0);
-    return()=>window.clearTimeout(timer);
-  },[activeSection,refreshMediaLibrary]);
-
   const mapMarkerPlaces=useMemo<WorldMapMarker[]>(()=>{
     if(!isRoot)return [];
     const coordinates=geo.status==="unknown"?pickedCoordinates:geo.coordinates;
@@ -250,12 +239,12 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     if(isRoot&&!geographyValid){toast.error("Geodaten fehlen: ergänze eine nachvollziehbare Quelle und bei einem ungefähren Gebiet die Genauigkeit in Metern.");return;}
     setBusy(true);
     try{await api('/api/cms/drafts','PATCH',{revisionId:selectedDraft.id,expectedVersion:selectedDraft.version,payload,gmSecret,...(isRoot?{geography:geo}:{}),heroFileId});setPendingImageUrl(null);toast.success("Entwurf gespeichert und erneut aus der Datenbank geladen. Spieler sehen weiterhin nur den freigegebenen Stand.");clearDossierViews();await refreshDrafts(true);await refreshRelease();}
-    catch(error){toast.error((error as Error).message);if((error as {status?:number}).status===409)await refreshDrafts(true);}finally{setBusy(false);}
+    catch(error){toast.error((error as Error).message);}finally{setBusy(false);}
   }
   async function transition(action:"submit"|"approve"|"reject"){
     if(!selectedDraft||dirty)return;setBusy(true);
     try{await api('/api/cms/transitions','POST',{action,revisionId:selectedDraft.id,expectedVersion:selectedDraft.version,...(reason?{reason}:{})});toast.success(action==="submit"?"Zur Prüfung eingereicht":action==="approve"?"Entwurf genehmigt":"Entwurf zurückgegeben");setReason("");await refreshDrafts(true);}
-    catch(error){toast.error((error as Error).message);if((error as {status?:number}).status===409)await refreshDrafts(true);}finally{setBusy(false);}
+    catch(error){toast.error((error as Error).message);}finally{setBusy(false);}
   }
   async function inspectPreview(){if(!selectedDraft||scope==="gm"||dirty)return;setBusy(true);try{const data=await api<Preview>('/api/cms/preview','POST',{revisionId:selectedDraft.id,...(scope==="group"&&playerId?{viewerId:playerId}:{})});setPreview(data);setPublishedProjection(null);setPreviewMode("draft");}catch(error){toast.error((error as Error).message);}finally{setBusy(false);}}
   async function inspectPublished(){
@@ -264,12 +253,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     try{
       let projection:PlaceProjection;
       if(scope==="player"){
-        const query=new URLSearchParams({entityId:node.id,scope:"player",playerId:playerTarget});
-        const state=await api<{currentTransition:string|null;history:ReleaseEntry[]}>(`/api/cms/releases?${query}`);
-        const latest=state.history[0];
-        if(latest?.transition!=="publish"||!latest.revision_id)throw new Error("Für diesen Spieler ist aktuell keine aktive Veröffentlichung vorhanden.");
-        const targeted=await api<Preview>('/api/cms/preview','POST',{revisionId:latest.revision_id,viewerId:playerTarget});
-        projection=targeted.projection;
+        const actual=await api<{projection:PlaceProjection}>(`/api/locations?place=${encodeURIComponent(placeId)}&view=player&target=player&viewerId=${encodeURIComponent(playerTarget)}`);
+        projection=actual.projection;
       }else{
         const target=await api<{projection:PlaceProjection}>(`/api/locations?place=${encodeURIComponent(placeId)}&view=player&target=group`);
         projection=target.projection;
@@ -282,7 +267,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     if(!node||dirty)return;
     if(!window.confirm(action==="publish"?"Diesen genehmigten Stand genau für die gewählte Zielgruppe veröffentlichen?":action==="revoke"?"Die Freigabe zurückziehen? Danach greift gegebenenfalls die Freigabe einer niedrigeren Ebene.":"Diese Zielgruppe ausdrücklich sperren? Eine niedrigere Freigabe bleibt dadurch ebenfalls verborgen."))return;
     setBusy(true);
-    try{await api('/api/cms/releases','POST',{action,entityId:node.id,scope,...(scope==="player"?{playerId:playerTarget}:{}),...(action==="publish"&&selectedDraft?{revisionId:selectedDraft.id}:{}),expectedReleaseVersion:release.currentVersion,...(action==="publish"&&scope!=="public"?{discoveryState:discoveryState}:{ }),reason:reason.trim()||"Freigabeänderung im SL-CMS"});toast.success(action==="publish"?"Gezielt veröffentlicht":action==="revoke"?"Freigabe zurückgezogen":"Zielgruppe gesperrt");clearDossierViews();await refreshRelease();}
+    try{await api('/api/cms/releases','POST',{action,entityId:node.id,scope,...(scope==="player"?{playerId:playerTarget}:{}),...(action==="publish"&&selectedDraft?{revisionId:selectedDraft.id}:{}),expectedReleaseVersion:release.currentVersion,grantDiscovery:false,reason:reason.trim()||"Freigabeänderung im SL-CMS"});toast.success(action==="publish"?"Gezielt veröffentlicht":action==="revoke"?"Freigabe zurückgezogen":"Zielgruppe gesperrt");clearDossierViews();await refreshRelease();}
     catch(error){toast.error((error as Error).message);if((error as {status?:number}).status===409)await refreshRelease();}finally{setBusy(false);}
   }
   async function saveAndPublish(){
@@ -291,27 +276,22 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     const auditReason=reason.trim()||"Direktfreigabe im SL-CMS";
     const audience=scope==="group"?"die aktive Spielgruppe":scope==="public"?"das angemeldete Public-Lesemodell":catalog.players.find(item=>item.id===playerTarget)?.name||"den ausgewählten Spieler";
     if(!window.confirm(`Den aktuellen Inhalt für ${audience} speichern, zur Prüfung einreichen, genehmigen und gezielt freigeben? Zielumgebung: ${window.location.origin}. Dort sehen berechtigte Spieler anschließend diesen freigegebenen Stand.`))return;
-    setBusy(true);
+    setBusy(true);let contentPersisted=!dirty;
     try{
       let version=selectedDraft.version;
       if(dirty){
         const saved=await api<{version:number}>('/api/cms/drafts','PATCH',{revisionId:selectedDraft.id,expectedVersion:version,payload,gmSecret,...(isRoot?{geography:geo}:{}),heroFileId});
-        version=saved.version;setPendingImageUrl(null);
+        version=saved.version;contentPersisted=true;setPendingImageUrl(null);
       }
       const submitted=await api<{version:number}>('/api/cms/transitions','POST',{action:"submit",revisionId:selectedDraft.id,expectedVersion:version,reason:auditReason});
       await api<{version:number}>('/api/cms/transitions','POST',{action:"approve",revisionId:selectedDraft.id,expectedVersion:submitted.version,reason:auditReason});
-      await api('/api/cms/releases','POST',{action:"publish",entityId:node.id,scope,...(scope==="player"?{playerId:playerTarget}:{}),revisionId:selectedDraft.id,expectedReleaseVersion:release.currentVersion,...(scope!=="public"?{discoveryState}:{ }),reason:auditReason});
+      await api('/api/cms/releases','POST',{action:"publish",entityId:node.id,scope,...(scope==="player"?{playerId:playerTarget}:{}),revisionId:selectedDraft.id,expectedReleaseVersion:release.currentVersion,grantDiscovery:false,reason:auditReason});
       toast.success("Gespeichert, genehmigt und für das ausgewählte Ziel freigegeben.");
       setReason("");
       clearDossierViews();
       await Promise.all([refreshDrafts(true),refreshRelease()]);
-    }catch(error){toast.error(`Der Ablauf wurde an der letzten erfolgreichen Stufe gestoppt: ${(error as Error).message}`);await Promise.all([refreshDrafts(true).catch(()=>{}),refreshRelease().catch(()=>{})]);}
+    }catch(error){toast.error(`Der Ablauf wurde an der letzten erfolgreichen Stufe gestoppt: ${(error as Error).message}`);await Promise.all([...(contentPersisted?[refreshDrafts(true).catch(()=>{})]:[]),refreshRelease().catch(()=>{})]);}
     finally{setBusy(false);}
-  }
-  async function uploadHero(file:File){
-    if(!selectedDraft||!editable)return;
-    setBusy(true);try{const form=new FormData();form.set("file",file);const result=await api<MediaItem>('/api/cms/media','POST',form);setPendingImageUrl(URL.createObjectURL(file));setHeroFileId(result.id);setMediaLibrary(current=>[result,...current.filter(item=>item.id!==result.id)]);toast.success("Bild privat hochgeladen. Speichere den Entwurf, um es anzuhängen.");}
-    catch(error){toast.error((error as Error).message);}finally{setBusy(false);}
   }
   function updateCoordinates(index:0|1,value:string){const numeric=Number(value);if(!Number.isFinite(numeric)||geo.status==="unknown")return;const coordinates:[number,number]=[...geo.coordinates];coordinates[index]=numeric;setGeo({...geo,coordinates});}
   const visibleDrafts=drafts.filter(item=>item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerTarget));
@@ -337,9 +317,9 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         </form>}
         <div className={cmsStyles.directoryScroll}>
           {loading&&!nodes.length?<p className="muted">Ortsbestand wird geladen …</p>:!filteredNodes.length?<p className="muted">Keine passenden Einträge.</p>:<nav className={cmsStyles.nodeTree} aria-label="Bereiche, Räume und Informationen">
-            {filteredNodes.map(item=><button key={item.id} ref={element=>{if(element)nodeRowRefs.current.set(item.id,element);else nodeRowRefs.current.delete(item.id);}} type="button" className={cmsStyles.nodeRow} data-level={item.level} data-selected={item.id===nodeId} aria-current={item.id===nodeId?"page":undefined} onClick={()=>{if(item.id===nodeId||!canLeaveEditor())return;setNodeId(item.id);setReason("");setNewNode(null);clearDossierViews();setActiveSection("content");if(item.visibility==="gm")setScope("gm");else if(scope==="gm")setScope("group");}}>
-              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.level==="location"?"Hauptort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
-            </button>)}
+            {filteredNodes.map(item=><div key={item.id} className={libraryStyles.treeRow}><button type="button" aria-label={(collapsed.has(item.id)?"Aufklappen: ":"Zuklappen: ")+item.title} aria-expanded={!collapsed.has(item.id)} disabled={!nodes.some(n=>n.parentId===item.id)} onClick={()=>setCollapsed(current=>{const next=new Set(current);if(next.has(item.id))next.delete(item.id);else next.add(item.id);return next;})}>{nodes.some(n=>n.parentId===item.id)?collapsed.has(item.id)?"▸":"▾":"·"}</button><button ref={element=>{if(element)nodeRowRefs.current.set(item.id,element);else nodeRowRefs.current.delete(item.id);}} type="button" className={cmsStyles.nodeRow} data-level={item.level} data-selected={item.id===nodeId} aria-current={item.id===nodeId?"page":undefined} onClick={()=>{if(item.id===nodeId||!canLeaveEditor())return;setNodeId(item.id);setReason("");setNewNode(null);clearDossierViews();setActiveSection("content");if(item.visibility==="gm")setScope("gm");else if(scope==="gm")setScope("group");}}>
+              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.lifecycle!=="active"?item.lifecycle+" · ":""}{item.level==="location"?"Hauptort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"} · {item.groupDiscovery!=="hidden"?"Gruppe: entdeckt":item.groupPublication==="publish"?"Veröffentlicht · nicht sichtbar":item.groupPublication==="block"?"Gruppe gesperrt":"Unveröffentlicht"}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
+            </button></div>)}
           </nav>}
         </div>
         <div className={cmsStyles.creationNotice}><span>ORTSSTRUKTUR</span><p>Neue Orte, Bereiche und Räume erhalten eine stabile Identität. Inhalte bleiben Entwürfe, bis sie geprüft und gezielt freigegeben werden.</p></div>
@@ -356,13 +336,18 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
             <div className={cmsStyles.controlRow}>
               <label className="field"><span>{scope==="gm"?"Vertraulicher Arbeitsbereich":"Freigabeziel des Entwurfs"}</span><select value={scope} onChange={event=>{if(!canLeaveEditor())return;setScope(event.target.value as Scope);setPlayerId("");setReason("");clearDossierViews();}}>{publisher&&<option value="gm">Nur Spielleitung · vertraulich</option>}<option value="group">Aktive Spielgruppe</option>{publisher&&<><option value="public">Public · Anmeldung erforderlich</option><option value="player">Einzelner Spieler</option></>}</select></label>
               {scope==="player"&&publisher&&<label className="field"><span>Spielerziel</span><select value={playerId} onChange={event=>{if(canLeaveEditor()){setPlayerId(event.target.value);clearDossierViews();}}}><option value="">Spieler wählen</option>{catalog.players.map(player=><option key={player.id} value={player.id}>{player.name}</option>)}</select></label>}
-              {selectedDraft&&<details className={cmsStyles.revisionDetails}><summary>Änderungsverlauf <span>{visibleDrafts.length} Revisionen</span></summary><label className="field"><span>Arbeitsstand auswählen</span><select value={draftId} onChange={event=>{if(!canLeaveEditor())return;const chosen=drafts.find(item=>item.id===event.target.value);setDraftId(event.target.value);setReason("");setPayload(chosen?parse(chosen.player_payload_json):{});setGmSecret(chosen?parse(chosen.gm_secret_json||"{}"):{});const chosenGeo=chosen?(parse(chosen.geography_json) as unknown as Geography):{status:"unknown" as const};setGeo(chosenGeo);setPickedCoordinates(chosenGeo.status==="unknown"?null:chosenGeo.coordinates);setHeroFileId(chosen?.hero_file_id||null);setPendingImageUrl(null);clearDossierViews();}}><option value="">Keinen Arbeitsstand auswählen</option>{visibleDrafts.map(item=><option key={item.id} value={item.id}>Revision {item.revision_no} · {item.status} · Version {item.version}</option>)}</select></label></details>}
+              {selectedDraft&&<details className={cmsStyles.revisionDetails}><summary>Änderungsverlauf <span>{visibleDrafts.length} Revisionen</span></summary><label className="field"><span>Arbeitsstand auswählen</span><select value={draftId} onChange={event=>{if(!canLeaveEditor())return;const chosen=drafts.find(item=>item.id===event.target.value);setDraftId(event.target.value);setReason("");setPayload(chosen?parse(chosen.player_payload_json):{});setGmSecret(chosen?parse(chosen.gm_secret_json||"{}"):{});const chosenGeo=chosen?(parse(chosen.geography_json) as unknown as Geography):{status:"unknown" as const};setGeo(chosenGeo);setPickedCoordinates(chosenGeo.status==="unknown"?null:chosenGeo.coordinates);setHeroFileId(chosen?.hero_file_id||null);setPendingImageUrl(null);clearDossierViews();}}><option value="">Keinen Arbeitsstand auswählen</option>{visibleDrafts.map(item=><option key={item.id} value={item.id}>Revision {item.revision_no} · {item.status} · Version {item.version}</option>)}</select></label><button type="button" className="button" disabled={busy||dirty} onClick={async()=>{if(!selectedDraft||!window.confirm("Diesen früheren Stand als neuen Entwurf wiederherstellen? Veröffentlichung und Entdeckung bleiben unverändert."))return;setBusy(true);try{await api("/api/cms/drafts","POST",{entityId:node.id,audience:scope,...(scope==="player"?{playerId:playerTarget}:{}),sourceRevisionId:selectedDraft.id});await refreshDrafts(true);toast.success("Früherer Inhalt als neuer Entwurf wiederhergestellt.");}catch(e){toast.error((e as Error).message);}finally{setBusy(false);}}}>Diesen Stand als neuen Entwurf wiederherstellen</button></details>}
               {(!selectedDraft||selectedDraft.status!=="draft")&&<button type="button" className="button primary" onClick={()=>void createDraft()} disabled={busy||!node||scope==="player"&&!playerId}><FileImage size={15}/> Neue bearbeitbare Revision</button>}
             </div>
             {scope==="public"&&<p className={cmsStyles.inlineNotice}>Public-Freigaben sind im aktuellen Reader nur für angemeldete aktive Kampagnenmitglieder sichtbar. Eine anonyme Besucherausgabe gibt es hier nicht.</p>}
           </section>
 
-          {selectedDraft&&<>
+          {publisher&&scope==="gm"&&<LocationChapters key={node.id} entityId={node.id} onDirty={setChapterDirty}/>}
+          {publisher&&<details className={libraryStyles.chapter}><summary>Dauerhafte Verknüpfungen</summary><div className={libraryStyles.body}><LocationConnections key={node.id+":relations"} entityId={node.id} view="sl" editable/></div></details>}
+          {publisher&&<details className={libraryStyles.chapter}><summary>Medien dieses Eintrags</summary><div className={libraryStyles.body}><LocationMediaManager key={node.id} entityId={node.id} onDirty={setMediaDirty}/></div></details>}
+          {publisher&&<details className={libraryStyles.chapter}><summary>Ortswissen durchsuchen</summary><div className={libraryStyles.body}><LocationKnowledgeSearch placeId={placeId} view="sl"/></div></details>}
+          {publisher&&<LocationStructureControls disabled={dirty||chapterDirty||mediaDirty} key={node.id+":"+node.revision} node={node} nodes={nodes} locations={catalog.locations} onChanged={async next=>{setPlaceId(next.locationId);const result=await api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(next.locationId)}`);setNodes(result.nodes);setNodeId(next.entityId);await loadCatalog();}}/>}
+          {selectedDraft&&["public","group","player"].includes(scope)&&<>
             <nav className={cmsStyles.sectionTabs} aria-label="Redaktionsbereiche" role="tablist">
               {sections.map((section,index)=><button key={section.id} type="button" role="tab" aria-selected={activeSection===section.id} className={activeSection===section.id?cmsStyles.sectionTabActive:cmsStyles.sectionTab} onClick={()=>setActiveSection(section.id)}><span>{String(index+1).padStart(2,"0")}</span>{section.label}</button>)}
             </nav>
@@ -370,30 +355,19 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
             {activeSection==="content"&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
               <div className={cmsStyles.panelIntro}><p className="eyebrow">{scope==="gm"?"INTERNER SPIELLEITUNGSINHALT":"BESTEHENDE ORTSINFORMATION"}</p><h3>{scope==="gm"?"Vertraulicher Vermerk":isRoot?"Grunddaten und Beschreibungen":node.level==="information"?"Erkenntnis und Handout":"Bereich und Raum"}</h3><p>{scope==="gm"?"Nur die Spielleitung kann diesen Inhalt sehen. Er kann nicht für Spieler freigegeben werden.":"Diese Angaben verwenden die vorhandene Ortsidentität und werden nur über eine passende Revision ausgespielt."}</p></div>
               <fieldset className={cmsStyles.editorFieldset} disabled={!editable||busy}>
-                {scope==="gm"?<div className={cmsStyles.fieldStack}>
-                  <div className={cmsStyles.chapterComposer}><label className="field"><span>SL-Kapitel</span><select value={chapterTitle} onChange={event=>setChapterTitle(event.target.value)}>{slDossierChapterTitles.map(title=><option key={title}>{title}</option>)}</select></label><button type="button" className="button" onClick={()=>{try{const text=appendSlDossierChapter(String(gmSecret.text||""),chapterTitle);setGmSecret(current=>({...current,text}));setGmEditorVersion(version=>version+1);}catch(error){toast.error((error as Error).message);}}}><Plus size={16} aria-hidden="true"/> Kapitel hinzufügen</button></div>
-                  <p className={cmsStyles.chapterHint}>H2 beginnt ein aufklappbares Kapitel. H3 gliedert den Text darin. „Schnellübersicht“ bleibt beim Lesen direkt sichtbar. Dein bisheriger Text bleibt erhalten.</p>
-                  <RichTextEditor htmlSource proseClassName={dossierStyles.prose} key={`${selectedDraft.id}:${selectedDraft.version}:gm:${gmEditorVersion}`} value={slDossierEditorValue(String(gmSecret.text||""))} onChange={text=>setGmSecret(current=>({...current,text}))} label="Interner Text" maximumPlainLength={5000} placeholder="Vertrauliche Ortsinformationen für die Spielleitung …"/>
-                  <label className="field"><span>Herkunft</span><input value={String(gmSecret.source||"")} onChange={event=>setGmSecret(current=>({...current,source:event.target.value}))}/></label>
-                </div>:node.level==="location"?<div className={cmsStyles.fieldStack}>
+                {scope==="gm"?<p>SL-Kapitel werden unabhängig von redaktionellen Revisionen gespeichert. Spieler können sie niemals freigeschaltet bekommen.</p>:node.level==="location"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label><label className="field"><span>Untertitel</span><input value={String(payload.subtitle||"")} onChange={event=>setField("subtitle",event.target.value)} placeholder="Kurze Einordnung für die Ortsseite"/></label></div>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Stadtteil</span><input value={String(payload.district||"")} onChange={event=>setField("district",event.target.value)}/></label><label className="field"><span>Freigegebene Adresse</span><input value={String(payload.address||"")} onChange={event=>setField("address",event.target.value)}/></label></div>
-                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
-                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Atmosphäre" maximumPlainLength={3000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
+                  <RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
+                  <RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Ortsbeschreibung und Atmosphäre" maximumPlainLength={25000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
                 </div>:<div className={cmsStyles.fieldStack}>
                   <label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label>
-                  {node.level==="area"&&<RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Freigegebener Bereichshinweis" maximumPlainLength={1200} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
-                  {node.level==="room"&&<RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Kurze freigegebene Beschreibung" maximumPlainLength={1000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
-                  {node.level==="information"&&<><RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={3000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
+                  {node.level==="area"&&<RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Beschreibung des Bereichs" maximumPlainLength={25000} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
+                  {node.level==="room"&&<RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Raumbeschreibung" maximumPlainLength={25000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
+                  {node.level==="information"&&<><RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={25000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
                 </div>}
               </fieldset>
               {!editable&&<p className={cmsStyles.readOnlyNote}>Dieser Stand ist {selectedDraft.status==="approved"?"genehmigt":"nicht mehr bearbeitbar"}. Lege eine neue Revision an, wenn du Änderungen vornehmen möchtest.</p>}
-            </section>}
-
-            {activeSection==="media"&&(isRoot||node?.level==="area"||node?.level==="room"&&scope==="gm")&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
-              <div className={cmsStyles.panelIntro}><p className="eyebrow">BILDER & SKIZZEN</p><h3>{isRoot?"Ortsbild dieser Revision":"Bild für diesen Bereich"}</h3><p>Uploads bleiben privat im R2-Speicher. Spieler sehen ein Bild erst, wenn genau diese Revision für ihre Zielgruppe freigegeben ist.</p></div>
-              <div className={cmsStyles.mediaLayout}><div className={cmsStyles.mediaFrame}>{(pendingImageUrl||mediaUrl)?<img src={pendingImageUrl||mediaUrl} alt={"Vorschau für "+node.title}/>:<div className={cmsStyles.mediaEmpty}><FileImage size={28}/><span>Für diesen Arbeitsstand ist kein Bild angehängt.</span></div>}</div><div className={cmsStyles.mediaControls}><label className="field"><span>Vorhandenes Kampagnenbild auswählen</span><select value="" disabled={!editable||busy||loadingMedia||mediaLibrary.length===0} onChange={event=>{const id=event.target.value;if(id){setPendingImageUrl(null);setHeroFileId(id);toast.info("Bild ausgewählt. Speichere den Entwurf, um es anzuhängen.");}}}><option value="">{loadingMedia?"Medien werden geladen …":mediaLibrary.length?"Bild auswählen …":"Noch keine eigenen CMS-Bilder"}</option>{mediaLibrary.filter(item=>item.id!==heroFileId).map(item=><option key={item.id} value={item.id}>{item.name} · {(item.size/1024).toFixed(0)} KB</option>)}</select></label><label className="field"><span>{heroFileId?"Anderes Bild hochladen":"Neues Bild hochladen"}</span><input ref={uploadRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={!editable||busy} onChange={event=>{const file=event.target.files?.[0];if(file)void uploadHero(file);}}/><small>JPG, PNG oder WebP bis 10 MB. Die Vorschau ist privat; es entsteht kein öffentlicher R2-Link.</small></label>{heroFileId&&<button type="button" className="button" disabled={!editable||busy} onClick={()=>{setHeroFileId(null);setPendingImageUrl(null);toast.info("Bild aus diesem Entwurf entfernt. Speichere, um die Änderung zu übernehmen.");}}>Bild aus Entwurf entfernen</button>}<p className={cmsStyles.inlineNotice}>Pro Orts- oder Bereichsrevision wird derzeit ein freigegebenes Bild unterstützt. Mehrteilige Galerien und separate Skizzenlisten sind noch nicht umgesetzt.</p></div></div>
-              {!editable&&<p className={cmsStyles.readOnlyNote}>Zum Austauschen oder Entfernen zuerst eine neue bearbeitbare Revision anlegen.</p>}
             </section>}
 
             {activeSection==="map"&&isRoot&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
@@ -418,7 +392,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
 
             {activeSection==="release"&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
               <div className={cmsStyles.panelIntro}><p className="eyebrow">VORSCHAU & VERÖFFENTLICHUNG</p><h3>{scope==="gm"?"Interne SL-Prüfung":"Das echte Ortsdossier prüfen"}</h3><p>Beide Ansichten verwenden dasselbe Ortsdossier wie Spielwelt → Orte. Der Entwurf ist nur für berechtigte Spielleitung sichtbar; die Spieleransicht liest ausschließlich den tatsächlich freigegebenen Stand. Freigaben gelten in der aktuell geöffneten Umgebung und für die ausdrücklich ausgewählte Zielgruppe.</p></div>
-              {scope!=="gm"&&<fieldset className={cmsStyles.editorFieldset} disabled={!editable||busy}><label className="field"><span>Discovery bei dieser Freigabe</span><select value={discoveryState} onChange={event=>setDiscoveryState(event.target.value as DiscoveryState)}>{discovery.map(state=><option key={state} value={state}>{state}</option>)}</select></label></fieldset>}
+              {publisher&&(scope==="group"||scope==="player")&&<div className={libraryStyles.notice}><strong>Dauerhaftes Spielerwissen: {release.discovery?.state||"hidden"}</strong><p>Veröffentlichung und Entdeckung sind getrennt. Eine Veröffentlichung allein schaltet unbekannte Inhalte nicht frei.</p><div className={libraryStyles.tools}><label className="field"><span>Entdeckungsstand</span><select value={discoveryState} onChange={e=>setDiscoveryState(e.target.value as DiscoveryState)}>{["hidden",...discovery].map(state=><option key={state} value={state}>{state}</option>)}</select></label><button type="button" className="button" disabled={busy||scope==="player"&&!playerTarget} onClick={async()=>{const current=release.discovery?.state||"hidden",correction=["hidden",...discovery].indexOf(discoveryState)<["hidden",...discovery].indexOf(current as DiscoveryState);if(!window.confirm(correction?"Administrative Korrektur: Dieses Wissen für die gewählte Zielgruppe wieder verbergen? Andere Zielgruppen bleiben unverändert.":"Diesen Eintrag dauerhaft für die gewählte Zielgruppe entdecken? Unterbereiche werden nicht automatisch freigegeben."))return;const audit=correction?window.prompt("Grund für die administrative Korrektur"):"Gezielte Entdeckung im Ortsdossier";if(!audit?.trim())return;setBusy(true);try{await api('/api/locations/state','POST',{placeId,entityId:node.id,mode:"discovery",audience:scope,...(scope==="player"?{playerId:playerTarget}:{}),discoveryState,expectedRevision:release.discovery?.version||0,administrativeCorrection:correction,reason:audit});await refreshRelease();clearDossierViews();toast.success("Entdeckungsstand gespeichert.");}catch(e){toast.error((e as Error).message);}finally{setBusy(false);}}}>Entdeckungsstand speichern</button></div></div>}
+              {!!release.discovery?.history?.length&&<details><summary>Entdeckungsprotokoll</summary><ul>{release.discovery.history.map((entry,index)=><li key={entry.createdAt+index}><time>{new Date(entry.createdAt).toLocaleString('de-DE')}</time> · {entry.previousState} → {entry.nextState}{entry.administrativeCorrection?' · Administrative Korrektur':''}<p>{entry.reason}</p></li>)}</ul></details>}
               <label className="field"><span>Prüf- oder Veröffentlichungsnotiz (optional)</span><input value={reason} maxLength={500} onChange={event=>setReason(event.target.value)} placeholder="Optionaler Zusatz für das Freigabeprotokoll"/><small>Ohne eigene Notiz wird „Direktfreigabe im SL-CMS“ protokolliert.</small></label>
               <div className={cmsStyles.releaseSummary}><span data-status={selectedDraft.status}>{selectedDraft.status.replaceAll("_"," ")}</span><strong>{scope==="gm"?"Nur Spielleitung":scope==="group"?"Aktive Spielgruppe":scope==="public"?"Public · Anmeldung erforderlich":catalog.players.find(item=>item.id===playerId)?.name||"Spieler wählen"}</strong><small>Freigabeversion {release.currentVersion} · {release.currentTransition||"noch keine Freigabe"} · {release.history.length} protokollierte Schritte</small></div>
               <div className={cmsStyles.releaseActions}>
@@ -427,7 +402,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
               </div>
               {previewMode&&scope!=="gm"&&<section className={cmsStyles.dossierPreview} aria-live="polite" aria-label={previewMode==="draft"?"Entwurf im echten Ortsdossier":"Veröffentlichte Spieleransicht im echten Ortsdossier"}>
                 <div className={cmsStyles.dossierPreviewLabel}><span>{previewMode==="draft"?"ENTWURF ANSEHEN · NUR SPIELLEITUNG":"VERÖFFENTLICHTE SPIELERANSICHT · FREIGEGEBENER STAND"}</span><button type="button" className="button" onClick={()=>setPreviewMode(null)}>Ansicht schließen</button></div>
-                <WorldExperience a={a} dataScope={dataScope} projectionOverride={previewMode==="draft"?preview?.projection:publishedProjection} embeddedLabel={previewMode==="draft"?"SL-Entwurf · nicht veröffentlicht":"Tatsächliche Spielerprojektion · veröffentlichter Stand"} onDossierBack={()=>setPreviewMode(null)}/>
+                <WorldExperience a={a} dataScope={dataScope} previewViewerId={scope==="player"?playerTarget:undefined} projectionOverride={previewMode==="draft"?preview?.projection:publishedProjection} embeddedLabel={previewMode==="draft"?"SL-Entwurf · nicht veröffentlicht":"Tatsächliche Spielerprojektion · veröffentlichter Stand"} onDossierBack={()=>setPreviewMode(null)}/>
               </section>}
               {publisher&&scope!=="gm"&&<p className={cmsStyles.inlineNotice}>Die Freigabe aktualisiert den Spielerstand in dieser Umgebung. Unveröffentlichte Entwürfe bleiben geschützt.</p>}
             </section>}
@@ -440,7 +415,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
               </div>
             </div>
           </>}
-          {!selectedDraft&&<section className={"panel "+cmsStyles.emptyEditor}><p className="eyebrow">KEIN ARBEITSSTAND AUSGEWÄHLT</p><h3>{scope==="player"&&!playerId?"Wähle zuerst ein Spielerziel":"Noch kein bearbeitbarer Entwurf"}</h3><p className="muted">Wähle eine vorhandene Revision oder lege eine neue an. So bleiben Entwurf und bereits freigegebener Spielerstand getrennt.</p>{node&&<button type="button" className="button primary" onClick={()=>void createDraft()} disabled={busy||scope==="player"&&!playerId}><FileImage size={15}/> Neue bearbeitbare Revision</button>}</section>}
+          {!selectedDraft&&scope!=="gm"&&<section className={"panel "+cmsStyles.emptyEditor}><p className="eyebrow">KEIN ARBEITSSTAND AUSGEWÄHLT</p><h3>{scope==="player"&&!playerId?"Wähle zuerst ein Spielerziel":"Noch kein bearbeitbarer Entwurf"}</h3><p className="muted">Wähle eine vorhandene Revision oder lege eine neue an. So bleiben Entwurf und bereits freigegebener Spielerstand getrennt.</p>{node&&<button type="button" className="button primary" onClick={()=>void createDraft()} disabled={busy||scope==="player"&&!playerId}><FileImage size={15}/> Neue bearbeitbare Revision</button>}</section>}
         </>}
       </div>
     </div>

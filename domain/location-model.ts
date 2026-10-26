@@ -340,6 +340,8 @@ function projectAreaForPlayer(area: PlaceArea): ProjectedArea[] {
         order: area.order,
         title: area.title,
         image: area.image,
+        ...(area.media?.length?{media:area.media}:{}),
+        ...(area.dossierHref?{dossierHref:area.dossierHref}:{}),
         discovery: area.discovery,
         worldState: area.worldState,
         markers: area.markers,
@@ -352,6 +354,8 @@ function projectAreaForPlayer(area: PlaceArea): ProjectedArea[] {
           worldState: placeRoom.worldState,
           markers: placeRoom.markers,
           short: placeRoom.short,
+          ...(placeRoom.media?.length?{media:placeRoom.media}:{}),
+          ...(placeRoom.dossierHref?{dossierHref:placeRoom.dossierHref}:{}),
           viewKey: `room-${placeRoom.order}`,
         })),
       },
@@ -370,6 +374,7 @@ function projectAreaForPlayer(area: PlaceArea): ProjectedArea[] {
       rooms: releasedRooms.map(room => ({
         order: room.order, title: room.title, discovery: room.discovery,
         worldState: room.worldState, markers: room.markers, short: room.short,
+        ...(room.media?.length?{media:room.media}:{}),...(room.dossierHref?{dossierHref:room.dossierHref}:{}),
         viewKey: `room-${room.order}`,
       })),
       viewKey: `area-redacted-${area.order}`,
@@ -382,7 +387,7 @@ function publicTargetKey(targetId: string, location: PlaceModel) {
   if (targetId === location.id) return location.id;
   for (const area of location.areas) {
     if (targetId === area.id) return `area-${area.order}`;
-    if (area.rooms.some((item) => item.id === targetId)) return `room-${area.order}`;
+    const room=area.rooms.find(item=>item.id===targetId);if(room)return `room-${room.order}`;
   }
   return "linked-object";
 }

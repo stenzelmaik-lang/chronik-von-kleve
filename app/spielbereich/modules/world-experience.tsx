@@ -34,6 +34,9 @@ import type { Entry } from "@/domain/legacy";
 import { splitRichTextIntroduction } from "@/domain/location-rich-text";
 
 import { api } from "./api-client";
+import { LocationMediaGallery } from "./location-media-gallery";
+import { LocationKnowledgeSearch } from "./location-knowledge-search";
+import { LocationConnections } from "./location-connections";
 import { RichTextView, richTextToPlainText } from "./rich-text";
 import { LocationSLDossier } from "./location-sl-dossier";
 import { activeMapMarkersForPlace, visibleWorldPlaces, type WorldHubPlace, type WorldMapMarker } from "./world-map-contract";
@@ -54,7 +57,7 @@ type NotesPayload = { records: Entry[] };
 type LocationState = { key: string; projection: PlaceProjection };
 type HubState = { key: string; places: WorldHubPlace[] };
 type NoteState = { scope: string; records: Entry[] };
-type WorldOverlay = { kind: "image"; src: string; title: string } | { kind: "clue"; title: string; text: string } | null;
+type WorldOverlay = { kind: "image"; src: string; title: string } | { kind: "clue"; title: string; text: string; media?:import("@/domain/location-library").PublicLocationMedia[] } | null;
 type WorldMapViewProps = {
   places: WorldMapMarker[];
   visibleIds: string[];
@@ -80,6 +83,7 @@ export function WorldExperience({
   projectionOverride,
   embeddedLabel,
   onDossierBack,
+  previewViewerId,
 }: {
   a: Actor;
   dataScope: string;
@@ -87,6 +91,7 @@ export function WorldExperience({
   projectionOverride?: PlaceProjection | null;
   embeddedLabel?: string;
   onDossierBack?: () => void;
+  previewViewerId?:string;
 }) {
   const embeddedDossier = projectionOverride !== undefined;
   const [view, setView] = useState<"player" | "sl">(a.gm ? "sl" : "player");
@@ -120,6 +125,7 @@ export function WorldExperience({
   const clueDialog = useRef<HTMLDialogElement>(null);
   const lastOverlayTrigger = useRef<HTMLButtonElement | null>(null);
   const returnScrollY = useRef(0);
+  const referenceScrollY=useRef<number|null>(null);
 
   const projectionKey = selectedId ? locationKey(selectedId, view, target) : "";
   const scopedProjectionKey = `${dataScope}\u0000${projectionKey}`;
@@ -172,8 +178,12 @@ export function WorldExperience({
       const isDetail = Boolean(requestedId);
       setSelectedId(requestedId);
       setDetail(isDetail);
+      setActiveDossierId(url.searchParams.get('eintrag')||'');setActiveArea('');
       if (!isDetail) setMapStatus("loading");
-      if (!isDetail) requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
+      const restored=window.history.state?.chroniPlayLocationScrollY;
+      referenceScrollY.current=typeof restored==='number'&&Number.isFinite(restored)?restored:null;
+      if(referenceScrollY.current!==null)requestAnimationFrame(()=>window.scrollTo(0,referenceScrollY.current!));
+      else if (!isDetail) requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
     };
     syncLocation();
     window.addEventListener("popstate", syncLocation);
@@ -215,10 +225,14 @@ export function WorldExperience({
   const mapPreviewPlace = selected;
   const areaList = useMemo(() => location?.areas ?? [], [location]);
   const contextualArea = areaContext && areaContext.placeId === location?.id ? areaList.find(area => area.order === areaContext.order) : undefined;
-  const currentArea = areaList.find((area) => area.viewKey === activeArea) ?? contextualArea ?? areaList[0] ?? null;
+  const requestedArea=areaList.find(area=>area.dossierHref?.includes(`eintrag=${encodeURIComponent(activeDossierId)}`)||area.rooms.some(room=>room.dossierHref?.includes(`eintrag=${encodeURIComponent(activeDossierId)}`)));
+  const currentArea = areaList.find(area=>area.viewKey===activeArea) ?? requestedArea ?? contextualArea ?? areaList[0] ?? null;
   const dossierNodeExists = activeDossierId === location?.id || areaList.some(area => area.viewKey === activeDossierId || area.rooms.some(room => room.viewKey === activeDossierId)) || location?.knownInformation.some(info => info.id === activeDossierId);
-  const dossierNodeId = dossierNodeExists ? activeDossierId : contextualArea?.viewKey || location?.id || '';
+  const dossierNodeId = dossierNodeExists ? activeDossierId : requestedArea?.viewKey || contextualArea?.viewKey || location?.id || '';
   const areaCopy = splitRichTextIntroduction(currentArea?.playerHint ?? "");
+  useEffect(()=>{if(!activeDossierId||!location)return;const info=location.knownInformation.find(item=>item.id===activeDossierId||item.dossierHref?.includes(`eintrag=${encodeURIComponent(activeDossierId)}`));if(!info)return;const frame=requestAnimationFrame(()=>setOverlay(current=>current?.kind==='clue'&&current.title===info.title&&current.text===info.text?current:{kind:'clue',title:info.title,text:info.text,media:info.media}));return()=>cancelAnimationFrame(frame);},[activeDossierId,location]);
+  useEffect(()=>{if(activeDossierId&&requestedArea)requestAnimationFrame(()=>{if(referenceScrollY.current!==null)window.scrollTo(0,referenceScrollY.current);else document.getElementById('known-areas')?.scrollIntoView({block:'start'});});},[activeDossierId,requestedArea?.viewKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cachedNotes = readPlayerData<NotesPayload>(dataScope, NOTES_KEY);
   const notes = noteState?.scope === dataScope ? noteState.records : cachedNotes?.value.records ?? [];
   const relatedNotes = notes.filter((note) => note.body?.locationId === location?.id);
@@ -289,6 +303,17 @@ export function WorldExperience({
 
   function panImage(x:number,y:number) { setImageOffset(current=>boundedImageOffset(current.x+x,current.y+y)); }
 
+  function openLocationReference(href:string){
+    const url=new URL(href,window.location.origin);
+    if(embeddedDossier||url.origin!==window.location.origin||url.pathname!=='/spielbereich'||url.searchParams.get('bereich')!=='schauplaetze')return false;
+    const character=new URL(window.location.href).searchParams.get('character');if(character&&!url.searchParams.has('character'))url.searchParams.set('character',character);
+    const previous=window.history.state;
+    history.replaceState({...previous,chroniPlayLocationScrollY:window.scrollY},'',window.location.href);
+    history.pushState(null,'',url);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    return true;
+  }
+
   function openPlace(id: string) {
     returnScrollY.current = window.scrollY;
     setActiveArea(null);setAreaContext(null);setActiveDossierId('');
@@ -298,6 +323,7 @@ export function WorldExperience({
     url.pathname = "/spielbereich";
     url.searchParams.set("bereich", "schauplaetze");
     url.searchParams.set("ort", id);
+    url.searchParams.delete("eintrag");
     history.pushState(null, "", url);
     window.scrollTo(0, 0);
   }
@@ -314,6 +340,7 @@ export function WorldExperience({
     const url = new URL(window.location.href);
     url.searchParams.set("bereich", "schauplaetze");
     url.searchParams.delete("ort");
+    url.searchParams.delete("eintrag");
     history.replaceState(null, "", url);
     requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
   }
@@ -500,7 +527,7 @@ export function WorldExperience({
       </section>
     </> : projection.view === "sl" ? <article className={styles.slDossierPage} aria-label="SL-Dossier">
       <div className={styles.slDossierNavigation}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} aria-hidden="true"/>{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button></div>
-      <LocationSLDossier key={location.id} projection={projection} selectedId={dossierNodeId} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
+      <LocationSLDossier onNavigate={openLocationReference} key={location.id} projection={projection} selectedId={dossierNodeId} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
       {groupVisibilityFor(dossierNodeId)}
       {location.preparedActions && location.preparedActions.length > 0 && <section className={styles.gmActions}>
         <header className={styles.detailSectionHeader}><h2>Vorbereitete Aktionen</h2><Shield size={18} aria-hidden="true"/></header>
@@ -548,7 +575,8 @@ export function WorldExperience({
                       {areaCopy.introduction && <RichTextView value={areaCopy.introduction} readable flowing className={`${styles.areaHint} ${styles.areaIntroduction}`}/>}
                       {areaCopy.description && <RichTextView value={areaCopy.description} readable flowing className={styles.areaHint}/>}
                       {!currentArea.redacted && currentArea.worldState !== "active" && <p className={styles.areaContext}>{stateLabel(currentArea.worldState)}</p>}
-                      {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><strong>{room.title.replace(/^\d+\s/, "")}</strong>{room.short && <RichTextView value={room.short} className={styles.roomRichText}/>} {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
+                      <LocationMediaGallery media={currentArea.media?.filter(m=>!m.hero)}/>
+                      {currentArea.rooms.length > 0 && <div className={styles.roomList}>{currentArea.rooms.map((room) => <article className={styles.roomRow} key={room.viewKey}><span className={styles.roomOrder}>{String(room.order).padStart(2, "0")}</span><div><details open={activeDossierId===room.viewKey||!!activeDossierId&&room.dossierHref?.includes(`eintrag=${encodeURIComponent(activeDossierId)}`)||undefined}><summary><strong>{room.title.replace(/^\d+\s/, "")}</strong></summary>{room.short && <RichTextView value={room.short} readable flowing className={styles.richProse}/>}<LocationMediaGallery media={room.media}/></details> {groupVisibilityFor(room.viewKey)}</div><span className={styles.roomStatus}>{discoveryLabel(room.discovery)}</span></article>)}</div>}
                       {!currentArea.redacted && currentArea.rooms.length === 0 && <p className={styles.mutedText}>Zu diesem Bereich sind keine Räume freigegeben.</p>}
                       {currentArea.redacted && <div className={styles.unclearSeal}><CircleHelp size={15} />Keine Raumdetails freigegeben</div>}
                     </div>
@@ -562,9 +590,12 @@ export function WorldExperience({
               <span className={styles.clueGlyph}><CircleHelp size={20} /></span><span className={styles.clueCopy}><span className={styles.kicker}>OFFENER HINWEIS · UNGEKLÄRT</span><strong>Offener Orts-Hinweis</strong><span>{richTextToPlainText(unresolvedArea.playerHint)}</span></span><ArrowUpRight className={styles.clueArrow} size={17} />
             </button>}
 
+            <LocationMediaGallery media={location.media?.filter(m=>!m.hero)}/>
+            <LocationConnections onNavigate={openLocationReference} entityId={location.id} view={projection.view} viewerId={previewViewerId}/>
+            <LocationKnowledgeSearch onNavigate={openLocationReference} placeId={location.id} view={projection.view} viewerId={previewViewerId}/>
             {location.knownInformation.length > 0 && <section className={styles.informationSection}>
               <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>FREIGEGEBENE ERKENNTNISSE</p><h2>Was hängen blieb</h2></div><BookOpen size={19} /></header>
-              <div className={styles.informationList}>{location.knownInformation.map((info) => <button type="button" className={styles.informationRow} key={info.id} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: info.title, text: info.text }); }}><span><Sparkles size={15} /></span><span><strong>{info.title}</strong><small>{richTextToPlainText(info.text)}</small></span><ArrowUpRight size={15} /></button>)}</div>
+              <div className={styles.informationList}>{location.knownInformation.map((info) => <button type="button" className={styles.informationRow} key={info.id} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: info.title, text: info.text,media:info.media }); }}><span><Sparkles size={15} /></span><span><strong>{info.title}</strong><small>{richTextToPlainText(info.text)}</small></span><ArrowUpRight size={15} /></button>)}</div>
             </section>}
 
             {groupVisibilityFor(projection.location.id)}
@@ -607,7 +638,7 @@ export function WorldExperience({
       </dialog>}
 
       <dialog ref={clueDialog} className={`${styles.overlay} ${styles.clueOverlay}`} aria-label={overlay?.kind === "clue" ? overlay.title : "Freigegebener Hinweis"} onClose={closeOverlay} onClick={(event) => { if (event.target === clueDialog.current) clueDialog.current?.close(); }}>
-        <div className={styles.clueDialogFrame}><div className={styles.overlayTop}><span><CircleHelp size={16} />{overlay?.kind === "clue" ? "HINWEIS · DEINE CHRONIK" : "ERKENNTNIS · DEINE CHRONIK"}</span><button type="button" aria-label="Hinweis schließen" onClick={() => clueDialog.current?.close()}><X size={19} /></button></div><p className={styles.kicker}>{overlay?.kind === "clue" ? "UNGEKLÄRT" : "FREIGEGEBEN"}</p><h2>{overlay?.kind === "clue" ? overlay.title : "Hinweis"}</h2><RichTextView value={overlay?.kind === "clue" ? overlay.text : ""} className={styles.richProse}/><div className={styles.clueFooter}><span><Sparkles size={14} />Nur freigegebener Inhalt</span><span>{location.title} <ChevronDown size={14} /></span></div></div>
+        <div className={styles.clueDialogFrame}><div className={styles.overlayTop}><span><CircleHelp size={16} />{overlay?.kind === "clue" ? "HINWEIS · DEINE CHRONIK" : "ERKENNTNIS · DEINE CHRONIK"}</span><button type="button" aria-label="Hinweis schließen" onClick={() => clueDialog.current?.close()}><X size={19} /></button></div><p className={styles.kicker}>{overlay?.kind === "clue" ? "UNGEKLÄRT" : "FREIGEGEBEN"}</p><h2>{overlay?.kind === "clue" ? overlay.title : "Hinweis"}</h2><RichTextView value={overlay?.kind === "clue" ? overlay.text : ""} className={styles.richProse}/>{overlay?.kind==="clue"&&<LocationMediaGallery media={overlay.media}/>}<div className={styles.clueFooter}><span><Sparkles size={14} />Nur freigegebener Inhalt</span><span>{location.title} <ChevronDown size={14} /></span></div></div>
       </dialog>
     </>}
   </div>;

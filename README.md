@@ -18,6 +18,7 @@ Der frühere README-Verweis auf Sites-Version 39 beschreibt den historischen Aus
 ## Dokumentation
 
 - [Projektstatus und Abnahmegrenzen](docs/PROJECT_STATUS.md)
+- [Dauerhaftes Ortsdossier-System: Funktionen und geprüfte Bedienung](docs/ortsdossier-system.md)
 - [Ortsdossier 2.0: Bedienung, Datenerhalt und Prüfungen](docs/location-dossier-2.md)
 - [Release-Markierung Ortsdossier 2.0](https://github.com/stenzelmaik-lang/chronik-von-kleve/tree/pre-alpha-2026-10-26-ortsdossier-2) – wird erst nach erfolgreicher Veröffentlichung gesetzt.
 

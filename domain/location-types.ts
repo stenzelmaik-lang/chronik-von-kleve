@@ -1,3 +1,4 @@
+import type {PublicLocationMedia} from './location-library';
 export const discoveryStates = [
   "hidden",
   "rumored",
@@ -66,6 +67,8 @@ export type PlaceRoom = {
   markers: StateMarkerId[];
   visibility: PlaceVisibility;
   short?: string;
+  media?: PublicLocationMedia[];
+  dossierHref?: string;
 };
 
 export type PlaceArea = {
@@ -79,6 +82,8 @@ export type PlaceArea = {
   visibility: PlaceVisibility;
   playerHint?: string;
   rooms: PlaceRoom[];
+  media?: PublicLocationMedia[];
+  dossierHref?: string;
 };
 
 export type PlaceNote = {
@@ -96,6 +101,8 @@ export type PlaceNote = {
   pinned: boolean;
   visibility: PlaceVisibility;
   targetId: string;
+  media?: PublicLocationMedia[];
+  dossierHref?: string;
 };
 
 export type PlaceActivity = {
@@ -136,6 +143,8 @@ export type PlaceModel = {
   activity: PlaceActivity[];
   preparedActions: PreparedPlaceAction[];
   sourceLabel: string;
+  media?: PublicLocationMedia[];
+  navigationOnly?: boolean;
 };
 
 export type ProjectionActorRole = "gm" | "player";

@@ -19,6 +19,7 @@ export function locationCreationParent(
   if (level === "location") return null;
   const root = nodes.find(node => node.id === placeId && node.level === "location" && node.locationId === placeId && node.parentId === null);
   if (!root) return null;
-  if (level === "area" || level === "information") return root;
+  if (level === "area") return root;
+  if(level === "information")return nodes.find(n=>n.id===selectedId&&n.locationId===root.id&&n.level!=="information")??root;
   return nodes.find(node => node.id === selectedId && node.level === "area" && node.locationId === root.id) ?? null;
 }
