@@ -32,8 +32,10 @@ Die letzte vor diesem Auftrag verifizierte Veröffentlichung war `2e1c0245027032
 
 Die lokale Rollenprüfung ersetzt keine echte Spielerabnahme auf einem physischen Mobilgerät. Bei der Veröffentlichung werden öffentliche/geschützte Endpunkte und die vorhandene SL-Sitzung zusätzlich lesend geprüft. Es werden keine synthetischen Testobjekte in Produktion angelegt.
 
-## Laufende Erweiterung: dauerhaftes Ortsdossier-System
+## Geprüfte Erweiterung: dauerhaftes Ortsdossier-System
 
 Auf Basis von `855ec4c` lokal erweitert: unabhängige SL-Kapitel (25.000 Zeichen), Tabellen/aufklappbare Abschnitte, mehrere private Medien, separate Entdeckung, Strukturpflege mit Archiv/Wiederherstellung, sichere Suche/Verknüpfungen und Export. Keine neue Datenbank, Migration oder Spieltischintegration. Einzelheiten und aktuelle Nachweise: [Ortsdossier-System](ortsdossier-system.md).
 
-Dieser Abschnitt ist **kein Live-Nachweis**. Die vollständige Browser-/Mobil-/Tastatur-Abnahme der neuen Oberfläche ist wegen beendeter Browsersteuerung offen; es wurde für diesen Auftrag nichts produktiv veröffentlicht.
+273 Unit-/Schematests, 1.544 Integrationsprüfungen, 46 Rollen-/Migrationsprüfungen und atomarer Rollback bestanden; TypeScript, ESLint und Build bestanden. Lokale Browserprüfung mit getrennten synthetischen SL-/Spielerkonten, HTML-/Tabellenbearbeitung, Speichern/Abbrechen, langen Kapiteln, Geheimnisschutz, Galerie, Suche/Rücknavigation und Desktop/Tablet/Mobil bis 320 px durchgeführt. Die Browsererweiterung blockiert allein die automatisierte Übergabe lokaler Upload-Dateien; API-Upload und Zugriffsschutz sind geprüft. Details und Prüfgrenzen stehen im verlinkten Nachweis.
+
+Dieser Abschnitt ist **kein Live-Nachweis**. Der nach Veröffentlichung und Datenvergleich gesetzte Tag [pre-alpha-2026-10-26-ortsdossier-system](https://github.com/stenzelmaik-lang/chronik-von-kleve/tree/pre-alpha-2026-10-26-ortsdossier-system) und [Pull Request #23](https://github.com/stenzelmaik-lang/chronik-von-kleve/pull/23) identifizieren den gesicherten Stand. Private Backup-, Worker- und Integritätsnachweise bleiben außerhalb des Repositories.

@@ -11,8 +11,8 @@ import { searchSlDossier, slDossierEntries } from '@/domain/location-dossier';
 import { RichTextView } from './rich-text';
 import styles from './location-sl-dossier.module.css';
 
-export function LocationSLDossier({ projection, selectedId, onSelect, initialSelectedId }: {
-  projection: PlaceProjection; selectedId?: string; onSelect?: (id: string) => void; initialSelectedId?: string;
+export function LocationSLDossier({ projection, selectedId, onSelect, initialSelectedId,onNavigate }: {
+  projection: PlaceProjection; selectedId?: string; onSelect?: (id: string) => void; initialSelectedId?: string;onNavigate?:(href:string)=>boolean;
 }) {
   const entries = useMemo(() => slDossierEntries(projection), [projection]);
   const [selection, setSelection] = useState(initialSelectedId || projection.location.id);
@@ -45,7 +45,7 @@ export function LocationSLDossier({ projection, selectedId, onSelect, initialSel
       </select></label>
 
     </div>
-    <details><summary>Ortswissen durchsuchen</summary><LocationKnowledgeSearch placeId={projection.location.id} view="sl"/></details>
+    <details><summary>Ortswissen durchsuchen</summary><LocationKnowledgeSearch onNavigate={onNavigate} placeId={projection.location.id} view="sl"/></details>
     {!adopted[chosen?.id||""]&&<div className={styles.chapterTools}><p role="status">{query.trim() ? `${shown.length} ${shown.length === 1 ? 'passender Eintrag' : 'passende Einträge'}` : 'Schnellübersicht und interne Kapitel'}</p><div><button type="button" disabled={!chapterKeys.length || chapterKeys.every(key => expanded.has(key))} onClick={() => setExpanded(current => new Set([...current, ...chapterKeys]))}>Alle öffnen</button><button type="button" disabled={!chapterKeys.some(key => expanded.has(key))} onClick={() => setExpanded(current => new Set([...current].filter(key => !chapterKeys.includes(key))))}>Alle schließen</button></div></div>}
     {!shown.length && <div className={styles.empty}><h3>Keine passende Ortsinformation</h3><p>Versuche einen anderen Begriff oder leere die Suche.</p><button type="button" onClick={() => search('')}>Suche leeren</button></div>}
     {shown.map(entry => <article key={entry.id} className={styles.entry}>

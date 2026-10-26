@@ -125,6 +125,7 @@ export function WorldExperience({
   const clueDialog = useRef<HTMLDialogElement>(null);
   const lastOverlayTrigger = useRef<HTMLButtonElement | null>(null);
   const returnScrollY = useRef(0);
+  const referenceScrollY=useRef<number|null>(null);
 
   const projectionKey = selectedId ? locationKey(selectedId, view, target) : "";
   const scopedProjectionKey = `${dataScope}\u0000${projectionKey}`;
@@ -179,7 +180,10 @@ export function WorldExperience({
       setDetail(isDetail);
       setActiveDossierId(url.searchParams.get('eintrag')||'');setActiveArea('');
       if (!isDetail) setMapStatus("loading");
-      if (!isDetail) requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
+      const restored=window.history.state?.chroniPlayLocationScrollY;
+      referenceScrollY.current=typeof restored==='number'&&Number.isFinite(restored)?restored:null;
+      if(referenceScrollY.current!==null)requestAnimationFrame(()=>window.scrollTo(0,referenceScrollY.current!));
+      else if (!isDetail) requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
     };
     syncLocation();
     window.addEventListener("popstate", syncLocation);
@@ -227,7 +231,7 @@ export function WorldExperience({
   const dossierNodeId = dossierNodeExists ? activeDossierId : requestedArea?.viewKey || contextualArea?.viewKey || location?.id || '';
   const areaCopy = splitRichTextIntroduction(currentArea?.playerHint ?? "");
   useEffect(()=>{if(!activeDossierId||!location)return;const info=location.knownInformation.find(item=>item.id===activeDossierId||item.dossierHref?.includes(`eintrag=${encodeURIComponent(activeDossierId)}`));if(!info)return;const frame=requestAnimationFrame(()=>setOverlay(current=>current?.kind==='clue'&&current.title===info.title&&current.text===info.text?current:{kind:'clue',title:info.title,text:info.text,media:info.media}));return()=>cancelAnimationFrame(frame);},[activeDossierId,location]);
-  useEffect(()=>{if(activeDossierId&&requestedArea)requestAnimationFrame(()=>document.getElementById('known-areas')?.scrollIntoView({block:'start'}));},[activeDossierId,requestedArea?.viewKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(()=>{if(activeDossierId&&requestedArea)requestAnimationFrame(()=>{if(referenceScrollY.current!==null)window.scrollTo(0,referenceScrollY.current);else document.getElementById('known-areas')?.scrollIntoView({block:'start'});});},[activeDossierId,requestedArea?.viewKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cachedNotes = readPlayerData<NotesPayload>(dataScope, NOTES_KEY);
   const notes = noteState?.scope === dataScope ? noteState.records : cachedNotes?.value.records ?? [];
@@ -299,6 +303,17 @@ export function WorldExperience({
 
   function panImage(x:number,y:number) { setImageOffset(current=>boundedImageOffset(current.x+x,current.y+y)); }
 
+  function openLocationReference(href:string){
+    const url=new URL(href,window.location.origin);
+    if(embeddedDossier||url.origin!==window.location.origin||url.pathname!=='/spielbereich'||url.searchParams.get('bereich')!=='schauplaetze')return false;
+    const character=new URL(window.location.href).searchParams.get('character');if(character&&!url.searchParams.has('character'))url.searchParams.set('character',character);
+    const previous=window.history.state;
+    history.replaceState({...previous,chroniPlayLocationScrollY:window.scrollY},'',window.location.href);
+    history.pushState(null,'',url);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    return true;
+  }
+
   function openPlace(id: string) {
     returnScrollY.current = window.scrollY;
     setActiveArea(null);setAreaContext(null);setActiveDossierId('');
@@ -308,6 +323,7 @@ export function WorldExperience({
     url.pathname = "/spielbereich";
     url.searchParams.set("bereich", "schauplaetze");
     url.searchParams.set("ort", id);
+    url.searchParams.delete("eintrag");
     history.pushState(null, "", url);
     window.scrollTo(0, 0);
   }
@@ -324,6 +340,7 @@ export function WorldExperience({
     const url = new URL(window.location.href);
     url.searchParams.set("bereich", "schauplaetze");
     url.searchParams.delete("ort");
+    url.searchParams.delete("eintrag");
     history.replaceState(null, "", url);
     requestAnimationFrame(() => window.scrollTo(0, returnScrollY.current));
   }
@@ -510,7 +527,7 @@ export function WorldExperience({
       </section>
     </> : projection.view === "sl" ? <article className={styles.slDossierPage} aria-label="SL-Dossier">
       <div className={styles.slDossierNavigation}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} aria-hidden="true"/>{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button></div>
-      <LocationSLDossier key={location.id} projection={projection} selectedId={dossierNodeId} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
+      <LocationSLDossier onNavigate={openLocationReference} key={location.id} projection={projection} selectedId={dossierNodeId} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
       {groupVisibilityFor(dossierNodeId)}
       {location.preparedActions && location.preparedActions.length > 0 && <section className={styles.gmActions}>
         <header className={styles.detailSectionHeader}><h2>Vorbereitete Aktionen</h2><Shield size={18} aria-hidden="true"/></header>
@@ -574,8 +591,8 @@ export function WorldExperience({
             </button>}
 
             <LocationMediaGallery media={location.media?.filter(m=>!m.hero)}/>
-            <LocationConnections entityId={location.id} view={projection.view} viewerId={previewViewerId}/>
-            <LocationKnowledgeSearch placeId={location.id} view={projection.view} viewerId={previewViewerId}/>
+            <LocationConnections onNavigate={openLocationReference} entityId={location.id} view={projection.view} viewerId={previewViewerId}/>
+            <LocationKnowledgeSearch onNavigate={openLocationReference} placeId={location.id} view={projection.view} viewerId={previewViewerId}/>
             {location.knownInformation.length > 0 && <section className={styles.informationSection}>
               <header className={styles.detailSectionHeader}><div><p className={styles.kicker}>FREIGEGEBENE ERKENNTNISSE</p><h2>Was hängen blieb</h2></div><BookOpen size={19} /></header>
               <div className={styles.informationList}>{location.knownInformation.map((info) => <button type="button" className={styles.informationRow} key={info.id} onClick={(event) => { lastOverlayTrigger.current = event.currentTarget; setOverlay({ kind: "clue", title: info.title, text: info.text,media:info.media }); }}><span><Sparkles size={15} /></span><span><strong>{info.title}</strong><small>{richTextToPlainText(info.text)}</small></span><ArrowUpRight size={15} /></button>)}</div>

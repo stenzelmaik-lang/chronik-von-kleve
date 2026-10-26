@@ -256,7 +256,7 @@ export async function listLocationDrafts(db: D1Database, actor: Actor, entityId:
   // prevents personal/public revision metadata and payloads from leaving D1.
   const where = cmsPublisher(actor) ? "" : " AND r.audience_scope='group' AND r.audience_key='@group'";
   const secretProjection=cmsPublisher(actor)?"r.gm_secret_json":"NULL AS gm_secret_json";
-  const rows=await db.prepare(`SELECT r.id,r.revision_no,r.audience_scope,r.audience_key,r.audience_user_id,r.status,r.version,r.player_payload_json,r.geography_json,${secretProjection},r.author_id,r.created_at,r.updated_at,
+  const rows=await db.prepare(`SELECT r.id,r.entity_id,r.revision_no,r.audience_scope,r.audience_key,r.audience_user_id,r.status,r.version,r.player_payload_json,r.geography_json,${secretProjection},r.author_id,r.created_at,r.updated_at,
     (SELECT m.file_id FROM entity_revision_media m WHERE m.campaign_id=r.campaign_id AND m.revision_id=r.id AND m.purpose='hero' ORDER BY m.position LIMIT 1) AS hero_file_id
     FROM entity_revisions r WHERE r.campaign_id=? AND r.entity_id=?${where} ORDER BY r.revision_no DESC`).bind(actor.campaignId,entityId).all<Record<string,unknown>>();
   return rows.results;

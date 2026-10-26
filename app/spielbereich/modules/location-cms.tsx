@@ -24,7 +24,7 @@ type Scope="gm"|"public"|"group"|"player";
 type LocationOption={id:string;title:string;position:number};
 type NodeOption={id:string;locationId:string;parentId:string|null;level:"location"|"area"|"room"|"information";position:number;revision:number;groupDiscovery:string;groupPublication:string;lifecycle:string;title:string;visibility?:string};
 type PlayerOption={id:string;name:string};
-type Draft={id:string;revision_no:number;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string;version:number;player_payload_json:string;gm_secret_json?:string;geography_json:string;hero_file_id?:string|null};
+type Draft={id:string;entity_id:string;revision_no:number;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string;version:number;player_payload_json:string;gm_secret_json?:string;geography_json:string;hero_file_id?:string|null};
 type ReleaseEntry={revision_id:string|null;transition:string;release_version:number};
 type NewNodeDraft={level:"location"|"area"|"room"|"information";parentId:string|null;title:string};
 type Geography={status:"unknown"}|{status:"exact";coordinates:[number,number];source:string;reference?:string;reviewedAt:string}|{status:"approximate";coordinates:[number,number];accuracyMeters:number;source:string;reference?:string;reviewedAt:string};
@@ -48,6 +48,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const [playerId,setPlayerId]=useState("");
   const [drafts,setDrafts]=useState<Draft[]>([]);
   const [draftId,setDraftId]=useState("");
+  const draftIdRef=useRef("");
+  useEffect(()=>{draftIdRef.current=draftId;},[draftId]);
   const [payload,setPayload]=useState<Record<string,unknown>>({});
   const [gmSecret,setGmSecret]=useState<Record<string,unknown>>({});
   const [chapterDirty,setChapterDirty]=useState(false);
@@ -73,7 +75,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const node=nodes.find(item=>item.id===nodeId)||null;
   const areaParent=locationCreationParent("area",nodes,placeId,nodeId);
   const roomParent=locationCreationParent("room",nodes,placeId,nodeId);
-  const selectedDraft=drafts.find(item=>item.id===draftId)||null;
+  const selectedDraft=drafts.find(item=>item.id===draftId&&item.entity_id===nodeId&&item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerId))||null;
   const isRoot=node?.level==="location";
   const editable=selectedDraft?.status==="draft";
   const selectedIsCurrentRelease=Boolean(selectedDraft&&release.history[0]?.transition==="publish"&&release.history[0]?.revision_id===selectedDraft.id);
@@ -178,17 +180,23 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     return()=>{alive=false;window.clearTimeout(timer);};
   },[placeId]);
   useEffect(()=>{nodeRowRefs.current.get(nodeId)?.scrollIntoView({block:"nearest"});},[nodeId,filteredNodes.length]);
-  const refreshDrafts=useCallback(async(selectNewest=false)=>{
+  const refreshDrafts=useCallback(async(selectNewest=false,isCurrent:()=>boolean=()=>true)=>{
     if(!nodeId){setDrafts([]);setDraftId("");return;}
     const result=await api<{drafts:Draft[]}>(`/api/cms/drafts?entityId=${encodeURIComponent(nodeId)}`);
+    if(!isCurrent())return;
     const scoped=result.drafts.filter(item=>item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerTarget));
     setDrafts(result.drafts);
-    const current=selectNewest?"":draftId;
+    const current=selectNewest?"":draftIdRef.current;
     const selected=scoped.find(item=>item.id===current)||scoped[0]||null;
     setDraftId(selected?.id||"");
     if(selected){setPayload(parse(selected.player_payload_json));setGmSecret(parse(selected.gm_secret_json||"{}"));const selectedGeo=(parse(selected.geography_json) as unknown as Geography)||{status:"unknown"};setGeo(selectedGeo);setPickedCoordinates(selectedGeo.status==="unknown"?null:selectedGeo.coordinates);setHeroFileId(selected.hero_file_id||null);}
     else {setPayload({});setGmSecret({});setGeo({status:"unknown"});setPickedCoordinates(null);setHeroFileId(null);setPreview(null);setPublishedProjection(null);setPreviewMode(null);}
-  },[nodeId,scope,playerTarget,draftId]);
+  },[nodeId,scope,playerTarget]);
+  useEffect(()=>{
+    let active=true;
+    const timer=window.setTimeout(()=>{void refreshDrafts(true,()=>active).catch(error=>{if(active)toast.error((error as Error).message);});},0);
+    return()=>{active=false;window.clearTimeout(timer);};
+  },[refreshDrafts]);
   const refreshRelease=useCallback(async()=>{
     if(!publisher||!nodeId||scope==="gm") {setRelease({currentVersion:0,currentTransition:null,history:[]});return;}
     if(scope==="player"&&!playerTarget){setRelease({currentVersion:0,currentTransition:null,history:[]});return;}
@@ -350,13 +358,13 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
                 {scope==="gm"?<p>SL-Kapitel werden unabhängig von redaktionellen Revisionen gespeichert. Spieler können sie niemals freigeschaltet bekommen.</p>:node.level==="location"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label><label className="field"><span>Untertitel</span><input value={String(payload.subtitle||"")} onChange={event=>setField("subtitle",event.target.value)} placeholder="Kurze Einordnung für die Ortsseite"/></label></div>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Stadtteil</span><input value={String(payload.district||"")} onChange={event=>setField("district",event.target.value)}/></label><label className="field"><span>Freigegebene Adresse</span><input value={String(payload.address||"")} onChange={event=>setField("address",event.target.value)}/></label></div>
-                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
-                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Ortsbeschreibung und Atmosphäre" maximumPlainLength={25000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
+                  <RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
+                  <RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Ortsbeschreibung und Atmosphäre" maximumPlainLength={25000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
                 </div>:<div className={cmsStyles.fieldStack}>
                   <label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label>
-                  {node.level==="area"&&<RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Beschreibung des Bereichs" maximumPlainLength={25000} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
-                  {node.level==="room"&&<RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Raumbeschreibung" maximumPlainLength={25000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
-                  {node.level==="information"&&<><RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={25000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
+                  {node.level==="area"&&<RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Beschreibung des Bereichs" maximumPlainLength={25000} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
+                  {node.level==="room"&&<RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Raumbeschreibung" maximumPlainLength={25000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
+                  {node.level==="information"&&<><RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={25000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
                 </div>}
               </fieldset>
               {!editable&&<p className={cmsStyles.readOnlyNote}>Dieser Stand ist {selectedDraft.status==="approved"?"genehmigt":"nicht mehr bearbeitbar"}. Lege eine neue Revision an, wenn du Änderungen vornehmen möchtest.</p>}

@@ -82,6 +82,8 @@ export function RichTextEditor({
   files = [],
   compactTools = false,
   proseClassName,
+  previewValue,
+  disabled = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -93,6 +95,8 @@ export function RichTextEditor({
   files?:{id:string;name:string;mime:string;visibility?:string}[];
   compactTools?: boolean;
   proseClassName?: string;
+  previewValue?: string;
+  disabled?: boolean;
 }) {
   const [initialSource]=useState(()=>value.startsWith(richHtmlPrefix)?{raw:value.slice(richHtmlPrefix.length),...inspectRichTextSource(value.slice(richHtmlPrefix.length),maximumPlainLength)}:null);
   const [htmlMode,setHtmlMode]=useState(initialSource!==null),[htmlDraft,setHtmlDraft]=useState(initialSource?.raw??''),[htmlError,setHtmlError]=useState(initialSource?.error??''),[imageId,setImageId]=useState('');
@@ -116,6 +120,7 @@ export function RichTextEditor({
   }, [htmlMode, preview, proseClassName]);
 
   function commit() {
+    if(disabled)return;
     const editor = editorRef.current;
     if (!editor) return;
     // A focus/blur roundtrip must not convert or dirty untouched legacy text,
@@ -138,6 +143,7 @@ export function RichTextEditor({
   }
 
   function command(action: string, argument?: string) {
+    if(disabled)return;
     const editor = editorRef.current;
     if (!editor) return;
     editor.focus();
@@ -149,7 +155,7 @@ export function RichTextEditor({
   }
 
   function tableEdit(action:'row'|'column'|'removeRow'|'removeColumn'|'header') {
-    const editor=editorRef.current;if(!editor)return;
+    const editor=editorRef.current;if(disabled||!editor)return;
     const selection=window.getSelection(),range=savedRange.current||(selection?.rangeCount?selection.getRangeAt(0):null),element=range?.startContainer instanceof Element?range.startContainer:range?.startContainer.parentElement;
     const cell=element?.closest('td,th') as HTMLTableCellElement|null,table=cell?.closest('table');
     if(!cell||!table||!editor.contains(table)){setHtmlError('Setze den Cursor zuerst in eine Tabellenzelle.');return;}
@@ -170,6 +176,7 @@ export function RichTextEditor({
 
   function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
     event.preventDefault();
+    if(disabled)return;
     const text = event.clipboardData.getData("text/plain");
     const sheet=text.includes('\t')?'<table><tbody>'+text.trimEnd().split(/\r?\n/).slice(0,30).map(row=>'<tr>'+row.split('\t').slice(0,10).map(cell=>'<td>'+cell.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</td>').join('')+'</tr>').join('')+'</tbody></table>':null;
     const formatted = htmlSource ? htmlTextToRichText(sheet||text)||htmlTextToRichText(event.clipboardData.getData('text/html')) : null;
@@ -188,6 +195,7 @@ export function RichTextEditor({
   }
 
   function sourceChange(raw:string){
+    if(disabled)return;
     setHtmlDraft(raw);
     const result=inspectRichTextSource(raw,maximumPlainLength);
     setPlainLength(result.plainLength??0);setLimitExceeded((result.plainLength??0)>maximumPlainLength);setHtmlError(result.error);
@@ -203,9 +211,9 @@ export function RichTextEditor({
       {htmlSource&&<button type="button" aria-pressed={preview} disabled={!!htmlError} onClick={()=>setPreview(true)}>Vorschau</button>}
       <small>{htmlSource?'Vorschau veröffentlicht nichts.':'Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.'}</small>
     </div>}
-    {preview?<section className={styles.preview} data-custom-prose={proseClassName ? true : undefined} aria-label={`${label} Vorschau`}><RichTextView value={value} readable flowing={Boolean(proseClassName)} className={proseClassName}/></section>:htmlMode?<>
-      <textarea aria-label={label+' HTML'} aria-describedby={helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>
-      {htmlSource&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: h2, h3, p, strong, em, ul, ol, li, blockquote, a, hr und span. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
+    {preview?<section className={styles.preview} data-custom-prose={proseClassName ? true : undefined} aria-label={`${label} Vorschau`}><RichTextView value={previewValue ?? value} readable flowing={Boolean(proseClassName)} className={proseClassName}/></section>:htmlMode?<>
+      <textarea disabled={disabled} aria-label={label+' HTML'} aria-describedby={helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>
+      {htmlSource&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: Überschriften, Absätze, Hervorhebungen, Listen, Zitate, Links, Trennlinien, Tabellen mit Kopfzeilen und aufklappbare Abschnitte. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
     </>:<>
     <div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h2>")} aria-label="Überschrift groß">H2</button>
@@ -227,7 +235,8 @@ export function RichTextEditor({
     <div
       ref={editorRef}
       className={[styles.editable,proseClassName].filter(Boolean).join(' ')}
-      contentEditable
+      contentEditable={!disabled}
+      aria-readonly={disabled||undefined}
       suppressContentEditableWarning
       role="textbox"
       aria-label={label}

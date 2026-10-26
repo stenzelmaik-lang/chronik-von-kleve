@@ -5,6 +5,7 @@ export async function locationLibraryIntegration({req,check,base,ids}){
   const beforeMembers=(await req('/api/members','gm')).d,beforeCharacters=(await req('/api/records?kind=charaktere','gm')).d;
   const create=async(level,title,parentId)=>{const r=await write('/api/cms/locations',{level,title,...(parentId?{parentId}:{})});check(r.s===201,'LIBRARY creates isolated '+level);return r.d;};
   const root=await create('location','LIBRARY_QA_PRIVATE_PARENT'),hall=await create('area','LIBRARY_QA_HALL',root.id),room=await create('room','LIBRARY_QA_ROOM',hall.id),sibling=await create('area','LIBRARY_QA_SECRET_SIBLING',root.id);
+  const initialDrafts=await req('/api/cms/drafts?entityId='+hall.id,'gm');check(initialDrafts.s===200&&initialDrafts.d.drafts.length>0&&initialDrafts.d.drafts.every(d=>d.entity_id===hall.id),'LIBRARY editor draft metadata identifies its exact location node');
   const libraryPath=id=>'/api/cms/location-content?entityId='+encodeURIComponent(id);
   for(const who of [null,'a','b','editor','blockedPlayer','otherCampaign'])check([401,403,404].includes((await req(libraryPath(hall.id),who)).s),'LIBRARY confidential chapter list denies '+who);
   const initialized=await write('/api/cms/location-content',{action:'initialize',entityId:hall.id});check(initialized.s===201&&initialized.d.created===8,'LIBRARY creates eight independently stored standard chapters');
