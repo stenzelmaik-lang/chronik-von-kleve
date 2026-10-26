@@ -3,6 +3,7 @@
 import type { Actor } from "@/domain/types";
 import type { DiscoveryState,PlaceProjection } from "@/domain/location-types";
 import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
+import { locationCreationParent } from "@/domain/location-creation";
 import { Check,ChevronRight,Eye,FileImage,Plus,RefreshCw,Save,Search,Send,ShieldCheck,Slash } from "lucide-react";
 import { type FormEvent,useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { toast } from "sonner";
@@ -66,6 +67,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const uploadRef=useRef<HTMLInputElement>(null);
   const nodeRowRefs=useRef(new Map<string,HTMLButtonElement>());
   const node=nodes.find(item=>item.id===nodeId)||null;
+  const areaParent=locationCreationParent("area",nodes,placeId,nodeId);
+  const roomParent=locationCreationParent("room",nodes,placeId,nodeId);
   const selectedDraft=drafts.find(item=>item.id===draftId)||null;
   const isRoot=node?.level==="location";
   const editable=selectedDraft?.status==="draft";
@@ -117,9 +120,9 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
 
   function beginNodeCreation(level:NewNodeDraft["level"]){
     if(!publisher||!canLeaveEditor())return;
-    if(level==="area"&&node?.level!=="location")return;
-    if(level==="room"&&node?.level!=="area")return;
-    setNewNode({level,parentId:level==="location"?null:level==="information"?placeId:node?.id||null,title:""});
+    const parent=locationCreationParent(level,nodes,placeId,nodeId);
+    if(level!=="location"&&!parent)return;
+    setNewNode({level,parentId:parent?.id??null,title:""});
   }
 
   async function submitNodeCreation(event:FormEvent<HTMLFormElement>){
@@ -313,24 +316,25 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     <header className={cmsStyles.cmsHero}><div><p className="eyebrow">CHRONIK VON KLEVE · SPIELLEITUNG · SL-CMS</p><h1>Ortsredaktion</h1><p>Orte, Bereiche und Freigaben in einer nachvollziehbaren Redaktion. Entwürfe werden erst nach Prüfung und gezielter Freigabe im aktuellen Spielbereich sichtbar.</p></div><span className={cmsStyles.campaignSeal}>AKTIVE CHRONIK<strong>DOMÄNE KLEVE</strong></span></header>
 
     <div className={cmsStyles.redactionLayout}>
-      <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis">
+      <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis" data-creating={Boolean(newNode)}>
         <div className={cmsStyles.directoryHead}><div><p className="eyebrow">BESTAND</p><h2>Ortsverzeichnis</h2></div><button type="button" className="button" aria-label="Ortsverzeichnis aktualisieren" onClick={()=>{if(canLeaveEditor())void loadCatalog();}} disabled={loading}><RefreshCw size={15}/></button></div>
-        <label className={"field "+cmsStyles.locationSelect}><span>Schauplatz</span><select value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
+        <label className={"field "+cmsStyles.locationSelect}><span>Hauptort</span><select value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
         <label className={cmsStyles.directorySearch}><Search size={15}/><span className="sr-only">Orte, Bereiche und Räume suchen</span><input value={directorySearch} onChange={event=>setDirectorySearch(event.target.value)} placeholder="Im Bestand suchen"/></label>
-        {publisher&&<div className={cmsStyles.directoryActions}>
+        {publisher&&<div className={cmsStyles.directoryActions} role="group" aria-label="Ortseinträge hinzufügen">
+          {areaParent&&<button type="button" className={`button ${cmsStyles.childCreateAction}`} onClick={()=>beginNodeCreation("area")} disabled={busy||loading}><Plus size={16} aria-hidden="true"/><span>Bereich hinzufügen<small>Hauptort: {areaParent.title}</small></span></button>}
+          {roomParent&&<button type="button" className={`button ${cmsStyles.childCreateAction}`} onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={16} aria-hidden="true"/><span>Raum hinzufügen<small>Bereich: {roomParent.title}</small></span></button>}
           <button type="button" className="button" onClick={()=>beginNodeCreation("location")} disabled={busy||loading}><Plus size={14}/> Neuer Hauptort</button>
-          {node?.level==="location"&&<button type="button" className="button" onClick={()=>beginNodeCreation("area")} disabled={busy||loading}><Plus size={14}/> Bereich</button>}
-          {node?.level==="area"&&<button type="button" className="button" onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={14}/> Raum</button>}{placeId&&<button type="button" className="button" onClick={()=>beginNodeCreation("information")} disabled={busy||loading}><Plus size={14}/> Neue Erkenntnis</button>}
+          {areaParent&&<button type="button" className="button" onClick={()=>beginNodeCreation("information")} disabled={busy||loading}><Plus size={14}/> Neue Erkenntnis</button>}
         </div>}
         {newNode&&<form className={cmsStyles.createNodeForm} onSubmit={event=>void submitNodeCreation(event)}>
-          <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":"Zum Beispiel: Empfang"}/></label>
-          <p>{newNode.level==="location"?"Wird als eigener Hauptort angelegt.":`Wird unter „${nodes.find(item=>item.id===newNode.parentId)?.title||"ausgewähltem Eintrag"}“ angelegt.`} Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</p>
-          <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()}><Plus size={14}/> Anlegen</button></div>
+          <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":newNode.level==="area"?"Zum Beispiel: Empfangshalle":newNode.level==="room"?"Zum Beispiel: Warteraum":"Zum Beispiel: Beobachtung"}/></label>
+          <p><strong>{newNode.level==="location"?"Neuer eigenständiger Hauptort.":`${newNode.level==="room"?"Bereich":"Hauptort"}: „${nodes.find(item=>item.id===newNode.parentId)?.title||newNode.parentId}“.`}</strong> Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</p>
+          <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()}><Plus size={14}/> {newNode.level==="location"?"Hauptort":newNode.level==="area"?"Bereich":newNode.level==="room"?"Raum":"Erkenntnis"} anlegen</button></div>
         </form>}
         <div className={cmsStyles.directoryScroll}>
           {loading&&!nodes.length?<p className="muted">Ortsbestand wird geladen …</p>:!filteredNodes.length?<p className="muted">Keine passenden Einträge.</p>:<nav className={cmsStyles.nodeTree} aria-label="Bereiche, Räume und Informationen">
             {filteredNodes.map(item=><button key={item.id} ref={element=>{if(element)nodeRowRefs.current.set(item.id,element);else nodeRowRefs.current.delete(item.id);}} type="button" className={cmsStyles.nodeRow} data-level={item.level} data-selected={item.id===nodeId} aria-current={item.id===nodeId?"page":undefined} onClick={()=>{if(item.id===nodeId||!canLeaveEditor())return;setNodeId(item.id);setReason("");setNewNode(null);clearDossierViews();setActiveSection("content");if(item.visibility==="gm")setScope("gm");else if(scope==="gm")setScope("group");}}>
-              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.level==="location"?"Ort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
+              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.level==="location"?"Hauptort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
             </button>)}
           </nav>}
         </div>

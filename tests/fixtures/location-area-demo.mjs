@@ -51,5 +51,9 @@ export async function seedLocationAreaDemo({base,cookie}) {
   const secret=await create('area','AREA_PREVIEW_NEVER_PLAYER',place.id);
   await request('/api/cms/drafts','PATCH',{revisionId:secret.revisionId,expectedVersion:1,payload:{title:secret.title,playerHint:'AREA_PREVIEW_HIDDEN_DESCRIPTION'},heroFileId:media.id});
   await request('/api/cms/drafts','POST',{entityId:area.id,audience:'gm',gmSecret:{text:'AREA_PREVIEW_SL_ONLY – Diese Notiz darf nur die Spielleitung sehen.'}});
-  return {placeId:place.id,areaId:area.id,url:base+'/spielbereich?bereich=schauplaetze&ort='+place.id};
+  const station=await create('location','Hauptbahnhof Kleve');
+  await release(station,{title:station.title,subtitle:'Synthetischer lokaler Anlage-Test',summary:'Kein importierter Produktionsort. Bestehender Hauptort für den Test weiterer gleichrangiger Bereiche.'},media.id);
+  const forecourt=await create('area','Bahnhofsvorplatz',station.id);
+  await release(forecourt,{title:forecourt.title,playerHint:'Bestehender Testbereich. ID, Bild und Freigabe bleiben bei der Anlage der Empfangshalle unverändert.'},media.id);
+  return {placeId:place.id,areaId:area.id,url:base+'/spielbereich?bereich=schauplaetze&ort='+place.id,creation:{placeId:station.id,forecourtId:forecourt.id,editorUrl:base+'/sl/command-center?bereich=ortscms'}};
 }
