@@ -54,7 +54,7 @@
 .chapter summary svg { flex: 0 0 auto; color: var(--dossier-accent); transition: transform 160ms ease-out; }
 .chapter[open] summary svg { transform: rotate(180deg); }
 .chapterContent { padding: 4px 4px 24px; }
-div.prose:not(:empty) { display: block; max-width: 72ch; font: 16px/1.6 Arial, Helvetica, sans-serif; white-space: normal; }
+div.prose:not(:empty) { display: block; width: 100%; max-width: none; min-width: 0; font: 16px/1.6 Arial, Helvetica, sans-serif; white-space: normal; }
 div.prose:not(:empty) :is(p, li, td, blockquote) { line-height: 1.6; }
 .prose:not(:empty) p { margin: 0 0 1em; }
 .prose:not(:empty) p:empty { min-height: 1em; }
