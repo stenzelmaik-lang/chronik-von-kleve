@@ -2,9 +2,9 @@
 import type { Actor } from '@/domain/types';
 import type { Entry } from '@/domain/legacy';
 import { commandCenterAllowed } from '@/domain/command-center';
-import { CommandWorkspace } from './command-workspace';
-import { PlayerSession } from './command-player-session';
+import { LiveSession } from './live-session';
 import { StoryWorkspace } from './story-workspace';
-export function CommandCenter(props: { entries: Entry[]; a: Actor; onRefresh: () => void; preparation?: boolean }) {
-  return commandCenterAllowed(props.a) ? props.preparation ? <StoryWorkspace a={props.a}/> : <CommandWorkspace {...props}/> : <PlayerSession {...props}/>;
+export function CommandCenter(props: { entries: Entry[]; a: Actor; onRefresh: () => void; preparation?: boolean; onPreparationDirty?: (dirty:boolean)=>void }) {
+  if(props.preparation&&commandCenterAllowed(props.a))return <StoryWorkspace a={props.a} onDirty={props.onPreparationDirty}/>;
+  return <LiveSession key={`${props.a.campaignId}:${props.a.id}`} a={props.a}/>;
 }

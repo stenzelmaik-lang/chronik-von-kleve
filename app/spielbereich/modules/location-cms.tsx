@@ -3,6 +3,8 @@
 import type { Actor } from "@/domain/types";
 import type { DiscoveryState,PlaceProjection } from "@/domain/location-types";
 import { ELECTRIC_TABERNA_ID } from "@/domain/location-model";
+import { locationCreationParent } from "@/domain/location-creation";
+import { appendSlDossierChapter, slDossierChapterTitles, slDossierEditorValue } from "@/domain/location-dossier";
 import { Check,ChevronRight,Eye,FileImage,Plus,RefreshCw,Save,Search,Send,ShieldCheck,Slash } from "lucide-react";
 import { type FormEvent,useCallback,useEffect,useMemo,useRef,useState } from "react";
 import { toast } from "sonner";
@@ -45,6 +47,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const [draftId,setDraftId]=useState("");
   const [payload,setPayload]=useState<Record<string,unknown>>({});
   const [gmSecret,setGmSecret]=useState<Record<string,unknown>>({});
+  const [chapterTitle,setChapterTitle]=useState<string>(slDossierChapterTitles[0]);
+  const [gmEditorVersion,setGmEditorVersion]=useState(0);
   const [geo,setGeo]=useState<Geography>({status:"unknown"});
   const [pickedCoordinates,setPickedCoordinates]=useState<[number,number]|null>(null);
   const [discoveryState,setDiscoveryState]=useState<DiscoveryState>("known");
@@ -66,6 +70,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const uploadRef=useRef<HTMLInputElement>(null);
   const nodeRowRefs=useRef(new Map<string,HTMLButtonElement>());
   const node=nodes.find(item=>item.id===nodeId)||null;
+  const areaParent=locationCreationParent("area",nodes,placeId,nodeId);
+  const roomParent=locationCreationParent("room",nodes,placeId,nodeId);
   const selectedDraft=drafts.find(item=>item.id===draftId)||null;
   const isRoot=node?.level==="location";
   const editable=selectedDraft?.status==="draft";
@@ -117,9 +123,9 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
 
   function beginNodeCreation(level:NewNodeDraft["level"]){
     if(!publisher||!canLeaveEditor())return;
-    if(level==="area"&&node?.level!=="location")return;
-    if(level==="room"&&node?.level!=="area")return;
-    setNewNode({level,parentId:level==="location"?null:level==="information"?placeId:node?.id||null,title:""});
+    const parent=locationCreationParent(level,nodes,placeId,nodeId);
+    if(level!=="location"&&!parent)return;
+    setNewNode({level,parentId:parent?.id??null,title:""});
   }
 
   async function submitNodeCreation(event:FormEvent<HTMLFormElement>){
@@ -313,24 +319,25 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     <header className={cmsStyles.cmsHero}><div><p className="eyebrow">CHRONIK VON KLEVE · SPIELLEITUNG · SL-CMS</p><h1>Ortsredaktion</h1><p>Orte, Bereiche und Freigaben in einer nachvollziehbaren Redaktion. Entwürfe werden erst nach Prüfung und gezielter Freigabe im aktuellen Spielbereich sichtbar.</p></div><span className={cmsStyles.campaignSeal}>AKTIVE CHRONIK<strong>DOMÄNE KLEVE</strong></span></header>
 
     <div className={cmsStyles.redactionLayout}>
-      <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis">
+      <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis" data-creating={Boolean(newNode)}>
         <div className={cmsStyles.directoryHead}><div><p className="eyebrow">BESTAND</p><h2>Ortsverzeichnis</h2></div><button type="button" className="button" aria-label="Ortsverzeichnis aktualisieren" onClick={()=>{if(canLeaveEditor())void loadCatalog();}} disabled={loading}><RefreshCw size={15}/></button></div>
-        <label className={"field "+cmsStyles.locationSelect}><span>Schauplatz</span><select value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
+        <label className={"field "+cmsStyles.locationSelect}><span>Hauptort</span><select value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
         <label className={cmsStyles.directorySearch}><Search size={15}/><span className="sr-only">Orte, Bereiche und Räume suchen</span><input value={directorySearch} onChange={event=>setDirectorySearch(event.target.value)} placeholder="Im Bestand suchen"/></label>
-        {publisher&&<div className={cmsStyles.directoryActions}>
+        {publisher&&<div className={cmsStyles.directoryActions} role="group" aria-label="Ortseinträge hinzufügen">
+          {areaParent&&<button type="button" className={`button ${cmsStyles.childCreateAction}`} onClick={()=>beginNodeCreation("area")} disabled={busy||loading}><Plus size={16} aria-hidden="true"/><span>Bereich hinzufügen<small>Hauptort: {areaParent.title}</small></span></button>}
+          {roomParent&&<button type="button" className={`button ${cmsStyles.childCreateAction}`} onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={16} aria-hidden="true"/><span>Raum hinzufügen<small>Bereich: {roomParent.title}</small></span></button>}
           <button type="button" className="button" onClick={()=>beginNodeCreation("location")} disabled={busy||loading}><Plus size={14}/> Neuer Hauptort</button>
-          {node?.level==="location"&&<button type="button" className="button" onClick={()=>beginNodeCreation("area")} disabled={busy||loading}><Plus size={14}/> Bereich</button>}
-          {node?.level==="area"&&<button type="button" className="button" onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={14}/> Raum</button>}{placeId&&<button type="button" className="button" onClick={()=>beginNodeCreation("information")} disabled={busy||loading}><Plus size={14}/> Neue Erkenntnis</button>}
+          {areaParent&&<button type="button" className="button" onClick={()=>beginNodeCreation("information")} disabled={busy||loading}><Plus size={14}/> Neue Erkenntnis</button>}
         </div>}
         {newNode&&<form className={cmsStyles.createNodeForm} onSubmit={event=>void submitNodeCreation(event)}>
-          <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":"Zum Beispiel: Empfang"}/></label>
-          <p>{newNode.level==="location"?"Wird als eigener Hauptort angelegt.":`Wird unter „${nodes.find(item=>item.id===newNode.parentId)?.title||"ausgewähltem Eintrag"}“ angelegt.`} Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</p>
-          <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()}><Plus size={14}/> Anlegen</button></div>
+          <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":newNode.level==="area"?"Zum Beispiel: Empfangshalle":newNode.level==="room"?"Zum Beispiel: Warteraum":"Zum Beispiel: Beobachtung"}/></label>
+          <p><strong>{newNode.level==="location"?"Neuer eigenständiger Hauptort.":`${newNode.level==="room"?"Bereich":"Hauptort"}: „${nodes.find(item=>item.id===newNode.parentId)?.title||newNode.parentId}“.`}</strong> Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</p>
+          <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()}><Plus size={14}/> {newNode.level==="location"?"Hauptort":newNode.level==="area"?"Bereich":newNode.level==="room"?"Raum":"Erkenntnis"} anlegen</button></div>
         </form>}
         <div className={cmsStyles.directoryScroll}>
           {loading&&!nodes.length?<p className="muted">Ortsbestand wird geladen …</p>:!filteredNodes.length?<p className="muted">Keine passenden Einträge.</p>:<nav className={cmsStyles.nodeTree} aria-label="Bereiche, Räume und Informationen">
             {filteredNodes.map(item=><button key={item.id} ref={element=>{if(element)nodeRowRefs.current.set(item.id,element);else nodeRowRefs.current.delete(item.id);}} type="button" className={cmsStyles.nodeRow} data-level={item.level} data-selected={item.id===nodeId} aria-current={item.id===nodeId?"page":undefined} onClick={()=>{if(item.id===nodeId||!canLeaveEditor())return;setNodeId(item.id);setReason("");setNewNode(null);clearDossierViews();setActiveSection("content");if(item.visibility==="gm")setScope("gm");else if(scope==="gm")setScope("group");}}>
-              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.level==="location"?"Ort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
+              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.level==="location"?"Hauptort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
             </button>)}
           </nav>}
         </div>
@@ -362,16 +369,21 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
             {activeSection==="content"&&<section className={"panel "+cmsStyles.editorPanel} role="tabpanel">
               <div className={cmsStyles.panelIntro}><p className="eyebrow">{scope==="gm"?"INTERNER SPIELLEITUNGSINHALT":"BESTEHENDE ORTSINFORMATION"}</p><h3>{scope==="gm"?"Vertraulicher Vermerk":isRoot?"Grunddaten und Beschreibungen":node.level==="information"?"Erkenntnis und Handout":"Bereich und Raum"}</h3><p>{scope==="gm"?"Nur die Spielleitung kann diesen Inhalt sehen. Er kann nicht für Spieler freigegeben werden.":"Diese Angaben verwenden die vorhandene Ortsidentität und werden nur über eine passende Revision ausgespielt."}</p></div>
               <fieldset className={cmsStyles.editorFieldset} disabled={!editable||busy}>
-                {scope==="gm"?<div className={cmsStyles.fieldStack}><label className="field"><span>Interner Text</span><textarea rows={10} value={String(gmSecret.text||"")} onChange={event=>setGmSecret(current=>({...current,text:event.target.value}))}/></label><label className="field"><span>Herkunft</span><input value={String(gmSecret.source||"")} onChange={event=>setGmSecret(current=>({...current,source:event.target.value}))}/></label></div>:node.level==="location"?<div className={cmsStyles.fieldStack}>
+                {scope==="gm"?<div className={cmsStyles.fieldStack}>
+                  <div className={cmsStyles.chapterComposer}><label className="field"><span>SL-Kapitel</span><select value={chapterTitle} onChange={event=>setChapterTitle(event.target.value)}>{slDossierChapterTitles.map(title=><option key={title}>{title}</option>)}</select></label><button type="button" className="button" onClick={()=>{try{const text=appendSlDossierChapter(String(gmSecret.text||""),chapterTitle);setGmSecret(current=>({...current,text}));setGmEditorVersion(version=>version+1);}catch(error){toast.error((error as Error).message);}}}><Plus size={16} aria-hidden="true"/> Kapitel hinzufügen</button></div>
+                  <p className={cmsStyles.chapterHint}>H2 beginnt ein aufklappbares Kapitel. H3 gliedert den Text darin. „Schnellübersicht“ bleibt beim Lesen direkt sichtbar. Dein bisheriger Text bleibt erhalten.</p>
+                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:gm:${gmEditorVersion}`} value={slDossierEditorValue(String(gmSecret.text||""))} onChange={text=>setGmSecret(current=>({...current,text}))} label="Interner Text" maximumPlainLength={5000} placeholder="Vertrauliche Ortsinformationen für die Spielleitung …"/>
+                  <label className="field"><span>Herkunft</span><input value={String(gmSecret.source||"")} onChange={event=>setGmSecret(current=>({...current,source:event.target.value}))}/></label>
+                </div>:node.level==="location"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label><label className="field"><span>Untertitel</span><input value={String(payload.subtitle||"")} onChange={event=>setField("subtitle",event.target.value)} placeholder="Kurze Einordnung für die Ortsseite"/></label></div>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Stadtteil</span><input value={String(payload.district||"")} onChange={event=>setField("district",event.target.value)}/></label><label className="field"><span>Freigegebene Adresse</span><input value={String(payload.address||"")} onChange={event=>setField("address",event.target.value)}/></label></div>
-                  <RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
-                  <RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Atmosphäre" maximumPlainLength={3000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
+                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
+                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Atmosphäre" maximumPlainLength={3000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
                 </div>:<div className={cmsStyles.fieldStack}>
                   <label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label>
-                  {node.level==="area"&&<RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Freigegebener Bereichshinweis" maximumPlainLength={1200} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
-                  {node.level==="room"&&<RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Kurze freigegebene Beschreibung" maximumPlainLength={1000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
-                  {node.level==="information"&&<><RichTextEditor key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={3000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
+                  {node.level==="area"&&<RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Freigegebener Bereichshinweis" maximumPlainLength={1200} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
+                  {node.level==="room"&&<RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Kurze freigegebene Beschreibung" maximumPlainLength={1000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
+                  {node.level==="information"&&<><RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={3000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
                 </div>}
               </fieldset>
               {!editable&&<p className={cmsStyles.readOnlyNote}>Dieser Stand ist {selectedDraft.status==="approved"?"genehmigt":"nicht mehr bearbeitbar"}. Lege eine neue Revision an, wenn du Änderungen vornehmen möchtest.</p>}

@@ -127,6 +127,8 @@
   color: #9eabb6;
   margin: 8px 0;
 }
+.context > summary { min-height: 44px; cursor: pointer; color: #d6b36f; padding: 8px 0; }
+.context { align-self: start; }
 .context details {
   margin: 22px 0;
 }
@@ -160,6 +162,10 @@
 .main {
   min-width: 0;
 }
+.mobileNavToggle { display: none; }
+.metadata { margin: 10px 0; border-bottom: 1px solid #b9985b33; padding-bottom: 10px; }
+.metadata summary { cursor: pointer; min-height: 32px; color: #d6b36f; }
+.pick small { display: block; font-size: 11px; color: #aebbc8; overflow-wrap: anywhere; }
 .meta label {
   display: flex;
   align-items: center;
@@ -190,7 +196,10 @@
     position: static;
     max-height: 260px;
     border-bottom: 1px solid #b9985b33;
+    display: none;
   }
+  .navigationOpen { display: block; }
+  .mobileNavToggle { display: block; width: 100%; }
   .top {
     align-items: flex-start;
     flex-direction: column;
@@ -199,4 +208,11 @@
     border-left: 0;
     padding-left: 0;
   }
+  .workspace { padding: 12px; min-width: 0; }
+  .columns > * { width: 100%; min-width: 0; }
+  .nav { border-right: 0; padding-right: 0; }
+  .savebar { flex-wrap: wrap; position: static; }
+  .workspace button { min-height: 44px; }
+  .main, .context, .nav { overflow-wrap: anywhere; }
+  .meta label { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 }

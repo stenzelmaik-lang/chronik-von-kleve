@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 const querySchema = z.object({
   place: z.string().trim().min(1).max(160).optional(),
+  node: z.string().trim().min(1).max(160).optional(),
   view: z.enum(["sl", "player"]).optional(),
   target: z.enum(["group", "player"]).optional(),
 });
@@ -49,6 +50,7 @@ export async function GET(req: Request) {
     const url = new URL(req.url);
     const parsed = querySchema.safeParse({
       place: url.searchParams.get("place") || undefined,
+      node: url.searchParams.get("node") || undefined,
       view: url.searchParams.get("view") || undefined,
       target: url.searchParams.get("target") || undefined,
     });
@@ -57,15 +59,26 @@ export async function GET(req: Request) {
     if (requestedView === "sl" && !a.gm) gmOnly(a);
     const target = parsed.data.target || (a.gm ? "group" : "player");
     const db = database();
+    let placeId = parsed.data.place;
+    if (parsed.data.node) {
+      // Resolve only existing campaign-scoped identities. This SL shortcut never
+      // grants player access or changes the active session/place.
+      gmOnly(a);
+      if (placeId || requestedView !== "sl") throw new HttpError(400, "Für die interne Ortsreferenz nur einen Eintrag angeben.");
+      const node = await db.prepare("SELECT location_id FROM location_nodes WHERE campaign_id=? AND entity_id=?")
+        .bind(a.campaignId, parsed.data.node).first<{ location_id: string }>();
+      if (!node) throw new HttpError(404, "Ortseintrag nicht gefunden.");
+      placeId = node.location_id;
+    }
 
-    if (!parsed.data.place) {
+    if (!placeId) {
       const projections = await loadLocationHub(db, a, requestedView, target);
       // This list is the only input used by the player cards, search and map.
       // Unknown locations are omitted entirely; no hidden-location count is returned.
       return json({ places: projections.map(summary), states: { discovery: discoveryStates, worldState: worldStateIds } });
     }
 
-    const projection = await loadPersistedLocation(db, a, parsed.data.place, requestedView, target);
+    const projection = await loadPersistedLocation(db, a, placeId, requestedView, target);
     if (!projection) throw new HttpError(404, "Ort nicht gefunden.");
     const marker = mapMarker(projection);
     return json({ projection, ...(marker ? { mapMarker: marker } : {}), places: [summary(projection)], states: { discovery: discoveryStates, worldState: worldStateIds } });

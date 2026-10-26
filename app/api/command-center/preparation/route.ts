@@ -26,10 +26,10 @@ export async function GET(req: Request) {
     if (!id) {
       const places = await db
         .prepare(
-          "SELECT e.id,e.title FROM location_nodes n JOIN entities e ON e.id=n.entity_id AND e.campaign_id=n.campaign_id WHERE n.campaign_id=? AND n.level IN ('location','area','room') AND COALESCE(json_extract(e.content,'$.recoveryOnly'),0)!=1 ORDER BY e.title",
+          "SELECT e.id,e.title,n.parent_id,n.level FROM location_nodes n JOIN entities e ON e.id=n.entity_id AND e.campaign_id=n.campaign_id WHERE n.campaign_id=? AND n.level IN ('location','area','room') AND COALESCE(json_extract(e.content,'$.recoveryOnly'),0)!=1 ORDER BY e.title",
         )
         .bind(a.campaignId)
-        .all<{ id: string; title: string }>();
+        .all<{ id: string; title: string; parent_id: string|null; level:string }>();
       return json({
         sessions: await preparedSessions(db, a),
         places: places.results,

@@ -29,6 +29,8 @@ import {
 } from "@/domain/story-preparation";
 import { richTextToPlainText } from "@/domain/location-rich-text";
 import { RichTextEditor } from "./rich-text";
+import { PreparationPicker } from "./preparation-picker";
+import { preparationPlaces } from "./preparation-catalog";
 import { useCommandConfirmation } from "./command-confirmation";
 import s from "./story-workspace.module.css";
 type Kind = "story" | "session" | "scene";
@@ -55,7 +57,7 @@ const endpoint = (kind: Kind) =>
 type Reply = {
   error?: string;
   message?: string;
-  places: { id: string; title: string }[];
+  places: { id: string; title: string; parent_id?:string|null; level?:string }[];
   stories: StorySummary[];
   sessions: PreparedSession[];
   scenes: SceneSummary[];
@@ -123,7 +125,7 @@ const elementNames: Record<(typeof sceneElementKinds)[number], string> = {
   handout: "Handout",
   puzzle: "Rätsel / Platzhalter",
 };
-export function StoryWorkspace({ a }: { a: Actor }) {
+export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:boolean)=>void }) {
   const [stories, setStories] = useState<StorySummary[]>([]),
     [sessions, setSessions] = useState<PreparedSession[]>([]),
     [scenes, setScenes] = useState<SceneSummary[]>([]),
@@ -132,6 +134,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
     [files, setFiles] = useState<{ id: string; name: string; mime: string }[]>(
       [],
     );
+  const [navigationOpen,setNavigationOpen]=useState(false);
   const [current, setCurrent] = useState<Selection | null>(null),
     [saved, setSaved] = useState(""),
     [message, setMessage] = useState("Lade Arbeitsbestand …"),
@@ -187,7 +190,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
     setScenes(catalog.scenes);
     setRefs([
       ...catalog.references.filter((r) => r.type !== "PLACE"),
-      ...prep.places.map((p) => ({ ...p, type: "PLACE", summary: "" })),
+      ...preparationPlaces(prep.places),
     ]);
     setMoments(catalog.moments);
     setSessions(prep.sessions);
@@ -225,12 +228,14 @@ export function StoryWorkspace({ a }: { a: Actor }) {
     return () => cancelAnimationFrame(frame);
   }, [elementFocus, current?.id]);
   const dirty = !!current && JSON.stringify(current.document) !== saved;
+  useEffect(()=>{onDirty?.(dirty);return()=>onDirty?.(false);},[dirty,onDirty]);
   const accept = (next: Selection) => {
     window.history.replaceState(
       null,
       "",
       "/sl/command-center?" + next.kind + "=" + encodeURIComponent(next.id),
     );
+    setNavigationOpen(false);
     setCurrent(next);
     setSaved(JSON.stringify(next.document));
     setHistory([]);
@@ -490,6 +495,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
       maximumPlainLength={current?.kind==='scene'?7000:10000}
       placeholder="Deine private Vorbereitung …"
       advanced
+      compactTools
       files={files}
     />
   );
@@ -499,29 +505,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
     options: { id: string; title: string }[],
     update: (ids: string[]) => void,
   ) => (
-    <fieldset className={s.pick}>
-      <legend>{label}</legend>
-      {options.length ? (
-        options.map((o) => (
-          <label key={o.id}>
-            <input
-              type="checkbox"
-              checked={values.includes(o.id)}
-              onChange={(e) =>
-                update(
-                  e.target.checked
-                    ? [...values, o.id]
-                    : values.filter((id) => id !== o.id),
-                )
-              }
-            />
-            {o.title}
-          </label>
-        ))
-      ) : (
-        <small>Noch keine passenden zentralen Akten vorhanden.</small>
-      )}
-    </fieldset>
+    <PreparationPicker label={label} values={values} options={options} onChange={update}/>
   );
   async function toggleArchive() {
     if (!current || inflight.current) return;
@@ -585,7 +569,8 @@ export function StoryWorkspace({ a }: { a: Actor }) {
         <a href="/spielbereich?bereich=sitzung">Zum Live-Spieltisch →</a>
       </header>
       <div className={s.columns}>
-        <nav className={s.nav} aria-label="Storynavigation">
+        <button type="button" className={s.mobileNavToggle} aria-expanded={navigationOpen} aria-controls="preparation-navigation" onClick={()=>setNavigationOpen(!navigationOpen)}>Akten auswählen</button>
+        <nav id="preparation-navigation" className={`${s.nav} ${navigationOpen ? s.navigationOpen : ""}`} aria-label="Storynavigation">
           <input
             aria-label="Storys, Sitzungen und Szenen suchen"
             placeholder="Suchen …"
@@ -702,7 +687,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
                   onChange={(e) => change({ title: e.target.value })}
                 />
               </label>
-              <div className={s.meta}>
+              <details className={s.metadata}><summary>Metadaten & Kurzüberblick</summary><div className={s.meta}>
                 <label>
                   <input
                     type="checkbox"
@@ -749,6 +734,7 @@ export function StoryWorkspace({ a }: { a: Actor }) {
                   />
                 </label>
               )}
+              </details>
               {session ? (
                 <>
                   <label>
@@ -1110,8 +1096,9 @@ export function StoryWorkspace({ a }: { a: Actor }) {
             </div>
           )}
         </main>
-        <aside className={s.context}>
-          <h2>Kontext</h2>
+        <details className={s.context}>
+          <summary>Kontext, Medien & Verlauf</summary>
+          <div>
           <label>
             Private Datei hinzufügen
             <input
@@ -1176,7 +1163,8 @@ export function StoryWorkspace({ a }: { a: Actor }) {
                 <small>{new Date(m.occurredAt).toLocaleString("de-DE")}</small>
               </p>
             ))}
-        </aside>
+          </div>
+        </details>
       </div>
     </div>
   );

@@ -20,11 +20,13 @@ import type { Actor } from "@/domain/types";
 import { api } from "./api-client";
 import { Choice } from "./shared";
 import { SessionStage } from "./session-stage";
+import { SceneToolDrawer } from "./scene-tool-drawer";
 export function SessionPanel({
   entries,
   a,
   onRefresh,
   compact = false,
+  showStage = true,
   onDraftChange,
   onSaved,
 }: {
@@ -32,6 +34,7 @@ export function SessionPanel({
   a: Actor;
   onRefresh: () => void;
   compact?: boolean;
+  showStage?: boolean;
   onDraftChange?: (dirty: boolean) => void;
   onSaved?: (entry: Entry) => void;
 }) {
@@ -145,18 +148,18 @@ export function SessionPanel({
           <Radio size={36} className="text-primary mb-3" />
           <EmptyTitle>Die nächste Sitzung ist noch nicht geöffnet.</EmptyTitle>
           <EmptyDescription>
-            Die Spielleitung kann hier eine Szene starten, Initiative setzen und
-            wichtige Ereignisse für alle sichtbar protokollieren.
+            Noch keine Sitzung für dich geöffnet. Dein Charakter, private
+            Notizen und bereits freigegebene Handouts bleiben erreichbar.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
   return (
-    <div className="session-stack">
-      <SessionStage scene={String(initial.scene||"")} subtitle={String(initial.subtitle||"")} status={String(initial.status||"Bereit")} round={Number(initial.round||1)}/>
+    <div className="session-stack" data-compact={compact}>
+      {showStage&&<SessionStage scene={String(initial.scene||"")} subtitle={String(initial.subtitle||"")} status={String(initial.status||"Bereit")} round={Number(initial.round||1)}/>}
       {a.gm&&<div className="session-control"><Choice label="Sitzungsstatus" value={status} onChange={next=>{setStatus(next);void save({scene,subtitle,status:next,round,turn,initiative,log});}} options={["Bereit","Läuft","Pause","Abgeschlossen"].map(x=>[x,x] as [string,string])}/></div>}
-      <div className="session-grid">
-        <details className="panel initiative-panel" open={compact ? undefined : true}><summary>Initiative · {initiative.length} Beteiligte</summary>
+      <SceneToolDrawer tools={[
+        {id:'session-initiative',label:'Initiative',icon:Swords,content:<section className="panel initiative-panel">
           <div className="panel-heading">
             <div>
               <p className="eyebrow">KAMPF UND DRUCK</p>
@@ -214,7 +217,8 @@ export function SessionPanel({
               <Zap size={16} /> Nächster Zug
             </button>
           )}
-        </details>{a.gm&&<details className="panel scene-panel" open={compact?undefined:true}><summary>Szene bearbeiten</summary>
+        </section>},
+        ...(a.gm ? [{id:'session-edit',label:'Szene bearbeiten',icon:Activity,content:<section className="panel scene-panel">
           {a.gm ? (
             <>
               <div className="panel-heading">
@@ -262,9 +266,8 @@ export function SessionPanel({
               </p>
             </>
           )}
-        </details>}
-      </div>
-      <details className="panel session-log" open={compact ? undefined : true}><summary>Protokoll · {log.length} Einträge</summary>
+        </section>}] : []),
+        {id:'session-log',label:'Protokoll',icon:Clock3,content:<section className="panel session-log">
         <div className="panel-heading">
           <div>
             <p className="eyebrow">LIVE-PROTOKOLL</p>
@@ -297,7 +300,9 @@ export function SessionPanel({
             ))}
           </div>
         )}
-      </details>
+</section>},
+      ]}/>
+
     </div>
   );
 }

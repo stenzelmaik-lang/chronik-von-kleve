@@ -1,0 +1,13 @@
+.drawer { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(720px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; padding: 0; border: 0; border-left: 1px solid #c5a46a59; background: #11191c; color: #eee8dc; overflow: hidden; }
+.drawer[open] { display: flex; flex-direction: column; }
+.drawer::backdrop { background: #02080cb3; }
+.header { display: flex; flex: 0 0 auto; align-items: start; justify-content: space-between; gap: 16px; padding: 22px 24px 18px; border-bottom: 1px solid #c5a46a40; background: #172124; }
+.header h2 { font: normal 26px/1.25 Georgia, serif; margin: 0 0 7px; }
+.header p { color: #b7bdb6; font: 14px/1.5 Arial, Helvetica, sans-serif; margin: 0; }
+.header button { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; border: 1px solid #c5a46a59; border-radius: 6px; background: transparent; color: #eee8dc; cursor: pointer; }
+.body { overflow-y: auto; overflow-x: hidden; flex: 1 1 auto; min-height: 0; padding: 24px; overscroll-behavior: contain; scrollbar-color: #c5a46a59 #11191c; }
+.body > :first-child { margin-top: 0; }
+.body > :global(.field) { display: grid; gap: 8px; margin-bottom: 24px; }
+.body > :global(.field) select { width: 100%; min-width: 0; min-height: 46px; font-size: 16px; }
+.drawer :focus-visible { outline: 2px solid #d6b36f; outline-offset: 3px; scroll-margin-block: 24px; }
+@media (max-width: 500px) { .header { padding: 16px; } .body { padding: 18px 15px; } }

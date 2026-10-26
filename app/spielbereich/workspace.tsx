@@ -38,6 +38,7 @@ import { ChroniclePanel } from "./modules/chronicle";
 import { CMSPanel } from "./modules/cms";
 import { LocationCMS } from "./modules/location-cms";
 import { DashboardPanel } from "./modules/dashboard";
+import { AppointmentsPanel } from "./modules/appointments";
 import { DicePanel } from "./modules/dice";
 import { EconomyPanel } from "./modules/economy";
 import { FavorPanel } from "./modules/favors";
@@ -72,6 +73,7 @@ export default function Workspace({
   initialSection?: string;
   initialCharacterId?: string;
 }) {
+  const [preparationDirty,setPreparationDirty]=useState(false);
   const [search, setSearch] = useState(""),
     [edit, setEdit] = useState<Entry | null>(null),
     [saving, setSaving] = useState(false),
@@ -270,7 +272,7 @@ export default function Workspace({
     );
   const Shell = surface === "sl" ? SLWorkspaceShell : WorkspaceShell;
   return (
-    <Shell a={a} section={section} navigate={navigate}>
+    <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
       {!worldExperienceActive && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
@@ -292,6 +294,7 @@ export default function Workspace({
           "gefallen",
           "inventar",
           "nscs",
+          "termine",
         ].includes(section) &&
           (a.gm || personal.includes(section)) && (
             <button className="button primary" onClick={() => create()}>
@@ -438,6 +441,8 @@ export default function Workspace({
         />
       ) : section === "dashboard" ? (
         <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
+      ) : section === "termine" ? (
+        <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope}/>
       ) : section === "chronik" ? (
         <ChroniclePanel
           entries={entries}
@@ -529,7 +534,7 @@ export default function Workspace({
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (
-        <CommandCenter preparation={surface === "sl"} entries={entries} a={a} onRefresh={reload} />
+        <CommandCenter preparation={surface === "sl"} entries={entries} a={a} onRefresh={reload} onPreparationDirty={setPreparationDirty} />
       ) : section === "wirtschaft" ? (
         <EconomyPanel entries={entries} onRefresh={reload} />
       ) : section === "haendler" ? (

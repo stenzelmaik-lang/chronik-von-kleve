@@ -7,6 +7,7 @@ import type { Actor } from "@/domain/types";
 
 import { sections } from "./navigation";
 import shellStyles from "./world-shell.module.css";
+import tableTools from "./table-tools.module.css";
 import { MessageCenter } from "./message-center";
 import { api } from "./api-client";
 import { useEffect, useState } from "react";
@@ -41,7 +42,7 @@ export function WorkspaceShell({
       window.location.assign("/anmelden");
     } catch { window.alert("Abmeldung fehlgeschlagen. Bitte erneut versuchen."); }
   }
-  return <div className={`player-shell ${worldActive||cmsActive ? "worldShell" : ""} ${profilePreferences.reducedMotion?'user-reduced-motion':''} ${profilePreferences.compactView?'user-compact-view':''}`}>
+  return <div className={`player-shell ${worldActive||cmsActive ? "worldShell" : "tableShell"} ${profilePreferences.reducedMotion?'user-reduced-motion':''} ${profilePreferences.compactView?'user-compact-view':''}`}>
     <header className="player-topbar">
       <a href="/" className="brand" aria-label="Chronik von Kleve – Startseite">
         <span className="brand-mark">CVK</span>
@@ -49,7 +50,7 @@ export function WorkspaceShell({
       </a>
       <div className="player-top-actions">
         {a.status === "active" && <MessageCenter key={a.campaignId + a.id} a={a}/>}
-        <a href="/" className="workspace-home-link"><Home size={15} /><span>Startseite</span></a>
+        <a href="/" className="workspace-home-link" aria-label="Startseite öffnen"><Home size={15} aria-hidden="true"/><span>Startseite</span></a>
         {canManageLocations&&!cmsActive&&<a href="/sl/command-center" className="workspace-home-link" aria-label="Command Center öffnen" title="SL-Vorbereitung"><MapPinned size={15} /><span>Command Center</span></a>}
         <a href="/profil" className="player-identity" aria-label="Mein Profil öffnen" title="Mein Profil">
           <span className="player-avatar">{a.name?.slice(0, 1).toUpperCase()}</span>
@@ -87,13 +88,13 @@ export function WorkspaceShell({
     </nav> : <nav className="player-nav" aria-label="Spieltisch-Navigation">
       <div className="player-nav-label">
         <span className="eyebrow">DEIN SPIELTISCH</span>
-        <strong>Aktive Nacht</strong>
+        <strong>Deine Chronik</strong>
       </div>
       {section === "ortscms" ? <div className={shellStyles.cmsNavLinks}>
         <span className={shellStyles.cmsNavActive}><MapPinned size={17} aria-hidden="true"/><span>Orte</span></span>
       </div> : <div className="player-nav-links">
         {table.map((s) => {
-          const compactName = ({ dashboard: "Start", charaktere: "Figur", inventar: "Tasche", sitzung: "Szene", wuerfel: "Würfel" } as Record<string, string>)[s.id] || s.name;
+          const compactName = s.name;
           return <button
             type="button"
             key={s.id}
@@ -121,6 +122,7 @@ export function WorkspaceShell({
         <ArrowRight className="world-switch-arrow" size={16} aria-hidden="true" />
       </button>}
     </nav>}
+    {!worldActive&&!cmsActive&&<nav className={tableTools.journal} aria-label="Journal und weitere Spieltischbereiche"><details><summary>{sections.find(item=>item.id===section)?.group==='DEINE SPUREN'?sections.find(item=>item.id===section)?.name+' · Journal & mehr':'Journal & mehr'}</summary><div className={tableTools.links}>{sections.filter(item=>item.group==='DEINE SPUREN').map(item=><button key={item.id} aria-current={section===item.id?'page':undefined} onClick={()=>navigate(item.id)}>{item.name}</button>)}</div></details></nav>}
     <main className="workspace-main">{children}</main>
     <footer className="player-footer"><span>{a.gm ? "Spielleitung" : "Spieler"} · Domäne Kleve</span><span className="player-footer-links">{a.gm && <a href="/api/export?scope=campaign"><Download size={14}/> Kampagne sichern</a>}<a href="/api/export"><Download size={14}/> Meine Daten sichern</a></span></footer>
     <Toaster position="bottom-right" theme="dark" />

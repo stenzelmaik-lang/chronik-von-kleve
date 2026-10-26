@@ -1,0 +1,19 @@
+.journal{max-width:1600px;margin:8px auto 0;padding:0 clamp(20px,4vw,64px);color:#bdb6a8}
+.sceneTools{position:relative}
+.toolRail{position:relative;z-index:41;display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 0}
+.toolRail button,.toolDrawer header button{display:grid;place-items:center;min-width:44px;min-height:44px;border:1px solid #695b3e;border-radius:8px;background:#101b22;color:#eee6d6;cursor:pointer}
+.toolRail button[aria-expanded=true]{background:#d6b36f26;border-color:#d6b36f;color:#f3d99c}
+.sceneTools :focus-visible{outline:2px solid #e4c589;outline-offset:3px}
+.toolDrawer{position:fixed;right:16px;top:170px;bottom:16px;width:min(440px,calc(100vw - 32px));z-index:40;overflow:auto;padding:20px;background:#101b22;border:1px solid #695b3e;border-radius:12px;box-shadow:-12px 0 40px #0006;animation:sceneToolEnter .18s ease-out}
+.toolDrawer header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.toolDrawer header h2{font-size:20px;margin:0}
+.toolDrawer [hidden]{display:none!important}
+@keyframes sceneToolEnter{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.toolDrawer{animation:none}}
+@media(max-width:600px){.toolDrawer{top:150px;right:8px;bottom:8px;width:calc(100vw - 16px);padding:16px}}
+.journal summary{cursor:pointer;min-height:44px;padding:10px 0;color:#d6b36f}
+.links{display:flex;flex-wrap:wrap;gap:8px;padding-bottom:8px}
+.links button{min-height:44px;border:1px solid #695b3e;border-radius:6px;background:#101b22;color:#eee6d6;padding:10px 14px}
+.links button[aria-current=page]{background:#b9985b22;border-color:#d6b36f}
+.journal :focus-visible{outline:2px solid #e4c589;outline-offset:2px}
+@media(max-width:380px){:global(.tableShell .player-topbar){flex-wrap:wrap;gap:8px;padding:8px 12px}:global(.tableShell .player-top-actions){gap:5px;max-width:100%;margin-left:auto}:global(.tableShell .brand){min-width:0}:global(.tableShell .brand-mark){font-size:22px}}

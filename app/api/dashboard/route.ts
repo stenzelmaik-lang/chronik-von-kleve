@@ -64,12 +64,13 @@ export async function GET(req: Request) {
       selectedCharacter = characters[0];
     }
 
-    const sessions = by("sitzungen").sort((left, right) =>
+    const available = (entry: Entry) => entry.body.active !== false && !['inactive','archived','cancelled','inaktiv','archiviert','abgesagt'].includes(String(entry.body.status || '').toLowerCase());
+    const sessions = by("sitzungen").filter(available).sort((left, right) =>
       (dateOf(right) ?? Date.parse(right.updated_at || "")) - (dateOf(left) ?? Date.parse(left.updated_at || "")),
     );
     const now = Date.now();
     const upcoming = by("termine")
-      .filter((record) => { const date = dateOf(record); return date !== null && date > now; })
+      .filter((record) => { const date = dateOf(record); return available(record) && date !== null && date > now; })
       .sort((left, right) => (dateOf(left) || 0) - (dateOf(right) || 0))[0] || null;
 
     return json({
@@ -78,10 +79,10 @@ export async function GET(req: Request) {
       characterCount: characters.length,
       nextSession: upcoming,
       lastSession: sessions[0] || null,
-      economy: by("wirtschaft")[0] || null,
-      favors: by("gefallen")[0] || null,
-      notes: by("notizen").slice(0, 5),
-      message: by("neuigkeiten")[0] || null,
+      economy: by("wirtschaft").find(available) || null,
+      favors: by("gefallen").find(available) || null,
+      notes: by("notizen").filter(entry => available(entry) && !['appointment-vote','live-table','live-table-signal','live-table-event'].includes(String(entry.body.context))).slice(0, 5),
+      message: by("neuigkeiten").find(available) || null,
     });
   } catch (error) {
     return failure(error, req);

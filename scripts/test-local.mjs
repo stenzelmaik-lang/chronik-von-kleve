@@ -1,6 +1,7 @@
 import {seedInventoryDemo} from "../tests/fixtures/inventory-demo.mjs";
 import {seedSilasNPC} from '../tests/fixtures/silas-npc.mjs';
 import {seedCodex} from '../tests/fixtures/codex-demo.mjs';
+import {seedLocationAreaDemo} from '../tests/fixtures/location-area-demo.mjs';
 import {importCodexSources} from './codex-import.mjs';
 import {CODEX_PRE_ALPHA_DECISION} from '../domain/codex.ts';
 import {engineFixture} from "../tests/fixtures/engine-character.mjs";
@@ -21,10 +22,11 @@ const accessDemo=process.argv.includes('--access-alpha');
 const storyWork=process.argv.includes('--story-workspace');
 const commandDemo=process.argv.includes('--command-center-2');
 const npcDemo=process.argv.includes('--npc-detail');
+const areaDemo=process.argv.includes('--location-areas');
 const codexPlayers=process.argv.includes('--codex-players');
 const codexAll=process.argv.includes('--codex-all')||codexPlayers;
 const codexDemo=process.argv.includes('--codex')||codexAll;
-const interactive=codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const interactive=areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const preserve=storyWork||commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const state=preserve?resolve(storyWork?'.local-work/story-workspace':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
@@ -84,7 +86,7 @@ try{
    if(pathname.startsWith('/_next/static/')) {
     const clientRoot=resolve('dist/client'),assetPath=resolve(clientRoot,'.'+decodeURIComponent(pathname));
     if(!assetPath.startsWith(clientRoot+'\\')&&!assetPath.startsWith(clientRoot+'/')){res.statusCode=403;return res.end();}
-    try{const data=readFileSync(assetPath);res.setHeader('Content-Type',assetPath.endsWith('.js')?'text/javascript':assetPath.endsWith('.css')?'text/css':'application/octet-stream');res.setHeader('X-Content-Type-Options','nosniff');return res.end(data);}catch{res.statusCode=404;return res.end('Asset not found');}
+    try{const data=readFileSync(assetPath);res.setHeader('Content-Type',/\.m?js$/.test(assetPath)?'text/javascript':assetPath.endsWith('.css')?'text/css':'application/octet-stream');res.setHeader('X-Content-Type-Options','nosniff');return res.end(data);}catch{res.statusCode=404;return res.end('Asset not found');}
    }
    const headers=new Headers();
    for(const [key,value] of Object.entries(req.headers))if(typeof value==='string')headers.set(key,value);
@@ -146,6 +148,7 @@ try{
   if(npcDemo)await seedSilasNPC({db:localDb,base:env.CVK_TEST_URL,cookie:fixtureCookie,primary:process.argv.find(a=>a.startsWith('--npc-primary='))?.slice('--npc-primary='.length),secondary:process.argv.find(a=>a.startsWith('--npc-secondary='))?.slice('--npc-secondary='.length)});
   if(codexAll){const audit=await importCodexSources({db:localDb,bucket:await mf.getR2Bucket('BUCKET'),base:env.CVK_TEST_URL,root:'.local-work/codex-all',...(codexPlayers?{playerAccessDecision:CODEX_PRE_ALPHA_DECISION}:{})});writeFileSync(codexPlayers?join(state,'codex-player-import-audit.json'):'.local-work/codex-all/import-audit.json',JSON.stringify(audit,null,2));}
   else if(codexDemo)await seedCodex({db:localDb,bucket:await mf.getR2Bucket('BUCKET'),base:env.CVK_TEST_URL,sourcePath:process.argv.find(a=>a.startsWith('--codex-source='))?.slice('--codex-source='.length)??'.local-work/codex-v1/source.json'});
+  if(areaDemo)console.log('Synthetic area dossier: '+JSON.stringify(await seedLocationAreaDemo({base:env.CVK_TEST_URL,cookie:fixtureCookie})));
   if(commandDemo){
    const command=async(cookie,id,action,extra={})=>{const view=await (await fetch(env.CVK_TEST_URL+'/api/character-engine?id='+id,{headers:{Cookie:cookie}})).json();const response=await fetch(env.CVK_TEST_URL+'/api/character-engine',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:cookie},body:JSON.stringify({id,version:view.version,action,...extra})});if(!response.ok)throw new Error('Synthetic character command failed: '+action+' '+response.status);};
    await command(playerCookie,engineId,'review');
