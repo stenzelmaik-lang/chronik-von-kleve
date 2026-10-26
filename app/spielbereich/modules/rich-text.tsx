@@ -4,7 +4,7 @@
 import { useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type MouseEvent, type ReactNode } from "react";
 import {
   encodeRichText,
-  htmlToRichText, inspectRichTextSource, richHtmlPrefix, richTextToHtml,
+  htmlToRichText, htmlTextToRichText, inspectRichTextSource, richHtmlPrefix, richTextToHtml,
   readRichText,
   parseRichTextDocument,
   proseInlineParts,
@@ -25,7 +25,7 @@ function safeHref(value: string) {
 }
 
 function documentFromEditor(root:HTMLElement):RichTextDocument { return readRichText(htmlToRichText(root.innerHTML)); }
-function replaceEditorContents(editor:HTMLElement,value:string) { editor.innerHTML=richTextToHtml(value); }
+function replaceEditorContents(editor:HTMLElement,value:string,flowing=false) { editor.innerHTML=richTextToHtml(value,flowing); }
 function canonicalRichText(value:string) { try { return htmlToRichText(value.startsWith(richHtmlPrefix)?value.slice(richHtmlPrefix.length):richTextToHtml(value)); } catch { return value; } }
 
 function inlineElements(parts: RichTextInline[], keyPrefix: string, flowing = false) {
@@ -80,6 +80,7 @@ export function RichTextEditor({
   htmlSource = false,
   files = [],
   compactTools = false,
+  proseClassName,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -90,6 +91,7 @@ export function RichTextEditor({
   htmlSource?: boolean;
   files?:{id:string;name:string;mime:string;visibility?:string}[];
   compactTools?: boolean;
+  proseClassName?: string;
 }) {
   const [initialSource]=useState(()=>value.startsWith(richHtmlPrefix)?{raw:value.slice(richHtmlPrefix.length),...inspectRichTextSource(value.slice(richHtmlPrefix.length),maximumPlainLength)}:null);
   const [htmlMode,setHtmlMode]=useState(initialSource!==null),[htmlDraft,setHtmlDraft]=useState(initialSource?.raw??''),[htmlError,setHtmlError]=useState(initialSource?.error??''),[imageId,setImageId]=useState('');
@@ -107,10 +109,10 @@ export function RichTextEditor({
   useLayoutEffect(()=>{initialValueRef.current=value.startsWith(richHtmlPrefix)?canonicalRichText(value):value;canonicalValueRef.current=canonicalRichText(value);},[value]);
   useLayoutEffect(() => {
     if (editorRef.current) {
-      replaceEditorContents(editorRef.current, initialValueRef.current);
+      replaceEditorContents(editorRef.current, initialValueRef.current, Boolean(proseClassName));
       lastEditorHtml.current = editorRef.current.innerHTML;
     }
-  }, [htmlMode, preview]);
+  }, [htmlMode, preview, proseClassName]);
 
   function commit() {
     const editor = editorRef.current;
@@ -155,7 +157,18 @@ export function RichTextEditor({
   function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
     event.preventDefault();
     const text = event.clipboardData.getData("text/plain");
-    document.execCommand("insertText", false, text);
+    const formatted = htmlSource ? htmlTextToRichText(text) : null;
+    if (formatted && editorRef.current) {
+      const selection = window.getSelection();
+      const whole = document.createRange();
+      whole.selectNodeContents(editorRef.current);
+      // Chromium otherwise clones the first selected heading around the
+      // incoming paragraphs. Reset only content that will be fully replaced.
+      if (!whole.toString() || selection?.rangeCount && !selection.isCollapsed && selection.getRangeAt(0).toString() === whole.toString()) {
+        document.execCommand('formatBlock', false, 'p');
+      }
+    }
+    document.execCommand(formatted ? "insertHTML" : "insertText", false, formatted ? richTextToHtml(formatted, true) : text);
     commit();
   }
 
@@ -175,7 +188,7 @@ export function RichTextEditor({
       {htmlSource&&<button type="button" aria-pressed={preview} disabled={!!htmlError} onClick={()=>setPreview(true)}>Vorschau</button>}
       <small>{htmlSource?'Vorschau veröffentlicht nichts.':'Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.'}</small>
     </div>}
-    {preview?<section className={styles.preview} aria-label={`${label} Vorschau`}><RichTextView value={value} readable/></section>:htmlMode?<>
+    {preview?<section className={styles.preview} data-custom-prose={proseClassName ? true : undefined} aria-label={`${label} Vorschau`}><RichTextView value={value} readable flowing={Boolean(proseClassName)} className={proseClassName}/></section>:htmlMode?<>
       <textarea aria-label={label+' HTML'} aria-describedby={helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>
       {htmlSource&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: h2, h3, p, strong, em, ul, ol, li, blockquote, a, hr und span. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
     </>:<>
@@ -197,7 +210,7 @@ export function RichTextEditor({
     {advanced&&imageOpen&&imageId&&<figure><img src={'/api/files?id='+encodeURIComponent(imageId)} alt="Vorschau des ausgewählten geschützten Bildes" style={{maxWidth:180,maxHeight:140,objectFit:'contain'}}/><figcaption>Geschützter Dateispeicher · Dateiregel: {files.find(file=>file.id===imageId)?.visibility==='group'?'Gruppe':files.find(file=>file.id===imageId)?.visibility==='sl'?'SL':files.find(file=>file.id===imageId)?.visibility==='private'?'Eigentümer':'nicht angegeben'}. Auswahl veröffentlicht nichts; der Server prüft den tatsächlichen Zugriff.</figcaption></figure>}
     <div
       ref={editorRef}
-      className={styles.editable}
+      className={[styles.editable,proseClassName].filter(Boolean).join(' ')}
       contentEditable
       suppressContentEditableWarning
       role="textbox"

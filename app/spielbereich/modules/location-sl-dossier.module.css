@@ -54,10 +54,18 @@
 .chapter summary svg { flex: 0 0 auto; color: var(--dossier-accent); transition: transform 160ms ease-out; }
 .chapter[open] summary svg { transform: rotate(180deg); }
 .chapterContent { padding: 4px 4px 24px; }
-.prose { max-width: 72ch; font-size: 16px; line-height: 1.6; }
-.prose p { margin-block: 0 1em; }
-.prose h2 { margin: 1.5em 0 .55em; font-size: 22px; }
-.prose h3 { margin: 1.3em 0 .5em; font-size: 19px; }
+div.prose:not(:empty) { display: block; max-width: 72ch; font: 16px/1.6 Arial, Helvetica, sans-serif; white-space: normal; }
+div.prose:not(:empty) :is(p, li, td, blockquote) { line-height: 1.6; }
+.prose:not(:empty) p { margin: 0 0 1em; }
+.prose:not(:empty) p:empty { min-height: 1em; }
+.prose:not(:empty) h2 { margin: 1.5em 0 .55em; font-size: 22px; }
+.prose:not(:empty) h3 { margin: 1.3em 0 .5em; font-size: 19px; }
+.prose:not(:empty) ul, .prose:not(:empty) ol { margin: 0 0 1em; padding-inline-start: 1.5em; }
+.prose:not(:empty) ul { list-style-type: disc; }
+.prose:not(:empty) ol { list-style-type: decimal; }
+.prose:not(:empty) li + li { margin-top: .35em; }
+.prose:not(:empty) > :first-child { margin-top: 0; }
+.prose:not(:empty) > :last-child { margin-bottom: 0; }
 .empty { margin: 20px 0; padding-block: 12px; color: var(--dossier-muted); }
 .empty h3 { color: var(--dossier-text); font-size: 19px; }
 .source { margin-top: 20px; color: var(--dossier-muted); font-size: 14px; white-space: pre-wrap; }

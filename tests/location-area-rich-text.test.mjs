@@ -187,12 +187,11 @@ test('Reading flow handles CRLF/tabs and preserves punctuation, inline spaces an
   assert.equal(proseInlineParts([{text:'vor '},{text:'Gold',bold:true},{text:' danach'}]).map(p=>p.text).join(''),'vor Gold danach');
 });
 
-test('Flow is opt-in only and does not replace the editor, plain text or safe renderer',()=>{
+test('Flow is opt-in only and does not replace plain text or the safe renderer',()=>{
   const renderer=readFileSync(new URL('../app/spielbereich/modules/rich-text.tsx',import.meta.url),'utf8');
   const css=readFileSync(new URL('../app/spielbereich/modules/rich-text.module.css',import.meta.url),'utf8');
   assert.ok(renderer.includes('flowing = false'));
   assert.ok(renderer.includes('if (flowing && value.startsWith(richTextPrefix))'));
   assert.ok(renderer.includes('parseRichTextDocument(JSON.parse'));
   assert.match(css,/\.content\[data-rich-flow="prose"\] :is\(p, blockquote, li, td\) \{ white-space: normal/);
-  assert.ok(renderer.includes('<RichTextView value={value} readable/>'),'Editor preview retains its existing rendering');
 });

@@ -17,8 +17,8 @@
 .sourceEditor .editorFooter { color: #b4b9b0; font-size: 12px; }
 .sourceEditor .editorFooter small { font-size: 12px; }
 .preview { min-height: 160px; padding: 20px; border: 1px solid rgba(205,166,107,.28); background: rgba(6,11,13,.7); }
-.preview .view { max-width: 75ch; gap: 1em; }
-.preview .view h2, .preview .view h3 { margin-top: .6em; }
+.preview:not([data-custom-prose]) .view { max-width: 75ch; gap: 1em; }
+.preview:not([data-custom-prose]) .view h2, .preview:not([data-custom-prose]) .view h3 { margin-top: .6em; }
 .content p, .content blockquote { white-space: pre-wrap; }
 .content[data-rich-flow="prose"] :is(p, blockquote, li, td) { white-space: normal; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; border: 1px solid rgba(205,166,107,.22); background: rgba(6,11,13,.82); }

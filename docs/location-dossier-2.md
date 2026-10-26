@@ -26,3 +26,11 @@ Im Spieltisch öffnet **Ortswissen** eine lesende Seitenansicht. Sie startet nac
 Die lokale Browserreferenz ist Hauptbahnhof Kleve → Empfangshalle mit Dienstzimmer und einem weiteren gleichrangigen Bereich. Geprüft wurden öffentliche und interne Ansichten, Suche bis in den Raum, Kapitelsteuerung, HTML-Editor/Speichern, 140 Zeilen unveränderter Alttext, Tastatur/Fokus und 320/390/834 px sowie Desktop. Der synthetische Spieler erhielt keine SL-Inhalte. Physische Geräte und eine neue echte Spielerabnahme sind davon getrennt zu bewerten.
 
 Für diese Umsetzung sind keine Migration, kein Import und keine zusätzlichen Dienste erforderlich.
+
+## HTML- und Absatzkorrektur
+
+Einige interne Texte enthielten innerhalb korrekt angelegter Kapitel HTML, das beim Einfügen als Klartext gespeichert worden war. Die SL-Lesedarstellung und der SL-Editor erkennen solche eindeutigen HTML-Fragmente nun mit einer gemeinsamen Kompatibilitätsfunktion und verarbeiten sie durch den vorhandenen sicheren Rich-Text-Parser. Bereits gespeicherte Werte werden beim Lesen nicht verändert. Erst eine ausdrückliche Bearbeitung speichert die aufbereitete Struktur im selben vertraulichen Feld. Normale Alttexte und unvollständige beziehungsweise nicht unterstützte Markierungen behalten ihre sichere Textdarstellung.
+
+HTML-Einfügen im visuellen HTML-Editor nutzt ebenfalls den vorhandenen Sanitizer. Für die SL-Bearbeitung verwenden visueller Modus, Vorschau und Dossier dieselben Lesestile; Listen besitzen echte Aufzählungszeichen beziehungsweise Nummerierung. Browserzeilen aus Enter, leere Absätze und bewusste Zeilenumbrüche bleiben erhalten. Die visuelle HTML-Ausgabe fügt keine zusätzlichen Zwischenzeilen zwischen Blockelementen ein.
+
+Die Regressionstests in `tests/location-dossier-html.test.mjs` decken zuvor wörtlich gespeicherte Tags, Quelltext, gefährliche Attribute, Absatz-/Zeilenwechsel und wiederholte Formatwechsel ab. Der API-Integrationstest prüft zusätzlich unveränderte Speicherung beim Lesen, ausdrückliches Speichern und erneutes Laden sowie die unveränderte Spielerprojektion. Spielerfreigaben und serverseitige SL-Berechtigungen werden durch diese Korrektur nicht verändert.

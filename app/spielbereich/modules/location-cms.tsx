@@ -13,6 +13,7 @@ import { WorldMapLibre } from "./world-maplibre";
 import type { WorldMapMarker } from "./world-map-contract";
 import mapStyles from "./world-experience.module.css";
 import cmsStyles from "./location-cms.module.css";
+import dossierStyles from "./location-sl-dossier.module.css";
 import { RichTextEditor } from "./rich-text";
 import { WorldExperience } from "./world-experience";
 
@@ -372,7 +373,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
                 {scope==="gm"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.chapterComposer}><label className="field"><span>SL-Kapitel</span><select value={chapterTitle} onChange={event=>setChapterTitle(event.target.value)}>{slDossierChapterTitles.map(title=><option key={title}>{title}</option>)}</select></label><button type="button" className="button" onClick={()=>{try{const text=appendSlDossierChapter(String(gmSecret.text||""),chapterTitle);setGmSecret(current=>({...current,text}));setGmEditorVersion(version=>version+1);}catch(error){toast.error((error as Error).message);}}}><Plus size={16} aria-hidden="true"/> Kapitel hinzufügen</button></div>
                   <p className={cmsStyles.chapterHint}>H2 beginnt ein aufklappbares Kapitel. H3 gliedert den Text darin. „Schnellübersicht“ bleibt beim Lesen direkt sichtbar. Dein bisheriger Text bleibt erhalten.</p>
-                  <RichTextEditor htmlSource key={`${selectedDraft.id}:${selectedDraft.version}:gm:${gmEditorVersion}`} value={slDossierEditorValue(String(gmSecret.text||""))} onChange={text=>setGmSecret(current=>({...current,text}))} label="Interner Text" maximumPlainLength={5000} placeholder="Vertrauliche Ortsinformationen für die Spielleitung …"/>
+                  <RichTextEditor htmlSource proseClassName={dossierStyles.prose} key={`${selectedDraft.id}:${selectedDraft.version}:gm:${gmEditorVersion}`} value={slDossierEditorValue(String(gmSecret.text||""))} onChange={text=>setGmSecret(current=>({...current,text}))} label="Interner Text" maximumPlainLength={5000} placeholder="Vertrauliche Ortsinformationen für die Spielleitung …"/>
                   <label className="field"><span>Herkunft</span><input value={String(gmSecret.source||"")} onChange={event=>setGmSecret(current=>({...current,source:event.target.value}))}/></label>
                 </div>:node.level==="location"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label><label className="field"><span>Untertitel</span><input value={String(payload.subtitle||"")} onChange={event=>setField("subtitle",event.target.value)} placeholder="Kurze Einordnung für die Ortsseite"/></label></div>
