@@ -91,7 +91,12 @@ try {
   });
   assert.equal(login.status, 200, "Synthetic GM login must work");
 
-  // Create only synthetic data in isolated test D1; Taberna already exists in fixture.
+  // Seed the existing accepted location fixture in this isolated local database.
+  phase = "prepare Taberna fixture";
+  const tabernaSeed = await api("/api/locations/migrate", "POST", {placeId:"place.electric-taberna"});
+  assert.equal(tabernaSeed.status, 200, JSON.stringify(tabernaSeed.body));
+  const catalog = await api("/api/command-center/preparation");
+  assert.ok(catalog.body.places.some(p => p.id === "place.electric-taberna"));
   phase = "synthetic Kaserne fixture";
   const kaserne = await api("/api/cms/locations", "POST", {
     level: "location", title: "SYNTHETISCH – Kaserne Schwarzholz",
