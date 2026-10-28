@@ -1,0 +1,67 @@
+import {randomUUID} from 'node:crypto';
+import {engineFixture} from './fixtures/engine-character.mjs';
+export async function liveParticipantsIntegration({req,check,base,ids,localSql,sqlQuote}){
+ const sessionId=randomUUID();await req('/api/live-table','gm','POST',{action:'start',sessionId,title:'SYNTHETIC participant menus',create:true});
+ const initial=(await req('/api/live-stage?sessionId='+sessionId,'gm')).d,runId=initial.runId;
+ const endpoint=(member,view='profile',character)=>'/api/live-participants?sessionId='+sessionId+'&memberId='+member+'&view='+view+(character?'&characterId='+character:'');
+ const profile=await req(endpoint('sprint1-a'),'b');
+ check(profile.s===200&&!JSON.stringify(profile.d).includes('@')&&!profile.d.member.email&&!profile.d.sheet,'MENUS public player profile excludes email and private sheet');
+ check((await req(endpoint('sprint1-a'))).s===401,'MENUS anonymous profile denied');
+ for(const role of ['blockedPlayer','otherCampaign','editor'])check([403,404].includes((await req(endpoint('sprint1-a'),role)).s),'MENUS blocked, foreign or nonparticipant '+role+' denied');
+ check((await req(endpoint('sprint1-a','sheet'),'b')).s===403,'MENUS guessed foreign full character sheet denied');
+ const c=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC MENU CHARACTER',visibility:'group',body:{...engineFixture,text:'MENUS_PRIVATE_BIO',goals:'MENUS_PRIVATE_GOAL'}}),cid=c.d.id;
+ check(c.s===200,'MENUS uses existing Character authoring');
+ const own=await req(endpoint('sprint1-a','sheet',cid),'a'),gm=await req(endpoint('sprint1-a','sheet',cid),'gm');
+ check(own.s===200&&gm.s===200&&own.d.projection.sheet.attributes.Körperkraft===engineFixture.attributes.Körperkraft&&!own.d.projection.permissions.canEdit,'MENUS owner and GM reuse complete read-only projection');
+ check((await req(endpoint('sprint1-b','sheet',cid),'gm')).s===404,'MENUS character ownership cannot be substituted');
+ const hiddenCharacter=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC PRIVATE MENU CHARACTER',visibility:'private',body:{...engineFixture}});
+ check((await req(endpoint('sprint1-a','profile',hiddenCharacter.d.id),'gm')).d.character===null,'MENUS SL public-profile tab never pretends a private character is released');
+ const b=await req(endpoint('sprint1-a','profile',cid),'b');
+ check(b.s===200&&b.d.character.name==='SYNTHETIC MENU CHARACTER'&&!JSON.stringify(b.d).includes('MENUS_PRIVATE')&&!b.d.projection,'MENUS public character card never inherits private biography or sheet');
+ await req('/api/content-blocks','gm','POST',{entityId:cid,kind:'biography',content:'MENUS_RELEASED_DESCRIPTION',visibility:'player_visible',position:0});
+ await req('/api/content-blocks','gm','POST',{entityId:cid,kind:'biography',content:'MENUS_SECRET_DESCRIPTION',visibility:'sl_secret',position:1});
+ const released=(await req(endpoint('sprint1-a','profile',cid),'b')).d;
+ check(JSON.stringify(released).includes('MENUS_RELEASED_DESCRIPTION')&&!JSON.stringify(released).includes('MENUS_SECRET_DESCRIPTION'),'MENUS only explicitly released description blocks appear');
+
+ for(const visibility of ['private','sl','group']){
+  const carry=(await req('/api/inventory?characterId='+cid,'a')).d.carry;
+  const item=await req('/api/inventory','a','POST',{action:'create',expectedCarryRevision:carry.revision,characterId:cid,name:'MENUS_ITEM_'+visibility,category:'Sonstiges',description:'Existing inventory fixture',quantity:1,status:'Gelagert',visibility,location:'STORED',tags:[],slotCost:1});
+  check(item.s===201,'MENUS existing inventory creates '+visibility+' item');
+ }
+ const inv=await req(endpoint('sprint1-a','inventory',cid),'b');
+ check(inv.s===200&&inv.d.publicOnly===true&&inv.d.items.length===1&&inv.d.items[0].name==='MENUS_ITEM_group'&&!inv.d.items[0].canEdit&&!JSON.stringify(inv.d).includes('MENUS_ITEM_private')&&!JSON.stringify(inv.d).includes('MENUS_ITEM_sl'),'MENUS public inventory contains only released read-only items');
+ const gmInventory=(await req('/api/inventory?view=sl&characterId='+cid,'gm')).d;check(gmInventory.items.some(i=>i.name==='MENUS_ITEM_sl')&&!gmInventory.items.some(i=>i.name==='MENUS_ITEM_private'),'MENUS GM keeps existing shared-inventory limits, no private takeover');
+ check((await req('/api/inventory?characterId='+cid,'b')).s===404,'MENUS public card does not grant general foreign inventory access');
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jS1cAAAAASUVORK5CYII=','base64'),form=new FormData();form.set('file',new Blob([png],{type:'image/png'}),'SYNTHETIC_MENU_AVATAR.png');form.set('visibility','private');
+ const avatar=(await req('/api/files','a','POST',form)).d.id,profileBefore=(await req('/api/profile','a')).d;
+ check((await req('/api/profile','a','PATCH',{version:profileBefore.version,displayName:profileBefore.displayName,avatarFileId:avatar,preferences:profileBefore.preferences})).s===200,'MENUS reuse existing profile avatar without new upload system');
+ const image=await fetch(base+endpoint('sprint1-a','avatar'),{headers:ids.b});
+ check(image.status===200&&Buffer.from(await image.arrayBuffer()).equals(png)&&(await fetch(base+'/api/files?id='+avatar,{headers:ids.b})).status===404,'MENUS contextual player avatar works without exposing private original file');
+ const messageRequest={clientRequestId:randomUUID(),recipients:['sprint1-b'],title:'SYNTHETIC private player letter',text:'MENUS_PRIVATE_A_TO_B'};
+ const sent=await req('/api/messages','a','POST',messageRequest);check(sent.s===200&&sent.d.sent===1,'MENUS active player sends through existing message engine');
+ const letter=sent.d.ids?.[0];
+ check((await req('/api/messages?id='+letter,'b')).s===200&&(await req('/api/messages?id='+letter+'&sent=1','a')).s===200,'MENUS recipient and sender can read their own exchange');
+ check((await req('/api/messages?id='+letter,'gm')).s===404&&(await req('/api/messages?id='+letter+'&sent=1','gm')).s===404,'MENUS SL cannot inspect a private player exchange');
+ check(!JSON.stringify((await req('/api/export?scope=campaign','gm')).d).includes('MENUS_PRIVATE_A_TO_B'),'MENUS campaign export cannot bypass private conversation permissions');
+ check((await req('/api/messages','a','POST',messageRequest)).d.sent===1,'MENUS repeated message command is idempotent');
+ check((await req('/api/messages','editor','POST',{...messageRequest,clientRequestId:randomUUID()})).s===403,'MENUS editor is not implicitly a private-message sender');
+ check((await req('/api/messages','a','POST',{...messageRequest,clientRequestId:randomUUID(),recipients:['otherCampaignMember']})).s===403,'MENUS foreign-campaign recipient denied');
+ check((await req('/api/messages','a','PATCH',{id:letter})).s===404,'MENUS sender cannot mark recipient inbox as read');
+ const peers=[randomUUID(),randomUUID()];
+ const command=(who,action,peerId,extra={})=>req('/api/live-table',who,'POST',{sessionId,runId,action,peerId,...extra});
+ check((await command('a','join',peers[0])).s===200&&(await command('a','join',peers[1])).s===200,'PRESENCE two actual tabs join the existing room');
+ let crew=(await req('/api/live-stage?sessionId='+sessionId,'b')).d.crew;
+ check(crew.find(m=>m.id==='sprint1-a').presence==='connected','PRESENCE joined participant is at table');
+ check((await command('b','pulse',peers[0],{afk:true})).s===403,'PRESENCE another member cannot hijack a connection or AFK state');
+ check((await command('a','pulse',peers[0],{afk:true})).s===200,'PRESENCE owner explicitly selects AFK');
+ crew=(await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew;check(crew.find(m=>m.id==='sprint1-a').presence==='afk','PRESENCE AFK shared across member tabs');
+ await command('a','leave',peers[0]);check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='afk','PRESENCE closing one tab keeps remaining connection');
+ await command('a','pulse',peers[1],{afk:false});check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='connected','PRESENCE explicit return to table');
+ await command('a','leave',peers[1]);check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='disconnected','PRESENCE leaving final tab disconnects automatically');
+ const timeoutPeer=randomUUID();await command('a','join',timeoutPeer);
+ localSql('UPDATE records SET body=json_set(body,'+sqlQuote('$.peers."'+timeoutPeer+'".seen')+',0) WHERE id='+sqlQuote('live-table:chronik-von-kleve:'+sessionId)+';');
+ check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='disconnected','PRESENCE timeout detected without client disconnect flag');
+ await command('a','join',timeoutPeer);check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='connected','PRESENCE reconnect restores actual membership');
+ check((await command('a','join',randomUUID(),{runId:randomUUID()})).s===409,'PRESENCE old run cannot claim a new live connection');
+ await req('/api/live-table','gm','POST',{action:'end',sessionId,runId});check((await req(endpoint('sprint1-a'),'gm')).s===409,'MENUS closed room revokes profile and avatar context');
+}

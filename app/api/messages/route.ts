@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type { LegacyRecordRow } from "@/domain/legacy";
-import { actor, database, gmOnly, HttpError, input, sameOrigin, json, failure } from "@/server/access";
+import { actor, database, HttpError, input, sameOrigin, json, failure, type Actor } from "@/server/access";
 import { characterBody } from "@/server/character-engine-service";
 export const dynamic = "force-dynamic";
 const sendSchema = z.object({ clientRequestId: z.string().uuid(), recipients: z.array(z.string().min(1).max(100)).min(1).max(20), title: z.string().trim().min(1).max(160), text: z.string().trim().min(1).max(20000) }).strict();
 const readSchema = z.object({ id: z.string().min(1).max(100) }).strict();
+function requireSender(a:Actor){if(a.status!=='active'||!['player','campaign_gm','campaign_owner'].includes(a.role))throw new HttpError(403,'Nur aktive Mitglieder der Spielrunde können privat schreiben.');}
 function projection(row: LegacyRecordRow) {
   const body = characterBody(row.body);
   return { id: row.id, title: row.title, text: body.text, senderName: body.senderName, recipientId: row.owner_id, readAt: body.readAt, createdAt: row.created_at };
@@ -15,11 +16,11 @@ export async function GET(req: Request) {
   try {
     const a = await actor(), db = database(), query = new URL(req.url).searchParams;
     if (query.has("recipients")) {
-      gmOnly(a);
-      const rows = await db.prepare("SELECT m.id,m.name FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND m.status='active' ORDER BY m.name,m.id").bind(a.campaignId).all<{id:string;name:string}>();
+      requireSender(a);
+      const rows = await db.prepare("SELECT m.id,m.name FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role IN ('player','campaign_owner','campaign_gm') AND m.status='active' ORDER BY m.name,m.id").bind(a.campaignId).all<{id:string;name:string}>();
       return json({ recipients: rows.results });
     }
-    const sent = query.get("sent") === "1"; if (sent) gmOnly(a);
+    const sent = query.get("sent") === "1"; if (sent) requireSender(a);
     const id = query.get("id"), cursor = query.get("before");
     let before: [string, string] | null = null;
     if (cursor) { try { const parsed = JSON.parse(cursor); if (!Array.isArray(parsed) || parsed.length !== 2 || parsed.some(v => typeof v !== "string" || v.length > 100)) throw new Error(); before = [parsed[0], parsed[1]]; } catch { throw new HttpError(400, "Ungültige Archivposition."); } }
@@ -35,10 +36,10 @@ export async function GET(req: Request) {
 }
 export async function POST(req: Request) {
   try {
-    sameOrigin(req); const a = await actor(); gmOnly(a);
+    sameOrigin(req); const a = await actor(); requireSender(a);
     const parsed = sendSchema.safeParse(await input(req)); if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const d = parsed.data, recipients = [...new Set(d.recipients)], db = database();
-    const members = await db.prepare(`SELECT m.id FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND m.status='active' AND m.id IN (${recipients.map(() => "?").join(",")})`).bind(a.campaignId, ...recipients).all<{id:string}>();
+    const members = await db.prepare(`SELECT m.id FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role IN ('player','campaign_owner','campaign_gm') AND m.status='active' AND m.id IN (${recipients.map(() => "?").join(",")})`).bind(a.campaignId, ...recipients).all<{id:string}>();
     if (members.results.length !== recipients.length) throw new HttpError(403, "Alle Empfänger müssen aktive Mitglieder dieser Kampagne sein.");
     const hash = await digest(JSON.stringify({ title: d.title, text: d.text, recipients: [...recipients].sort() }));
     const now = new Date().toISOString();

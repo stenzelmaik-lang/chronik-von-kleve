@@ -13,3 +13,5 @@
 @media(max-width:640px){.trigger>span{display:none}.dialog{padding:20px!important}.title{font-size:24px}.row{gap:9px}.row time{font-size:10px}.row strong{font-size:17px}.letter{padding:13px}.letter h3{font-size:24px}.body{font-size:15px}}
 
 :global(body):has(.dialog[data-slot="dialog-content"]) :global([data-slot="dialog-overlay"]){z-index:80}
+
+.embedded{color:#e8e1d4;font:15px/1.6 Arial,sans-serif}.embeddedHeader{border-bottom:1px solid #c6aa6b33;padding-bottom:18px;margin-bottom:18px}.embeddedHeader h3{font:27px Georgia,serif;margin:0 0 10px;color:#e3cfaa}.embeddedHeader p{color:#b9c2bc;font-size:13px}.embeddedHeader button{margin-top:8px}.embedded .compose{padding:0}.embedded textarea,.embedded input:not([type=checkbox]){width:100%;max-width:100%;background:#0d171b;color:#eee4ce;border:1px solid #b9a16d55;border-radius:4px;padding:9px}.embedded .tabs{flex-wrap:wrap}.embedded .body{white-space:pre-wrap;overflow-wrap:anywhere}.embedded .row{width:100%}

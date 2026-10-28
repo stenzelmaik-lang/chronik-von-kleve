@@ -116,7 +116,7 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check(JSON.stringify(record.body.attributes)===permanentBefore&&record.body.text===rich,'WEEKEND narrative and runtime writes preserve permanent values and ledger');
  check((await req('/api/character-companion','b','PATCH',{action:'roleplay',id,version:record.version,backgroundStory:'forged',playGuide:''})).s===403,'WEEKEND foreign player cannot modify character document');
  const send={clientRequestId:randomUUID(),recipients:['sprint1-a'],title:'PRIVATE_WEEKEND_MESSAGE',text:'Recipient A alone can see this text.'};
- check((await req('/api/messages','a','POST',send)).s===403,'WEEKEND only campaign SL can send personal messages');
+ check((await req('/api/messages','a','POST',send)).s===200,'WEEKEND active player can now send through explicitly authorized existing message path');
  check((await req('/api/messages',null)).s===401,'WEEKEND anonymous inbox denied');
  check((await req('/api/messages','blockedPlayer')).s===403,'WEEKEND blocked inbox denied');
  check((await req('/api/messages','otherCampaign')).s===403,'WEEKEND foreign campaign cannot enter message API');
@@ -140,8 +140,8 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check((await req('/api/messages','a','PATCH',{id:messageId})).s===200&&(await req('/api/messages?id='+messageId,'a')).d.messages[0].readAt,'WEEKEND read acknowledgement persists');
  check((await req('/api/messages','a','PATCH',{id:messageId})).s===200,'WEEKEND repeat read is idempotent');
  check((await req('/api/messages?sent=1','gm')).d.messages.some(m=>m.id===messageId),'WEEKEND sender has a sent archive');
- check((await req('/api/messages?sent=1','a')).s===403,'WEEKEND player cannot read sender archive');
- check((await req('/api/messages?recipients=1','a')).s===403,'WEEKEND player cannot enumerate campaign recipients');
+ check((await req('/api/messages?sent=1','a')).s===200&&!(await req('/api/messages?sent=1','a')).d.messages.some(m=>m.id===messageId),'WEEKEND player reads only their own sender archive, never GM outbox');
+ check((await req('/api/messages?recipients=1','a')).s===200&&(await req('/api/messages?recipients=1','a')).d.recipients.every(r=>!r.email),'WEEKEND player selects active campaign recipients without email disclosure');
  localSql("UPDATE campaign_memberships SET role='campaign_gm' WHERE campaign_id='chronik-von-kleve' AND user_id='sprint1-b'");
  check((await req('/api/messages?id='+messageId,'b')).s===404,'WEEKEND another SL cannot read a different sender private correspondence');
  check(!JSON.stringify((await req('/api/export?scope=campaign','b')).d.records).includes('PRIVATE_WEEKEND_MESSAGE'),'WEEKEND campaign export cannot bypass message sender and recipient isolation');

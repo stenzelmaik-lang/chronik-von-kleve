@@ -19,10 +19,14 @@ function DialogTrigger({
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
+const StagePortalContext = React.createContext<HTMLElement | null>(null)
+export const DialogPortalTarget = StagePortalContext.Provider
+
 function DialogPortal({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+  const target = React.useContext(StagePortalContext)
+  return <DialogPrimitive.Portal data-slot="dialog-portal" container={target ?? undefined} {...props} />
 }
 
 function DialogClose({
