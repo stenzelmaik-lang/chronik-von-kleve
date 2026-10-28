@@ -76,3 +76,9 @@ Eigene Kontoeinstellungen verbleiben in der vorhandenen Profilverwaltung. Es wur
 - Diese Abnahmedokumentation. Keine Änderungen an Drizzle, Lockfiles, Original-Prototyp oder anderen Fachbereichen. Private Testkopien und Screenshots bleiben aus Git ausgeschlossen.
 
 **Zur persönlichen lokalen UX-Abnahme bereit: JA. Keine Produktivfreigabe behauptet. STOPP nach dieser Etappe.**
+
+## Alpha-Freigabe und feste Menümittellinie
+
+Die Projektleitung hat am 28.10.2026 die Veröffentlichung auf der bestehenden Alpha-Hauptseite und iterative kleine Layoutkorrekturen ausdrücklich freigegeben. Der vorherige lokale STOPP ist für diesen Auftrag aufgehoben. Funktionsleiste und Schuber sind jetzt beide fest zur horizontalen Viewport-Mitte ausgerichtet. Der Teilnehmerwechsel verändert ihre Position nicht. Zugriffsschutz und bestehende Menüfunktionen bleiben unverändert. Produktive Datenrisiken, unklare Rechte oder erforderliche Migrationen bleiben Stoppgründe.
+
+Versions-Vorschauadressen werden im Produktions-Build ausdrücklich deaktiviert, um die bestehende Cloudflare-Einstellung beim Deployment zu erhalten. Keine Schemaänderung.
