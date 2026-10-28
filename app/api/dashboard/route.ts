@@ -3,6 +3,9 @@ import { actor, database, json, failure, canRead, HttpError } from "@/server/acc
 import { loadEntitiesForIds, grantsFor, projectEntity } from "@/server/entities";
 import { projectMedia } from "@/server/character-projection";
 import { GET as messagesGET } from "../messages/route";
+import {activeCharacterBody} from '@/domain/character-selection';
+import {selectedCharacter as persistedSelection} from '@/server/character-selection';
+import {currentUserFromContext} from '@/server/platform-auth';
 
 export const dynamic = "force-dynamic";
 const kinds = ["charaktere", "termine", "wirtschaft", "gefallen", "notizen", "sitzungen", "neuigkeiten"];
@@ -18,7 +21,7 @@ export async function GET(req: Request) {
   try {
     const a = await actor();
     const url = new URL(req.url);
-    const requestedCharacterId = url.searchParams.get("characterId");
+    const requestedCharacterId = url.searchParams.get("characterId") || await persistedSelection(a,(await currentUserFromContext())!.id);
     const db = database();
     const [rows, grants] = await Promise.all([
       db.prepare(`SELECT * FROM records WHERE campaign_id=? AND kind IN (${kinds.map(() => "?").join(",")}) ORDER BY updated_at DESC`)
@@ -51,7 +54,7 @@ export async function GET(req: Request) {
       } satisfies Entry];
     });
     const by = (kind: string) => records.filter((record) => record.kind === kind);
-    const characters = by("charaktere");
+    const characters = by("charaktere").filter(c=>activeCharacterBody(c.body));
     const characterChoices = characters.map((character) => ({
       id: character.id!,
       name: character.title,
@@ -82,12 +85,15 @@ export async function GET(req: Request) {
     if (!inboxResponse.ok) throw new HttpError(inboxResponse.status, 'Das persönliche Postfach konnte nicht geladen werden.');
     const inbox = await inboxResponse.json() as {unread:number;messages:{title:string;senderName:string;createdAt:string}[]};
     const latest = inbox.messages[0];
+    const campaign=await db.prepare("SELECT name FROM campaigns WHERE id=?").bind(a.campaignId).first<{name:string}>();
     return json({
       character: selectedCharacter,
+      campaignName:campaign?.name||a.campaignId,
       portrait: media?.portraitRef ?? null,
       characters: characterChoices,
       characterCount: characters.length,
       nextSession: upcoming,
+      calendarEntries:by('termine').filter(entry=>available(entry)&&dateOf(entry)!==null).map(entry=>({id:entry.id,title:entry.title,date:entry.body.date||entry.body.datetime||entry.body.start})),
       lastSession: sessions.find(session => (dateOf(session) ?? Date.parse(session.updated_at || '')) <= now) || null,
       openPoll: by('termine').find(entry => available(entry) && entry.body.scheduleKind === 'poll' && entry.body.pollClosed !== true) || null,
       inbox: {unread:inbox.unread, latest:latest ? {title:latest.title,senderName:latest.senderName,createdAt:latest.createdAt} : null},

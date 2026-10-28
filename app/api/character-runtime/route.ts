@@ -16,6 +16,7 @@ export async function PATCH(req: Request) {
     const r = await db.prepare("SELECT * FROM records WHERE id=? AND campaign_id=? AND kind='charaktere'").bind(d.id, a.campaignId).first<LegacyRecordRow>();
     if (!r || !canEdit(a, r)) throw new HttpError(404, "Charakter nicht gefunden.");
     const body: Record<string, unknown> = JSON.parse(r.body || "{}");
+    if(body.archived===true||body.lifecycleStatus==='ARCHIVED')throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
     if (d.field === "blood") {
       const value = Number(d.value), maximum = Number(body.bloodMax);
       if (!Number.isInteger(maximum) || maximum < 0) throw new HttpError(400, "Blutmaximum muss zuerst im Bearbeitungsmodus gesetzt werden.");

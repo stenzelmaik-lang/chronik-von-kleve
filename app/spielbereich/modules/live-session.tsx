@@ -61,6 +61,7 @@ export function LiveSession({a}:{a:Actor}){
  async function upload(file:File){setBusy(true);try{const form=new FormData();form.set('file',file);form.set('visibility','private');const r=await api<{id:string}>('/api/files','POST',form);await loadCatalog();setFileIds(old=>[...old,r.id].slice(0,20));setNotice('Privat hochgeladen. Erst „Medien einspielen“ gibt sie der Zielgruppe frei.');}catch(issue){setError((issue as Error).message);}finally{setBusy(false);}}
  const audienceValid=(audience:LiveAudience)=>audience.scope==='all'||audience.playerIds.length>0;
  if(running&&stageOpen)return <Spieltisch key={data!.room!.runId} a={a} sessionId={sessionId} runId={data!.room!.runId!} onExit={exitStage} onEnd={async()=>{await command('end');}}/>;
+ if(loading)return <section className={styles.root} aria-busy="true"><p role="status">Dein Spieltisch wird geöffnet …</p></section>;
  return <div className={styles.root}>
   {running&&<button className="button primary" onClick={()=>setStageOpen(true)}>Spieltisch betreten</button>}
   <header className={styles.header}><div><p className="eyebrow">LIVE-SPIELTISCH</p><h1>{running?data.room?.title:'Spielabend'}</h1><p role="status">{loading?'Spielstand wird geladen …':running?'● Abend läuft · Whiteboard offen':'○ Noch kein Spielabend gestartet'}</p></div>{a.gm&&<div className={styles.headerActions}><LocationQuickAccess a={a} initialPlaceId={catalog.scenes.find(item=>item.id===currentScene?.scene?.id)?.placeId||scene?.document.placeId||''}/><a className="button" href="/sl/command-center">SL-Vorbereitung ↗</a></div>}</header>

@@ -189,7 +189,7 @@ export function RecordEditor({
                   >
                     {saving ? "Wird gespeichert …" : "Speichern"}
                   </button>
-                  {edit.id && (
+                  {edit.id && edit.kind !== "charaktere" && (
                     <button
                       type="button"
                       className="danger-link"

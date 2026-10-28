@@ -37,6 +37,7 @@ import { api } from "./modules/api-client";
 import { ChroniclePanel } from "./modules/chronicle";
 import { CMSPanel } from "./modules/cms";
 import { LocationCMS } from "./modules/location-cms";
+import {SessionRecap} from "./modules/session-recap";
 import { DashboardPanel } from "./modules/dashboard";
 import { AppointmentsPanel } from "./modules/appointments";
 import { DicePanel } from "./modules/dice";
@@ -90,12 +91,21 @@ export default function Workspace({
   const dataScope = `${a.campaignId}:${a.id}:${a.gm ? "gm" : "player"}:${surface}`;
   const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope: dataScope, id: initialCharacterId || null });
   const activeCharacterId = selection.scope === dataScope ? selection.id : null;
+  const [selectionError,setSelectionError]=useState('');
+  const selectionQueue=useRef<Promise<void>>(Promise.resolve()),selectionVersion=useRef(0);
   const setActiveCharacterId = useCallback((id: string | null) => {
-    setSelection({ scope: dataScope, id });
-    const url = new URL(window.location.href);
-    if (id) url.searchParams.set("character", id); else url.searchParams.delete("character");
-    if (url.href !== window.location.href) history.replaceState(null, "", url);
-  }, [dataScope]);
+    const version=++selectionVersion.current;
+    selectionQueue.current=selectionQueue.current.catch(()=>{}).then(async()=>{
+      try{
+        if(surface!=='sl')await api('/api/character-selection','PATCH',{characterId:id});
+        if(version!==selectionVersion.current)return;
+        invalidatePlayerData(dataScope);
+        setSelection({scope:dataScope,id});setSelectionError('');
+        const url=new URL(window.location.href);if(id)url.searchParams.set('character',id);else url.searchParams.delete('character');
+        if(url.href!==window.location.href)history.replaceState(null,'',url);
+      }catch(e){if(version===selectionVersion.current)setSelectionError((e as Error).message);}
+    });
+  }, [dataScope,surface]);
   useEffect(() => {
     activatePlayerDataScope(dataScope);
     const clear = () => clearPlayerDataScope(dataScope);
@@ -273,6 +283,7 @@ export default function Workspace({
   const Shell = surface === "sl" ? SLWorkspaceShell : WorkspaceShell;
   return (
     <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
+      {selectionError&&<p className="error-box" role="alert">Charakterwechsel nicht gespeichert: {selectionError}</p>}
       {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
@@ -283,6 +294,7 @@ export default function Workspace({
         </div>
         {![
           "dashboard",
+          "rueckblick",
           "cms",
           "sitzung",
           "galerie",
@@ -441,6 +453,8 @@ export default function Workspace({
         />
       ) : section === "dashboard" ? (
         <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
+      ) : section === "rueckblick" ? (
+        <SessionRecap key={dataScope} dataScope={dataScope}/>
       ) : section === "termine" ? (
         <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope}/>
       ) : section === "chronik" ? (

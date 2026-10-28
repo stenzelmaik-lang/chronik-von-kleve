@@ -48,6 +48,7 @@ export async function POST(req: Request) {
     sameOrigin(req); const a = await actor(); const parsed = schema.safeParse(await input(req));
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const d = parsed.data, { row, body } = await editableCharacter(a, d.id);
+    if(body.archived===true||body.lifecycleStatus==='ARCHIVED')throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
     if (row.version !== d.version) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
     if (["sl_adjustment", "confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes", "grant_exception"].includes(d.action)) gmOnly(a);
     if (!body.engineVersion && !((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && d.action !== "sl_adjustment" && d.action !== "gm_notes" && d.action !== "correction") throw new HttpError(409, "Legacy-Bogen: Werte bleiben erhalten. Die Übernahme in die Engine erfolgt bewusst über den vorhandenen Editor.");
