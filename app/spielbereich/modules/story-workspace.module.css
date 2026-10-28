@@ -216,3 +216,26 @@
   .main, .context, .nav { overflow-wrap: anywhere; }
   .meta label { flex-wrap: wrap; min-width: 0; max-width: 100%; }
 }
+
+/* SL-CMS 2.0 – 1: Spielabend, Szenen & großer HTML-Editor */
+.sessionIntro{padding:12px;background:#172739;border:1px solid #b9985b66;border-radius:9px;margin:14px 0}
+.sessionIntro button{width:100%;text-align:center;background:#5b4428;font-weight:700}
+.sessionIntro p,.secondary p{font-size:12px;color:#b7c4cd;line-height:1.5}
+.secondary{margin:24px 0;border-top:1px solid #b9985b55;padding-top:16px}
+.secondary summary{cursor:pointer;min-height:44px;line-height:1.5;color:#e2c58d}
+.sessionOverview{border:1px solid #b9985b44;background:#102333;padding:16px;border-radius:10px;margin:18px 0}
+.sessionOverview p{font-size:13px;color:#b6c2ca;line-height:1.5}
+.sessionHead{display:flex;gap:10px;justify-content:space-between;align-items:center}
+.sessionHead h2{margin:0}
+.sessionPlaces{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.sessionPlace{border:1px solid #b9985b44;background:#192b3a;padding:12px;border-radius:8px}
+.sessionPlace h3{font:normal 18px Georgia,serif;margin:0 0 9px}
+.sessionPlace button{width:100%;text-align:left;margin:4px 0}
+.editorFrame{padding:12px;border:1px solid #b9985b44;border-radius:9px;background:#0d1b28;margin:14px 0}
+.editorBar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.editorBar span{font-size:12px;color:#d2b888}
+.expandedEditor{position:fixed;inset:0;z-index:9999;width:100vw;height:100dvh;overflow:auto;border-radius:0;background:#0b1926;padding:clamp(12px,2vw,30px);margin:0}
+.expandedEditor .editorBar{position:sticky;top:0;z-index:2;background:#0b1926;border-bottom:1px solid #b9985b55;padding:10px 0}
+.expandedEditor :global([contenteditable="true"]){min-height:60vh}
+.expandedEditor :global(textarea){min-height:60vh;font-family:ui-monospace,Consolas,monospace}
+@media(max-width:760px){.sessionHead,.editorBar{flex-direction:column;align-items:stretch}.sessionPlaces{grid-template-columns:minmax(0,1fr)}}

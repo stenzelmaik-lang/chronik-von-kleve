@@ -134,7 +134,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [files, setFiles] = useState<{ id: string; name: string; mime: string }[]>(
       [],
     );
-  const [navigationOpen,setNavigationOpen]=useState(false);
+  const [navigationOpen,setNavigationOpen]=useState(false),[expandedEditor,setExpandedEditor]=useState<string|null>(null);
   const [current, setCurrent] = useState<Selection | null>(null),
     [saved, setSaved] = useState(""),
     [message, setMessage] = useState("Lade Arbeitsbestand …"),
@@ -236,6 +236,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       "/sl/command-center?" + next.kind + "=" + encodeURIComponent(next.id),
     );
     setNavigationOpen(false);
+    setExpandedEditor(null);
     setCurrent(next);
     setSaved(JSON.stringify(next.document));
     setHistory([]);
@@ -332,6 +333,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     setBusy(true);
     setMessage("Legt neue Akte an …");
     let doc: Document;
+    const fromSession=kind==="scene"&&current?.kind==="session"?current.id:"";
     if (kind === "story") doc = emptyStory();
     else if (kind === "session")
       doc = sessionPreparationSchema.parse({ title: "Neue Sitzung" });
@@ -344,6 +346,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             : "",
       );
 
+      if(fromSession)doc.sessionIds=[fromSession];
       if (child && current?.kind === "scene") {
         doc.parentId = current.id;
 
@@ -355,9 +358,23 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         clientRequestId: crypto.randomUUID(),
         document: doc,
       });
-      accept(selection(kind, result[kind]));
-      setSection(kind === "scene" ? "narration" : "background");
-      setMessage(kind === "scene" && current?.kind === "session" ? "Szene angelegt · bitte in der Sitzung auswählen. Noch keine Veröffentlichung." : "Neu angelegt · noch keine Veröffentlichung");
+      let linkOk=true;
+      if(kind==="scene"&&fromSession){
+        try{
+          const linkedSession=(await request(endpoint("session")+"?id="+encodeURIComponent(fromSession))).session;
+          if(!linkedSession.document.sceneIds.includes(result.scene.id)){
+            await request(endpoint("session"),{
+              action:"save",id:linkedSession.id,version:linkedSession.version,
+              document:{...linkedSession.document,sceneIds:[...linkedSession.document.sceneIds,result.scene.id]},
+            });
+          }
+        }catch{linkOk=false;} // Scene remains saved; no existing content is removed.
+      }
+      accept(selection(kind,result[kind]));
+      setSection(kind==="scene"?"narration":"background");
+      setMessage(kind==="scene"&&fromSession
+        ?linkOk?"Szene für diesen Spielabend angelegt · nur SL":"Szene gespeichert, aber Zuordnung zum Spielabend prüfen."
+        :"Neu angelegt · noch keine Veröffentlichung");
       await refresh();
     } catch (e) {
       setMessage((e as Error).message);
@@ -481,24 +498,21 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     : scene
       ? (scene[section as keyof SceneDocument] as string) || ""
       : session?.notes || "";
-  const editor = (
-    value: string,
-    onChange: (v: string) => void,
-    label: string,
-    key: string,
-  ) => (
-    <RichTextEditor
-      key={key}
-      value={value}
-      onChange={onChange}
-      label={label}
-      maximumPlainLength={current?.kind==='scene'?7000:10000}
-      placeholder="Deine private Vorbereitung …"
-      advanced
-      compactTools
-      files={files}
-    />
+  const editor=(value:string,onChange:(v:string)=>void,label:string,key:string)=>(
+    <div key={key} className={`${zFull(key)}`}
+      onKeyDown={e=>{if(e.key==="Escape"&&expandedEditor===key)setExpandedEditor(null);}}>
+      <div className={s.editorBar}>
+        <span>Visuell · HTML-Quelltext · Vorschau</span>
+        <button type="button" onClick={()=>setExpandedEditor(expandedEditor===key?null:key)}>
+          {expandedEditor===key?"Vollbild schließen":"Editor vergrößern"}
+        </button>
+      </div>
+      <RichTextEditor value={value} onChange={onChange} label={label}
+        maximumPlainLength={current?.kind==="scene"?7000:10000}
+        placeholder="Deine private Vorbereitung …" advanced htmlSource files={files}/>
+    </div>
   );
+  function zFull(key:string){return s.editorFrame+" "+(expandedEditor===key?s.expandedEditor:"");}
   const pick = (
     label: string,
     values: string[],
@@ -560,7 +574,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       <header className={s.top}>
         <div>
           <small>SL-WORKSPACE · VORBEREITUNG</small>
-          <h1>Storybuch</h1>
+          <h1>Spielabend & Story</h1>
           <p>
             Deine Geschichten, Sitzungen und Szenen. Spielweltakten werden
             verknüpft.
@@ -588,31 +602,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             <option value="pinned">Angeheftet</option>
             <option value="recent">Zuletzt geöffnet</option>
           </select>
-          <div className={s.actions}>
-            <button disabled={busy} onClick={() => void create("story")}>
-              + Story
-            </button>
-            <button disabled={busy} onClick={() => void create("session")}>
-              + Sitzung
-            </button>
-            <button disabled={busy} onClick={() => void create("scene")}>
-              + Szene
-            </button>
-          </div>
-          <h2>Handlungsstränge</h2>
-          {stories.filter(matches).map((v) => (
-            <div key={v.id}>
-              <button
-                className={current?.id === v.id ? s.selected : ""}
-                onClick={() => void open("story", v.id)}
-              >
-                ▣ {v.title}
-                {v.favorite ? " ★" : ""}
-              </button>
-              {!search && filter === "all" && tree("", v.id)}
-            </div>
-          ))}
-          <h2>Sitzungen</h2>
+          <div className={s.sessionIntro}>
+          <button disabled={busy} onClick={()=>void create("session")}>+ Spielabend anlegen</button>
+          <p>Von hier aus planst du Szenen, Schauplätze und Regiematerial.</p>
+        </div>
+        <h2>Spielabende</h2>
           {sessions
             .filter((v) =>
               matches({
@@ -637,7 +631,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                   scenes
                     .filter(
                       (c) =>
-                        v.document.sceneIds.includes(c.id) && matches(c),
+                        (v.document.sceneIds.includes(c.id) || c.sessionIds.includes(v.id)) && matches(c),
                     )
                     .map((c) => (
                       <button
@@ -649,6 +643,33 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                     ))}
               </div>
             ))}
+          
+        <details className={s.secondary}>
+          <summary>Weitere Akten · Handlungsstränge & freie Szenen</summary>
+          <div className={s.actions}>
+            <button disabled={busy} onClick={() => void create("story")}>
+              + Story
+            </button>
+            
+            <button disabled={busy} onClick={() => void create("scene")}>
+              + Szene
+            </button>
+          </div>
+          
+          <h2>Handlungsstränge</h2>
+          {stories.filter(matches).map((v) => (
+            <div key={v.id}>
+              <button
+                className={current?.id === v.id ? s.selected : ""}
+                onClick={() => void open("story", v.id)}
+              >
+                ▣ {v.title}
+                {v.favorite ? " ★" : ""}
+              </button>
+              {!search && filter === "all" && tree("", v.id)}
+            </div>
+          ))}
+          
           <h2>
             {search || filter !== "all" ? "Szenentreffer" : "Freie Szenen"}
           </h2>
@@ -664,6 +685,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
               Leerer Arbeitsbestand. Lege deine erste Story oder Sitzung an.
             </p>
           )}
+        
+        </details>
         </nav>
         <main className={s.main}>
           {current && doc ? (
@@ -745,7 +768,28 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                       onChange={(e) => change({ date: e.target.value })}
                     />
                   </label>
-                  <h2>Sitzungsvorbereitung</h2>
+                  <section className={s.sessionOverview}>
+                    <div className={s.sessionHead}><h2>Schauplätze & Szenen</h2>
+                      <button disabled={busy||dirty} onClick={()=>void create("scene")}>+ Szene für diesen Spielabend</button>
+                    </div>
+                    <p>Die Vorbereitung gibt Möglichkeiten vor, keine feste Reihenfolge der Spielerhandlungen.</p>
+                    {(()=>{
+                      const linked=scenes.filter(c=>session.sceneIds.includes(c.id)||c.sessionIds.includes(current!.id));
+                      const placeIds=[...new Set([...session.placeIds,...linked.map(c=>c.placeId).filter(Boolean)])];
+                      return <div className={s.sessionPlaces}>
+                        {placeIds.map(placeId=><section key={placeId} className={s.sessionPlace}>
+                          <h3>{refs.find(r=>r.id===placeId)?.title||"Schauplatz"}</h3>
+                          {linked.filter(c=>c.placeId===placeId).map(c=><button key={c.id} onClick={()=>void open("scene",c.id)}>◇ {c.title}</button>)}
+                          {!linked.some(c=>c.placeId===placeId)&&<p>Noch keine Szene für diesen Ort.</p>}
+                        </section>)}
+                        {linked.some(c=>!c.placeId)&&<section className={s.sessionPlace}><h3>Ohne Schauplatz</h3>
+                          {linked.filter(c=>!c.placeId).map(c=><button key={c.id} onClick={()=>void open("scene",c.id)}>◇ {c.title}</button>)}
+                        </section>}
+                        {!linked.length&&!placeIds.length&&<p>Noch keine Orte oder Szenen verbunden.</p>}
+                      </div>;
+                    })()}
+                  </section>
+                   <h2>Sitzungsnotizen</h2>
                   {editor(
                     session.notes,
                     (v) => change({ notes: v }),
@@ -907,7 +951,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                   <div>
                     <h3>Zugeordnete Sitzungen</h3>
                     <p>Die Zuordnung wird in der jeweiligen Sitzung bearbeitet.</p>
-                    {sessions.filter((v) => v.document.sceneIds.includes(current.id)).map((v) => (
+                    {sessions.filter((v) => v.document.sceneIds.includes(current.id) || scene.sessionIds.includes(v.id)).map((v) => (
                       <button key={v.id} onClick={() => void open("session", v.id)}>{v.document.title}</button>
                     ))}
                   </div>                  <h2>Szenenelemente</h2>
@@ -1083,14 +1127,14 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             </>
           ) : (
             <div className={s.empty}>
-              <h2>Raum für deine Geschichte</h2>
+              <h2>Dein nächster Spielabend beginnt hier</h2>
               <p>
                 Wähle eine Akte oder lege einen Handlungsstrang an. Nichts wird
                 automatisch veröffentlicht oder als tatsächlich geschehen
                 markiert.
               </p>
-              <button disabled={busy} onClick={() => void create("story")}>
-                Erste Story anlegen
+              <button disabled={busy} onClick={() => void create("session")}>
+                Spielabend anlegen
               </button>
               <p role="status">{message}</p>
             </div>
