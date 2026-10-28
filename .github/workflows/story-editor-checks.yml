@@ -27,6 +27,10 @@ jobs:
         with:
           node-version: "22.16.0"
           cache: npm
+      - name: Repair old lockfile in temporary runner workspace
+        run: npm install --package-lock-only --include=dev --include=optional --no-audit --no-fund
+      - name: Show lockfile repair for review
+        run: git diff -- package-lock.json
       - name: Install locked dependencies
         run: npm ci --include=dev --include=optional --no-audit --no-fund
       - name: TypeScript
