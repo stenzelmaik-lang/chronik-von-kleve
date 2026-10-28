@@ -20,3 +20,11 @@ test('SL character permission never exposes a private letter addressed to anothe
  const letter={...sheet,type:'NOTE',content:{context:'sl-message',senderId:'other-sl',text:'PRIVATE_LETTER'}};
  assert.equal(projectEntity(sl,letter,[]),null);
 });
+
+test('player sender retains own sent letter without revealing it to other SL or players',()=>{
+ const letter={...sheet,type:'NOTE',ownerId:'b',content:{context:'sl-message',senderId:'a',senderName:'A',text:'OWN_SENT_LETTER'}};
+ assert.ok(projectEntity({...sl,id:'a',gm:false,role:'player'},letter,[]));
+ assert.ok(projectEntity({...sl,id:'b',gm:false,role:'player'},letter,[]));
+ assert.equal(projectEntity(sl,letter,[]),null);
+ assert.equal(projectEntity({...sl,id:'c',gm:false,role:'player'},letter,[]),null);
+});

@@ -5,6 +5,7 @@ import {loadEntities,loadEntitiesForIds} from './entities';
 import {listScenes} from './story-scenes';
 import {stageSchema,emptyStage,stageVisible,changeStageObjects,stageSourceToken,type StageCommand,type StageState,type StageObject} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
+import {participantPresence} from '@/domain/live-participants';
 
 export function storedStage(room:{stage?:unknown}):StageState{
  if(room.stage===undefined)return emptyStage();
@@ -35,7 +36,7 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const version=stage.version,diceRevision=rolls.length+rolls.reduce((n,e)=>n+(e.revision||1),0);
  return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,
-  crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,catalog,
+  crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents}};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){

@@ -102,6 +102,7 @@ export async function POST(req:Request) {
       return json({ok:true});
     }
     if(!room.open)throw new HttpError(409,'Der Spielraum ist geschlossen.');
+    if(d.runId!==undefined&&d.runId!==room.runId)throw new HttpError(409,'Dieser Spielabend wurde neu gestartet.');
     if(!tablePeerId(d.peerId))throw new HttpError(400,'Ungültige Teilnehmerkennung.');
     const existing=room.peers[d.peerId];
     if(existing&&existing.memberId!==a.id)throw new HttpError(403,'Diese Teilnehmerkennung gehört nicht dir.');
@@ -115,7 +116,10 @@ export async function POST(req:Request) {
     if(!existing||existing.seen<=now-TABLE_PEER_TTL)throw new HttpError(403,'Bitte dem Spielraum erneut beitreten.');
     const requirePeer="id=? AND campaign_id=? AND json_extract(body,'$.open')=1 AND json_extract(body,?)=?";
     if(d.action==='pulse'){
-      await db.batch([db.prepare(`UPDATE records SET body=json_set(body,?,?),version=version+1,updated_at=? WHERE ${requirePeer}`).bind(peerPath+'.seen',now,stamp,id,a.campaignId,peerPath+'.memberId',a.id),db.prepare("DELETE FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-signal' AND updated_at<?").bind(a.campaignId,new Date(now-45000).toISOString())]);
+      if(d.afk!==undefined&&typeof d.afk!=='boolean')throw new HttpError(400,'AFK muss ausdrücklich gewählt werden.');
+      const awayPath='$.away.'+JSON.stringify(a.id);
+      const update=d.afk===undefined?db.prepare(`UPDATE records SET body=json_set(body,?,?),version=version+1,updated_at=? WHERE ${requirePeer}`).bind(peerPath+'.seen',now,stamp,id,a.campaignId,peerPath+'.memberId',a.id):db.prepare(`UPDATE records SET body=json_set(body,?,?,?,json(?)),version=version+1,updated_at=? WHERE ${requirePeer}`).bind(peerPath+'.seen',now,awayPath,JSON.stringify(d.afk),stamp,id,a.campaignId,peerPath+'.memberId',a.id);
+      await db.batch([update,db.prepare("DELETE FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-signal' AND updated_at<?").bind(a.campaignId,new Date(now-45000).toISOString())]);
       return json({ok:true});
     }
     if(d.action==='leave'){

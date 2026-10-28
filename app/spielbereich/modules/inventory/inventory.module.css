@@ -4,6 +4,14 @@
   color: var(--paper);
 }
 .root { display: grid; gap: 16px; min-width: 0; padding-bottom: 20px; }
+.root[data-stage-inventory]{gap:14px;--panel:#152225;--line:#b69a6433;--navy:#111c1f;--muted:#aebbb4}
+.root[data-stage-inventory] .mainGrid{grid-template-columns:minmax(0,1fr)}
+.root[data-stage-inventory] .carryBar{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;padding:16px;background:#19282a}
+.root[data-stage-inventory] .carryBar>button{grid-column:1/-1;justify-self:start}
+.root[data-stage-inventory] .bodyPanel,.root[data-stage-inventory] .bagPanel,.root[data-stage-inventory] .storagePanel,.root[data-stage-inventory] .inspector{padding:16px;background:#101c1f}
+.root[data-stage-inventory] .hero{gap:10px}
+.root[data-stage-inventory] .hero h1{font:25px/1.2 Georgia,serif}
+.root[data-stage-inventory] .pageFooter{display:none}
 .editorDialog, .slotDialog { z-index: 90; }
 :global(body):has(.editorDialog[data-slot="dialog-content"]) :global([data-slot="dialog-overlay"]),
 :global(body):has(.slotDialog[data-slot="dialog-content"]) :global([data-slot="dialog-overlay"]) { z-index: 80; }

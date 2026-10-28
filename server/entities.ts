@@ -110,7 +110,7 @@ export function projectEntity(
   if (['live-table','live-table-signal','live-table-event'].includes(String(e.content.context))) return null;
   // Recipient privacy is stronger than knowledge grants and generic GM access.
   if (e.content.context === "sl-message") {
-    if (e.ownerId !== a.id && !(a.gm && e.content.senderId === a.id)) return null;
+    if (e.ownerId !== a.id && e.content.senderId !== a.id) return null;
     return { ...e, content: { context: "sl-message", text: e.content.text ?? "", senderName: e.content.senderName ?? "", readAt: e.content.readAt ?? null } };
   }
   if (e.type === "CHARACTER" && e.ownerId !== a.id && !canManageCampaignCharacter(a, e.campaignId)) return null;

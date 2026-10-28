@@ -1,0 +1,23 @@
+'use client';
+/* eslint-disable @next/next/no-img-element -- Authenticated portrait endpoint. */
+import {useState} from 'react';
+import {UserRound,Dumbbell,BookOpen,Sparkles,Heart,ScrollText} from 'lucide-react';
+import {RatingGroup,CharacterListReadout,attrsGroups,skillGroups,type CharacterDetailProjection} from '../character';
+import {RichTextView} from '../rich-text';
+import styles from './participants.module.css';
+const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
+const labels:Record<string,string>={name:'Name',player:'Spieler',chronicle:'Chronik',clan:'Clan',generation:'Generation',nature:'Wesen',demeanor:'Verhalten',concept:'Konzept',sire:'Erzeuger',current:'Aktuell',max:'Maximum',perRound:'Pro Runde',permanent:'Permanent',temporary:'Temporär',characterState:'Charakterstatus',freeXp:'Freie EP',totalXp:'Gesamte EP'};
+function Values({data}:{data:Record<string,unknown>}){return <dl className={styles.values}>{Object.entries(data).filter(([k])=>!['id','portraitRef'].includes(k)).map(([k,v])=><div key={k}><dt>{labels[k]||k}</dt><dd>{v===null||v===undefined||v===''?'–':typeof v==='object'?<Values data={object(v)}/>:String(v)}</dd></div>)}</dl>;}
+export function CharacterReadOnly({projection:p}:{projection:CharacterDetailProjection}){
+ const [section,setSection]=useState('identity'),s=p.sheet;
+ const tabs=[{id:'identity',label:'Identität',icon:UserRound},{id:'attributes',label:'Attribute',icon:Dumbbell},{id:'abilities',label:'Fähigkeiten',icon:BookOpen},{id:'advantages',label:'Vorteile',icon:Sparkles},{id:'resources',label:'Zustände & EP',icon:Heart},{id:'story',label:'Geschichte',icon:ScrollText}];
+ return <div className={styles.characterSheet}><p className={styles.caption}>V20 · geschützter Charakterbogen · nur lesen</p><nav className={styles.sectionTabs} role="tablist" aria-label="Charakterbogenabschnitte" onKeyDown={e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const i=tabs.findIndex(t=>t.id===section),next=e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;setSection(tabs[next].id);e.currentTarget.querySelectorAll<HTMLButtonElement>('button')[next]?.focus();}}>{tabs.map(t=><button role="tab" id={'sheet-tab-'+t.id} aria-controls="sheet-section" aria-selected={section===t.id} tabIndex={section===t.id?0:-1} key={t.id} onClick={()=>setSection(t.id)}><t.icon size={16}/>{t.label}</button>)}</nav>
+ <section id="sheet-section" role="tabpanel" aria-labelledby={'sheet-tab-'+section} tabIndex={0} className={styles.sheetSection}>
+ {section==='identity'&&<><h3>{String(p.identity.name||'Charakter')}</h3>{typeof p.identity.portraitRef==='string'&&<img className={styles.characterPortrait} src={p.identity.portraitRef} alt={String(p.identity.name||'Charakter')}/>}<Values data={p.identity}/></>}
+ {section==='attributes'&&<><h3>Attribute</h3><div className={styles.ratingGrid}>{attrsGroups.map(([title,names])=><RatingGroup key={title} title={title} names={names} values={object(s.attributes) as Record<string,number>} disabled/>)}</div></>}
+ {section==='abilities'&&<><h3>Fähigkeiten</h3><div className={styles.ratingGrid}>{skillGroups.map(([title,names])=><RatingGroup key={title} title={title} names={names} values={object(s.abilities) as Record<string,number>} disabled/>)}</div><CharacterListReadout label="Freie Fähigkeiten" value={s.customAbilities}/></>}
+ {section==='advantages'&&<><h3>Vorteile & Prägungen</h3><div className={styles.ratingGrid}><CharacterListReadout label="Disziplinen" value={s.disciplines}/><CharacterListReadout label="Hintergründe" value={s.backgrounds}/><RatingGroup title="Tugenden" names={['Gewissen','Selbstbeherrschung','Mut']} values={object(s.virtues) as Record<string,number>} disabled/><CharacterListReadout label="Vorzüge" value={s.merits} metric="cost"/><CharacterListReadout label="Schwächen" value={s.flaws} metric="cost"/></div><h4>Clansschwäche</h4><RichTextView value={String(s.clanWeakness||'Keine Angabe.')}/></>}
+ {section==='resources'&&<><h3>Zustände & Entwicklung</h3><h4>Blut</h4><Values data={object(s.blood)}/><h4>Willenskraft</h4><Values data={object(s.willpower)}/><h4>Gesundheit</h4><Values data={object(s.health)}/><h4>Menschlichkeit & Pfad</h4><p>{String(s.humanity??'–')} · {String(s.humanityPath||'Kein Pfad hinterlegt')}</p><h4>Erfahrung</h4><Values data={p.progression}/></>}
+ {section==='story'&&<><h3>Geschichte</h3><RichTextView value={String(p.roleplay.backgroundStory||'Noch keine Geschichte hinterlegt.')}/><h4>Spielweise & Ziele</h4><RichTextView value={String(p.roleplay.playGuide||'Keine Angaben.')}/></>}
+ </section></div>;
+}
