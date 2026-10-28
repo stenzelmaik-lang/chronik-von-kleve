@@ -37,3 +37,16 @@ Frisches privates Backup: `.local-work/spieltisch-2/release-21b-ux/`, lokal wied
 - Vorherige Worker-Version `bb692e18-96ee-4e27-a2d2-6db9de0dc266` (Code `1087998…`) bleibt vorhanden. Nach neuer Charakterwahl/Archivierung bevorzugt Fix-forward. Kein blindes Zurückschalten: der alte Dashboard-Code berücksichtigt archivierte Figuren noch nicht vollständig und besitzt den alten Löschpfad. Kein Zurückspielen des Backups über legitime neue Profil-/Spieländerungen.
 
 Nach erfolgreicher Alpha-Veröffentlichung tatsächlichen Commit, Version, Live-Zugangsschutz und Bestandsvergleich ergänzen. Danach STOPP zur persönlichen UX-Abnahme; keine neue Hauptbaustelle.
+
+## Tatsächlicher Alpha-Release
+
+- Live: <https://chroniplay.cc/spielbereich?bereich=dashboard>.
+- PR: <https://github.com/stenzelmaik-lang/chronik-von-kleve/pull/31>.
+- Veröffentlichter Commit: `b01b88f4cc5886ec7d09d39b5620f8de2b844a2a`; Quellbaum vor dem Deploy identisch zum geprüften Branch-Commit `f76deb7bd2cd49b8a3803d406a35f42694238f24`.
+- Worker-Version `5eff2bf3-8949-496c-82ce-f4893ef14388`, Deployment `f98e54c0-285f-4608-967a-bf53b6ed551f`, 100 % Verkehr seit `2026-10-28T13:19:01.609214Z` (14:19 Uhr Berlin).
+- Bestehende D1-/R2-Anbindungen, geschlossenes Alpha-Zugangsprofil und deaktivierte Versionsvorschauen bestätigt. Keine Migration und keine produktiven Test-Schreibvorgänge.
+- 22 Live-Prüfungen auf Hauptdomain und workers.dev bestanden: Anmeldung 200; Zentrale/Rückblick ohne Anmeldung 307 zur Anmeldung; Dashboard, Charakterwahl, Bogen, Sitzungsdaten, Nachrichten, Termine, Dateien und Bühne ohne Anmeldung jeweils 401 mit `private, no-store`. Das live ausgelieferte Stylesheet ist bytegleich mit dem geprüften Build.
+- Bestandsvergleich aller 32 Anwendungstabellen: 31 vollständig identisch, einschließlich Profile, Charaktere, Rollen, Kampagnen und Inhalte. Alle 20 bestehenden Anmeldesitzungen erhalten. Bei zwei Sitzungen ausschließlich reguläres Fortschreiben von `last_seen_at`; keine neuen/gelöschten Sitzungen und keine geänderten Zugangsdaten. Keine Testkonten oder Charakterdaten übernommen.
+- Privater Nachweis: `release-21b-ux/live-smoke.json`, `data-comparison.json`, `data-comparison-session-classification.json` unter `.local-work/spieltisch-2/`.
+
+**Alpha veröffentlicht: JA. Zur persönlichen UX-Abnahme bereit: JA.** Neue echte Charakteransicht und nativer 125-%-Zoom bleiben persönlich zu bestätigen. Drittes Informationsfeld und weiterführende XP-/Aktivitätsfunktionen bleiben fachlich offen beziehungsweise späteren Etappen vorbehalten. Kein neuer Bereich begonnen.
