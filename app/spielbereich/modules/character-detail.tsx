@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element, react-hooks/exhaustive-deps */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
 import { RichTextEditor, RichTextView } from "./rich-text";
@@ -42,6 +42,8 @@ import {
   skillGroups,
 } from "./character";
 import { Choice, visibilityNames } from "./shared";
+import {activeCharacterBody} from "@/domain/character-selection";
+import {useCommandConfirmation} from "./command-confirmation";
 
 const obj = (v: unknown) =>
   v && typeof v === "object" && !Array.isArray(v)
@@ -59,7 +61,7 @@ const mediaLabels: Record<string, string> = {
 export function CharacterDetail({
   a,
   inspection = false,
-  entries,
+  entries: allEntries,
   dataScope,
   activeCharacterId,
   onActiveCharacterChange,
@@ -105,19 +107,28 @@ export function CharacterDetail({
   const runtimeLock = useRef(false);
   const portraitInput = useRef<HTMLInputElement>(null);
   const mediaInput = useRef<HTMLInputElement>(null);
-  const selected = activeCharacterId;
+  const [archiveView,setArchiveView]=useState(false),[archivedId,setArchivedId]=useState<string|null>(null);
+  const lifecycleConfirmation=useCommandConfirmation();
+  const entries=useMemo(()=>allEntries.filter(e=>archiveView?!activeCharacterBody(e.body):activeCharacterBody(e.body)),[allEntries,archiveView]);
+  const selected=archiveView?archivedId:activeCharacterId;
+  async function abandonDrafts(){if((roleEdit||noteDraft)&&!await lifecycleConfirmation.ask('Ungespeicherte Texte verwerfen und die Charakteransicht wechseln?'))return false;setRoleEdit(null);setNoteDraft(null);setView('sheet');return true;}
+  async function chooseCharacter(id:string|null){if(!await abandonDrafts())return;if(archiveView)setArchivedId(id);else onActiveCharacterChange(id);}
+  async function switchArchive(archive:boolean){if(!await abandonDrafts())return;setArchiveView(archive);}
+  const archiveNav=<nav className="character-archive-nav" aria-label="Charakterverwaltung"><button className="button" aria-pressed={!archiveView} onClick={()=>void switchArchive(false)}>Aktive Charaktere</button><button className="button" aria-pressed={archiveView} onClick={()=>void switchArchive(true)}>Archivierte Charaktere ({allEntries.filter(e=>!activeCharacterBody(e.body)).length})</button></nav>;
+
   const active = entries.find((e) => e.id === selected) ?? null;
   const projection = loadedCharacterId === active?.id ? projectionState : null;
 
   useEffect(() => {
-    if (activeCharacterId && entries.length && !entries.some((entry) => entry.id === activeCharacterId)) {
+    if(archiveView)return;
+    if (activeCharacterId && !entries.some((entry) => entry.id === activeCharacterId)) {
       onActiveCharacterChange(null);
       return;
     }
     if (!activeCharacterId && entries.length === 1 && entries[0].id) {
       onActiveCharacterChange(entries[0].id);
     }
-  }, [activeCharacterId, entries, onActiveCharacterChange]);
+  }, [activeCharacterId, entries, onActiveCharacterChange,archiveView]);
 
   async function reload(force = false, quiet = false) {
     const characterId = active?.id;
@@ -362,14 +373,23 @@ export function CharacterDetail({
     }
   }
 
+  async function changeLifecycle(archive:boolean){
+    if(!active?.id||companionBusy)return;
+    if(!await lifecycleConfirmation.ask(archive?`„${active.title}“ archivieren? Alle Werte, Bilder und Verknüpfungen bleiben erhalten. Die Figur wird nicht mehr als aktive Spielfigur angeboten.`:`„${active.title}“ wiederherstellen?`))return;
+    setCompanionBusy(true);
+    try{await api('/api/character-companion','PATCH',{action:archive?'character.archive':'character.restore',id:active.id,version:active.version,confirmed:true});invalidatePlayerData(dataScope);if(archive&&active.id===activeCharacterId)onActiveCharacterChange(null);setArchivedId(archive?active.id:null);setArchiveView(archive);setView("sheet");onRefresh?.();toast.success(archive?'Charakter archiviert – alle Daten erhalten.':'Charakter wiederhergestellt.');}catch(e){toast.error((e as Error).message);}finally{setCompanionBusy(false);}
+  }
+
   if (!active)
     return (
       <section className={`panel character-empty ${studio.studio}`}>
-        <h2>{entries.length ? "Charakter auswählen" : "Noch kein Charakter"}</h2>
+        {archiveNav}
+        {lifecycleConfirmation.dialog}
+        <h2>{archiveView ? "Archivierte Charaktere" : entries.length ? "Charakter auswählen" : "Noch kein Charakter"}</h2>
         <p className="muted">
           {entries.length
             ? a.gm ? "Wähle einen für dich freigegebenen Charakter der Kampagne aus." : "Wähle einen deiner Charaktere aus."
-            : "Lege deinen ersten Charakter an."}
+            : archiveView ? "Keine archivierten Charaktere vorhanden." : "Lege deinen ersten Charakter an."}
         </p>
         <button className="button primary" onClick={onCreate}><Plus size={16}/>Charakter erschaffen</button>
         {entries.length ? (
@@ -381,7 +401,7 @@ export function CharacterDetail({
                 key={e.id}
                 onClick={() => {
                   const id = e.id ?? null;
-                  onActiveCharacterChange(id);
+                  chooseCharacter(id);
                 }}
               >
                 <strong>{e.title}</strong>
@@ -409,7 +429,8 @@ export function CharacterDetail({
 
   const i = projection.identity;
   const s = projection.sheet;
-  const permissions = projection.permissions;
+  const archived=!activeCharacterBody(active.body);
+  const permissions: CharacterDetailProjection["permissions"] = {...projection.permissions,...(archived?{canEdit:false,canEditCompanion:false,canChangeRuntimeValues:false,canCreateNotes:false}:{})};
   const will = obj(s.willpower);
   const blood = obj(s.blood);
   const health = obj(s.health);
@@ -438,6 +459,8 @@ export function CharacterDetail({
 
   return (
     <div className={`character-detail-page ${studio.studio}`}>
+      {archiveNav}{lifecycleConfirmation.dialog}
+      {archived&&<p role="status" className="panel">Archivierter Charakter · Daten erhalten · vor Änderungen wiederherstellen.</p>}
       {refreshing && <p className="muted" role="status">Charakterbogen wird aktualisiert …</p>}
       {loadError && <div role="alert" className="error-box"><strong>{describeDataError(loadError).title}</strong><p>{loadError.message}</p><button className="button" onClick={() => void reload(true)}>Erneut versuchen</button></div>}
       <header className="character-hero">
@@ -467,7 +490,7 @@ export function CharacterDetail({
           </dl></details>
         </div>
         <div className="character-hero-actions">
-          {!inspection && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
+          {!inspection && !archived && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
           {entries.length > 1 && (
             <label className="character-active-select">
               <span>{inspection ? "Charakter in SL-Inspektion" : "Aktiver Charakter"}</span>
@@ -477,7 +500,7 @@ export function CharacterDetail({
                 disabled={runtimeBusy || companionBusy}
                 onChange={(event) => {
                   const id = event.target.value || null;
-                  onActiveCharacterChange(id);
+                  chooseCharacter(id);
                 }}
               >
                 {entries.map((entry) => <option key={entry.id} value={entry.id}>{entry.title}</option>)}
@@ -494,6 +517,7 @@ export function CharacterDetail({
               <Pencil size={16} /> {inspection && a.gm ? "SL-Werte ändern" : "Bogen bearbeiten"}
             </button>
           )}
+          {active.owner_id===a.id&&!inspection&&<button className="button" disabled={companionBusy} onClick={()=>void changeLifecycle(!archived)}>{archived?"Charakter wiederherstellen":"Charakter archivieren"}</button>}
           <details className={studio.heroUtilities}><summary>Weitere Aktionen</summary><div>
           <button className="button" onClick={onCreate}><Plus size={15}/>Neuer Charakter</button>
           {canCompanion && (
@@ -513,9 +537,9 @@ export function CharacterDetail({
       </header>
       <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>setView("development")}/>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
-      {(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
+      {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
 
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
@@ -721,7 +745,7 @@ export function CharacterDetail({
                       <RichTextView value={note.text}/>
                       <small>Geändert {new Date(note.updatedAt).toLocaleDateString("de-DE")}</small>
                     </div>
-                    {note.canEdit && (
+                    {!archived && note.canEdit && (
                       <div className="companion-note-actions">
                         <button className="button" onClick={() => editNote(note)}>
                           <Pencil size={14} /> Bearbeiten

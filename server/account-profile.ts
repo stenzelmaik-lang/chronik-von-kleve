@@ -29,7 +29,7 @@ export async function profile(request: Request) {
     accountRoles(u.memberId),
   ]);
   return { displayName:u.displayName, email:u.email, version:row!.version, avatarFileId:row?.avatar_file_id ?? null,
-    preferences:row?.preferences ? JSON.parse(row.preferences) as {reducedMotion:boolean;compactView:boolean} : {reducedMotion:false,compactView:false},
+    preferences:{reducedMotion:JSON.parse(row?.preferences||'{}').reducedMotion===true,compactView:JSON.parse(row?.preferences||'{}').compactView===true},
     campaigns:memberships.results, platformRoles, canManage:platformRoles.includes("platform_admin") || memberships.results.some(r => r.status==='active' && ['campaign_owner','campaign_gm'].includes(r.role)),
   };
 }
@@ -45,7 +45,7 @@ export async function saveProfile(request:Request, value:unknown) {
   const result=await db.batch([
     db.prepare("UPDATE auth_users SET display_name=?,version=version+1,updated_at=? WHERE id=? AND version=? AND status='active'").bind(d.displayName,stamp,u.id,d.version),
     db.prepare("INSERT INTO auth_security_events(id,actor_id,subject_user_id,action,metadata,created_at) SELECT ?,?,?,'profile.saved','{}',? WHERE changes()=1").bind(event,u.id,u.id,stamp),
-    db.prepare("INSERT INTO auth_profiles(user_id,avatar_file_id,preferences) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM auth_security_events WHERE id=?) ON CONFLICT(user_id) DO UPDATE SET avatar_file_id=excluded.avatar_file_id,preferences=excluded.preferences").bind(u.id,d.avatarFileId,JSON.stringify(d.preferences),event),
+    db.prepare("INSERT INTO auth_profiles(user_id,avatar_file_id,preferences) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM auth_security_events WHERE id=?) ON CONFLICT(user_id) DO UPDATE SET avatar_file_id=excluded.avatar_file_id,preferences=json_set(excluded.preferences,'$.activeCharacters',json(COALESCE(json_extract(auth_profiles.preferences,'$.activeCharacters'),'{}')))").bind(u.id,d.avatarFileId,JSON.stringify(d.preferences),event),
   ]);
   if(result[0].meta.changes!==1)throw new HttpError(409,"Dein Profil wurde inzwischen geändert. Bitte neu laden.");
   return {ok:true,version:d.version+1};

@@ -2,11 +2,13 @@ import { redirect } from "next/navigation";
 import { actor } from "@/server/access";
 import { currentUserFromContext } from "@/server/platform-auth";
 import Workspace from "./workspace";
+import {selectedCharacter} from '@/server/character-selection';
 export const dynamic = "force-dynamic";
 async function SignedIn({ initialSection, initialCharacterId }: { initialSection: string; initialCharacterId?: string }) {
-  if (!(await currentUserFromContext())) redirect("/anmelden");
+  const user=await currentUserFromContext();
+  if (!user) redirect("/anmelden");
   const a = await actor(false).catch(() => null);
-  if (a) return <Workspace actor={a} initialSection={initialSection} initialCharacterId={initialCharacterId} />;
+  if (a) return <Workspace actor={a} initialSection={initialSection} initialCharacterId={await selectedCharacter(a,user.id,initialCharacterId) || undefined} />;
   return (
     <main className="shell">
       <h1 className="page-title">Dein Zugang ist noch nicht freigeschaltet.</h1>

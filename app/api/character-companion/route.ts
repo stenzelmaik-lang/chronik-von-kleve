@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
 import { isRichTextWithinLimit } from "@/domain/location-rich-text";
+import {account} from '@/server/account-profile';
 import {
   actor,
   canEdit,
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 const id = z.string().min(1).max(100);
 const visibility = z.enum(["private", "sl", "group"]);
 const schema = z.discriminatedUnion("action", [
+  z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
+  z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({
     action: z.literal("roleplay"),
     id,
@@ -66,7 +69,7 @@ function parseBody(row: Pick<LegacyRecordRow, "body">): Record<string, unknown> 
   }
 }
 
-async function loadCharacter(db: D1Database, actorId: string, campaignId: string, characterId: string) {
+async function loadCharacter(db: D1Database, actorId: string, campaignId: string, characterId: string, allowArchived=false) {
   const character = await db
     .prepare("SELECT * FROM records WHERE id=? AND campaign_id=? AND kind='charaktere'")
     .bind(characterId, campaignId)
@@ -81,6 +84,7 @@ async function loadCharacter(db: D1Database, actorId: string, campaignId: string
     throw new HttpError(404, "Charakter nicht gefunden.");
   if (character.owner_id !== actorId)
     throw new HttpError(403, "Nur der Besitzer bearbeitet diese Companion-Daten.");
+  if(!allowArchived&&(body.archived===true||body.lifecycleStatus==='ARCHIVED'))throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
   return { character, body };
 }
 
@@ -89,9 +93,10 @@ async function updateCharacterBody(
   character: LegacyRecordRow,
   expectedVersion: number,
   body: Record<string, unknown>,
+  selection?: {userId:string;path:string},
 ) {
   const now = new Date().toISOString();
-  const result = await db
+  const statement = db
     .prepare(
       "UPDATE records SET body=?,version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=?",
     )
@@ -101,8 +106,8 @@ async function updateCharacterBody(
       character.id,
       character.campaign_id,
       expectedVersion,
-    )
-    .run();
+    );
+  const result=selection?(await db.batch([statement,db.prepare('UPDATE auth_profiles SET preferences=json_remove(preferences,?) WHERE user_id=? AND json_extract(preferences,?)=? AND changes()=1').bind(selection.path,selection.userId,selection.path,character.id)]))[0]:await statement.run();
   if (!result.meta.changes)
     throw new HttpError(409, "Konflikt: Charakter wurde inzwischen geändert.");
   return { version: expectedVersion + 1 };
@@ -147,6 +152,16 @@ export async function PATCH(req: Request) {
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
     const db = database();
     const data = parsed.data;
+    if(data.action==='character.archive'||data.action==='character.restore'){
+      const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id,true);
+      try{const original:unknown=JSON.parse(character.body);if(!original||typeof original!=='object'||Array.isArray(original))throw Error();}catch{throw new HttpError(409,'Der ursprüngliche Charakterdatensatz ist ungültig und bleibt unverändert.');}
+      const archive=data.action==='character.archive';
+      body.archived=archive;
+      if(archive){body.archivedAt=new Date().toISOString();body.archivedBy=a.id;}
+      else if(body.lifecycleStatus==='ARCHIVED')body.lifecycleStatus='ACTIVE';
+      const user=await account(req);
+      return json(await updateCharacterBody(db,character,data.version,body,archive?{userId:user.id,path:'$.activeCharacters.'+JSON.stringify(a.campaignId)}:undefined));
+    }
     if (data.action === "roleplay" && (!isRichTextWithinLimit(data.backgroundStory,30000) || !isRichTextWithinLimit(data.playGuide,30000)))
       throw new HttpError(400,"Der formatierte Text ist zu lang.");
     if ((data.action === "note.create" || data.action === "note.update") && !isRichTextWithinLimit(data.text,30000))

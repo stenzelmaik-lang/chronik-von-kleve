@@ -33,6 +33,7 @@ type Section = {
 };
 
 export const sections: Section[] = [
+  {id:"rueckblick",name:"Spielabend-Rückblick",icon:BookOpen,desc:"Freigegebene Zusammenfassung eines vergangenen Spielabends.",mainNav:false},
   {
     id: "dashboard",
     name: "Übersicht",

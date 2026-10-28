@@ -165,6 +165,8 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Spielraumdaten werden ausschließlich im gemeinsamen Spielraum verwaltet.");
     if (d.kind === "charaktere") {
       const previous = old ? legacyBody(old.body) : undefined;
+      if(previous?.archived===true||previous?.lifecycleStatus==='ARCHIVED')throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
+      for(const field of ['archived','archivedAt','archivedBy','lifecycleStatus'])if(JSON.stringify(previous?.[field]??null)!==JSON.stringify(d.body[field]??null))throw new HttpError(403,'Charaktere ausschließlich über die bestätigte Archivierung verwalten.');
       Object.assign(d.body, withCreationBaseValues(d.body));
       if (previous?.characterState === "review" && ["attributes","skills","disciplines","backgrounds","virtues","humanity","willpower","clan","generation","merits","flaws","creationAllocations","freebiePurchases"].some(key=>JSON.stringify(previous[key]??null)!==JSON.stringify(d.body[key]??null)))
         throw new HttpError(409,"Der eingereichte Bogen ist geschützt. Die Spielleitung muss ihn zuerst zur Überarbeitung zurückgeben.");
@@ -273,6 +275,7 @@ export async function DELETE(req: Request) {
       throw new HttpError(404, "Eintrag nicht gefunden.");
     if (!canEdit(a, r))
       throw new HttpError(403, "Du darfst diesen Eintrag nicht löschen.");
+    if(r.kind==='charaktere')throw new HttpError(403,'Charaktere bleiben erhalten. Bitte die bestätigte Archivierung verwenden.');
     if (r.kind === "inventory_carry" || (r.kind === "inventar" && await db.prepare("SELECT 1 AS present FROM entities WHERE id=? AND campaign_id=? AND type='ITEM'").bind(r.id, a.campaignId).first()))
       throw new HttpError(403, "Inventardaten bleiben erhalten. Gegenstände lassen sich im Charakterinventar archivieren.");
     if (legacyBody(r.body).context === "sl-message") throw new HttpError(403, "Das Nachrichtenarchiv bleibt erhalten.");

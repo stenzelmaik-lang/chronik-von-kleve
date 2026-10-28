@@ -19,17 +19,18 @@ test('overview reuses existing destinations and distinguishes legacy XP',()=>{
   for(const destination of ['sitzung','charaktere','inventar','notizen','termine'])assert.ok(dashboard.includes(`onNavigate('${destination}')`));
   assert.ok(dashboard.includes('chroniplay:open-inbox'));
   const nav=readFileSync(new URL('../app/spielbereich/modules/navigation.ts',import.meta.url),'utf8');
-  assert.ok(shell.includes('s.mainNav !== false'));
+  assert.ok(shell.includes('Chronik erkunden'));
+  assert.ok(shell.includes('showTrigger={false}'));
   for(const id of ['sitzung','wuerfel','charaktere','inventar'])assert.match(nav,new RegExp(`id: "${id}",\\s+mainNav: false`));
-  assert.ok(shell.includes('Zur Übersicht'));
+  assert.ok(shell.includes('Zur Spielerzentrale'));
   assert.ok(!shell.includes('Journal & mehr'));
 });
 
 test('mobile icon actions retain accessible names and neutral context',()=>{
-  assert.ok(shell.includes('aria-label="Startseite öffnen"'));
+  assert.ok(shell.includes('aria-label="ChroniPlay – Spielerzentrale"'));
   assert.ok(command.includes('Veröffentlichten Gruppenblick öffnen'));
   assert.ok(!shell.includes('Aktive Nacht'));
-  assert.ok(shell.includes('const compactName = s.name'));
+  assert.ok(shell.includes('Kontomenü'));
 });
 test('mobile scene ordering copies panels and contextual tools remain mounted',()=>{
   const board=readFileSync(new URL('../app/spielbereich/modules/command-board.tsx',import.meta.url),'utf8');
