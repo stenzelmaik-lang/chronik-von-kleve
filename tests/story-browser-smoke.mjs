@@ -46,8 +46,18 @@ async function saveOrAutosave(kind, id, predicate) {
 }
 async function chooseSession() {
   const nav = page.locator('nav[aria-label="Storynavigation"]');
-  await nav.getByRole("button", { name: /Der Hunger bleibt – Sitzung 01/ }).first().click();
-  await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).waitFor();
+  const item = nav.getByRole("button", { name: /Der Hunger bleibt – Sitzung 01/ }).first();
+  const create = page.getByRole("button", { name: "+ Szene für diesen Spielabend" });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await item.click();
+    try {
+      await create.waitFor({ timeout: 4000 });
+      return;
+    } catch {
+      // The previous save may have just finished. Retry the user navigation.
+    }
+  }
+  throw new Error("Navigation did not return to the session after saving the scene");
 }
 async function addScene(title, placeTitle, html) {
   await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).click();

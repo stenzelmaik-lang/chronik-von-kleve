@@ -303,13 +303,25 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
   async function leave() {
-    if (inflight.current) return false;
-    return (
-      !dirty ||
-      (await confirmation.ask(
-        "Ungespeicherte Änderungen verwerfen und die andere Akte öffnen?",
-      ))
-    );
+    // Navigation must not silently drop a click while an autosave finishes.
+    if (inflight.current) {
+      const deadline = Date.now() + 15000;
+      while (inflight.current && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      if (inflight.current) {
+        setMessage("Speicherung läuft noch. Bitte die aktuelle Akte geöffnet lassen.");
+        return false;
+      }
+      // Let React commit the version/document returned by the completed save.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    const latestDraft = latest.current;
+    const pending = !!latestDraft &&
+      JSON.stringify(latestDraft.document) !== baseline.current;
+    return !pending || (await confirmation.ask(
+      "Ungespeicherte Änderungen verwerfen und die andere Akte öffnen?",
+    ));
   }
   async function open(kind: Kind, id: string) {
     if (!(await leave())) return;
