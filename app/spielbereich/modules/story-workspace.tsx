@@ -326,22 +326,22 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       setMessage((e as Error).message);
     }
   }
-  async function create(kind: Kind, child = false) {
+  async function create(kind: Kind, child = false, unlinked = false) {
     if (!(await leave())) return;
     generation.current++;
     inflight.current = true;
     setBusy(true);
     setMessage("Legt neue Akte an …");
     let doc: Document;
-    const fromSession=kind==="scene"&&current?.kind==="session"?current.id:"";
+    const fromSession=kind==="scene"&&!unlinked&&current?.kind==="session"?current.id:"";
     if (kind === "story") doc = emptyStory();
     else if (kind === "session")
       doc = sessionPreparationSchema.parse({ title: "Neuer Spielabend" });
     else {
       doc = emptyScene(
-        current?.kind === "story"
+        !unlinked && current?.kind === "story"
           ? current.id
-          : current?.kind === "scene"
+          : !unlinked && current?.kind === "scene"
             ? (current.document as SceneDocument).storyId
             : "",
       );
@@ -606,52 +606,38 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           <p>Von hier aus planst du Szenen, Schauplätze und Regiematerial.</p>
         </div>
         <h2>Spielabende</h2>
-          {sessions
-            .filter((v) =>
-              matches({
-                ...v.document,
-                id: v.id,
-                searchText:
-                  richTextToPlainText(v.document.notes) +
-                  " " +
-                  v.document.summary,
-              }),
-            )
-            .map((v) => (
-              <div key={v.id}>
-                <button
-                  className={current?.id === v.id ? s.selected : ""}
-                  onClick={() => void open("session", v.id)}
-                >
-                  ◷ {v.document.title}
-                </button>
-                {!search &&
-                  filter === "all" &&
-                  scenes
-                    .filter(
-                      (c) =>
-                        (v.document.sceneIds.includes(c.id) || c.sessionIds.includes(v.id)) && matches(c),
-                    )
-                    .map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => void open("scene", c.id)}
-                      >
-                        ↳ {c.title}
-                      </button>
-                    ))}
-              </div>
-            ))}
-          
+        {sessions.filter(v=>matches({
+          ...v.document,
+          id:v.id,
+          searchText:richTextToPlainText(v.document.notes)+" "+v.document.summary,
+        })).map(v=>{
+          const linked=scenes.filter(c=>
+            (v.document.sceneIds.includes(c.id)||c.sessionIds.includes(v.id))&&matches(c));
+          const placeKeys=[...new Set(linked.map(c=>c.placeId||""))];
+          return <section className={s.sessionNav} key={v.id}>
+            <button className={current?.id===v.id?s.selected:""}
+              aria-current={current?.id===v.id?"page":undefined}
+              onClick={()=>void open("session",v.id)}>◷ {v.document.title}</button>
+            {!search&&filter==="all"&&<div className={s.sessionNavContents}>
+              {!linked.length&&<p>Keine Szenen vorbereitet.</p>}
+              {placeKeys.map(placeId=><div key={placeId||"no-place"} className={s.sessionNavPlace}>
+                <span>{placeId?refs.find(r=>r.id===placeId)?.title||"Verknüpfter Ort":"Ohne Schauplatz"}</span>
+                {linked.filter(c=>(c.placeId||"")===placeId).map(c=>
+                  <button key={c.id} className={current?.id===c.id?s.selected:""}
+                    onClick={()=>void open("scene",c.id)}>◇ {c.title}</button>)}
+              </div>)}
+            </div>}
+          </section>;
+        })}
         <details className={s.secondary}>
           <summary>Weitere Akten · Handlungsstränge & freie Szenen</summary>
           <div className={s.actions}>
             <button disabled={busy} onClick={() => void create("story")}>
-              + Story
+              + Handlungsstrang
             </button>
             
-            <button disabled={busy} onClick={() => void create("scene")}>
-              + Szene
+            <button disabled={busy} onClick={() => void create("scene", false, true)}>
+              + freie Szene
             </button>
           </div>
           
@@ -681,7 +667,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
               ))}
           {!stories.length && !sessions.length && !scenes.length && (
             <p>
-              Leerer Arbeitsbestand. Lege deine erste Story oder Sitzung an.
+              Noch kein Spielabend vorbereitet. Lege deinen ersten Spielabend an.
             </p>
           )}
         
@@ -788,13 +774,15 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                       </div>;
                     })()}
                   </section>
-                   <h2>Sitzungsnotizen</h2>
+                   <h2>Regie und Verlauf dieses Spielabends</h2>
                   {editor(
                     session.notes,
                     (v) => change({ notes: v }),
                     "Sitzungsvorbereitung",
                     current.id + ":notes",
                   )}
+                  <details className={s.sessionLinks}>
+                    <summary>Vorhandene Storys, Szenen und Schauplätze verknüpfen</summary>
                   {pick(
                     "Handlungsstränge",
                     session.storyIds,
@@ -810,6 +798,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                     refs.filter((r) => r.type === "PLACE"),
                     (placeIds) => change({ placeIds }),
                   )}
+                  </details>
                 </>
               ) : (
                 <>
