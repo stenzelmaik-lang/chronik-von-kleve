@@ -146,14 +146,17 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [elementFocus, setElementFocus] = useState(""),
     [recentReady, setRecentReady] = useState(false),
     [busy, setBusy] = useState(false);
+  const [unlinkDraft, setUnlinkDraft] = useState<{sessionId:string;ids:string[]}|null>(null);
   const latest = useRef(current),
     baseline = useRef(saved),
     inflight = useRef(false),
-    generation = useRef(0);
+    generation = useRef(0),
+    pendingUnlinks = useRef<string[]>([]);
   useLayoutEffect(() => {
     latest.current = current;
     baseline.current = saved;
-  }, [current, saved]);
+    pendingUnlinks.current = current?.kind === "session" && unlinkDraft?.sessionId === current.id ? unlinkDraft.ids : [];
+  }, [current, saved, unlinkDraft]);
   const recentKey = "chroniplay-story-recent:" + a.campaignId + ":" + a.id;
   useEffect(() => {
     Promise.resolve().then(() => {
@@ -227,7 +230,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     );
     return () => cancelAnimationFrame(frame);
   }, [elementFocus, current?.id]);
-  const dirty = !!current && JSON.stringify(current.document) !== saved;
+  const unlinkedIds = current?.kind === "session" && unlinkDraft?.sessionId === current.id ? unlinkDraft.ids : [];
+  const dirty = !!current && (JSON.stringify(current.document) !== saved || unlinkedIds.length > 0);
   useEffect(()=>{onDirty?.(dirty);return()=>onDirty?.(false);},[dirty,onDirty]);
   const accept = (next: Selection) => {
     window.history.replaceState(
@@ -237,6 +241,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     );
     setNavigationOpen(false);
     setExpandedEditor(null);
+    setUnlinkDraft(null);
     setCurrent(next);
     setSaved(JSON.stringify(next.document));
     setHistory([]);
@@ -246,10 +251,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   };
   const save = useCallback(async () => {
     const start = latest.current;
+    const removed = [...pendingUnlinks.current];
     if (
       !start ||
       inflight.current ||
-      JSON.stringify(start.document) === baseline.current
+      (JSON.stringify(start.document) === baseline.current && removed.length === 0)
     )
       return;
     inflight.current = true;
@@ -262,6 +268,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         id: start.id,
         version: start.version,
         document: start.document,
+        ...(start.kind === "session" && removed.length ? { unlinkSceneIds: removed } : {}),
       });
       const next = selection(start.kind, data[start.kind]);
       if (token === generation.current) {
@@ -269,9 +276,14 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         setCurrent((value) =>
           value?.id === start.id ? { ...value, version: next.version } : value,
         );
+        setUnlinkDraft((value) => {
+          if (!value || value.sessionId !== start.id) return value;
+          const remaining = value.ids.filter((id) => !removed.includes(id));
+          return remaining.length ? { ...value, ids: remaining } : null;
+        });
         setMessage(
           JSON.stringify(latest.current?.document) !==
-            JSON.stringify(start.document)
+            JSON.stringify(start.document) || pendingUnlinks.current.some((id) => !removed.includes(id))
             ? "Ungespeicherte Änderungen · automatische Speicherung folgt"
             : "Gespeichert · " + new Date().toLocaleTimeString("de-DE"),
         );
@@ -293,7 +305,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     const warn = (e: BeforeUnloadEvent) => {
       if (
         latest.current &&
-        JSON.stringify(latest.current.document) !== baseline.current
+        (JSON.stringify(latest.current.document) !== baseline.current || pendingUnlinks.current.length > 0)
       ) {
         e.preventDefault();
         e.returnValue = "";
@@ -317,7 +329,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     }
     const latestDraft = latest.current;
     const pending = !!latestDraft &&
-      JSON.stringify(latestDraft.document) !== baseline.current;
+      (JSON.stringify(latestDraft.document) !== baseline.current || pendingUnlinks.current.length > 0);
     return !pending || (await confirmation.ask(
       "Ungespeicherte Änderungen verwerfen und die andere Akte öffnen?",
     ));
@@ -486,6 +498,10 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     story = current?.kind === "story" ? (doc as StoryDocument) : null,
     scene = current?.kind === "scene" ? (doc as SceneDocument) : null,
     session = current?.kind === "session" ? (doc as SessionPreparation) : null;
+  const sessionSceneValues = session && current ? [...new Set([
+    ...session.sceneIds,
+    ...scenes.filter((item) => item.sessionIds.includes(current.id)).map((item) => item.id),
+  ])].filter((id) => !unlinkedIds.includes(id)) : [];
   const labels: Record<string, string> = story
     ? {
         background: "Geschichte",
@@ -554,7 +570,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   function tree(parent: string, storyId: string, depth = 0): React.ReactNode {
     if (depth > 20) return null;
     return scenes
-      .filter((v) => v.parentId === parent && v.storyId === storyId && matches(v))
+      .filter((v) => v.parentId === parent && v.storyId === storyId && matches(v) &&
+        (storyId !== "" || parent !== "" || (!v.sessionIds.length && !sessions.some((item) => item.document.sceneIds.includes(v.id)))))
       .map((v) => (
         <div key={v.id} style={{ paddingLeft: depth ? 12 : 0 }}>
           <button
@@ -622,8 +639,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           id:v.id,
           searchText:richTextToPlainText(v.document.notes)+" "+v.document.summary,
         })).map(v=>{
+          const currentSession=current?.kind==="session"&&current.id===v.id?session:null;
+          const sceneIds=currentSession?.sceneIds||v.document.sceneIds;
           const linked=scenes.filter(c=>
-            (v.document.sceneIds.includes(c.id)||c.sessionIds.includes(v.id))&&matches(c));
+            !(currentSession&&unlinkedIds.includes(c.id)) &&
+            (sceneIds.includes(c.id)||c.sessionIds.includes(v.id))&&matches(c));
           const placeKeys=[...new Set(linked.map(c=>c.placeId||""))];
           return <section className={s.sessionNav} key={v.id}>
             <button className={current?.id===v.id?s.selected:""}
@@ -770,7 +790,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                     </div>
                     <p>Die Vorbereitung gibt Möglichkeiten vor, keine feste Reihenfolge der Spielerhandlungen.</p>
                     {(()=>{
-                      const linked=scenes.filter(c=>session.sceneIds.includes(c.id)||c.sessionIds.includes(current!.id));
+                      const linked=scenes.filter(c=>!unlinkedIds.includes(c.id) && (session.sceneIds.includes(c.id)||c.sessionIds.includes(current!.id)));
                       const placeIds=[...new Set([...session.placeIds,...linked.map(c=>c.placeId).filter(Boolean)])];
                       return <div className={s.sessionPlaces}>
                         {placeIds.map(placeId=><section key={placeId} className={s.sessionPlace}>
@@ -800,9 +820,15 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                     stories,
                     (storyIds) => change({ storyIds }),
                   )}
-                  {pick("Szenen", session.sceneIds, scenes, (sceneIds) =>
-                    change({ sceneIds }),
-                  )}
+                  {pick("Szenen", sessionSceneValues, scenes, (sceneIds) => {
+                    const removed = sessionSceneValues.filter((id) => !sceneIds.includes(id));
+                    setUnlinkDraft((value) => {
+                      const previous = value?.sessionId === current.id ? value.ids : [];
+                      const ids = [...new Set([...previous.filter((id) => !sceneIds.includes(id)), ...removed])];
+                      return ids.length ? { sessionId: current.id, ids } : null;
+                    });
+                    change({ sceneIds });
+                  })}
                   {pick(
                     "Zentrale Orte",
                     session.placeIds,

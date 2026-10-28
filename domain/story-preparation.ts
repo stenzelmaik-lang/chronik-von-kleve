@@ -59,6 +59,7 @@ export const sessionPreparationCommand = z.discriminatedUnion("action", [
       id: z.string().min(1).max(100),
       version: z.number().int().positive(),
       document: sessionPreparationSchema,
+      unlinkSceneIds: preparationIds.optional(),
     })
     .strict(),
   z

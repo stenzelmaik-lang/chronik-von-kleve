@@ -1,16 +1,16 @@
 /**
  * Browser UX smoke for the isolated ChroniPlay story-workspace fixture.
  * This script must never point at production or an external hostname.
- * Run with local --story-workspace server and temporary Playwright installation.
+ * Run with the isolated --spieltisch-release server and a Playwright installation.
  */
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 
-const base = process.env.CVK_TEST_URL || "http://127.0.0.1:8802";
+const base = process.env.CVK_TEST_URL || "http://127.0.0.1:8820";
 const parsedBase = new URL(base);
 assert.equal(parsedBase.hostname, "127.0.0.1", "Browser smoke must stay on 127.0.0.1");
-assert.equal(parsedBase.port, "8802", "Browser smoke uses only the isolated SL fixture");
+assert.equal(parsedBase.port, "8820", "Browser smoke uses only the isolated SL/player fixture");
 const dir = "artifacts/story-browser-smoke";
 mkdirSync(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true });
@@ -74,6 +74,9 @@ async function addScene(title, placeTitle, html) {
   await page.getByRole("button", { name: "Editor vergrößern" }).click();
   assert.equal(await page.locator('main [aria-pressed="true"]').filter({ hasText: "Vollbild schließen" }).count(), 1);
   await screenshot("szene-" + (title.includes("Kaserne") ? "kaserne" : "taberna") + "-vollbild");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("button", { name: "Editor vergrößern" }).getAttribute("aria-pressed"), "false");
+  await page.getByRole("button", { name: "Editor vergrößern" }).click();
   await page.getByRole("button", { name: "Vollbild schließen" }).click();
   const data = await saveOrAutosave("scene", sceneId, s =>
     s.document.title === title &&
@@ -145,6 +148,40 @@ try {
   const second = await api("/api/command-center/scenes?id=" + encodeURIComponent(tabernaId));
   assert.ok(second.body.scene.document.narration.includes("Avis Bar"));
 
+  phase = "unlink scene from both existing references";
+  await chooseSession();
+  await page.getByText("Vorhandene Storys, Szenen und Schauplätze verknüpfen").click();
+  const scenePicker = page.getByRole("group", { name: "Szenen" });
+  await scenePicker.getByRole("checkbox", { name: /Electric Taberna – Besuch/ }).uncheck();
+  await saveOrAutosave("session", sessionId, s => !s.document.sceneIds.includes(tabernaId));
+  const unlinkedScene = await api("/api/command-center/scenes?id=" + encodeURIComponent(tabernaId));
+  assert.ok(!unlinkedScene.body.scene.document.sessionIds.includes(sessionId), "Unlink clears the scene-side reference too");
+  assert.ok(unlinkedScene.body.scene.document.narration.includes("Avis Bar"), "Unlink preserves scene content");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).waitFor();
+  assert.equal(await nav.getByRole("button", { name: /Electric Taberna – Besuch/ }).count(), 0);
+  const freeFiles = nav.locator("details").filter({ hasText: "Weitere Akten" });
+  await freeFiles.locator("summary").click();
+  assert.equal(await freeFiles.getByRole("button", { name: /Electric Taberna – Besuch/ }).count(), 1, "Unlinked scene remains available as a free original");
+  assert.equal(await freeFiles.getByRole("button", { name: /Kaserne – Ankunft/ }).count(), 0, "Assigned scenes are not listed as free");
+
+  phase = "unlink an existing scene-only reference";
+  const oneSided = await api("/api/command-center/scenes", "POST", {
+    action: "create", clientRequestId: crypto.randomUUID(),
+    document: { ...unlinkedScene.body.scene.document, title: "SYNTHETISCH – alter Szenenverweis", sessionIds: [sessionId] },
+  });
+  assert.equal(oneSided.status, 201);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).waitFor();
+  await page.getByText("Vorhandene Storys, Szenen und Schauplätze verknüpfen").click();
+  const legacyCheckbox = page.getByRole("group", { name: "Szenen" }).getByRole("checkbox", { name: /SYNTHETISCH – alter Szenenverweis/ });
+  assert.ok(await legacyCheckbox.isChecked(), "A scene-only reference is visible as selected");
+  const previousSession = (await api("/api/command-center/preparation?id=" + encodeURIComponent(sessionId))).body.session;
+  await legacyCheckbox.uncheck();
+  await saveOrAutosave("session", sessionId, s => s.version > previousSession.version);
+  const afterLegacyUnlink = await api("/api/command-center/scenes?id=" + encodeURIComponent(oneSided.body.scene.id));
+  assert.ok(!afterLegacyUnlink.body.scene.document.sessionIds.includes(sessionId));
+
   phase = "responsive desktop 1440 and approximate 125% CSS zoom";
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.evaluate(() => { document.documentElement.style.zoom = "125%"; });
@@ -164,6 +201,20 @@ try {
   const unauthorized = await anonymous.request.get(base + "/api/command-center/preparation?id=" + encodeURIComponent(sessionId));
   assert.ok([401, 403].includes(unauthorized.status()));
   await anonymous.close();
+  const player = await browser.newContext();
+  const playerLogin = await player.request.post(base + "/api/auth/login", {
+    headers: { Origin: base }, data: { email: "command-a@example.invalid", password: "ChroniPlay-Demo-2036!" },
+  });
+  assert.equal(playerLogin.status(), 200);
+  for (const route of ["preparation?id=" + encodeURIComponent(sessionId), "scenes?id=" + encodeURIComponent(kaserneId)]) {
+    const denied = await player.request.get(base + "/api/command-center/" + route);
+    assert.equal(denied.status(), 403, "Players cannot access private SL preparation");
+  }
+  const playerScenes = await player.request.get(base + "/api/session-scenes");
+  assert.ok(playerScenes.ok());
+  const visible = await playerScenes.text();
+  assert.ok(!visible.includes("Versiegelte Order") && !visible.includes("Kaserne – Ankunft"), "Unpublished scene details stay private");
+  await player.close();
 
   console.log("PASS: isolated Spielabend -> Kaserne / Taberna scenes -> HTML preview -> fullscreen -> save/reload -> responsive/SL privacy.");
   console.log("NOTE: 125% simulated using CSS zoom, not native browser zoom.");

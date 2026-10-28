@@ -218,6 +218,57 @@ export async function storyPreparationIntegration({
     parent.document.elements.length === 1,
     "P2A element persisted without activation",
   );
+  // Removing a session link must update both existing documents atomically,
+  // including older scenes that only stored their own sessionIds reference.
+  const unlinkSession = (await req(root + "/preparation", "gm", "POST", {
+    action: "create", clientRequestId: randomUUID(),
+    document: sessionPreparationSchema.parse({ title: "P2A SYNTHETIC unlink session" }),
+  })).d.session;
+  const unlinkScene = (await req(root + "/scenes", "gm", "POST", {
+    action: "create", clientRequestId: randomUUID(),
+    document: { ...emptyScene(), title: "P2A SYNTHETIC unlink scene", narration: "PRIVATE_UNLINK_TEXT", sessionIds: [unlinkSession.id] },
+  })).d.scene;
+  const linked = (await req(root + "/preparation", "gm", "POST", {
+    action: "save", id: unlinkSession.id, version: unlinkSession.version,
+    document: { ...unlinkSession.document, sceneIds: [unlinkScene.id] },
+  })).d.session;
+  const removal = { action: "save", id: linked.id, version: linked.version, document: { ...linked.document, sceneIds: [] } };
+  check((await req(root + "/preparation", "gm", "POST", { ...removal, version: unlinkSession.version })).s === 409,
+    "P2A stale unlink cannot overwrite the session or scene");
+  localSql(`CREATE TRIGGER p2a_fail_unlink BEFORE UPDATE OF gm_body ON entities WHEN OLD.id=${sqlQuote(unlinkScene.id)} BEGIN SELECT RAISE(ABORT,'P2A isolated unlink failure'); END`);
+  check((await req(root + "/preparation", "gm", "POST", removal)).s === 503,
+    "P2A scene update failure rejects the entire unlink");
+  localSql("DROP TRIGGER p2a_fail_unlink");
+  const afterFailureSession = (await req(root + "/preparation?id=" + linked.id, "gm")).d.session;
+  const afterFailureScene = (await req(root + "/scenes?id=" + unlinkScene.id, "gm")).d.scene;
+  check(afterFailureSession.version === linked.version && afterFailureSession.document.sceneIds.includes(unlinkScene.id) &&
+    afterFailureScene.version === unlinkScene.version && afterFailureScene.document.sessionIds.includes(linked.id),
+    "P2A failed unlink preserves both references and revisions");
+  const concurrentScene = (await req(root + "/scenes", "gm", "POST", {
+    action: "save", id: unlinkScene.id, version: unlinkScene.version,
+    document: { ...unlinkScene.document, narration: "PRIVATE_CONCURRENT_EDIT" },
+  })).d.scene;
+  const unlinked = await req(root + "/preparation", "gm", "POST", removal);
+  const afterUnlink = (await req(root + "/scenes?id=" + unlinkScene.id + "&history=1", "gm")).d;
+  check(unlinked.s === 200 && !unlinked.d.session.document.sceneIds.includes(unlinkScene.id) &&
+    !afterUnlink.scene.document.sessionIds.includes(linked.id), "P2A unlink clears both sides");
+  check(afterUnlink.scene.version === concurrentScene.version + 1 && afterUnlink.scene.document.narration === "PRIVATE_CONCURRENT_EDIT" &&
+    afterUnlink.scene.state.runs.length === 0 && afterUnlink.scene.state.publications.length === 0 && afterUnlink.history.length >= 3,
+    "P2A unlink preserves concurrent scene text and records an audited revision without publication");
+  const legacyOnly = (await req(root + "/scenes", "gm", "POST", {
+    action: "create", clientRequestId: randomUUID(),
+    document: { ...emptyScene(), title: "P2A SYNTHETIC one-sided link", sessionIds: [linked.id] },
+  })).d.scene;
+  const oneSided = await req(root + "/preparation", "gm", "POST", {
+    action: "save", id: linked.id, version: unlinked.d.session.version,
+    document: unlinked.d.session.document, unlinkSceneIds: [legacyOnly.id],
+  });
+  check(oneSided.s === 200 && !(await req(root + "/scenes?id=" + legacyOnly.id, "gm")).d.scene.document.sessionIds.includes(linked.id),
+    "P2A a scene-only legacy reference can be removed explicitly");
+  check((await req(root + "/preparation", "gm", "POST", {
+    action: "save", id: linked.id, version: oneSided.d.session.version,
+    document: oneSided.d.session.document, unlinkSceneIds: [legacyOnly.id],
+  })).s === 400, "P2A cannot unlink an unrelated scene");
   const childResponse = await req(root + "/scenes", "gm", "POST", {
     action: "create",
     clientRequestId: randomUUID(),

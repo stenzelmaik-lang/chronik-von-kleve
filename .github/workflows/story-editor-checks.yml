@@ -65,12 +65,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --experimental-strip-types scripts/test-local.mjs --story-workspace > "$RUNNER_TEMP/story-workspace.log" 2>&1 &
+          node --experimental-strip-types scripts/test-local.mjs --spieltisch-release > "$RUNNER_TEMP/story-workspace.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           ready=0
           for n in $(seq 1 150); do
-            if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8802/api/members || true)" = "401" ]; then
+            if [ "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8820/api/members || true)" = "401" ]; then
               ready=1
               break
             fi
@@ -85,7 +85,7 @@ jobs:
             echo "Local fixture server did not become ready"
             exit 1
           fi
-          CVK_TEST_URL=http://127.0.0.1:8802 node tests/story-browser-smoke.mjs || {
+          CVK_TEST_URL=http://127.0.0.1:8820 node tests/story-browser-smoke.mjs || {
             tail -n 100 "$RUNNER_TEMP/story-workspace.log"
             exit 1
           }
