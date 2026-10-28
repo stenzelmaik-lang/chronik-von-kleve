@@ -6,8 +6,8 @@ Stand: 28.10.2026. **Kontrollierter Hauptseiten-Release ausdrücklich freigegebe
 
 - Branch: `codex/spieltisch-2-prototyp`, eigener Worktree `work/spieltisch-2-prototyp`.
 - Abgenommener Prototyp vollständig versioniert: `43e4d0e753d8f368e208423aa2f2ce64befc5525`.
-- Integrationsbasis und weiterhin produktiver Stand: `d33f4162a7d0d1a1544cbded2c2e2c6b348d6c1b`.
-- Frisch abgerufener GitHub-main: `855ec4cbafdee46e4ffef2d13c81a306b7ca04e1`. Die fünf bereits produktiven Ortsdossier-Commits bis `d33f416` fehlen dort noch. Der Feature-Branch erhält sie unverändert; es erfolgt kein Reset oder Überschreiben von main.
+- Integrationsbasis und vorheriger produktiver Stand: `d33f4162a7d0d1a1544cbded2c2e2c6b348d6c1b`.
+- Tatsächlicher GitHub-main vor dem Merge: ebenfalls `d33f416`. Die zunächst gelesene lokale Referenz `origin/main=855ec4c` war veraltet: der eingeschränkte Fetch-Refspec dieses Checkouts aktualisiert sie bei `git fetch origin main` nicht. `FETCH_HEAD`, `ls-remote` und die PR-Basis bestätigten `d33f416`; anschließend wurde die Remote-Tracking-Referenz explizit aktualisiert. Keine bereits produktiven Ortsdossier-Commits wurden überschrieben.
 - Originaler lokaler Bühnenstand unverändert: SHA-256 `d600320be77877ce727bfeccc6f34862accf89354e044623f413d191beee553c`.
 - Private Sicherungen und Nachweise liegen unter `.local-work/spieltisch-2/` und sind von Git ausgeschlossen. Der andere Checkout `cvk-m1-kernmodell` wurde nicht verändert.
 
@@ -42,16 +42,16 @@ Alle Nachweise sind privat unter `.local-work/spieltisch-2/` abgelegt. Produktio
 | Unit-/Regressionstests einschließlich W10 und Prototyp | 322 bestanden, 0 Fehler |
 | Vollständiger HTTP-Integrationslauf mit abschließender Fingerabdruckprüfung | 1.575 bestanden, 0 Fehler |
 | Rollenfundament / Rückrollproben | 46 bestanden; zusätzlich atomarer D1-Batch-Rollback geprüft |
-| Typecheck und gezieltes ESLint | Protokolle `integration-typecheck.log`, `integration-lint.log` |
-| Produktionsbuild | `integration-build.log`; Build für die bestehende Worker-Laufzeit |
-| Deployment-Dry-Run | Paketierung erfolgreich mit lokalen Test-Bindings; kein Nachweis eines Produktionsdeployments |
+| Typecheck und gezieltes ESLint | Bestanden, Exit 0; `integration-typecheck.log`, `integration-lint.log` |
+| Produktionsbuild | Bestanden; abschließend `release-20261028/production-build.log` mit bestehendem Produktionsprofil |
+| Deployment-Dry-Run | Produktionspaketierung und exakte Produktionsbindungen bestanden; `release-20261028/production-dry-run.log` |
 | Browser: regulärer Login, getrennte SL-/Spielersitzung | Synthetische Prüfkonten mit echten Auth-Cookies; getrennte Cookie-Ursprünge `127.0.0.1` und `localhost` |
 | Browser: Szene / NPC / Dokument | Szenenbild und formatierte Erzählung synchron; private Figur zunächst nicht beim Spieler; Freigabe und gemeinsame Positionsänderung; geschütztes Handout und persönlicher Zoom auf 120 % |
 | Browser: Sticky Notes | Spieler erstellt privaten Zettel; SL liest ihn, hat jedoch keine fremde Bearbeitungsaktion |
 | Browser: Whiteboard | Text über vorhandenen Editor erstellt; SL sieht ihn ohne eigenen Zeichenmodus; Tastatur und Rückgängig geprüft |
 | Browser: gemeinsamer 3D-Wurf | SL und Spieler: ID `11418937-65a0-4adb-9f57-ac044a9157f1`, Werte `3,10,1,4,1,10,6,9,4,1`, gleiche Endwerte, 1 Nettoerfolg, kein Fallback. Spieler 1920×1080, SL 1280×720; Schließen erreichbar, kein horizontaler Überlauf. Objektwerkzeuge verdecken die Wurfauswertung nicht |
 | Browser: Schließen / Reconnect | Persönliches Schließen lässt SL-Wurf offen; Reload bleibt persönlich geschlossen; SL-Schließen entfernt den ausgewählten Wurf für alle |
-| Pano und echter Spieler / Internet-Preview / Live-Smoke | **Nicht geprüft. Release-Gate offen.** Keine synthetischen Konten als reale Nutzerabnahme ausgegeben |
+| Pano und echter Spieler / authentifizierter Live-Spielablauf | **Nicht geprüft. Persönliche Echtkonto-Abnahme offen.** Durch ausdrückliche Hauptseiten-Freigabe nachgelagert; keine synthetischen Konten als reale Nutzerabnahme ausgegeben |
 
 Abschließender Browsernachweis auf dem finalen Code: Wurf-ID `d8e54baa-cea7-4788-80ee-ce01079bc03d`, SL und Spieler identisch `7,6,8,3,10,10,2,5,6,9`, 7 Nettoerfolge, jeweils `settled`, kein Fallback und keine Spieler-Konsolenfehler. Private Screenshots: `.local-work/spieltisch-2/evidence/integration-20261028/spieler-final.jpg` und `sl-final.jpg`. Temporäre Viewport-Überschreibung zurückgesetzt.
 
@@ -59,7 +59,7 @@ Abschließender Browsernachweis auf dem finalen Code: Wurf-ID `d8e54baa-cea7-478
 
 Die Cloudflare-Abfrage vom 28.10.2026 bestätigt unverändert Version `73335003-447d-45dd-95a7-3b12c1924dcb`, 100 % Traffic, Deployment-ID `0f66601d-e0ff-4416-9b4b-cf64f5e23f9c`, Commit `d33f416`.
 
-Produktion bindet D1 `a4bc79e6-3f33-4b03-b240-9c341bd1d4d7` und R2 `chronik-von-kleve-r2`. Die vorhandenen Phase-C-Ressourcen `93863382-2046-4efc-a5b7-7eb1306955f9` / `chronik-von-kleve-phase-c-r2` sind davon getrennt. Es wurde keine Cloudflare-Preview veröffentlicht oder mit echten Konten geprüft. Der vorhandene Build-Trigger berücksichtigt ausschließlich `main`; kein Push dieses Feature-Branches ist eine Freigabe für einen produktiven Build.
+Produktion bindet unverändert D1 `a4bc79e6-3f33-4b03-b240-9c341bd1d4d7` und R2 `chronik-von-kleve-r2`. Die vorhandenen Phase-C-Ressourcen `93863382-2046-4efc-a5b7-7eb1306955f9` / `chronik-von-kleve-phase-c-r2` sind davon getrennt. Es wurde keine Cloudflare-Preview veröffentlicht oder mit echten Konten geprüft. Der bisherige Hauptzweig-Build war pausiert. Beim Feature-Push wurde jedoch ein zusätzlicher automatischer Preview-Trigger angelegt. Dieser scheiterte vor der Anwendungskompilierung an `pnpm@9.10.0: packages field missing or empty`; er hat keinen Worker veröffentlicht. Der kontrollierte Release verwendet den separat erfolgreichen lokalen Produktionsbuild. Diese Preview-CI ist weiterhin nicht funktionsfähig und wird nicht als bestanden ausgegeben.
 
 Die lokale Anwendung auf Port **8820** verwendet eigene lokale Test-D1/Test-R2. Port 8816 und sein privater Spielstand bleiben geschützt. Keine produktiven Bindings in lokalen Schreibtests.
 
@@ -78,6 +78,7 @@ Die folgende ursprüngliche Reihenfolge ist durch die oben dokumentierte direkte
 2. Exakten PR-HEAD und aktuellen main prüfen, erforderliche Checks abschließen und erst dann den PR integrieren.
 3. Unmittelbar vor Veröffentlichung neue geprüfte Bestandssicherung und aktuellen Rollback-Stand erfassen. Keine Migration für diese Integration ausführen.
 4. Produktionsbuild mit dem vorhandenen Produktionsprofil erzeugen; Zielworker, DB-ID, Bucket, Auth-Umgebung und `ASSETS` am erzeugten Deployment prüfen. Niemals die lokale Testkonfiguration deployen.
+   Bestehende deaktivierte Versions-Vorschauadressen erhalten: Die verwendete Wrangler-Version aktiviert diese ohne explizite `preview_urls=false`-Konfiguration standardmäßig. Nach diesem Deploy wurde der bisherige Zustand über den Worker-Subdomain-Endpunkt auf `enabled=true, previews_enabled=false` zurückgesetzt und erneut geprüft. Vor jedem weiteren Deploy diesen Punkt explizit prüfen.
 5. Exakten geprüften Commit veröffentlichen und Hauptfunktionen mit echten Konten prüfen. Keine Fixtures, Demo-Konten, lokalen Spielstände oder synthetischen Inhalte mitveröffentlichen.
 6. Bei Problemen Zugriff sichern, Daten erhalten und bevorzugt kompatibel vorwärts korrigieren. Kein B0-Restore als Bereinigung und kein blindes Worker-/Datenbank-Rollback nach neuen Spieleraktionen. Ein Code-Rollback benötigt einen Nachweis, dass neue private Bühnen- und Ereignisdaten weiterhin geschützt bleiben.
 
@@ -89,4 +90,15 @@ Private Sicherung `.local-work/spieltisch-2/release-20261028/`: alle 32 regulär
 - Vollständiges Originalschema SHA-256: `47c1169027b99d83ded85ebb9ee0e2f795af251a605305a8544ae7f116dc7fc6`.
 - Der lokale D1-CLI-Export scheiterte an der CLI-Authentifizierung; der autorisierte Cloudflare-Connector hat den Export erfolgreich erstellt. Die Worker-CLI-Anmeldung wurde separat lesend erfolgreich geprüft. Kein Datenbank-Restore in Produktion.
 
-Der tatsächliche Veröffentlichungsnachweis wird nach Deployment separat ergänzt. Bis dahin ist dies eine Release-Vorbereitung und keine Behauptung einer erfolgten Veröffentlichung.
+## Tatsächlicher Veröffentlichungsnachweis
+
+- PR [#25](https://github.com/stenzelmaik-lang/chronik-von-kleve/pull/25) überprüft und gemergt. Integrationscommit `3307e1d2b1bf353b774860f1791dd054a04133e6`; veröffentlichter Merge-Commit `ff930003deded17282b09f93f3089907d21e7347`. Der vollständige Merge-Baum wurde vor Deployment bytegenau gegen den getesteten Stand verglichen.
+- Hauptseite: <https://chroniplay.cc/spielbereich?bereich=sitzung>.
+- Cloudflare-Version `72d154d7-478c-4e44-9a40-e1aeccd12b64`, Deployment `fa34d87e-edc2-4a24-8dca-5284b20b7c1f`, 100 % Traffic seit `2026-10-28T05:52:55.819115Z`. Annotation nennt den veröffentlichten Merge-Commit.
+- Produktions-D1/R2, Auth-Umgebung, CPU-Limit und bestehende Domain erhalten; `ASSETS` ergänzt. Keine Migration, keine Fixtures, kein Import und keine automatisierten fachlichen Schreibtests in Produktion. Generierte JS-Dateien enthalten keine lokalen Testzugänge oder Prototyp-Serverpfade.
+- Live-Smoke auf Hauptdomain und bestehender Worker-Adresse: Anmeldung HTTP 200; geschützter Spielbereich leitet mit HTTP 307 zur Anmeldung um; `/api/live-stage`, geschützte Bühnenassets, `/api/live-table` und `/api/entities` liefern unangemeldet HTTP 401 mit `private, no-store`. Die Live-Anmeldeseite wurde zusätzlich im Browser geprüft. Der authentifizierte gemeinsame SL-/Spieler-Spielablauf bleibt mangels verfügbarer Kontoinhaber ungeprüft.
+- Vollständiger privater Nachher-Export gegen Backup verglichen. 28 von 32 regulären Tabellen identisch. Alle vorhandenen Entities und alle fachlichen Records außerhalb des laufenden Live-Raums unverändert; Konten, Rollen, Charaktere und Kampagnendaten erhalten. Keine Zeilen entfernt und keine bestehenden Auditnachweise verändert.
+- Die vier Unterschiede wurden einzeln geprüft: Pano startete um `05:52:51.104Z`, also vor dem neuen Worker-Deployment, einen neuen realen Spielabend (zwei Records und deren zwei automatisch gespiegelte SESSION-/NOTE-Entities). Außerdem normale Live-Raum-/Präsenzänderungen, 59 zusätzliche Auditzeilen und ausschließlich `last_seen_at` einer bestehenden Auth-Sitzung. Kein synthetischer Produktionsbestand. Nachweise: `data-comparison.json` und `data-integrity-reviewed.json` im privaten Release-Verzeichnis. Ein vollständiger Datenbankvergleich wird deshalb ausdrücklich nicht als „alle Tabellen identisch“ bezeichnet.
+- Kein Worker- oder Datenbank-Rollback durchgeführt. Frisches Backup und vorherige Worker-Version bleiben verfügbar; neue legitime Spieleraktionen dürfen nicht durch blindes Restore verloren gehen.
+
+**Spieltisch 2.0 live veröffentlicht: JA. Echtkonto-Abnahme des gemeinsamen Spielablaufs: weiterhin offen.**
