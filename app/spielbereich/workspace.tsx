@@ -273,7 +273,7 @@ export default function Workspace({
   const Shell = surface === "sl" ? SLWorkspaceShell : WorkspaceShell;
   return (
     <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
-      {!worldExperienceActive && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
+      {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}

@@ -91,7 +91,7 @@ async function allowedFiles(
   );
 }
 
-async function projectMedia(
+export async function projectMedia(
   db: D1Database,
   a: Actor,
   content: Record<string, unknown>,
