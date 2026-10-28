@@ -12,6 +12,7 @@ import { api } from "./api-client";
 import styles from "./dashboard.module.css";
 import { RichTextView } from "./rich-text";
 import {DashboardCalendar} from "./dashboard-calendar";
+import { clanSymbolFor } from "./clan-symbol";
 import { safeImage } from "./shared";
 import { xpBalance } from "@/domain/character-engine";
 import {
@@ -145,6 +146,7 @@ export function DashboardPanel({
   const openInbox = () => window.dispatchEvent(new CustomEvent('chroniplay:open-inbox'));
   const portrait = safeImage(view.portrait);
   const clanName = typeof char?.body.clan === "string" ? char.body.clan.trim() : "";
+  const clanSymbol = clanSymbolFor(clanName);
   return (
     <div className={styles.overview}>
       {refreshing && <p role="status" className="muted">Wird aktualisiert …</p>}
@@ -153,7 +155,7 @@ export function DashboardPanel({
       <div className={styles.top}>
         <section className={styles.character} aria-labelledby="overview-character">
           {view.characterCount>1&&<label className={styles.characterSwitch}><Repeat2 size={15} aria-hidden="true"/><span className="sr-only">Charakter wechseln</span><select aria-label="Aktiver Charakter" value={activeCharacterId||''} onChange={event=>onActiveCharacterChange(event.target.value||null)}><option value="">Charakter wechseln …</option>{view.characters.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
-          {clanName && <div className={styles.clanBanner} aria-label={`Clan ${clanName}`}><span>{clanName}</span></div>}
+          {clanName && <div className={styles.clanBanner} aria-label={`Clan ${clanName}`}>{clanSymbol && <img src={clanSymbol} alt="" aria-hidden="true" width={48} height={48}/>}<span>{clanName}</span></div>}
           <div className={styles.identity}>
             <Portrait key={portrait || 'neutral'} src={portrait} name={char?.title || 'deinem Charakter'}/>
             <div className={styles.characterCopy}>
