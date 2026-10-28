@@ -21,7 +21,6 @@ export function WorkspaceShell({a,section,navigate,children}:{a:Actor;section:st
    <nav className={styles.navigation} aria-label="Hauptnavigation">
     {section!=='dashboard'&&<button type="button" onClick={()=>navigate('dashboard')}><ArrowLeft size={16} aria-hidden="true"/><span>Zur Spielerzentrale</span></button>}
     <button type="button" onClick={()=>navigate('schauplaetze')} aria-current={world?'page':undefined}><Compass size={17} aria-hidden="true"/><span>Chronik erkunden</span></button>
-    <label className={styles.more}><span className="sr-only">Weitere Bereiche</span><select aria-label="Weitere Bereiche öffnen" value={sections.some(s=>s.group==='DEINE SPUREN'&&s.id===section)?section:''} onChange={e=>{if(e.target.value)navigate(e.target.value);}}><option value="">Weitere Bereiche</option>{sections.filter(s=>s.group==='DEINE SPUREN').map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
     {a.gm&&<a href="/sl/command-center"><MapPinned size={17} aria-hidden="true"/><span>Command Center</span></a>}
     {!a.gm&&a.role==='campaign_editor'&&<a href="/sl/command-center?bereich=ortscms"><MapPinned size={17} aria-hidden="true"/><span>Ortsredaktion</span></a>}
    </nav>
