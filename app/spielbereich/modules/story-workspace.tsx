@@ -336,7 +336,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     const fromSession=kind==="scene"&&current?.kind==="session"?current.id:"";
     if (kind === "story") doc = emptyStory();
     else if (kind === "session")
-      doc = sessionPreparationSchema.parse({ title: "Neue Sitzung" });
+      doc = sessionPreparationSchema.parse({ title: "Neuer Spielabend" });
     else {
       doc = emptyScene(
         current?.kind === "story"
@@ -576,8 +576,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           <small>SL-WORKSPACE · VORBEREITUNG</small>
           <h1>Spielabend & Story</h1>
           <p>
-            Deine Geschichten, Sitzungen und Szenen. Spielweltakten werden
-            verknüpft.
+            Beginne mit einem Spielabend und bereite dort deine Schauplätze und Szenen vor.
           </p>
         </div>
         <a href="/spielbereich?bereich=sitzung">Zum Live-Spieltisch →</a>
@@ -1129,9 +1128,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             <div className={s.empty}>
               <h2>Dein nächster Spielabend beginnt hier</h2>
               <p>
-                Wähle eine Akte oder lege einen Handlungsstrang an. Nichts wird
-                automatisch veröffentlicht oder als tatsächlich geschehen
-                markiert.
+                Lege einen Spielabend an oder öffne eine bestehende Vorbereitung. Von dort aus verknüpfst du Schauplätze, Szenen und Medien. Nichts wird automatisch veröffentlicht.
               </p>
               <button disabled={busy} onClick={() => void create("session")}>
                 Spielabend anlegen
