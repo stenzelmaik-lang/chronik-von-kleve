@@ -54,3 +54,17 @@ Frisches privates Backup unter `.local-work/spieltisch-2/release-21b/`: alle 32 
 Veröffentlichung über überprüfbaren PR und den geprüften lokalen Produktionsbuild; kein pauschaler CI-Erfolg behauptet. Nach Veröffentlichung: Version/Anbindungen bestätigen, öffentliche Zugangssperren prüfen und Bestandsvergleich durchführen. Bei Problemen Daten erhalten und Code-Fix oder kompatiblen Code-Rollback prüfen; kein blindes Zurückspielen des Backups.
 
 **Danach STOPP zur persönlichen UX-Sichtprüfung. Kein weiterer Funktionsbereich.**
+
+## Tatsächlicher Alpha-Release
+
+- Live: <https://chroniplay.cc/spielbereich?bereich=dashboard>.
+- Implementierung über <https://github.com/stenzelmaik-lang/chronik-von-kleve/pull/29> integriert.
+- Live-Commit: `1087998210c1af789d5a561bcb4fc3e93c58a470`; Quellbaum vor dem Deploy identisch zum geprüften Branch-Commit `43a9b1eaa28b73ec1adc0f246a2db37ec1136f65`.
+- Worker-Version: `bb692e18-96ee-4e27-a2d2-6db9de0dc266`, Deployment `69a01f40-8b38-455e-aa94-60b9f4c47361`, 100 % Verkehr seit `2026-10-28T12:02:36.008066Z` (13:02 Uhr Berlin).
+- Bestehende D1-/R2-Anbindungen, geschlossenes Alpha-Zugangsprofil und deaktivierte Versionsvorschauen nach dem Deploy bestätigt. Keine Migration.
+- 16 öffentliche Live-Prüfungen auf Hauptdomain und workers.dev bestanden: Anmeldung 200, Übersicht ohne Anmeldung 307 zur Anmeldung, Dashboard/Charakter-ID-Abfrage/Postfach/Termine/Teilnehmer-/Bühnen-API ohne Anmeldung 401 mit `private, no-store`. Der Hash des live ausgelieferten Stylesheets stimmt mit dem geprüften Build überein.
+- Vergleich aller 32 Anwendungstabellen mit dem Backup: 31 vollständig identisch. Alle 20 bestehenden Anmeldesitzungen erhalten; in genau einer Sitzung ausschließlich `last_seen_at` vorgerückt, entsprechend dem vorhandenen Authentifizierungsverhalten. Keine Konto-, Charakter-, Rollen-, Kampagnen- oder Inhaltsänderungen.
+- 28 zusätzliche gezielte Abschlussprüfungen bestanden. Die endgültige kompakte mobile Navigationszeile und fünf Browsergrößen nach dem letzten CSS-Fix erneut geprüft.
+- Privater Nachweis: `.local-work/spieltisch-2/release-21b/live-smoke.json`, `data-comparison.json` und `data-comparison-session-classification.json`. Keine privaten Sicherungen, Sitzungsdaten oder Testkonten in Git beziehungsweise Produktion übernommen.
+
+**Alpha veröffentlicht: JA. Zur persönlichen UX-Sichtprüfung bereit: JA.** Native 125-%-Zoomprüfung dieser neuen Übersicht und die neue Live-Darstellung mit echtem Charakter bleiben persönlich zu prüfen. Das vollständige persönliche Dokumentenarchiv bleibt außerhalb dieser Etappe; der vorhandene Notiz-Zugang funktioniert. Kein weiterer Funktionsbereich begonnen.
