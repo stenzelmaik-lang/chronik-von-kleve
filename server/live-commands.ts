@@ -2,11 +2,11 @@ import {database,HttpError,gmOnly,canRead,type Actor} from '@/server/access';
 import {liveMembers,readLiveRoom,liveFile,type LiveRoom} from './live-game';
 import {liveAudience,liveRoll,LIVE_MEDIA_TYPES,type LiveEvent} from '@/domain/live-game';
 import {readScene} from './story-scenes';
-export const LIVE_ACTIONS=['start','end','showScene','showMedia','mediaIndex','hideMedia','roll'];
-type Command={action:string;sessionId:string;runId?:string;eventId?:string;title?:string;create?:boolean;audience?:unknown;sceneId?:string;sceneVersion?:number;fileIds?:string[];pool?:number;target?:number;index?:number};
+export const LIVE_ACTIONS=['start','end','showScene','showMedia','mediaIndex','hideMedia','roll','closeRoll'];
+type Command={action:string;sessionId:string;runId?:string;eventId?:string;title?:string;create?:boolean;audience?:unknown;sceneId?:string;sceneVersion?:number;fileIds?:string[];pool?:number;target?:number;index?:number;expectedRevision?:number};
 export async function liveEvents(a:Actor,sessionId:string,knownRoom?:LiveRoom){
  const room=knownRoom||(await readLiveRoom(a,sessionId)).room;if(!room.open||!room.started)return [];
- const rows=await Promise.all(['scene','media','roll'].map(kind=>database().prepare("SELECT body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.kind')=? AND json_extract(body,'$.runId')=? AND (?=1 OR json_extract(body,'$.recipients') IS NULL OR EXISTS(SELECT 1 FROM json_each(records.body,'$.recipients') WHERE value=?)) ORDER BY created_at DESC,id DESC LIMIT ?").bind(a.campaignId,sessionId,kind,room.runId||'',a.gm?1:0,a.id,kind==='roll'?30:1).all<{body:string}>()));
+ const rows=await Promise.all(['scene','media','roll'].map(kind=>database().prepare("SELECT body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.kind')=? AND json_extract(body,'$.runId')=? AND (?=1 OR json_extract(body,'$.recipients') IS NULL OR EXISTS(SELECT 1 FROM json_each(records.body,'$.recipients') WHERE value=?)) ORDER BY created_at DESC,id DESC LIMIT ?").bind(a.campaignId,sessionId,kind,room.runId||'',a.gm?1:0,a.id,kind==='roll'?500:1).all<{body:string}>()));
  return rows.flatMap(r=>r.results).map(r=>JSON.parse(r.body) as LiveEvent).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).map(e=>e.hidden?{id:e.id,kind:e.kind,authorId:e.authorId,authorName:e.authorName,at:e.at,recipients:e.recipients,hidden:true}:e);
 }
 export async function liveCommand(a:Actor,d:Command){
@@ -45,6 +45,15 @@ export async function liveCommand(a:Actor,d:Command){
   const next=d.action==='hideMedia'?{...event,hidden:true}:{...event,index:d.index};
   const updated=await db.prepare("UPDATE records SET body=?,version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND EXISTS(SELECT 1 FROM records r WHERE r.id=? AND r.campaign_id=? AND json_extract(r.body,'$.runId')=? AND json_extract(r.body,'$.open')=1)").bind(JSON.stringify(next),stamp,eventId,a.campaignId,r.version,id,a.campaignId,d.runId).run();if(!updated.meta.changes)throw new HttpError(409,'Medienansicht inzwischen geändert.');return {ok:true};
  }
+ if(d.action==='closeRoll'){
+  gmOnly(a);
+  const current=await db.prepare("SELECT body,version FROM records WHERE id=? AND campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='roll'").bind(eventId,a.campaignId,d.sessionId,room.runId).first<{body:string;version:number}>();
+  if(!current)throw new HttpError(404,'Wurf nicht verfügbar.');const roll=JSON.parse(current.body) as LiveEvent;
+  if(roll.closedShared)return {ok:true};
+  if(d.expectedRevision!==(roll.revision||1))throw new HttpError(409,'Wurf inzwischen geändert.');
+  const result=await db.prepare("UPDATE records SET body=json_set(body,'$.closedShared',json('true'),'$.revision',?),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND EXISTS(SELECT 1 FROM records r WHERE r.id=? AND r.campaign_id=? AND json_extract(r.body,'$.runId')=? AND json_extract(r.body,'$.open')=1)").bind((roll.revision||1)+1,stamp,eventId,a.campaignId,current.version,id,a.campaignId,room.runId).run();
+  if(!result.meta.changes)throw new HttpError(409,'Wurf oder Sitzung inzwischen geändert.');return {ok:true};
+ }
  const eligible=(await liveMembers(a)).map(m=>m.id).filter(id=>room.participants?.includes(id));let recipients;
  try{recipients=liveAudience(d.audience,eligible);}catch(e){throw new HttpError(400,(e as Error).message);}
  if(d.action!=='roll')gmOnly(a);
@@ -58,11 +67,15 @@ export async function liveCommand(a:Actor,d:Command){
   if(scene.document.archived||scene.version!==d.sceneVersion)throw new HttpError(409,'Szene verändert oder archiviert. Bitte Vorschau aktualisieren.');
   // Deliberate publication snapshot: never copy atmosphere, GM notes, secrets or consequences.
   event.scene={id:scene.id,title:scene.document.title,narration:scene.document.narration};
+  const image=scene.document.elements.find(e=>e.kind==='image'&&e.fileId);
+  if(image){const file=await liveFile(a,image.fileId);if(!file.mime.startsWith('image/'))throw new HttpError(400,'Szenenbild ist kein Bild.');event.scene.imageFileId=file.id;}
  }else if(d.action==='showMedia'){
   if(!Array.isArray(d.fileIds)||!d.fileIds.length||d.fileIds.length>20||new Set(d.fileIds).size!==d.fileIds.length)throw new HttpError(400,'1–20 Medien wählen.');
   event.files=[];for(const fileId of d.fileIds){if(typeof fileId!=='string')throw new HttpError(400,'Ungültiges Medium.');const f=await liveFile(a,fileId);if(!LIVE_MEDIA_TYPES.includes(f.mime))throw new HttpError(400,'Dieses Medienformat wird nicht unterstützt.');event.files.push({id:f.id,name:f.name,mime:f.mime});}event.index=0;
- }else{try{event.roll=liveRoll(d.pool,d.target);}catch(e){throw new HttpError(400,(e as Error).message);}}
- const inserted=await db.prepare("INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) SELECT ?,?,?,'notizen','private','Live-Ereignis',?,'',?,? WHERE EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.started')=1 AND json_extract(body,'$.open')=1 AND json_extract(body,'$.runId')=?) ON CONFLICT(id) DO NOTHING").bind(eventId,a.campaignId,a.id,JSON.stringify(event),stamp,stamp,id,a.campaignId,d.runId).run();
+ }else{try{event.roll=liveRoll(d.pool,d.target);event.animationSeed=Array.from(crypto.getRandomValues(new Uint32Array(4)));event.revision=1;}catch(e){throw new HttpError(400,(e as Error).message);}}
+ const count=d.action==='roll'?await db.prepare("SELECT count(*) AS n FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='roll'").bind(a.campaignId,d.sessionId,room.runId).first<{n:number}>():null;
+ if((count?.n||0)>=500)throw new HttpError(429,'Sitzungsprotokoll voll; vorhandene Würfe bleiben erhalten.');
+ const inserted=await db.prepare("INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) SELECT ?,?,?,'notizen','private','Live-Ereignis',json_set(?,'$.sequence',(SELECT COALESCE(MAX(json_extract(body,'$.sequence')),0)+1 FROM records WHERE campaign_id=? AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='roll')),'',?,? WHERE EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.started')=1 AND json_extract(body,'$.open')=1 AND json_extract(body,'$.runId')=?) AND (? <> 'roll' OR (SELECT count(*) FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='roll')<500) ON CONFLICT(id) DO NOTHING").bind(eventId,a.campaignId,a.id,JSON.stringify(event),a.campaignId,d.sessionId,d.runId,stamp,stamp,id,a.campaignId,d.runId,d.action,a.campaignId,d.sessionId,d.runId).run();
  if(!inserted.meta.changes){const r=await db.prepare('SELECT body FROM records WHERE id=? AND campaign_id=?').bind(eventId,a.campaignId).first<{body:string}>();if(!r||JSON.parse(r.body).request!==request||JSON.parse(r.body).authorId!==a.id)throw new HttpError(409,'Spielabend beendet oder Aktion kollidiert.');}
  const stored=await db.prepare('SELECT body FROM records WHERE id=? AND campaign_id=?').bind(eventId,a.campaignId).first<{body:string}>();
  return {ok:true,eventId:d.eventId,...(event.kind==='roll'&&(a.gm||event.recipients===null||event.recipients.includes(a.id))?{roll:JSON.parse(stored!.body).roll}:{})};

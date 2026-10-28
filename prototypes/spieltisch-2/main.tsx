@@ -52,7 +52,7 @@ async function request(viewer:Viewer,body?:Record<string,unknown>,version?:numbe
 
   const response=await fetch(`/prototype/state?viewer=${viewer}${version?'&version='+version:''}`,{method:body?'POST':'GET',cache:'no-store',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});
 
-  if(response.status===304)return null;const value=await response.json();if(!response.ok)throw Error(value.error||'Lokaler Prototyp nicht erreichbar.');return value;
+  if(response.status===304)return null;const value=await response.json() as Snapshot & TestDocument & {error?:string};if(!response.ok)throw Error(value.error||'Lokaler Prototyp nicht erreichbar.');return value;
 
 }
 
@@ -208,7 +208,7 @@ function App(){
 
     documentTrigger.current=event?.currentTarget||window.document.activeElement as HTMLElement;
 
-    try{const response=await fetch('/prototype/document?viewer='+viewer,{cache:'no-store'});const value=await response.json();if(!response.ok)throw Error(value.error);setReadZoom(1);setDocument(value);}catch(e){setError((e as Error).message);}
+    try{const response=await fetch('/prototype/document?viewer='+viewer,{cache:'no-store'});const value=await response.json() as Snapshot & TestDocument & {error?:string};if(!response.ok)throw Error(value.error);setReadZoom(1);setDocument(value);}catch(e){setError((e as Error).message);}
 
   }
 
@@ -367,4 +367,3 @@ function App(){
 }
 
 createRoot(window.document.getElementById('root')!).render(<App/>);
-

@@ -12,6 +12,7 @@ import {DicePanel} from './dice';
 import {LivePdf} from './live-pdf';
 import {LocationQuickAccess} from './location-quick-access';
 import styles from './live-session.module.css';
+import {Spieltisch} from './spieltisch/stage';
 type Snapshot=TableResult&{events:LiveEvent[];members:{id:string;name:string}[];unchanged?:boolean};
 function Audience({value,onChange,members,disabled=false}:{value:LiveAudience;onChange:(a:LiveAudience)=>void;members:{id:string;name:string}[];disabled?:boolean}){
  const name=useId();
@@ -24,6 +25,8 @@ function MediaView({file,url}:{file:LiveMedia;url:string}){
  return <LivePdf url={url} name={file.name}/>;
 }
 export function LiveSession({a}:{a:Actor}){
+ const [stageOpen,setStageOpen]=useState(true);
+ const exitStage=useCallback(()=>setStageOpen(false),[]);
  const [sessionId,setSessionId]=useState(''),[selected,setSelected]=useState(''),[title,setTitle]=useState('Spielabend');
  const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[syncError,setSyncError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [catalog,setCatalog]=useState<{sessions:{id:string;title:string}[];scenes:SceneSummary[]}>({sessions:[],scenes:[]}),[sceneId,setSceneId]=useState(''),[scene,setScene]=useState<SceneView|null>(null);
@@ -57,7 +60,9 @@ export function LiveSession({a}:{a:Actor}){
  async function start(){newSession.current||=crypto.randomUUID();const id=selected||newSession.current;const name=selected?(catalog.sessions.find(s=>s.id===selected)?.title||title):title;if(await command('start',{title:name,create:!selected},id))void loadCatalog().catch(issue=>setError(issue.message));}
  async function upload(file:File){setBusy(true);try{const form=new FormData();form.set('file',file);form.set('visibility','private');const r=await api<{id:string}>('/api/files','POST',form);await loadCatalog();setFileIds(old=>[...old,r.id].slice(0,20));setNotice('Privat hochgeladen. Erst „Medien einspielen“ gibt sie der Zielgruppe frei.');}catch(issue){setError((issue as Error).message);}finally{setBusy(false);}}
  const audienceValid=(audience:LiveAudience)=>audience.scope==='all'||audience.playerIds.length>0;
+ if(running&&stageOpen)return <Spieltisch key={data!.room!.runId} a={a} sessionId={sessionId} runId={data!.room!.runId!} onExit={exitStage} onEnd={async()=>{await command('end');}}/>;
  return <div className={styles.root}>
+  {running&&<button className="button primary" onClick={()=>setStageOpen(true)}>Spieltisch betreten</button>}
   <header className={styles.header}><div><p className="eyebrow">LIVE-SPIELTISCH</p><h1>{running?data.room?.title:'Spielabend'}</h1><p role="status">{loading?'Spielstand wird geladen …':running?'● Abend läuft · Whiteboard offen':'○ Noch kein Spielabend gestartet'}</p></div>{a.gm&&<div className={styles.headerActions}><LocationQuickAccess a={a} initialPlaceId={catalog.scenes.find(item=>item.id===currentScene?.scene?.id)?.placeId||scene?.document.placeId||''}/><a className="button" href="/sl/command-center">SL-Vorbereitung ↗</a></div>}</header>
   {(error||syncError)&&<p role="alert" className={styles.error}>{error||syncError} <button className="button" onClick={async()=>{setError('');await refresh();try{await loadCatalog();if(sceneId&&a.gm)setScene((await api<{scene:SceneView}>('/api/command-center/scenes?id='+encodeURIComponent(sceneId))).scene);}catch(issue){setError((issue as Error).message);}}}>Erneut prüfen</button></p>}{notice&&<p role="status">{notice}</p>}
   {a.gm&&!running&&<section className="panel"><h2>1 · Spielabend starten</h2><label className="field">Sitzung<select aria-label="Spielabend auswählen" value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Neuen Spielabend anlegen</option>{catalog.sessions.map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select></label>{!selected&&<label className="field">Name<input aria-label="Name des Spielabends" maxLength={200} value={title} onChange={e=>setTitle(e.target.value)}/></label>}<p>Start öffnet das Whiteboard für die berechtigte Runde. Von einer bestehenden Sitzung wird nur der Name angezeigt – keine privaten Notizen.</p><button className="button primary" disabled={busy||loading||!title.trim()} onClick={()=>void start()}>Spielabend starten</button></section>}

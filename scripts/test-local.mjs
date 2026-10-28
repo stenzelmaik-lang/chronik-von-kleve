@@ -18,6 +18,7 @@ import {convertV4MiniflareOptions,Log,Miniflare} from 'miniflare';
 // Isolated local resources only. --weekend preserves synthetic acceptance
 // data across restarts; the full regression suite always uses a fresh store.
 const inventoryDemo=process.argv.includes('--inventory');
+const stageReleaseTest=process.argv.includes('--spieltisch-release');
 const accessDemo=process.argv.includes('--access-alpha');
 const storyWork=process.argv.includes('--story-workspace');
 const commandDemo=process.argv.includes('--command-center-2');
@@ -26,7 +27,7 @@ const areaDemo=process.argv.includes('--location-areas');
 const codexPlayers=process.argv.includes('--codex-players');
 const codexAll=process.argv.includes('--codex-all')||codexPlayers;
 const codexDemo=process.argv.includes('--codex')||codexAll;
-const interactive=areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const interactive=stageReleaseTest||areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const preserve=storyWork||commandDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const state=preserve?resolve(storyWork?'.local-work/story-workspace':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
@@ -40,7 +41,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const port=codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const port=stageReleaseTest?8820:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 if(interactive){const probe=createServer();await new Promise((ok,fail)=>{probe.once('error',()=>fail(new Error('Der lokale Port '+port+' ist bereits belegt. Öffne die laufende Anwendung; kein anderer Prozess wird beendet.')));probe.listen(port,'127.0.0.1',()=>probe.close(ok));});}
 const env={...process.env,WRANGLER_SEND_METRICS:'false',WRANGLER_LOG:'error',WRANGLER_LOG_PATH:join(state,'wrangler.log'),CVK_TEST_URL:'http://127.0.0.1:'+port,CVK_TEST_STATE:state};
 if(!resumed)for(const migration of migrations){
