@@ -166,7 +166,7 @@ try{
   console.log(storyWork?'Persistent local authoring workspace: '+env.CVK_TEST_URL+'/sl/command-center · empty story/session collection, retained across restarts. Local-only account: command-gm@example.invalid.':'Isolated application ready: '+env.CVK_TEST_URL+'/anmelden · synthetic account command-gm@example.invalid. See local command-center README for demo credentials.');
   await new Promise(resolveStop=>{process.once('SIGINT',resolveStop);process.once('SIGTERM',resolveStop);});
  }else{
-  const suite=spawn(process.execPath,['tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});
+  const suite=spawn(process.execPath,['--experimental-strip-types','tests/integration.mjs'],{env,stdio:'inherit',windowsHide:true});
   const [code]=await once(suite,'exit');
   process.exitCode=code??1;
  }
