@@ -29,13 +29,15 @@ const api = async (path, method = "GET", data) => {
 };
 async function waitForStored(kind, id, predicate) {
   const until = Date.now() + 20000;
+  let lastDocument = "";
   const route = kind === "session" ? "preparation" : "scenes";
   while (Date.now() < until) {
     const r = await api("/api/command-center/" + route + "?id=" + encodeURIComponent(id));
     if (r.status === 200 && predicate(r.body[kind])) return r.body[kind];
+    lastDocument = JSON.stringify({ status: r.status, document: r.body[kind]?.document }).slice(0, 800);
     await page.waitForTimeout(250);
   }
-  throw new Error("Autosave/persistence not confirmed: " + kind + " " + id);
+  throw new Error("Autosave/persistence not confirmed: " + kind + " " + id + " Last: " + lastDocument);
 }
 async function saveOrAutosave(kind, id, predicate) {
   const button = page.getByRole("button", { name: "Jetzt speichern", exact: true });
@@ -65,7 +67,7 @@ async function addScene(title, placeTitle, html) {
   await page.getByRole("button", { name: "Vollbild schließen" }).click();
   const data = await saveOrAutosave("scene", sceneId, s =>
     s.document.title === title &&
-    s.document.narration.includes("h2") &&
+    s.document.narration.includes(title.includes("Kaserne") ? "Versiegelte Order" : "Avis Bar") &&
     s.document.placeId &&
     s.document.sessionIds.length === 1
   );
