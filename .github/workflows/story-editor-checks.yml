@@ -36,7 +36,7 @@ jobs:
         run: ./node_modules/.bin/eslint app/spielbereich/modules/story-workspace.tsx tests/story-preparation.test.mjs
       - name: Unit and regression tests
         run: npm test
-      - name: HTTP integration tests
-        run: npm run test:integration
       - name: Production build
         run: npm run build
+      - name: HTTP integration tests
+        run: npm run test:integration:run
