@@ -503,7 +503,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       onKeyDown={e=>{if(e.key==="Escape"&&expandedEditor===key)setExpandedEditor(null);}}>
       <div className={s.editorBar}>
         <span>Visuell · HTML-Quelltext · Vorschau</span>
-        <button type="button" onClick={()=>setExpandedEditor(expandedEditor===key?null:key)}>
+        <button type="button" aria-pressed={expandedEditor===key} onClick={()=>setExpandedEditor(expandedEditor===key?null:key)}>
           {expandedEditor===key?"Vollbild schließen":"Editor vergrößern"}
         </button>
       </div>
