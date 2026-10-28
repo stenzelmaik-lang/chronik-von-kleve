@@ -121,3 +121,21 @@ test("All requested scene element kinds are supported without implied publicatio
 });
 
 test("Empty contenteditable paragraphs normalize without inventing text",()=>{assert.equal(htmlToRichText("<p><br></p>"),htmlToRichText("<p></p>"));assert.equal(richTextToPlainText(htmlToRichText("<p>"+"a".repeat(9000)+"</p>")).length,9000);});
+
+test("A scene can reference one Spielabend and one existing place without starting live play", () => {
+  const scene = emptyScene();
+  scene.sessionIds = ["session-kaserne"];
+  scene.placeId = "ort-kaserne";
+  const validated = sceneDocumentSchema.parse(scene);
+  assert.deepEqual(validated.sessionIds, ["session-kaserne"]);
+  assert.equal(validated.placeId, "ort-kaserne");
+  assert.equal(Object.hasOwn(validated, "runs"), false);
+  assert.equal(Object.hasOwn(validated, "publications"), false);
+});
+test("A free scene stays unassigned and session link defaults are compatible", () => {
+  const freeScene = sceneDocumentSchema.parse(emptyScene());
+  const evening = sessionPreparationSchema.parse({title:"Der Hunger bleibt",sceneIds:[]});
+  assert.deepEqual(freeScene.sessionIds, []);
+  assert.deepEqual(evening.sceneIds, []);
+  assert.equal(evening.status, "draft");
+});
