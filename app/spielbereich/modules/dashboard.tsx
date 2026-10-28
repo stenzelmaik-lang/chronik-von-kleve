@@ -1,16 +1,8 @@
+/* eslint-disable @next/next/no-img-element -- Character portraits use the existing private authenticated media endpoint. */
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  ChevronRight,
-  Clock3,
-  Coins,
-  HeartHandshake,
-  Plus,
-  Radio,
-  Shield,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, CalendarDays, CheckSquare, BookOpen, FolderArchive, Mail, Shield, ShoppingBag, TrendingUp, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Entry } from "@/domain/legacy";
@@ -18,7 +10,8 @@ import type { Actor } from "@/domain/types";
 
 import { api } from "./api-client";
 import styles from "./dashboard.module.css";
-import { DashboardScene } from "./dashboard-scene";
+import { RichTextView } from "./rich-text";
+import { safeImage } from "./shared";
 import { xpBalance } from "@/domain/character-engine";
 import {
   describeDataError,
@@ -30,6 +23,9 @@ import {
 type CharacterChoice = { id: string; name: string; clan: string; concept: string };
 type DashboardData = {
   character: Entry | null;
+  portrait: string | null;
+  openPoll: Entry | null;
+  inbox: {unread:number;latest:{title:string;senderName:string;createdAt:string}|null};
   characters: CharacterChoice[];
   characterCount: number;
   nextSession: Entry | null;
@@ -40,6 +36,11 @@ type DashboardData = {
   message: Entry | null;
 };
 type Result = { key: string; data?: DashboardData; error: Error | null; loading: boolean; refreshing: boolean };
+
+function Portrait({ src, name }: {src:string|undefined;name:string}) {
+  const [failed,setFailed]=useState(false);
+  return <div className={styles.portrait}>{src&&!failed?<img src={src} alt={`Porträt von ${name}`} onError={()=>setFailed(true)}/>:<UserRound size={38} aria-hidden="true"/>}</div>;
+}
 
 function keyFor(characterId: string | null) {
   return characterId
@@ -135,117 +136,51 @@ export function DashboardPanel({
 
   const view = data!;
   const char = view.character;
-  const eco = view.economy?.body || {};
-  const hasEconomy = !!view.economy;
-  const favors = Array.isArray(view.favors?.body?.favors)
-    ? view.favors.body.favors
-    : [];
-  const openFavors = favors.filter(
-    (favor) => favor.status !== "eingelöst" && Number(favor.value) !== 0,
-  ).length;
-  const nextDate = view.nextSession;
-  const engineXp = char?.body?.engineVersion === 1 && Array.isArray(char.body.xpLedger);
-  const xpTitle = engineXp ? `${xpBalance(char!.body)} freie XP` : char?.body?.xp !== undefined ? `${char.body.xp} XP · Bestandsangabe` : char ? "Noch keine XP-Angabe" : "Kein Charakter ausgewählt";
-  const xpDescription = engineXp ? "Saldo des vorhandenen Character-Engine-Ledgers." : char?.body?.xp !== undefined ? "Übernommene Anzeige aus dem Charakterdatensatz; kein bestätigter XP-Ledger-Saldo." : "Im ausgewählten Charakterdatensatz nicht erfasst.";
+  const next = view.nextSession;
+  const engineXp = char?.body.engineVersion === 1 && Array.isArray(char.body.xpLedger);
+  const xpTitle = engineXp ? `${xpBalance(char!.body)} freie XP` : char?.body.xp !== undefined ? `${char.body.xp} XP · Bestandsangabe` : char ? "Noch keine XP-Angabe" : "Kein Charakter ausgewählt";
+  const xpDescription = engineXp ? "Verfügbar für deine Entwicklung." : char?.body.xp !== undefined ? "Bestandsangabe; kein bestätigter XP-Ledger-Saldo." : "Deine vorhandenen Erfahrungswerte erscheinen hier.";
+  const openInbox = () => window.dispatchEvent(new CustomEvent('chroniplay:open-inbox'));
+  const portrait = safeImage(view.portrait);
   return (
-    <div className={`dashboard-stack ${styles.overview}`}>
-      {refreshing && <p className="muted" role="status">Wird aktualisiert …</p>}
+    <div className={styles.overview}>
+      {refreshing && <p role="status" className="muted">Wird aktualisiert …</p>}
       {error && <div role="alert" className="error-box"><strong>{describeDataError(error).title}</strong><p>{error.message}</p><button className="button" onClick={retry}>Erneut versuchen</button></div>}
-      <section className="dashboard-banner">
-        <div>
-          <p className="eyebrow">
-            <Zap size={14} /> NACHTPROTOKOLL · {new Date().toLocaleDateString("de-DE")}
-          </p>
-          <h2>
-            {char
-              ? `Guten Abend, ${char.title}.`
-              : view.characterCount > 1
-                ? "Wähle deinen Charakter."
-                : `Willkommen in der Domäne, ${a.name}.`}
-          </h2>
-          <p>
-            {char
-              ? "Dein Charakter und die freigegebenen Informationen für den Spielabend."
-              : view.characterCount > 1
-                ? "Deine Charaktere bleiben getrennt; wähle den aktiven Bogen."
-                : "Erstelle deinen ersten Charakter und betrete die Chronik."}
-          </p>
-          {view.characterCount > 1 && (
-            <label className="dashboard-character-select">
-              <span>Aktiver Charakter</span>
-              <select
-                aria-label="Aktiver Charakter"
-                value={activeCharacterId || ""}
-                onChange={(event) => onActiveCharacterChange(event.target.value || null)}
-              >
-                <option value="">Charakter auswählen …</option>
-                {view.characters.map((character) => (
-                  <option key={character.id} value={character.id}>{character.name}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-        <button
-          className="button primary"
-          onClick={() => onNavigate(char ? "sitzung" : view.characterCount > 1 ? "charaktere" : "charaktere")}
-        >
-          {char ? <><Radio size={16} /> Sitzungen öffnen</> : view.characterCount > 1 ? "Charaktere öffnen" : <><Plus size={16} /> Charakter anlegen</>}
-        </button>
-      </section>
-      <DashboardScene a={a} characterId={activeCharacterId} onOpen={() => onNavigate("sitzung")}/>
-      {nextDate && <section className="panel dashboard-next">
-        <div className="panel-heading">
-          <div>
-            <p className="eyebrow">NÄCHSTER FREIGEGEBENER TERMIN</p>
-            <h3>{nextDate?.title || "Die nächste Zusammenkunft"}</h3>
-            <p className="muted">{nextDate?.body?.date && Number.isFinite(Date.parse(nextDate.body.date)) ? new Date(nextDate.body.date).toLocaleString("de-DE",{dateStyle:"medium",timeStyle:"short"}) : nextDate?.body?.date}</p>
+      <header className={styles.heading}><h1>Deine Chronik</h1><p>Dein Platz in der Nacht.</p></header>
+      <div className={styles.top}>
+        <section className={styles.character} aria-labelledby="overview-character">
+          <div className={styles.identity}>
+            <Portrait key={portrait || 'neutral'} src={portrait} name={char?.title || 'deinem Charakter'}/>
+            <div className={styles.characterCopy}>
+              <p className={styles.greeting}>Willkommen zurück, {a.name}.</p>
+              <h2 id="overview-character">{char?.title || (view.characterCount > 1 ? 'Wähle deinen Charakter' : 'Deine Geschichte beginnt hier')}</h2>
+              {char ? <p className={styles.concept}>{[char.body.clan,char.body.concept].filter(v=>typeof v==='string'&&v.trim()).join(' · ') || 'Deine Geschichte wartet.'}</p> : <p className={styles.concept}>{view.characterCount > 1 ? 'Wähle deinen aktiven Bogen für diesen Abend.' : 'Lege deinen Charakter an und finde deinen Platz in der Chronik.'}</p>}
+              {view.characterCount > 1 && <label className={styles.characterSelect}><span>Aktiver Charakter</span><select aria-label="Aktiver Charakter" value={activeCharacterId || ''} onChange={event=>onActiveCharacterChange(event.target.value || null)}><option value="">Charakter auswählen …</option>{view.characters.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
+            </div>
           </div>
-          <Clock3 size={24} className="text-primary" />
+          <button type="button" className={styles.enter} onClick={()=>onNavigate('sitzung')}><BookOpen size={20} aria-hidden="true"/>Spieltisch betreten<ArrowRight size={18} aria-hidden="true"/></button>
+        </section>
+        <section className={styles.next} aria-labelledby="overview-next">
+          <h2 id="overview-next"><CalendarDays size={19} aria-hidden="true"/>Nächster Abend</h2>
+          {next ? <><h3>{next.title}</h3>{typeof next.body.date==='string'&&Number.isFinite(Date.parse(next.body.date))&&<time dateTime={next.body.date}>{new Date(next.body.date).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})}</time>}</> : <p>Noch kein Spieltermin festgelegt.</p>}
+          {view.openPoll && <p className={styles.pollTitle}>{view.openPoll.title}</p>}
+          <div className={styles.calendarLinks}>{view.openPoll&&<button type="button" onClick={()=>onNavigate('termine')}><CheckSquare size={16} aria-hidden="true"/>An Abstimmung teilnehmen</button>}<button type="button" onClick={()=>onNavigate('termine')}><CalendarDays size={16} aria-hidden="true"/>Kalender öffnen<ArrowRight size={14} aria-hidden="true"/></button></div>
+        </section>
+      </div>
+      <div className={styles.information}>
+        <section className={styles.info} aria-labelledby="overview-xp"><h2 id="overview-xp"><TrendingUp size={18} aria-hidden="true"/>Erfahrung & Fortschritt</h2><h3>{xpTitle}</h3><p>{xpDescription}</p><button type="button" onClick={()=>onNavigate('charaktere')}>Entwicklung ansehen<ArrowRight size={15} aria-hidden="true"/></button></section>
+        <section className={styles.info} aria-labelledby="overview-last"><h2 id="overview-last"><BookOpen size={18} aria-hidden="true"/>Letzter Spielabend</h2><h3>{view.lastSession?.title || 'Die Chronik wartet'}</h3>{view.lastSession?.body.summary ? <div className={styles.summary}><RichTextView value={String(view.lastSession.body.summary)}/></div> : <p>{view.lastSession ? 'Noch keine Zusammenfassung freigegeben.' : 'Noch kein vergangener Spielabend freigegeben.'}</p>}<button type="button" onClick={()=>onNavigate('sitzung')}>Spieltisch öffnen<ArrowRight size={15} aria-hidden="true"/></button></section>
+        <section className={styles.info} aria-labelledby="overview-messages"><h2 id="overview-messages"><Mail size={18} aria-hidden="true"/>Nachrichten</h2><h3>{view.inbox.unread ? `${view.inbox.unread} ungelesene ${view.inbox.unread===1?'Nachricht':'Nachrichten'}` : 'Du bist auf dem Laufenden'}</h3><p>{view.inbox.latest ? <>{view.inbox.latest.senderName}: {view.inbox.latest.title}</> : 'Noch keine persönlichen Nachrichten.'}</p><button type="button" onClick={openInbox}>Postfach öffnen<ArrowRight size={15} aria-hidden="true"/></button></section>
+      </div>
+      <section className={styles.preparation} aria-labelledby="overview-preparation">
+        <h2 id="overview-preparation">Meine Vorbereitung</h2>
+        <div className={styles.preparationLinks}>
+          <button type="button" onClick={()=>onNavigate('charaktere')}><Shield size={24} aria-hidden="true"/><strong>Charakter</strong><span>{char ? 'Bogen & Entwicklung' : 'Auswählen oder erstellen'}</span></button>
+          <button type="button" onClick={()=>onNavigate('inventar')}><ShoppingBag size={24} aria-hidden="true"/><strong>Inventar</strong><span>Ausrüstung & Besitz</span></button>
+          <button type="button" onClick={openInbox}><Mail size={24} aria-hidden="true"/><strong>Postfach</strong><span>Persönliche Nachrichten</span></button>
+          <button type="button" onClick={()=>onNavigate('notizen')}><FolderArchive size={24} aria-hidden="true"/><strong>Persönliches Archiv</strong><span>Eigene Notizen</span></button>
         </div>
-        {nextDate?.body?.summary && <p>{nextDate.body.summary}</p>}
-        <button className="button" onClick={() => onNavigate(nextDate ? "termine" : "sitzung")}>
-          {nextDate ? "Alle Termine ansehen" : "Sitzungszentrale öffnen"} <ChevronRight size={16} />
-        </button>
-      </section>}
-      <div className="dashboard-quick-actions"><span className="eyebrow">SCHNELLAKTIONEN</span><button className="button" onClick={() => onNavigate("wuerfel")}><Radio size={15}/> Würfel öffnen</button><button className="button" onClick={() => onNavigate("notizen")}><Plus size={15}/> Meine Notizen</button><button className="button" onClick={() => onNavigate("charaktere")}><Shield size={15}/> Charakterbogen</button>{char && <button className="button" onClick={() => onNavigate("inventar")}><Coins size={15}/> Inventar</button>}{view.favors && openFavors > 0 && <button className="button" onClick={() => onNavigate("gefallen")}><HeartHandshake size={15}/> Gefallen</button>}</div>
-      <div className="dashboard-grid">
-        {view.characterCount > 0 && <button className="dash-card character" onClick={() => onNavigate("charaktere")}>
-          <span className="dash-card-icon"><Shield size={22} /></span>
-          <span className="eyebrow">DEIN BLATT</span>
-          <h3>{char?.title || (view.characterCount > 1 ? "Charakter auswählen" : "Noch kein Charakter")}</h3>
-          <p>
-            {char
-              ? [char.body?.clan, char.body?.concept].filter(Boolean).join(" · ") || "Konzept offen"
-              : view.characterCount > 1
-                ? `${view.characterCount} Charaktere verfügbar.`
-                : "Lege dein Kainskind an und halte jede Spur fest."}
-          </p>
-          {char && <span className="dash-metric">{char.body?.humanity ?? "–"} <small>Menschlichkeit</small></span>}
-        </button>}
-        {hasEconomy && <button className="dash-card wealth" onClick={() => onNavigate("wirtschaft")}>
-          <span className="dash-card-icon"><Coins size={22} /></span>
-          <span className="eyebrow">WIRTSCHAFT</span>
-          <h3>{hasEconomy && (eco.money_euro !== undefined || eco.money !== undefined) ? `${Number(eco.money_euro ?? eco.money).toLocaleString("de-DE")} €` : "Noch keine Daten"}</h3>
-          <p>{hasEconomy ? "Verfügbares Vermögen und Ressourcen." : "Keine Finanzdaten hinterlegt."}</p>
-          {hasEconomy && eco.resources !== undefined && <span className="dash-metric">+{(Number(eco.resources ?? 0) * 600 + Number(eco.finances_successes ?? 0) * 100).toLocaleString("de-DE")} € <small>Monatlich</small></span>}
-        </button>}
-        {view.favors && openFavors > 0 && <button className="dash-card social" onClick={() => onNavigate("gefallen")}>
-          <span className="dash-card-icon"><HeartHandshake size={22} /></span>
-          <span className="eyebrow">GEFALLEN</span>
-          <h3>{view.favors ? `${openFavors} offene Gefallen` : "Noch nicht erfasst"}</h3>
-          <p>Schulden und Versprechen behalten Gewicht.</p>
-          {view.favors && <span className="dash-metric">{favors.reduce((sum: number, favor) => sum + Number(favor.value || 0), 0) > 0 ? "+" : ""}{favors.reduce((sum: number, favor) => sum + Number(favor.value || 0), 0)} <small>Token-Saldo</small></span>}
-        </button>}
-      </div>
-
-      <div className="dashboard-detail-grid">
-        {char && (engineXp || char.body.xp !== undefined) && <section className="panel dashboard-info-panel"><p className="eyebrow">ERFAHRUNG & FORTSCHRITT</p><h3>{xpTitle}</h3><p className="muted">{xpDescription}</p></section>}
-        {view.lastSession && <section className="panel dashboard-info-panel"><p className="eyebrow">LETZTER SICHTBARER SITZUNGSEINTRAG</p><h3>{view.lastSession?.title || "Noch kein Sitzungseintrag"}</h3><p className="muted">{view.lastSession?.body?.summary || (view.lastSession ? "Keine Zusammenfassung hinterlegt." : "Es ist noch kein sichtbarer Sitzungseintrag vorhanden.")}</p>{view.lastSession && <button className="button" onClick={() => onNavigate("sitzung")}>Zur Sitzung <ChevronRight size={16}/></button>}</section>}
-        {view.message && <section className="panel dashboard-info-panel"><p className="eyebrow">SL-MITTEILUNG</p><h3>{view.message?.title || "Aktuell liegt keine Mitteilung vor."}</h3><p className="muted">{view.message?.body?.summary || view.message?.body?.text || "Die Spielleitung hat noch keine aktuelle Nachricht freigegeben."}</p></section>}
-        {view.notes.length > 0 && <section className="panel dashboard-info-panel"><p className="eyebrow">AKTUELLE NOTIZEN</p>{view.notes.length ? view.notes.map((note) => <p className="dashboard-note" key={note.id}>{note.title}</p>) : <p className="muted">Keine persönlichen Hinweise vorhanden.</p>}<button className="button" onClick={() => onNavigate("notizen")}>Notizen öffnen <ChevronRight size={16}/></button></section>}
-      </div>
-
+      </section>
     </div>
   );
 }

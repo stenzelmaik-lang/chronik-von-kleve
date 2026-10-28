@@ -29,6 +29,7 @@ type Section = {
   group?: string;
   gmOnly?: boolean;
   cmsAccessOnly?: boolean;
+  mainNav?: boolean;
 };
 
 export const sections: Section[] = [
@@ -41,6 +42,7 @@ export const sections: Section[] = [
   },
   {
     id: "charaktere",
+    mainNav: false,
     name: "Charaktere",
     icon: Users,
     desc: "Deine Kainskinder und ihre Geschichten.",
@@ -48,6 +50,7 @@ export const sections: Section[] = [
   },
   {
     id: "inventar",
+    mainNav: false,
     name: "Inventar",
     icon: ShoppingBag,
     desc: "Ausrüstung, Waffen und Dinge mit Geschichte.",
@@ -55,6 +58,7 @@ export const sections: Section[] = [
   },
   {
     id: "sitzung",
+    mainNav: false,
     name: "Sitzung",
     icon: Radio,
     desc: "Live-Szenen, Initiative und der Spieltisch.",
@@ -62,6 +66,7 @@ export const sections: Section[] = [
   },
   {
     id: "wuerfel",
+    mainNav: false,
     name: "Würfel",
     icon: Dices,
     desc: "Lass das Schicksal entscheiden.",

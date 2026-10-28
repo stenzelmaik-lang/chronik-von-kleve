@@ -5,17 +5,26 @@ import test from 'node:test';
 const dashboard=readFileSync(new URL('../app/spielbereich/modules/dashboard.tsx',import.meta.url),'utf8');
 const shell=readFileSync(new URL('../app/spielbereich/modules/shell.tsx',import.meta.url),'utf8');
 const command=readFileSync(new URL('../app/spielbereich/modules/command-workspace.tsx',import.meta.url),'utf8');
-test('overview DOM follows the visual and keyboard order',()=>{
-  const blocks=['dashboard-banner','panel dashboard-next','dashboard-quick-actions','dashboard-grid','dashboard-detail-grid'].map(name=>dashboard.indexOf(`className="${name}"`));
+test('overview follows the approved character/calendar, information and preparation order',()=>{
+  const blocks=['styles.top','styles.information','styles.preparation}'].map(name=>dashboard.indexOf(name));
   assert.ok(blocks.every(index=>index>=0));
   assert.deepEqual(blocks,[...blocks].sort((a,b)=>a-b));
+  assert.ok(!dashboard.includes('SCHNELLAKTIONEN'));
+  assert.ok(!dashboard.includes('dashboard-grid'));
+  assert.ok(dashboard.includes('Spieltisch betreten'));
 });
-test('overview does not promise a protocol deep link or silently confirm legacy XP',()=>{
-  assert.ok(!dashboard.includes('Protokoll lesen'));
-  assert.ok(dashboard.includes('Zur Sitzung'));
+
+test('overview reuses existing destinations and distinguishes legacy XP',()=>{
   assert.ok(dashboard.includes('kein bestätigter XP-Ledger-Saldo'));
-  assert.ok(dashboard.includes('view.favors ? `${openFavors} offene Gefallen` : "Noch nicht erfasst"'));
+  for(const destination of ['sitzung','charaktere','inventar','notizen','termine'])assert.ok(dashboard.includes(`onNavigate('${destination}')`));
+  assert.ok(dashboard.includes('chroniplay:open-inbox'));
+  const nav=readFileSync(new URL('../app/spielbereich/modules/navigation.ts',import.meta.url),'utf8');
+  assert.ok(shell.includes('s.mainNav !== false'));
+  for(const id of ['sitzung','wuerfel','charaktere','inventar'])assert.match(nav,new RegExp(`id: "${id}",\\s+mainNav: false`));
+  assert.ok(shell.includes('Zur Übersicht'));
+  assert.ok(!shell.includes('Journal & mehr'));
 });
+
 test('mobile icon actions retain accessible names and neutral context',()=>{
   assert.ok(shell.includes('aria-label="Startseite öffnen"'));
   assert.ok(command.includes('Veröffentlichten Gruppenblick öffnen'));

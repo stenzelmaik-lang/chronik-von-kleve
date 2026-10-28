@@ -1,6 +1,8 @@
 import type { LegacyRecordRow, Entry } from "@/domain/legacy";
 import { actor, database, json, failure, canRead, HttpError } from "@/server/access";
 import { loadEntitiesForIds, grantsFor, projectEntity } from "@/server/entities";
+import { projectMedia } from "@/server/character-projection";
+import { GET as messagesGET } from "../messages/route";
 
 export const dynamic = "force-dynamic";
 const kinds = ["charaktere", "termine", "wirtschaft", "gefallen", "notizen", "sitzungen", "neuigkeiten"];
@@ -73,15 +75,25 @@ export async function GET(req: Request) {
       .filter((record) => { const date = dateOf(record); return available(record) && date !== null && date > now; })
       .sort((left, right) => (dateOf(left) || 0) - (dateOf(right) || 0))[0] || null;
 
+    const [media, inboxResponse] = await Promise.all([
+      selectedCharacter ? projectMedia(db, a, selectedCharacter.body) : null,
+      messagesGET(new Request(new URL('/api/messages', req.url), { headers: req.headers })),
+    ]);
+    if (!inboxResponse.ok) throw new HttpError(inboxResponse.status, 'Das persönliche Postfach konnte nicht geladen werden.');
+    const inbox = await inboxResponse.json() as {unread:number;messages:{title:string;senderName:string;createdAt:string}[]};
+    const latest = inbox.messages[0];
     return json({
       character: selectedCharacter,
+      portrait: media?.portraitRef ?? null,
       characters: characterChoices,
       characterCount: characters.length,
       nextSession: upcoming,
-      lastSession: sessions[0] || null,
+      lastSession: sessions.find(session => (dateOf(session) ?? Date.parse(session.updated_at || '')) <= now) || null,
+      openPoll: by('termine').find(entry => available(entry) && entry.body.scheduleKind === 'poll' && entry.body.pollClosed !== true) || null,
+      inbox: {unread:inbox.unread, latest:latest ? {title:latest.title,senderName:latest.senderName,createdAt:latest.createdAt} : null},
       economy: by("wirtschaft").find(available) || null,
       favors: by("gefallen").find(available) || null,
-      notes: by("notizen").filter(entry => available(entry) && !['appointment-vote','live-table','live-table-signal','live-table-event'].includes(String(entry.body.context))).slice(0, 5),
+      notes: by("notizen").filter(entry => available(entry) && !['sl-message','appointment-vote','live-table','live-table-signal','live-table-event'].includes(String(entry.body.context))).slice(0, 5),
       message: by("neuigkeiten").find(available) || null,
     });
   } catch (error) {

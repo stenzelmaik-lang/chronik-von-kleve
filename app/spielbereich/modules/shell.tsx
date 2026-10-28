@@ -29,7 +29,7 @@ export function WorkspaceShell({
   navigate: (id: string) => void;
   children: React.ReactNode;
 }) {
-  const table = sections.filter((s) => s.group === "SPIELTISCH");
+  const table = sections.filter((s) => s.group === "SPIELTISCH" && s.mainNav !== false);
   const canManageLocations=a.status==="active"&&["campaign_owner","campaign_gm","campaign_editor"].includes(a.role);
   const worldActive = sections.find((s) => s.id === section)?.group === "SPIELWELT";
   const cmsActive=section==="ortscms";
@@ -85,7 +85,7 @@ export function WorkspaceShell({
         </div>
         <button type="button" className={shellStyles.worldNavReturn} onClick={() => navigate("dashboard")}><ArrowLeftIcon /><span>Zum Spieltisch</span></button>
       </div>
-    </nav> : <nav className="player-nav" aria-label="Spieltisch-Navigation">
+    </nav> : <nav className={`player-nav ${tableTools.hubNav}`} aria-label="Spieltisch-Navigation">
       <div className="player-nav-label">
         <span className="eyebrow">DEIN SPIELTISCH</span>
         <strong>Deine Chronik</strong>
@@ -122,7 +122,10 @@ export function WorkspaceShell({
         <ArrowRight className="world-switch-arrow" size={16} aria-hidden="true" />
       </button>}
     </nav>}
-    {!worldActive&&!cmsActive&&<nav className={tableTools.journal} aria-label="Journal und weitere Spieltischbereiche"><details><summary>{sections.find(item=>item.id===section)?.group==='DEINE SPUREN'?sections.find(item=>item.id===section)?.name+' · Journal & mehr':'Journal & mehr'}</summary><div className={tableTools.links}>{sections.filter(item=>item.group==='DEINE SPUREN').map(item=><button key={item.id} aria-current={section===item.id?'page':undefined} onClick={()=>navigate(item.id)}>{item.name}</button>)}</div></details></nav>}
+    {!worldActive&&!cmsActive&&<div className={tableTools.overviewTools}>
+      {section!=='dashboard'&&<button type="button" onClick={()=>navigate('dashboard')}><ArrowLeft size={16} aria-hidden="true"/>Zur Übersicht</button>}
+      <label><span>Weitere Bereiche</span><select aria-label="Weitere Bereiche öffnen" value={sections.some(s=>s.group==='DEINE SPUREN'&&s.id===section)?section:''} onChange={event=>{if(event.target.value)navigate(event.target.value);}}><option value="">Bereich auswählen …</option>{sections.filter(s=>s.group==='DEINE SPUREN').map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+    </div>}
     <main className="workspace-main">{children}</main>
     <footer className="player-footer"><span>{a.gm ? "Spielleitung" : "Spieler"} · Domäne Kleve</span><span className="player-footer-links">{a.gm && <a href="/api/export?scope=campaign"><Download size={14}/> Kampagne sichern</a>}<a href="/api/export"><Download size={14}/> Meine Daten sichern</a></span></footer>
     <Toaster position="bottom-right" theme="dark" />

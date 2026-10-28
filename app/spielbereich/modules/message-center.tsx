@@ -19,7 +19,9 @@ export function MessageCenter({ a,embedded=false,initialRecipient }: { a:Actor;e
     void load();const timer=embedded?null:window.setInterval(()=>{if(document.visibilityState==="visible")void load();},2500);window.addEventListener("focus",load);
     const compose=(event:Event)=>{if(!canSend)return;const recipient=(event as CustomEvent<string>).detail;setChosen(recipient?[recipient]:[]);setMode("compose");setOpen(true);opened.current=true;};
     window.addEventListener("chroniplay:compose-message",compose);
-    return()=>{live=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",load);window.removeEventListener("chroniplay:compose-message",compose);};
+    const showInbox=()=>{if(embedded)return;setSelected(null);setMode('inbox');setOpen(true);opened.current=true;void load();};
+    window.addEventListener('chroniplay:open-inbox',showInbox);
+    return()=>{live=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",load);window.removeEventListener("chroniplay:compose-message",compose);window.removeEventListener('chroniplay:open-inbox',showInbox);};
   },[a.id,a.campaignId,canSend,embedded,refreshTick]);
   useEffect(()=>{
     if(!open||!canSend)return;let live=true;
