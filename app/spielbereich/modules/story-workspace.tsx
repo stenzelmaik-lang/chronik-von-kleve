@@ -305,8 +305,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   async function leave() {
     // Navigation must not silently drop a click while an autosave finishes.
     if (inflight.current) {
-      const deadline = Date.now() + 15000;
-      while (inflight.current && Date.now() < deadline) {
+      for (let attempt = 0; inflight.current && attempt < 150; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       if (inflight.current) {
