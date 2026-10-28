@@ -29,6 +29,7 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 const localBindingConfig = {
   ...(cloudflareRemoteTestConfig ?? {}),
   main: "vinext/server/fetch-handler",
+  assets: { binding: "ASSETS" },
   compatibility_flags: ["nodejs_compat"],
   // Enable production-only invitation grants explicitly. Local and Preview
   // builds stay closed unless their isolated runner supplies its own setting.

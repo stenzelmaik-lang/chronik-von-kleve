@@ -11,7 +11,7 @@ export async function GET(req:Request){try{
  else{
   const r=await db.prepare("SELECT body FROM records WHERE id=? AND campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=?").bind('live-event:'+q.get('eventId'),a.campaignId,sessionId).first<{body:string}>();
   if(!r||!room.started)throw new HttpError(404,'Medium nicht verfügbar.');const e=JSON.parse(r.body) as LiveEvent;
-  if(e.kind!=='media'||e.runId!==room.runId||!liveEventVisible(e,a.id,a.gm)||!e.files?.some(file=>file.id===q.get('fileId')))throw new HttpError(404,'Medium nicht verfügbar.');fileId=q.get('fileId')||'';
+  if(e.runId!==room.runId||!liveEventVisible(e,a.id,a.gm)||!(e.kind==='media'&&e.files?.some(file=>file.id===q.get('fileId'))||e.kind==='scene'&&e.scene?.imageFileId===q.get('fileId')))throw new HttpError(404,'Medium nicht verfügbar.');fileId=q.get('fileId')||'';
  }
  const file=await db.prepare('SELECT key,mime,name,size FROM files WHERE id=? AND campaign_id=?').bind(fileId,a.campaignId).first<{key:string;mime:string;name:string;size:number}>();
  if(!file||!LIVE_MEDIA_TYPES.includes(file.mime)||(q.get('elementId')&&!file.mime.startsWith('image/')))throw new HttpError(404,'Medium nicht verfügbar.');

@@ -1,0 +1,6 @@
+{
+  "extends":"../../tsconfig.json",
+  "compilerOptions":{"noEmit":true,"incremental":false,"jsx":"react-jsx","plugins":[],"types":["react","node"],"skipLibCheck":true},
+  "include":["main.tsx","types.ts","css.d.ts"],
+  "exclude":["../../node_modules"]
+}
