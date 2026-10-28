@@ -16,3 +16,99 @@
 @media(max-width:1100px){.calendarHeading{flex-wrap:wrap}.identityFacts{gap:10px 16px}.character .identity{align-items:flex-start}.character .portrait{width:90px}}@media(max-width:720px){.characterSwitch{right:16px}.identityFacts{grid-template-columns:minmax(0,1fr)}.character .identity{align-items:flex-start}.character h2{font-size:26px}}
 
 .characterBackground{margin-top:16px;font-size:13px;color:var(--hub-muted)}.characterBackground summary{cursor:pointer;color:#dfc89e;min-height:30px}.characterBackground[open]>div{max-height:180px;overflow:auto;margin-top:10px;line-height:1.6}
+
+
+/* ChroniPlay visual kit v0.1: individual SVG layers, not a flattened mockup.
+   Keep the approved dashboard hierarchy and existing live functionality. */
+.character{
+  isolation:isolate;overflow:hidden;min-height:380px;
+  padding:28px 32px 26px;
+  background-color:#101e23;
+  background-image:linear-gradient(90deg,rgba(11,21,25,.35) 0%,rgba(11,21,25,.23) 55%,rgba(11,21,25,.62) 100%),url("/graphics/spielerzentrale-v01/01-hero-hintergrund.svg");
+  background-size:cover;background-position:center;
+  box-shadow:inset 0 0 0 1px rgba(201,169,111,.06),0 10px 35px rgba(0,0,0,.14)
+}
+.characterSwitch{z-index:4}
+.character .identity{position:relative;z-index:2;align-items:flex-start;gap:30px;padding-right:96px}
+.characterCopy{flex:1}
+.portrait{
+  position:relative;width:clamp(150px,13vw,204px);
+  aspect-ratio:360/500;border:0;border-radius:5px;
+  background:#15272e;color:var(--hub-gold);
+  box-shadow:0 14px 35px rgba(0,0,0,.32)
+}
+.portrait::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:url("/graphics/spielerzentrale-v01/02-portraet-rahmen.svg") center/100% 100% no-repeat
+}
+.character h2{font-size:clamp(29px,2.8vw,43px);max-width:26ch;text-shadow:0 2px 12px #081014}
+.greeting{font-size:13px;letter-spacing:.045em;color:#dfcaa9}
+.concept{color:#e5d6bd}
+.identityFacts{gap:18px 26px;margin-top:24px}
+.identityFacts dt{color:#b9ad97;letter-spacing:.045em}
+.identityFacts dd{font-size:15px}
+.character .enter{
+  position:relative;z-index:2;min-height:52px;
+  background:linear-gradient(120deg,#594224,#70532e 50%,#503b24);
+  box-shadow:inset 0 1px rgba(255,233,187,.13),0 4px 14px rgba(0,0,0,.19)
+}
+.clanBanner{
+  position:absolute;right:22px;top:70px;z-index:1;
+  width:76px;height:145px;display:flex;justify-content:center;align-items:center;
+  padding:22px 11px 16px;
+  background:url("/graphics/spielerzentrale-v01/03-clan-banner-leer.svg") center/100% 100% no-repeat;
+  pointer-events:none
+}
+.clanBanner span{
+  display:block;max-width:100%;color:#efd8a4;text-align:center;
+  font:600 11px/1.3 Georgia,serif;overflow-wrap:anywhere;text-shadow:0 1px 2px #1b0b0a
+}
+.next{
+  background-color:#102027;
+  background-image:url("/graphics/spielerzentrale-v01/04-kalender-hintergrund.svg");
+  background-size:cover;background-position:center;
+  box-shadow:inset 0 1px rgba(208,180,123,.08)
+}
+.next .miniCalendar{background:rgba(9,20,25,.18);padding:12px;border-radius:8px}
+.calendarHeading strong{font:600 15px/1.4 Georgia,serif;letter-spacing:.02em}
+.next .calendarHeading time{font-size:17px;font-weight:600;color:#e8d3a6}
+.calendarGrid button[aria-current=date]{box-shadow:inset 0 0 0 1px rgba(214,179,111,.2)}
+.info{
+  background-color:#112027;
+  background-image:url("/graphics/spielerzentrale-v01/05-infokarte-hintergrund.svg");
+  background-size:cover;background-position:center;
+  min-height:190px
+}
+.reserved{background-image:none}
+.preparationLinks button{
+  background-color:#132329;
+  background-image:url("/graphics/spielerzentrale-v01/06-menuekachel-hintergrund.svg");
+  background-size:cover;background-position:center;
+  transition:border-color .18s,box-shadow .18s,transform .18s
+}
+.preparationLinks button:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(0,0,0,.17)}
+.heading{position:relative}
+.heading::after{
+  content:"";position:absolute;left:0;right:0;bottom:-10px;
+  height:12px;background:url("/graphics/spielerzentrale-v01/07-trennlinie.svg") center/contain no-repeat;
+  opacity:.44;pointer-events:none
+}
+.moduleIcon{width:19px;height:19px;flex:none;object-fit:contain}
+.tileIcon{width:30px;height:30px;object-fit:contain}
+@media(max-width:1200px){
+  .character{padding:22px;min-height:340px}
+  .character .identity{gap:18px;padding-right:64px}
+  .portrait{width:clamp(118px,13vw,165px)}
+  .clanBanner{right:12px;top:65px;width:61px;height:115px;padding:18px 8px 12px}
+  .clanBanner span{font-size:9px}
+}
+@media(max-width:720px){
+  .character{min-height:0}
+  .character .identity{padding-right:0}
+  .clanBanner{display:none}
+  .portrait{width:92px}
+  .next .calendarHeading time{font-size:14px}
+}
+@media(prefers-reduced-motion:reduce){
+  .preparationLinks button:hover{transform:none}
+}

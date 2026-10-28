@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1440 580" role="img" aria-labelledby="title desc">
+  <title id="title">ChroniPlay – Charakterbereich: Ruhige Nacht</title>
+  <desc id="desc">Skalierbarer, dunkel-petrolfarbener Hintergrund mit sehr subtilen gotischen Linien und sanften Messingakzenten. Ohne Text, Charakterportrait oder Clanwappen.</desc>
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101C23"/>
+      <stop offset="0.50" stop-color="#12242B"/>
+      <stop offset="1" stop-color="#081117"/>
+    </linearGradient>
+    <linearGradient id="soft-left" x1="0" x2="1">
+      <stop offset="0" stop-color="#070D11" stop-opacity="0.18"/>
+      <stop offset="0.66" stop-color="#070D11" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#070D11" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="ambient" cx="78%" cy="34%" r="60%">
+      <stop offset="0" stop-color="#38505A" stop-opacity="0.39"/>
+      <stop offset="0.46" stop-color="#203640" stop-opacity="0.19"/>
+      <stop offset="1" stop-color="#0A141A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="warm" cx="100%" cy="78%" r="43%">
+      <stop offset="0" stop-color="#886A43" stop-opacity="0.16"/>
+      <stop offset="0.44" stop-color="#67503D" stop-opacity="0.05"/>
+      <stop offset="1" stop-color="#251A1B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="tracery" x1="0" x2="1">
+      <stop offset="0" stop-color="#C6AA7C" stop-opacity="0"/>
+      <stop offset="0.42" stop-color="#C6AA7C" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#C6AA7C" stop-opacity="0.17"/>
+    </linearGradient>
+    <linearGradient id="bottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#03090C" stop-opacity="0"/>
+      <stop offset="1" stop-color="#03090C" stop-opacity="0.40"/>
+    </linearGradient>
+    <pattern id="threads" width="108" height="108" patternUnits="userSpaceOnUse" patternTransform="rotate(33)">
+      <path d="M0 0V108" stroke="#D7C8A5" stroke-opacity="0.020" stroke-width="1"/>
+    </pattern>
+    <clipPath id="bounds"><rect x="0" y="0" width="1440" height="580" rx="0"/></clipPath>
+  </defs>
+  <g clip-path="url(#bounds)">
+    <!-- The stable atmospheric foundation. -->
+    <rect width="1440" height="580" fill="url(#base)"/>
+    <rect width="1440" height="580" fill="url(#ambient)"/>
+    <rect width="1440" height="580" fill="url(#warm)"/>
+    <rect width="1440" height="580" fill="url(#threads)"/>
+
+    <!-- A quiet, distant arcade, concentrated on the right third. -->
+    <g fill="none" stroke="#C6AA7C" stroke-linejoin="round">
+      <path d="M1135 580V233C1135 175 1192 128 1250 78C1308 128 1365 175 1365 233V580" stroke-width="2" stroke-opacity="0.105"/>
+      <path d="M1151 580V237C1151 190 1201 150 1250 104C1299 150 1349 190 1349 237V580" stroke-width="1.5" stroke-opacity="0.075"/>
+      <path d="M1171 580V261C1171 220 1206 187 1250 146C1294 187 1329 220 1329 261V580" stroke-width="1" stroke-opacity="0.055"/>
+      <path d="M1250 105V580M1162 286H1338M1162 424H1338" stroke-width="1" stroke-opacity="0.065"/>
+      <path d="M1167 287L1250 196L1333 287M1168 424L1250 338L1332 424" stroke-width="1" stroke-opacity="0.035"/>
+      <path d="M1102 580V265Q1102 239 1120 216M1398 580V265Q1398 239 1380 216" stroke-width="1" stroke-opacity="0.045"/>
+    </g>
+    <!-- Very light stone/metal bands, no foreground illustrations. -->
+    <path d="M1088 0V580M1416 0V580" stroke="url(#tracery)" stroke-width="1"/>
+    <path d="M1098 0V580M1407 0V580" stroke="#D8B985" stroke-opacity="0.028" stroke-width="10"/>
+    <path d="M1065 565H1440" stroke="#D1B483" stroke-opacity="0.10" stroke-width="1"/>
+    <path d="M0 0H1440" stroke="#D8BA85" stroke-opacity="0.045" stroke-width="1"/>
+
+    <!-- Gentle, atmospheric lines, intentionally below text-contrast threshold. -->
+    <path d="M600 70H975" stroke="#C7A775" stroke-opacity="0.047" stroke-width="1"/>
+    <path d="M750 88H970" stroke="#C7A775" stroke-opacity="0.028" stroke-width="1"/>
+    <path d="M990 0V580" stroke="#A1BCC2" stroke-opacity="0.035" stroke-width="1"/>
+    <rect width="1440" height="580" fill="url(#soft-left)"/>
+    <rect width="1440" height="580" fill="url(#bottom)"/>
+  </g>
+</svg>

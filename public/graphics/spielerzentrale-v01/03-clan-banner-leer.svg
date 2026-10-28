@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 360" fill="none" aria-hidden="true">
+ <defs><linearGradient id="cloth" x1="0" y1="0" x2="190" y2="0" gradientUnits="userSpaceOnUse"><stop stop-color="#321821"/><stop offset=".23" stop-color="#6D3036"/><stop offset=".53" stop-color="#522127"/><stop offset=".81" stop-color="#421D26"/><stop offset="1" stop-color="#25141B"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="0" y2="350" gradientUnits="userSpaceOnUse"><stop stop-color="#D5BE8B"/><stop offset="1" stop-color="#947447"/></linearGradient></defs>
+ <!-- Separate banner element. The actual clan symbol must be overlaid in HTML. -->
+ <path d="M8 17H182V334L95 355L8 334Z" fill="url(#cloth)" stroke="url(#edge)" stroke-width="2.5"/>
+ <path d="M18 27H172V325L95 341L18 325Z" stroke="#D8B77C" stroke-opacity=".44" stroke-width="1.8"/>
+ <path d="M22 30v283l35 15m111-298v283l-35 15" stroke="#A67A58" stroke-opacity=".22" stroke-width="12"/>
+ <path d="M30 64h130M30 270h130" stroke="#E4C693" stroke-opacity=".42" stroke-width="1.5"/>
+ <path d="M47 43h96m-48-20v25" stroke="#E4C693" stroke-opacity=".40" stroke-width="1.5"/>
+ <circle cx="95" cy="172" r="61" stroke="#D8BB83" stroke-opacity=".42" stroke-width="1.6"/>
+ <circle cx="95" cy="172" r="66" stroke="#D8BB83" stroke-opacity=".17" stroke-width="1"/>
+ <path d="M73 11h44m-22-8v17" stroke="#D5B783" stroke-width="2"/>
+ </svg>
