@@ -54,7 +54,7 @@ export const sceneStateSchema = z.object({
 });
 export type SceneState = z.infer<typeof sceneStateSchema>;
 export type SceneView = { id: string; version: number; updatedAt: string; document: SceneDocument; state: SceneState };
-export type SceneSummary = Pick<SceneView, 'id' | 'version' | 'updatedAt'> & { title: string; archived?:boolean; storyId: string; placeId: string; parentId:string; sessionIds:string[]; favorite:boolean;pinned:boolean;searchText:string;elements:Pick<SceneElement,'id'|'title'|'kind'>[]; runs: SceneRun[] };
+export type SceneSummary = Pick<SceneView, 'id' | 'version' | 'updatedAt'> & { title: string; archived?:boolean; storyId: string; placeId: string; parentId:string; sessionIds:string[]; favorite:boolean;pinned:boolean;searchText:string;elements:Pick<SceneElement,'id'|'title'|'kind'>[]; preparation?: ReturnType<typeof import('./session-overview.ts').scenePreparation>; runs: SceneRun[] };
 export type SceneHistory = { id: string; version: number; action: string; createdAt: string; document: SceneDocument; state: SceneState };
 export type PlayerScene = { id: string; title: string; narration: string; publishedAt: string; place: { id: string; title: string } | null; persons: { id: string; title: string }[]; clues: { id: string; title: string; text: string; state: string }[]; runs: { id: string; sessionId: string; label: string; status: SceneRun['status'] }[] };
 export function targetKey(t: SceneTarget) { return t.scope === 'group' ? '@group' : t.characterId; }

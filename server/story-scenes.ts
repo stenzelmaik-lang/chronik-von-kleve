@@ -1,3 +1,4 @@
+import { scenePreparation } from '@/domain/session-overview';
 import { validatePreparationMedia } from './preparation-media';
 import { richTextToPlainText } from '@/domain/location-rich-text';
 import type { Actor, Entity } from '@/domain/types';
@@ -24,7 +25,7 @@ export async function readScene(db: D1Database, a: Actor, id: string) {
 }
 export async function listScenes(db: D1Database, a: Actor): Promise<SceneSummary[]> {
   gmOnly(a);
-  return (await sceneRows(db, a.campaignId)).map(row => { const s = decode(row); return { id: s.id, title: s.document.title, archived:s.document.archived, storyId: s.document.storyId, placeId: s.document.placeId, version: s.version, updatedAt: s.updatedAt, runs: s.state.runs,parentId:s.document.parentId,sessionIds:s.document.sessionIds,favorite:s.document.favorite,pinned:s.document.pinned,elements:s.document.elements.map(({id,title,kind})=>({id,title,kind})),searchText:[s.document.narration,...s.document.elements.map(e=>e.title+' '+richTextToPlainText(e.text))].join(' ') }; });
+  return (await sceneRows(db, a.campaignId)).map(row => { const s = decode(row); return { id: s.id, title: s.document.title, archived:s.document.archived, storyId: s.document.storyId, placeId: s.document.placeId, version: s.version, updatedAt: s.updatedAt, runs: s.state.runs,preparation:scenePreparation(s.document),parentId:s.document.parentId,sessionIds:s.document.sessionIds,favorite:s.document.favorite,pinned:s.document.pinned,elements:s.document.elements.map(({id,title,kind})=>({id,title,kind})),searchText:[s.document.narration,...s.document.elements.map(e=>e.title+' '+richTextToPlainText(e.text))].join(' ') }; });
 }
 async function validateDocument(db: D1Database, a: Actor, d: SceneDocument, sceneId:string) {
   if (d.storyId) await readStory(db, a, d.storyId);

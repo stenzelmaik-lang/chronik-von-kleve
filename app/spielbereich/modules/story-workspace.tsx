@@ -33,6 +33,8 @@ import { PreparationPicker } from "./preparation-picker";
 import { preparationPlaces } from "./preparation-catalog";
 import { useCommandConfirmation } from "./command-confirmation";
 import s from "./story-workspace.module.css";
+import { SessionOverview, preparationStatusNames } from "./session-overview";
+import { orderedSessionScenes } from "@/domain/session-overview";
 type Kind = "story" | "session" | "scene";
 type Document = StoryDocument | SessionPreparation | SceneDocument;
 type Selection = {
@@ -134,6 +136,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [files, setFiles] = useState<{ id: string; name: string; mime: string }[]>(
       [],
     );
+  const [sessionEditing,setSessionEditing]=useState(false), [returnSession,setReturnSession]=useState("");
   const [navigationOpen,setNavigationOpen]=useState(false),[expandedEditor,setExpandedEditor]=useState<string|null>(null);
   const [current, setCurrent] = useState<Selection | null>(null),
     [saved, setSaved] = useState(""),
@@ -147,6 +150,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [recentReady, setRecentReady] = useState(false),
     [busy, setBusy] = useState(false);
   const [unlinkDraft, setUnlinkDraft] = useState<{sessionId:string;ids:string[]}|null>(null);
+  const activeUrl = useRef("");
   const latest = useRef(current),
     baseline = useRef(saved),
     inflight = useRef(false),
@@ -204,7 +208,12 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       .then(refresh)
       .then(async () => {
         setMessage("Arbeitsbestand geladen. Nur für die Spielleitung.");
+        const route = new URL(window.location.href);
+        if(!route.searchParams.has("bereich")){route.searchParams.set("bereich","sitzung");window.history.replaceState(null,"",route);}
+        activeUrl.current = window.location.pathname + window.location.search;
         const q = new URLSearchParams(window.location.search);
+        setSessionEditing(q.get("edit") === "1");
+        setReturnSession(q.get("fromSession") || "");
         for (const kind of ["story", "session", "scene"] as const) {
           const id = q.get(kind);
           if (id) {
@@ -233,12 +242,13 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   const unlinkedIds = current?.kind === "session" && unlinkDraft?.sessionId === current.id ? unlinkDraft.ids : [];
   const dirty = !!current && (JSON.stringify(current.document) !== saved || unlinkedIds.length > 0);
   useEffect(()=>{onDirty?.(dirty);return()=>onDirty?.(false);},[dirty,onDirty]);
-  const accept = (next: Selection) => {
-    window.history.replaceState(
-      null,
-      "",
-      "/sl/command-center?" + next.kind + "=" + encodeURIComponent(next.id),
+  const accept = (next: Selection, fromSession = "", editing = false, historyMode: "push" | "replace" | "none" = "push") => {
+    if(historyMode !== "none") window.history[historyMode === "push" ? "pushState" : "replaceState"](
+      null, "", "/sl/command-center?bereich=sitzung&" + next.kind + "=" + encodeURIComponent(next.id) + (fromSession ? "&fromSession=" + encodeURIComponent(fromSession) : "") + (editing ? "&edit=1" : ""),
     );
+    activeUrl.current=window.location.pathname+window.location.search;
+    setReturnSession(fromSession);
+    setSessionEditing(editing);
     setNavigationOpen(false);
     setExpandedEditor(null);
     setUnlinkDraft(null);
@@ -334,21 +344,33 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       "Ungespeicherte Änderungen verwerfen und die andere Akte öffnen?",
     ));
   }
-  async function open(kind: Kind, id: string) {
-    if (!(await leave())) return;
+  async function open(kind: Kind, id: string, fromSession = "", historyMode: "push" | "replace" | "none" = "push", editing = false) {
+    if (!(await leave())) return false;
     const token = ++generation.current;
     try {
       const data = await request(
         endpoint(kind) + "?id=" + encodeURIComponent(id),
       );
       if (token !== generation.current) return;
-      accept(selection(kind, data[kind]));
+      accept(selection(kind, data[kind]), fromSession, editing, historyMode);
       setSection(kind === "scene" ? "narration" : "background");
       setMessage("Geladen · private Vorbereitung");
+      return true;
     } catch (e) {
       setMessage((e as Error).message);
+      return false;
     }
   }
+  const routeHandler = useRef<()=>void>(()=>{});
+  useEffect(()=>{
+    routeHandler.current=()=>{
+      const q=new URLSearchParams(window.location.search);
+      const kind=(["story","session","scene"] as const).find(key=>q.get(key));
+      if(kind) void open(kind,q.get(kind)!,q.get("fromSession")||"","replace",q.get("edit")==="1").then(ok=>{if(ok===false&&activeUrl.current)window.history.replaceState(null,"",activeUrl.current);});
+      else void leave().then(allowed=>{if(allowed){generation.current++;setCurrent(null);setSaved("");setReturnSession("");setSessionEditing(false);activeUrl.current=window.location.pathname+window.location.search;}else if(activeUrl.current)window.history.replaceState(null,"",activeUrl.current);});
+    };
+  });
+  useEffect(()=>{const handler=()=>routeHandler.current();window.addEventListener("popstate",handler);return()=>window.removeEventListener("popstate",handler);},[]);
   async function create(kind: Kind, child = false, unlinked = false) {
     if (!(await leave())) return;
     generation.current++;
@@ -356,7 +378,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     setBusy(true);
     setMessage("Legt neue Akte an …");
     let doc: Document;
-    const fromSession=kind==="scene"&&!unlinked&&current?.kind==="session"?current.id:"";
+    const fromSession=kind==="scene"&&!unlinked ? (current?.kind==="session" ? current.id : returnSession) : "";
     if (kind === "story") doc = emptyStory();
     else if (kind === "session")
       doc = sessionPreparationSchema.parse({ title: "Neuer Spielabend" });
@@ -393,7 +415,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           }
         }catch{linkOk=false;} // Scene remains saved; no existing content is removed.
       }
-      accept(selection(kind,result[kind]));
+      accept(selection(kind,result[kind]), fromSession, kind === "session");
       setSection(kind==="scene"?"narration":"background");
       setMessage(kind==="scene"&&fromSession
         ?linkOk?"Szene für diesen Spielabend angelegt · nur SL":"Szene gespeichert, aber Zuordnung zum Spielabend prüfen."
@@ -405,6 +427,23 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       inflight.current = false;
       setBusy(false);
     }
+  }
+  async function moveScene(id: string, direction: number) {
+    if (!current || current.kind !== "session" || busy || dirty || inflight.current) return;
+    const start = current;
+    const document = start.document as SessionPreparation;
+    const ids = orderedSessionScenes(start.id,document,scenes).map(scene=>scene.id);
+    const index = ids.indexOf(id), target = index + direction;
+    if(index < 0 || target < 0 || target >= ids.length) return;
+    [ids[index],ids[target]]=[ids[target],ids[index]];
+    const missing = document.sceneIds.filter(id=>!ids.includes(id));
+    inflight.current=true;setBusy(true);setMessage("Speichert Reihenfolge …");
+    try {
+      const result=await request(endpoint("session"),{action:"save",id:start.id,version:start.version,document:{...document,sceneIds:[...ids,...missing]}});
+      accept(selection("session",result.session),"",false,"replace");
+      await refresh();setMessage("Reihenfolge gespeichert · nur SL");
+    } catch(error) {setMessage((error as Error).message+" Die bisherige Reihenfolge bleibt erhalten.");}
+    finally {inflight.current=false;setBusy(false);}
   }
   async function upload(file: File) {
     const form = new FormData();
@@ -677,22 +716,15 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         })).map(v=>{
           const currentSession=current?.kind==="session"&&current.id===v.id?session:null;
           const sceneIds=currentSession?.sceneIds||v.document.sceneIds;
-          const linked=scenes.filter(c=>
-            !(currentSession&&unlinkedIds.includes(c.id)) &&
-            (sceneIds.includes(c.id)||c.sessionIds.includes(v.id))&&matches(c));
-          const placeKeys=[...new Set(linked.map(c=>c.placeId||""))];
+          const linked=orderedSessionScenes(v.id,{...v.document,sceneIds},scenes).filter(c=>!(currentSession&&unlinkedIds.includes(c.id))&&matches(c));
           return <section className={s.sessionNav} key={v.id}>
             <button className={current?.id===v.id?s.selected:""}
               aria-current={current?.id===v.id?"page":undefined}
               onClick={()=>void open("session",v.id)}>◷ {v.document.title}</button>
             {!search&&filter==="all"&&<div className={s.sessionNavContents}>
               {!linked.length&&<p>Keine Szenen vorbereitet.</p>}
-              {placeKeys.map(placeId=><div key={placeId||"no-place"} className={s.sessionNavPlace}>
-                <span>{placeId?refs.find(r=>r.id===placeId)?.title||"Verknüpfter Ort":"Ohne Schauplatz"}</span>
-                {linked.filter(c=>(c.placeId||"")===placeId).map(c=>
-                  <button key={c.id} className={current?.id===c.id?s.selected:""}
-                    onClick={()=>void open("scene",c.id)}>◇ {c.title}</button>)}
-              </div>)}
+              {linked.map((c,index)=><button key={c.id} className={current?.id===c.id?s.selected:""}
+                onClick={()=>void open("scene",c.id,v.id)}>{index+1}. {c.title}</button>)}
             </div>}
           </section>;
         })}
@@ -741,9 +773,20 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         </details>
         </nav>
         <main className={s.main}>
-          {current && doc ? (
+          {current?.kind === "scene" && returnSession && <div className={s.overviewNavigation}>
+            <button disabled={busy} onClick={()=>void open("session",returnSession)}>Zurück zum Spielabend</button>
+            <label>Weitere Szene öffnen<select aria-label="Weitere Szene dieses Spielabends" value={current.id} onChange={e=>void open("scene",e.target.value,returnSession)}>
+              {scenes.filter(item=>item.id===current.id || item.sessionIds.includes(returnSession) || sessions.find(value=>value.id===returnSession)?.document.sceneIds.includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.title}</option>)}
+            </select></label>
+            <button disabled={busy} onClick={()=>void create("scene")}>Neue Szene im Spielabend</button>
+          </div>}
+          {current && session && !sessionEditing ? <SessionOverview session={{id:current.id,version:current.version,updatedAt:"",document:session}} scenes={scenes} references={refs} files={files} busy={busy || dirty} message={message}
+            onEdit={()=>{setSessionEditing(true);window.history.pushState(null,"","/sl/command-center?bereich=sitzung&session="+encodeURIComponent(current.id)+"&edit=1");activeUrl.current=window.location.pathname+window.location.search;}}
+            onScene={id=>void open("scene",id,current.id)} onCreate={()=>void create("scene")} onMove={(id,direction)=>void moveScene(id,direction)}/>
+          : current && doc ? (
             <>
               <div className={s.savebar}>
+                {session && <button disabled={busy} onClick={()=>void open("session",current.id)}>Zur Spielabendübersicht</button>}
                 <span role="status">{message}</span>
                 <button disabled={busy} onClick={() => void toggleArchive()}>{(scene?.archived || story?.status === "archived" || session?.status === "archived") ? "Aus Archiv wiederherstellen" : "Archivieren"}</button>
                 <button type="button" className={s.deleteAction} disabled={busy} onClick={() => void deleteCurrent()}>{current.kind === "session" ? "Spielabend" : current.kind === "scene" ? "Szene" : "Handlungsstrang"} löschen</button>
@@ -1189,7 +1232,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             </>
           ) : (
             <div className={s.empty}>
-              <h2>Dein nächster Spielabend beginnt hier</h2>
+              <h2>Deine Spielabende</h2>
+              <ul className={s.overviewSessionList}>{sessions.filter(v=>matches({...v.document,id:v.id,searchText:v.document.summary})).map(v=><li key={v.id}><button disabled={busy} onClick={()=>void open("session",v.id)}>{v.document.title}</button><span>{preparationStatusNames[v.document.status]} · {orderedSessionScenes(v.id,v.document,scenes).length} Szenen</span></li>)}</ul>
               <p>
                 Lege einen Spielabend an oder öffne eine bestehende Vorbereitung. Von dort aus verknüpfst du Schauplätze, Szenen und Medien. Nichts wird automatisch veröffentlicht.
               </p>

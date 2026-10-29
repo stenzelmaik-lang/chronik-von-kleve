@@ -5,18 +5,19 @@
  */
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
-import { chromium } from "playwright";
+const { chromium } = await import(process.env.CVK_PLAYWRIGHT_MODULE || "playwright");
 
 const base = process.env.CVK_TEST_URL || "http://127.0.0.1:8820";
 const parsedBase = new URL(base);
 assert.equal(parsedBase.hostname, "127.0.0.1", "Browser smoke must stay on 127.0.0.1");
-assert.equal(parsedBase.port, "8820", "Browser smoke uses only the isolated SL/player fixture");
+assert.ok(["8820","8822"].includes(parsedBase.port), "Browser smoke uses only the isolated SL/player fixture or separate session-overview fixture");
 const dir = "artifacts/story-browser-smoke";
 mkdirSync(dir, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({ headless: true, ...(process.env.CVK_BROWSER_CHANNEL ? {channel:process.env.CVK_BROWSER_CHANNEL} : {}) });
 const context = await browser.newContext({ viewport: { width: 1920, height: 1080 }, locale: "de-DE" });
 const page = await context.newPage();
 page.setDefaultTimeout(20000);
+const sessionTitle = "SYNTHETISCH – Spielabend " + crypto.randomUUID().slice(0,8);
 let phase = "login";
 const screenshot = async name => page.screenshot({ path: dir + "/" + name + ".png", fullPage: true });
 const api = async (path, method = "GET", data) => {
@@ -46,7 +47,7 @@ async function saveOrAutosave(kind, id, predicate) {
 }
 async function chooseSession() {
   const nav = page.locator('nav[aria-label="Storynavigation"]');
-  const item = nav.getByRole("button", { name: /Der Hunger bleibt – Sitzung 01/ }).first();
+  const item = nav.getByRole("button", { name: new RegExp(sessionTitle) }).first();
   const create = page.getByRole("button", { name: "+ Szene für diesen Spielabend" });
   for (let attempt = 0; attempt < 3; attempt++) {
     await item.click();
@@ -113,15 +114,21 @@ try {
   await page.waitForFunction(() => new URLSearchParams(location.search).has("session"));
   const sessionId = new URL(page.url()).searchParams.get("session");
   assert.ok(sessionId);
-  await page.locator("main").getByLabel("Titel", { exact: true }).fill("Der Hunger bleibt – Sitzung 01");
+  await page.locator("main").getByLabel("Titel", { exact: true }).fill(sessionTitle);
   await saveOrAutosave("session", sessionId, s =>
-    s.document.title === "Der Hunger bleibt – Sitzung 01");
+    s.document.title === sessionTitle);
 
   phase = "Kaserne scene and HTML";
   await chooseSession();
   const kaserneId = await addScene("Kaserne – Ankunft", "SYNTHETISCH – Kaserne Schwarzholz",
     '<h2>Rückkehr zur Kaserne</h2><p class="cp-intro">Eine stille Nacht in Kleve.</p><p><span style="color:#d6b36f">SL-Hinweis</span>: Die Gruppe entscheidet selbst.</p><table><tr><th>Hinweis</th></tr><tr><td>Versiegelte Order</td></tr></table><details><summary>Optionaler Dialog</summary><p>Schäfer wartet.</p></details>');
 
+  phase = "SL material summary";
+  const npc=await api("/api/entities","POST",{type:"NPC",title:"SYNTHETISCH – Schäfer",text:"PRIVATE_NPC_NOTES"});
+  assert.equal(npc.status,201,JSON.stringify(npc.body));
+  const prepared=(await api("/api/command-center/scenes?id="+encodeURIComponent(kaserneId))).body.scene;
+  const attached=await api("/api/command-center/scenes","POST",{action:"save",id:kaserneId,version:prepared.version,document:{...prepared.document,npcIds:[npc.body.id]}});
+  assert.equal(attached.status,200,JSON.stringify(attached.body));
   phase = "Taberna scene and HTML";
   await chooseSession();
   const tabernaId = await addScene("Electric Taberna – Besuch", "Electric Taberna",
@@ -131,8 +138,8 @@ try {
   await chooseSession();
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Spielabend & Story" }).waitFor();
-  await page.locator('nav[aria-label="Storynavigation"]').getByText("SYNTHETISCH – Kaserne Schwarzholz").waitFor();
-  await page.locator('nav[aria-label="Storynavigation"]').getByText("Electric Taberna", { exact: true }).waitFor();
+  await page.getByRole("region", {name:"Spielabendübersicht"}).getByText("SYNTHETISCH – Kaserne Schwarzholz").waitFor();
+  await page.getByRole("region", {name:"Spielabendübersicht"}).getByText("Electric Taberna", { exact: true }).waitFor();
   const session = await api("/api/command-center/preparation?id=" + encodeURIComponent(sessionId));
   assert.equal(session.status, 200);
   assert.ok(session.body.session.document.sceneIds.includes(kaserneId));
@@ -148,8 +155,37 @@ try {
   const second = await api("/api/command-center/scenes?id=" + encodeURIComponent(tabernaId));
   assert.ok(second.body.scene.document.narration.includes("Avis Bar"));
 
+  phase = "overview order and return context";
+  await chooseSession();
+  const overview=page.getByRole("region",{name:"Spielabendübersicht"});
+  assert.equal(await page.locator("main").getByLabel("Titel",{exact:true}).count(),0,"Reading does not open a form");
+  await overview.getByRole("button",{name:"Kaserne – Ankunft nach unten",exact:true}).press("Enter");
+  await waitForStored("session",sessionId,s=>s.document.sceneIds[0]===tabernaId);
+  await page.reload({waitUntil:"domcontentloaded"});
+  await overview.waitFor();
+  assert.ok((await overview.locator("ol > li h4").first().innerText()).includes("Electric Taberna"));
+  await overview.getByRole("button",{name:"Szene bearbeiten: Kaserne – Ankunft",exact:true}).click();
+  await page.getByRole("button",{name:"Zurück zum Spielabend",exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get("fromSession"),sessionId);
+  await page.goBack();await overview.waitFor();
+  await page.goForward();await page.getByRole("button",{name:"Zurück zum Spielabend",exact:true}).waitFor();
+  await page.getByRole("button",{name:"Zurück zum Spielabend",exact:true}).click();await overview.waitFor();
+  phase = "shared scene returns to invoking session";
+  assert.ok((await overview.innerText()).includes("SYNTHETISCH – Schäfer"),"NPC is visible without opening the scene editor");
+  const alternate=await api("/api/command-center/preparation","POST",{action:"create",clientRequestId:crypto.randomUUID(),document:{title:"SYNTHETISCH – Zweiter Abend",sceneIds:[kaserneId]}});
+  assert.equal(alternate.status,201,JSON.stringify(alternate.body));
+  const alternateId=alternate.body.session.id;
+  await page.goto(base+"/sl/command-center?bereich=sitzung&session="+encodeURIComponent(alternateId));
+  await overview.getByRole("button",{name:"Szene bearbeiten: Kaserne – Ankunft",exact:true}).click();
+  await page.getByRole("button",{name:"Zurück zum Spielabend",exact:true}).waitFor();
+  await page.reload({waitUntil:"domcontentloaded"});
+  await page.getByRole("button",{name:"Zurück zum Spielabend",exact:true}).click();
+  await overview.getByRole("heading",{name:"SYNTHETISCH – Zweiter Abend",exact:true}).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get("session"),alternateId);
+  await page.goto(base+"/sl/command-center?bereich=sitzung&session="+encodeURIComponent(sessionId));
   phase = "unlink scene from both existing references";
   await chooseSession();
+  await page.getByRole("button",{name:"Spielabend bearbeiten",exact:true}).click();
   await page.getByText("Vorhandene Storys, Szenen und Schauplätze verknüpfen").click();
   const scenePicker = page.getByRole("group", { name: "Szenen" });
   await scenePicker.getByRole("checkbox", { name: /Electric Taberna – Besuch/ }).uncheck();
@@ -158,7 +194,8 @@ try {
   assert.ok(!unlinkedScene.body.scene.document.sessionIds.includes(sessionId), "Unlink clears the scene-side reference too");
   assert.ok(unlinkedScene.body.scene.document.narration.includes("Avis Bar"), "Unlink preserves scene content");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).waitFor();
+  await page.getByRole("button", { name: "Zur Spielabendübersicht" }).click();
+  await page.getByRole("region", { name: "Spielabendübersicht" }).waitFor();
   assert.equal(await nav.getByRole("button", { name: /Electric Taberna – Besuch/ }).count(), 0);
   const freeFiles = nav.locator("details").filter({ hasText: "Weitere Akten" });
   await freeFiles.locator("summary").click();
@@ -173,6 +210,7 @@ try {
   assert.equal(oneSided.status, 201);
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).waitFor();
+  await page.getByRole("button",{name:"Spielabend bearbeiten",exact:true}).click();
   await page.getByText("Vorhandene Storys, Szenen und Schauplätze verknüpfen").click();
   const legacyCheckbox = page.getByRole("group", { name: "Szenen" }).getByRole("checkbox", { name: /SYNTHETISCH – alter Szenenverweis/ });
   assert.ok(await legacyCheckbox.isChecked(), "A scene-only reference is visible as selected");
@@ -182,6 +220,8 @@ try {
   const afterLegacyUnlink = await api("/api/command-center/scenes?id=" + encodeURIComponent(oneSided.body.scene.id));
   assert.ok(!afterLegacyUnlink.body.scene.document.sessionIds.includes(sessionId));
 
+  await page.getByRole("button",{name:"Zur Spielabendübersicht",exact:true}).click();
+  await page.getByRole("region",{name:"Spielabendübersicht"}).waitFor();
   phase = "responsive desktop 1440 and approximate 125% CSS zoom";
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.evaluate(() => { document.documentElement.style.zoom = "125%"; });
@@ -192,8 +232,9 @@ try {
   phase = "mobile navigation";
   await page.evaluate(() => { document.documentElement.style.zoom = ""; });
   await page.setViewportSize({ width: 390, height: 844 });
+  await screenshot("overview-mobile-390");
   await page.getByRole("button", { name: "Akten auswählen" }).click();
-  await nav.getByRole("button", { name: /Kaserne – Ankunft/ }).waitFor();
+  await nav.getByRole("button", { name: /Kaserne – Ankunft/ }).first().waitFor();
   await screenshot("mobile-390");
 
   phase = "privacy";
@@ -244,6 +285,7 @@ try {
   assert.equal((await api("/api/command-center/preparation?id=" + disposableId)).status, 404, "Confirm removes the entry");
 
   console.log("PASS: isolated Spielabend -> Kaserne / Taberna scenes -> HTML preview -> fullscreen -> save/reload -> responsive/SL privacy -> delete/cancel.");
+  console.log("VIEW: " + base + "/sl/command-center?bereich=sitzung&session=" + encodeURIComponent(sessionId));
   console.log("NOTE: 125% simulated using CSS zoom, not native browser zoom.");
 } catch (error) {
   console.error("FAIL story browser smoke at phase: " + phase, error);
