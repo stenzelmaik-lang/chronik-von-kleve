@@ -9,6 +9,7 @@ import {
   HttpError,
 } from "@/server/access";
 import { sessionPreparationCommand } from "@/domain/story-preparation";
+import { deletePreparation, deletePreparationCommand } from "@/server/preparation-delete";
 import {
   preparedSessions,
   preparedSession,
@@ -50,7 +51,13 @@ export async function POST(req: Request) {
     sameOrigin(req);
     const a = await actor();
     gmOnly(a);
-    const p = sessionPreparationCommand.safeParse(await input(req));
+    const body = await input(req);
+    if (body?.action === "delete") {
+      const command = deletePreparationCommand.safeParse(body);
+      if (!command.success) throw new HttpError(400, command.error.issues[0].message);
+      return json({ deleted: await deletePreparation(database(), a, "session", command.data.id, command.data.version) });
+    }
+    const p = sessionPreparationCommand.safeParse(body);
     if (!p.success) throw new HttpError(400, p.error.issues[0].message);
     const c = p.data,
       db = database();

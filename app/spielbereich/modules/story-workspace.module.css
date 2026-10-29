@@ -82,6 +82,11 @@
   opacity: 0.45;
   cursor: default;
 }
+.workspace button.deleteAction {
+  color: #f2c7bd;
+  border-color: #a9635d;
+  background: #352126;
+}
 .workspace button:hover:not(:disabled),
 .workspace button[aria-pressed="true"],
 .selected {

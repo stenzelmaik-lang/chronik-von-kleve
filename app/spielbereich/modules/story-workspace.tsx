@@ -567,6 +567,42 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     } catch (e) { setMessage((e as Error).message + " Deine Eingaben bleiben im Editor."); }
     finally { inflight.current = false; setBusy(false); }
   }
+  async function deleteCurrent() {
+    const start = latest.current;
+    if (!start || inflight.current) return;
+    const token = generation.current;
+    const name = start.kind === "session" ? "Spielabend" : start.kind === "scene" ? "Szene" : "Handlungsstrang";
+    const unsaved = JSON.stringify(start.document) !== baseline.current || pendingUnlinks.current.length > 0;
+    if (!(await confirmation.ask(`${name} „${start.document.title}“ endgültig löschen?${unsaved ? " Ungespeicherte Änderungen gehen verloren." : ""} Verknüpfungen zu dieser Akte und ihre Freigaben werden entfernt; andere Akten und Dateien bleiben erhalten.${start.kind === "session" ? " Ein laufender Spielabend wird beendet." : ""}${start.kind === "scene" ? " Eine gerade ausgespielte Szene wird ausgeblendet." : ""} Interne Protokolle bleiben erhalten und können ältere Inhalte enthalten.`))) return;
+    if (inflight.current || generation.current !== token || latest.current?.id !== start.id) return;
+    if (latest.current.version !== start.version || JSON.stringify(latest.current.document) !== JSON.stringify(start.document)) {
+      setMessage("Die Akte hat sich während der Bestätigung geändert. Bitte erneut prüfen.");
+      return;
+    }
+    inflight.current = true;
+    setBusy(true);
+    try {
+      await request(endpoint(start.kind), { action: "delete", id: start.id, version: start.version });
+      generation.current++;
+      latest.current = null;
+      baseline.current = "";
+      pendingUnlinks.current = [];
+      setCurrent(null);
+      setSaved("");
+      setUnlinkDraft(null);
+      setExpandedEditor(null);
+      setHistory([]);
+      setRecent((old) => old.filter((id) => id !== start.id));
+      window.history.replaceState(null, "", "/sl/command-center");
+      try { await refresh(); setMessage(`${name} gelöscht.`); }
+      catch { setMessage(`${name} gelöscht. Die Übersicht konnte nicht aktualisiert werden; bitte neu laden.`); }
+    } catch (e) {
+      setMessage((e as Error).message + " Die Akte bleibt erhalten.");
+    } finally {
+      inflight.current = false;
+      setBusy(false);
+    }
+  }
   function tree(parent: string, storyId: string, depth = 0): React.ReactNode {
     if (depth > 20) return null;
     return scenes
@@ -710,6 +746,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
               <div className={s.savebar}>
                 <span role="status">{message}</span>
                 <button disabled={busy} onClick={() => void toggleArchive()}>{(scene?.archived || story?.status === "archived" || session?.status === "archived") ? "Aus Archiv wiederherstellen" : "Archivieren"}</button>
+                <button type="button" className={s.deleteAction} disabled={busy} onClick={() => void deleteCurrent()}>{current.kind === "session" ? "Spielabend" : current.kind === "scene" ? "Szene" : "Handlungsstrang"} löschen</button>
                 <button disabled={busy || !dirty} onClick={() => void save()}>
                   Jetzt speichern
                 </button>

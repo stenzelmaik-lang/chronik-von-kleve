@@ -7,6 +7,7 @@ import {npcUploadIntegration} from './npc-upload-integration.mjs';
 import {commandWorkspaceIntegration} from "./command-workspace-integration.mjs";
 import {storySceneIntegration} from './story-scene-integration.mjs';
 import {storyPreparationIntegration} from './story-preparation-integration.mjs';
+import {preparationDeleteIntegration} from './preparation-delete-integration.mjs';
 import {workspaceUxIntegration} from './workspace-ux-integration.mjs';
 import {appointmentsIntegration} from './appointments-integration.mjs';
 import {liveTableIntegration} from './live-table-integration.mjs';
@@ -273,12 +274,13 @@ check(!(await locationJson('a')).includes('01 Eingang & Garderobe'),'Revoked gra
 check((await req('/api/knowledge','gm','POST',{entityId:entrance,audience:'group',state:'DISCOVERED'})).s===200,'Restore isolated fixture grant');
 
 // Direct mutations are restricted to this runner's disposable LOCAL test database.
-function localSql(sql) {
+function localSql(sql, read = false) {
   const state=resolve(process.env.CVK_TEST_STATE||'');
   assert.equal(dirname(state),tmpdir());
   assert.match(basename(state),/^cvk-phase-c-tests-[a-f0-9-]+$/);
-  const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql],{encoding:'utf8',windowsHide:true});
+  const r=spawnSync(process.execPath,['node_modules/wrangler/bin/wrangler.js','d1','execute','DB','--local','--persist-to',process.env.CVK_TEST_STATE,'--config','dist/server/wrangler.json','--command',sql,...(read?['--json']:[])],{encoding:'utf8',windowsHide:true,env:read?{...process.env,WRANGLER_LOG:'log'}:process.env});
   assert.equal(r.status,0,r.stderr);
+  return read ? JSON.parse(r.stdout)[0].results : undefined;
 }
 localSql("DELETE FROM knowledge WHERE entity_id='room.electric-taberna.entrance-cloakroom'");
 check(!(await locationJson('a')).includes('01 Eingang & Garderobe'),'Node exists with fixture visited but no grant: no player knowledge');
@@ -1029,6 +1031,7 @@ await weekendIntegration({req,check,localSql,sqlQuote,now});
 await commandWorkspaceIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId});
 await storySceneIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId,characterBody});
 await storyPreparationIntegration({req,check,localSql,sqlQuote,session:regieStored});
+await preparationDeleteIntegration({req,check,localSql,sqlQuote,session:regieStored});
 await workspaceUxIntegration({req,check});
 await appointmentsIntegration({req,check});
 await liveTableIntegration({req,check});

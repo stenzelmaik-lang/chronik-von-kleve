@@ -216,7 +216,34 @@ try {
   assert.ok(!visible.includes("Versiegelte Order") && !visible.includes("Kaserne – Ankunft"), "Unpublished scene details stay private");
   await player.close();
 
-  console.log("PASS: isolated Spielabend -> Kaserne / Taberna scenes -> HTML preview -> fullscreen -> save/reload -> responsive/SL privacy.");
+  phase = "delete confirmation and cancel";
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(base + "/sl/command-center", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "+ Spielabend anlegen" }).click();
+  await page.waitForFunction(() => new URLSearchParams(location.search).has("session"));
+  const disposableId = new URL(page.url()).searchParams.get("session");
+  const deleteButton = page.getByRole("button", { name: "Spielabend löschen" });
+  await deleteButton.waitFor();
+  await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Spielabend löschen' && !button.disabled));
+  await deleteButton.press("Enter");
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByText(/endgültig löschen/).waitFor();
+  await page.waitForFunction(() => { const box = document.querySelector('[role="alertdialog"]'); return box && Number(getComputedStyle(box).opacity) >= 0.99; });
+  await screenshot("delete-confirmation");
+  await dialog.getByRole("button", { name: "Abbrechen" }).press("Enter");
+  assert.equal((await api("/api/command-center/preparation?id=" + disposableId)).status, 200, "Cancel leaves the entry intact");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileGeometry = await page.evaluate(() => ({ viewport: window.innerWidth, scroll: document.documentElement.scrollWidth }));
+  assert.ok(mobileGeometry.scroll <= mobileGeometry.viewport + 1, "Delete controls should not overflow on mobile");
+  await deleteButton.press("Enter");
+  await dialog.getByRole("button", { name: "Bestätigen" }).waitFor();
+  await page.waitForFunction(() => { const box = document.querySelector('[role="alertdialog"]'); return box && Number(getComputedStyle(box).opacity) >= 0.99; });
+  await screenshot("delete-confirmation-mobile");
+  await dialog.getByRole("button", { name: "Bestätigen" }).press("Enter");
+  await page.getByText("Spielabend gelöscht.", { exact: true }).waitFor();
+  assert.equal((await api("/api/command-center/preparation?id=" + disposableId)).status, 404, "Confirm removes the entry");
+
+  console.log("PASS: isolated Spielabend -> Kaserne / Taberna scenes -> HTML preview -> fullscreen -> save/reload -> responsive/SL privacy -> delete/cancel.");
   console.log("NOTE: 125% simulated using CSS zoom, not native browser zoom.");
 } catch (error) {
   console.error("FAIL story browser smoke at phase: " + phase, error);
