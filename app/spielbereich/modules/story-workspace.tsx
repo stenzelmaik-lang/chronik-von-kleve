@@ -27,7 +27,6 @@ import {
   type SessionPreparation,
   type PreparedSession,
 } from "@/domain/story-preparation";
-import { richTextToPlainText } from "@/domain/location-rich-text";
 import { RichTextEditor } from "./rich-text";
 import { PreparationPicker } from "./preparation-picker";
 import { preparationPlaces } from "./preparation-catalog";
@@ -137,7 +136,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       [],
     );
   const [sessionEditing,setSessionEditing]=useState(false), [returnSession,setReturnSession]=useState("");
-  const [navigationOpen,setNavigationOpen]=useState(false),[expandedEditor,setExpandedEditor]=useState<string|null>(null);
+  const [expandedEditor,setExpandedEditor]=useState<string|null>(null);
   const [current, setCurrent] = useState<Selection | null>(null),
     [saved, setSaved] = useState(""),
     [message, setMessage] = useState("Lade Arbeitsbestand …"),
@@ -249,7 +248,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     activeUrl.current=window.location.pathname+window.location.search;
     setReturnSession(fromSession);
     setSessionEditing(editing);
-    setNavigationOpen(false);
     setExpandedEditor(null);
     setUnlinkDraft(null);
     setCurrent(next);
@@ -343,6 +341,12 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     return !pending || (await confirmation.ask(
       "Ungespeicherte Änderungen verwerfen und die andere Akte öffnen?",
     ));
+  }
+  async function showSessionList() {
+    if(!(await leave())) return;
+    generation.current++; setCurrent(null); setSaved(""); setReturnSession(""); setSessionEditing(false); setUnlinkDraft(null); setExpandedEditor(null);
+    window.history.pushState(null,"","/sl/command-center?bereich=sitzung");
+    activeUrl.current=window.location.pathname+window.location.search;
   }
   async function open(kind: Kind, id: string, fromSession = "", historyMode: "push" | "replace" | "none" = "push", editing = false) {
     if (!(await leave())) return false;
@@ -676,7 +680,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       {confirmation.dialog}
       <header className={s.top}>
         <div>
-          <small>SL-WORKSPACE · VORBEREITUNG</small>
           <h1>Spielabend & Story</h1>
           <p>
             Beginne mit einem Spielabend und bereite dort deine Schauplätze und Szenen vor.
@@ -685,8 +688,12 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         <a href="/spielbereich?bereich=sitzung">Zum Live-Spieltisch →</a>
       </header>
       <div className={s.columns}>
-        <button type="button" className={s.mobileNavToggle} aria-expanded={navigationOpen} aria-controls="preparation-navigation" onClick={()=>setNavigationOpen(!navigationOpen)}>Akten auswählen</button>
-        <nav id="preparation-navigation" className={`${s.nav} ${navigationOpen ? s.navigationOpen : ""}`} aria-label="Storynavigation">
+        <section className={s.centralControls} aria-label="Vorbereitungsaktionen">
+          <div className={s.controlBar}>
+          {current && <label>Spielabend auswählen<select aria-label="Spielabend auswählen" value={current.kind === "session" ? current.id : returnSession} onChange={e=>e.target.value ? void open("session",e.target.value) : void showSessionList()}>
+            <option value="">Alle Spielabende</option>
+            {sessions.map(value=><option key={value.id} value={value.id}>{value.document.title}</option>)}
+          </select></label>}
           <input
             aria-label="Storys, Sitzungen und Szenen suchen"
             placeholder="Suchen …"
@@ -694,7 +701,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
-            aria-label="Navigation filtern"
+            aria-label="Vorbereitung filtern"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
@@ -704,30 +711,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             <option value="pinned">Angeheftet</option>
             <option value="recent">Zuletzt geöffnet</option>
           </select>
-          <div className={s.sessionIntro}>
           <button disabled={busy} onClick={()=>void create("session")}>+ Spielabend anlegen</button>
-          <p>Von hier aus planst du Szenen, Schauplätze und Regiematerial.</p>
-        </div>
-        <h2>Spielabende</h2>
-        {sessions.filter(v=>matches({
-          ...v.document,
-          id:v.id,
-          searchText:richTextToPlainText(v.document.notes)+" "+v.document.summary,
-        })).map(v=>{
-          const currentSession=current?.kind==="session"&&current.id===v.id?session:null;
-          const sceneIds=currentSession?.sceneIds||v.document.sceneIds;
-          const linked=orderedSessionScenes(v.id,{...v.document,sceneIds},scenes).filter(c=>!(currentSession&&unlinkedIds.includes(c.id))&&matches(c));
-          return <section className={s.sessionNav} key={v.id}>
-            <button className={current?.id===v.id?s.selected:""}
-              aria-current={current?.id===v.id?"page":undefined}
-              onClick={()=>void open("session",v.id)}>◷ {v.document.title}</button>
-            {!search&&filter==="all"&&<div className={s.sessionNavContents}>
-              {!linked.length&&<p>Keine Szenen vorbereitet.</p>}
-              {linked.map((c,index)=><button key={c.id} className={current?.id===c.id?s.selected:""}
-                onClick={()=>void open("scene",c.id,v.id)}>{index+1}. {c.title}</button>)}
-            </div>}
-          </section>;
-        })}
+          </div>
         <details className={s.secondary}>
           <summary>Weitere Akten · Handlungsstränge & freie Szenen</summary>
           <div className={s.actions}>
@@ -771,7 +756,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           )}
         
         </details>
-        </nav>
+        </section>
         <main className={s.main}>
           {current?.kind === "scene" && returnSession && <div className={s.overviewNavigation}>
             <button disabled={busy} onClick={()=>void open("session",returnSession)}>Zurück zum Spielabend</button>

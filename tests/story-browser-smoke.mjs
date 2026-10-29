@@ -10,7 +10,7 @@ const { chromium } = await import(process.env.CVK_PLAYWRIGHT_MODULE || "playwrig
 const base = process.env.CVK_TEST_URL || "http://127.0.0.1:8820";
 const parsedBase = new URL(base);
 assert.equal(parsedBase.hostname, "127.0.0.1", "Browser smoke must stay on 127.0.0.1");
-assert.ok(["8820","8822"].includes(parsedBase.port), "Browser smoke uses only the isolated SL/player fixture or separate session-overview fixture");
+assert.ok(["8820","8822","8824"].includes(parsedBase.port), "Browser smoke uses only the isolated SL/player fixture or separate session-overview fixture");
 const dir = "artifacts/story-browser-smoke";
 mkdirSync(dir, { recursive: true });
 const browser = await chromium.launch({ headless: true, ...(process.env.CVK_BROWSER_CHANNEL ? {channel:process.env.CVK_BROWSER_CHANNEL} : {}) });
@@ -46,11 +46,10 @@ async function saveOrAutosave(kind, id, predicate) {
   return waitForStored(kind, id, predicate);
 }
 async function chooseSession() {
-  const nav = page.locator('nav[aria-label="Storynavigation"]');
-  const item = nav.getByRole("button", { name: new RegExp(sessionTitle) }).first();
+  const item = page.getByRole("combobox",{name:"Spielabend auswählen",exact:true});
   const create = page.getByRole("button", { name: "+ Szene für diesen Spielabend" });
   for (let attempt = 0; attempt < 3; attempt++) {
-    await item.click();
+    await item.selectOption({label:sessionTitle});
     try {
       await create.waitFor({ timeout: 4000 });
       return;
@@ -146,12 +145,12 @@ try {
   assert.ok(session.body.session.document.sceneIds.includes(tabernaId));
   await screenshot("spielabend-desktop-1920");
 
-  const nav = page.locator('nav[aria-label="Storynavigation"]');
-  await nav.getByRole("button", { name: /Kaserne – Ankunft/ }).click();
+  const nav = page.getByRole("region",{name:"Vorbereitungsaktionen"});
+  await page.getByRole("button",{name:"Szene bearbeiten: Kaserne – Ankunft",exact:true}).click();
   await page.getByRole("heading", { name: "Spielabend & Story" }).waitFor();
   const first = await api("/api/command-center/scenes?id=" + encodeURIComponent(kaserneId));
   assert.ok(first.body.scene.document.narration.includes("Versiegelte Order"));
-  await nav.getByRole("button", { name: /Electric Taberna – Besuch/ }).click();
+  await page.getByRole("combobox",{name:"Weitere Szene dieses Spielabends"}).selectOption({label:"Electric Taberna – Besuch"});
   const second = await api("/api/command-center/scenes?id=" + encodeURIComponent(tabernaId));
   assert.ok(second.body.scene.document.narration.includes("Avis Bar"));
 
@@ -233,8 +232,8 @@ try {
   await page.evaluate(() => { document.documentElement.style.zoom = ""; });
   await page.setViewportSize({ width: 390, height: 844 });
   await screenshot("overview-mobile-390");
-  await page.getByRole("button", { name: "Akten auswählen" }).click();
-  await nav.getByRole("button", { name: /Kaserne – Ankunft/ }).first().waitFor();
+  await page.getByRole("combobox",{name:"Spielabend auswählen",exact:true}).waitFor();
+  assert.equal(await page.locator('nav[aria-label="Storynavigation"]').count(),0,"No duplicated scene sidebar");
   await screenshot("mobile-390");
 
   phase = "privacy";

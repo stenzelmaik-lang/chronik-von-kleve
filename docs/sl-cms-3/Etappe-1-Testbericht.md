@@ -47,3 +47,11 @@ Die neue Testinstanz nutzt Port **8822**. Bestehende lokale Instanzen auf 8820 u
 Etappen 2–5 bleiben offen. Material-Schnellvorschau und geführte Überarbeitung des Szeneneditors werden nicht als fertig erklärt. Persönliche UX-Abnahme und echter Browserzoom sind offen. Bekannte Buildhinweise zu großen bestehenden Client-Chunks und statischer Routenklassifikation bestehen weiter.
 
 Kein Push, Merge, Deployment oder Eingriff in Produktion. Nach Etappe 1 Stopp zur persönlichen Sichtprüfung.
+
+## UX-Korrektur: zentrale Arbeitsfläche
+
+Auf ausdrückliche Rückmeldung des Projektleiters wurden die beiden linken Navigationsspalten für die Spielabendvorbereitung entfernt. Spielabendauswahl, Suche, Filter und Anlegen befinden sich nun oben in der zentralen Fläche. Die Szenenliste wird einmalig im geöffneten Spielabend dargestellt; Reihenfolge und Bearbeiten bleiben dort erhalten. Weitere Verwaltungsbereiche und freie Akten bleiben kompakt aufklappbar erreichbar. Andere Verwaltungsseiten und der Live-Spieltisch wurden nicht umgebaut.
+
+Typecheck, gezielter ESLint, 141 Tests, Build und der angepasste vollständige lokale Browser-Smoke sind bestanden. Der Browsertest läuft getrennt auf Port 8824; die persönliche Abnahme bleibt auf 8822. Desktop, Mobil und CSS125 sind abgedeckt, echter Browserzoom bleibt persönliche Prüfung. Der Design-Detektor meldet ausschließlich die unveränderte bestehende Akzentlinie der Charakterinspektion außerhalb dieser Korrektur.
+
+Der bisherige synthetische Abnahmestand wurde einschließlich Anmeldung und Szenen unverändert in `.local-test/character-weekend` übernommen. Neustart aus diesem Worktree: `CVK_TEST_PORT=8822 node --experimental-strip-types scripts/test-local.mjs --spieltisch-release --weekend` (Umgebungsvariable in der jeweiligen Shell setzen). Der markierte lokale Datenbestand wird wiederverwendet; die ursprüngliche Testkopie bleibt im temporären Verzeichnis erhalten. Kein produktiver Zugriff und keine neue Datenbankmigration.
