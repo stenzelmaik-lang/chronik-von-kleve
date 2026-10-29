@@ -198,6 +198,7 @@ try {
   phase = "unlink scene from both existing references";
   await chooseSession();
   await page.getByRole("button",{name:"Spielabend bearbeiten",exact:true}).click();
+  await page.getByRole("navigation",{name:"Spielabend planen Schritte"}).getByRole("button",{name:"Szenen planen",exact:true}).click();
   await page.getByText("Vorhandene Storys, Szenen und Schauplätze verknüpfen").click();
   const scenePicker = page.getByRole("group", { name: "Szenen" });
   await scenePicker.getByRole("checkbox", { name: /Electric Taberna – Besuch/ }).uncheck();
@@ -227,6 +228,7 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "+ Szene für diesen Spielabend" }).waitFor();
   await page.getByRole("button",{name:"Spielabend bearbeiten",exact:true}).click();
+  await page.getByRole("navigation",{name:"Spielabend planen Schritte"}).getByRole("button",{name:"Szenen planen",exact:true}).click();
   await page.getByText("Vorhandene Storys, Szenen und Schauplätze verknüpfen").click();
   const legacyCheckbox = page.getByRole("group", { name: "Szenen" }).getByRole("checkbox", { name: /SYNTHETISCH – alter Szenenverweis/ });
   assert.ok(await legacyCheckbox.isChecked(), "A scene-only reference is visible as selected");
@@ -279,6 +281,7 @@ try {
   await page.getByRole("button", { name: "+ Spielabend anlegen" }).click();
   await page.waitForFunction(() => new URLSearchParams(location.search).has("session"));
   const disposableId = new URL(page.url()).searchParams.get("session");
+  await page.getByText("Aktenaktionen",{exact:true}).click();
   const deleteButton = page.getByRole("button", { name: "Spielabend löschen" });
   await deleteButton.waitFor();
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent?.trim() === 'Spielabend löschen' && !button.disabled));

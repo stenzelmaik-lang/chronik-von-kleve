@@ -133,6 +133,10 @@
   font-size: 13px;
   align-self: center;
 }
+.saveActions { align-self: center; }
+.saveActions summary { color: #b5c1c9; cursor: pointer; padding: 8px; font-size: 13px; }
+.saveActions[open] { display: flex; flex-wrap: wrap; }
+.saveActions button { margin: 4px; }
 .context {
   border-left: 1px solid #b9985b33;
   padding-left: 16px;
@@ -246,6 +250,30 @@
 .collectionColumns h3 { font: 23px Georgia,serif; margin: 0; }
 .collectionColumns p { max-width: 65ch; }
 .collectionCreate { margin: 4px 0 20px; }
+.guide { margin: 20px 0; }
+.guideSteps { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 18px; border-bottom: 1px solid #7791a444; }
+.guideSteps button { display: flex; align-items: center; gap: 8px; flex: 1 1 150px; text-align: left; min-height: 48px; }
+.guideSteps button span { color: #b5c1c9; font-variant-numeric: tabular-nums; }
+.guideSteps button[aria-current="step"] { color: #f2d096; background: #243343; border-color: #d6b779; }
+.guideHead { margin: 24px 0; }
+.guideHead h2 { margin: 8px 0 12px; font-size: 28px; }
+.guideHead p { color: #b5c1c9; line-height: 1.6; max-width: 78ch; margin: 8px 0; }
+.guideHead small { color: #b5c1c9; }
+.guideFields { display: grid; gap: 18px; margin: 20px 0; }
+.guideFields label, .guideBody > label { display: block; }
+.guideFields label small { color: #b5c1c9; }
+.guideFields p, .guideReview p { color: #b5c1c9; line-height: 1.6; max-width: 75ch; }
+.guideFields details summary, .htmlHelp summary { cursor: pointer; color: #e4c589; padding: 10px 0; }
+.guideReview { margin-top: 24px; padding-top: 20px; border-top: 1px solid #7791a444; }
+.guideReview label { display: flex; align-items: center; gap: 10px; padding: 16px 0; }
+.guideFooter { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-top: 1px solid #7791a444; padding-top: 20px; margin-top: 24px; }
+.guideFooter button { display: inline-flex; align-items: center; gap: 8px; }
+.workspace button.guidePrimary { color: #111d28; background: #d6b779; border-color: #d6b779; font-weight: 600; margin-left: auto; }
+.workspace button.guidePrimary:hover:not(:disabled) { color: #f2d096; }
+.htmlHelp { margin-bottom: 12px; }
+.htmlHelp p { line-height: 1.6; color: #b5c1c9; max-width: 80ch; }
+.htmlHelp pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px; background: #101e2b; border-radius: 6px; color: #eee6d6; }
+@media(max-width:760px){.guideSteps button{flex-basis:calc(50% - 8px);font-size:13px;min-width:0}.guideFooter button{width:100%;justify-content:center}.guideFooter .guidePrimary{margin:0}.guideHead h2{font-size:25px}}
 @media(max-width:760px){.sessionIndexList>li,.collectionColumns>section{padding:18px}.indexEntryFoot{align-items:stretch;flex-direction:column}.indexEntryFoot button{width:100%}.indexEntryHead h3{font-size:23px}}
 @media(max-width:760px){.overviewScene{padding:18px}.sceneResources,.collectionColumns{grid-template-columns:minmax(0,1fr);gap:20px}.sceneNumber{font-size:24px}.sceneIdentity{gap:12px}.overviewSceneHead>.sceneEdit{width:100%}}
 .overviewSessionList { list-style: none; padding: 0; }

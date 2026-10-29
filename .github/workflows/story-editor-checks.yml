@@ -7,10 +7,14 @@ on:
   pull_request:
     paths:
       - "app/spielbereich/modules/story-workspace.*"
+      - "app/spielbereich/modules/preparation-guide.tsx"
+      - "app/spielbereich/modules/session-overview.tsx"
+      - "domain/preparation-guide.ts"
       - "app/spielbereich/modules/rich-text.*"
       - "domain/story-*.ts"
       - "tests/story-*.test.mjs"
       - "tests/story-browser-smoke.mjs"
+      - "tests/preparation-guide-browser.mjs"
       - ".github/workflows/story-editor-checks.yml"
   workflow_dispatch:
 
@@ -34,7 +38,7 @@ jobs:
         run: npm run typecheck
       - name: ESLint (affected Story Editor files)
         # Existing prototype code outside this PR has unresolved global lint errors.
-        run: ./node_modules/.bin/eslint app/spielbereich/modules/story-workspace.tsx tests/story-preparation.test.mjs
+        run: ./node_modules/.bin/eslint app/spielbereich/modules/story-workspace.tsx app/spielbereich/modules/preparation-guide.tsx app/spielbereich/modules/session-overview.tsx domain/preparation-guide.ts tests/story-preparation.test.mjs tests/preparation-guide-browser.mjs
       - name: Unit and regression tests
         run: npm test
       - name: Production build
@@ -89,11 +93,17 @@ jobs:
             tail -n 100 "$RUNNER_TEMP/story-workspace.log"
             exit 1
           }
+          CVK_TEST_URL=http://127.0.0.1:8820 node --experimental-strip-types tests/preparation-guide-browser.mjs || {
+            tail -n 100 "$RUNNER_TEMP/story-workspace.log"
+            exit 1
+          }
       - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: story-browser-smoke-screenshots
-          path: artifacts/story-browser-smoke/*.png
+          path: |
+            artifacts/story-browser-smoke/*.png
+            artifacts/preparation-guide/*.png
           retention-days: 7
           if-no-files-found: ignore

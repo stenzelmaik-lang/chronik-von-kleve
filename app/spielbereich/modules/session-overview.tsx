@@ -28,8 +28,8 @@ export function SessionList({sessions,scenes,references,busy,message,onOpen}:{se
   </section>;
 }
 
-export function SessionOverview({ session, scenes, references, files, busy, onEdit, onScene, onCreate, onMove, message }:{
-  session: PreparedSession; scenes: SceneSummary[]; references: CommandReference[];
+export function SessionOverview({ session, scenes, references, files, busy, onEdit, onScene, onCreate, onMove, message, compact=false }:{
+  compact?:boolean; session: PreparedSession; scenes: SceneSummary[]; references: CommandReference[];
   files: {id:string;name:string;mime:string}[]; busy:boolean; message:string;
   onEdit:()=>void; onScene:(id:string)=>void; onCreate:()=>void; onMove:(id:string,direction:number)=>void;
 }) {
@@ -38,12 +38,13 @@ export function SessionOverview({ session, scenes, references, files, busy, onEd
   const fileNames = new Map(files.map(file => [file.id, file.name]));
   const missing = session.document.sceneIds.filter(id => !scenes.some(scene => scene.id === id));
   return <section aria-label="Spielabendübersicht" className={s.overview}>
-    <header className={s.overviewHead}>
+    {!compact&&<><header className={s.overviewHead}>
       <div><h2>{session.document.title}</h2><p>{preparationStatusNames[session.document.status]}{session.document.date ? ` · ${session.document.date.replace('T', ' · ')}` : ''}</p></div>
       <button type="button" disabled={busy} onClick={onEdit}>Spielabend bearbeiten</button>
     </header>
     <section className={s.eveningPlan}><h3>Für diesen Abend geplant</h3><p className={s.overviewSummary}>{session.document.summary||'Noch kein Kurzüberblick hinterlegt. Ergänze unter „Spielabend bearbeiten“, was du für diesen Abend vorhast.'}</p></section>
     <p role="status" className={s.overviewHint}>{message}</p>
+    </>}
     <div className={s.sessionHead}><h3>Dein Szenenablauf</h3><button disabled={busy} onClick={onCreate}>+ Szene für diesen Spielabend</button></div>
     <p className={s.overviewHint}>Plane deinen Abend Szene für Szene. Die Reihenfolge ist deine Orientierung; veröffentlicht wird erst durch deine bewusste Freigabe.</p>
     {missing.length > 0 && <p role="alert">{missing.length} verknüpfte Szene(n) sind nicht verfügbar. Die Verknüpfungen bleiben erhalten; prüfe sie unter „Spielabend bearbeiten“.</p>}
