@@ -14,13 +14,16 @@ test('Session order preserves explicit links and appends legacy scene-side links
   assert.deepEqual(orderedSessionScenes('other',sessionPreparationSchema.parse({title:'Other'}),scenes).map(s=>s.id),['a','foreign']);
 });
 
-test('Overview describes actual preparation without disclosing text or inventing readiness',()=>{
-  const document={...emptyScene(),narration:'<p>PRIVATE NARRATION</p>',secrets:'<h2>PRIVATE SECRET</h2>',atmosphere:htmlToRichText('<p><br></p>'),npcIds:['npc-original'],clueIds:['clue-original'],elements:[{id:'image-element',kind:'image',title:'Kasernenbild',text:'PRIVATE CAPTION',referenceId:'',fileId:'private-image'}]};
+test('SL overview has a bounded narration excerpt without secret fields or invented readiness',()=>{
+  const document={...emptyScene(),narration:htmlToRichText('<p>PRIVATE NARRATION</p>'),secrets:'<h2>PRIVATE SECRET</h2>',atmosphere:htmlToRichText('<p><br></p>'),npcIds:['npc-original'],clueIds:['clue-original'],elements:[{id:'image-element',kind:'image',title:'Kasernenbild',text:'PRIVATE CAPTION',referenceId:'',fileId:'private-image'}]};
   const metadata=scenePreparation(document);
   assert.deepEqual(metadata.sections,['narration','secrets']);
   assert.deepEqual(metadata.npcIds,['npc-original']);
   assert.equal(metadata.materials[0].fileId,'private-image');
-  assert.ok(!JSON.stringify(metadata).includes('PRIVATE'));
+  assert.equal(metadata.narrationExcerpt,'PRIVATE NARRATION');
+  assert.ok(!JSON.stringify(metadata).includes('PRIVATE SECRET'));
+  assert.ok(!JSON.stringify(metadata).includes('PRIVATE CAPTION'));
+  assert.equal(scenePreparation({...document,narration:'a'.repeat(1000)}).narrationExcerpt.length,280);
   assert.equal(metadata.status,undefined);
   const withImage={...document,atmosphere:htmlToRichText('<p>Atmosphäre</p><img src="/api/files?id=original-image" alt="Bild">')};
   assert.deepEqual(scenePreparation(withImage).embeddedFileIds,['original-image']);

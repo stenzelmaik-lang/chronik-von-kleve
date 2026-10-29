@@ -67,3 +67,17 @@ Die Szenenübersicht verwendet klar gegliederte Abschnitte statt der bisherigen 
 Geprüft: Typecheck, gezielter Lint, 141 Tests, Produktionsbuild und angepasster vollständiger Browser-Smoke auf getrenntem Port 8824, einschließlich tatsächlichem Wechsel Orte → Spielabende über die neue obere Menüleiste. Die offenen Vorbereitungsbereiche wurden auf Sichtbarkeit geprüft. Desktop/Mobil und CSS125 bestanden; nativer Browserzoom bleibt separat offen. Der mechanische Designcheck hat ausschließlich die bereits bekannte unveränderte Akzentlinie der Charakterinspektion gemeldet.
 
 Die persönliche Browseransicht auf Port 8822 ist mit demselben lokalen Spielstand und derselben Anmeldung neu gestartet. Vorherige synthetische Testdaten zusätzlich unter `.local-test/before-menu-polish` gesichert. Keine Veröffentlichung und kein Zugriff auf Produktionsdaten.
+
+## UX-Korrektur: eindeutiger Einstieg und Rückweg
+
+Die Startseite zeigt eine geordnete, vollbreite Spielabendliste mit Status, optionalem Termin, Szenenzahl, Schauplätzen, bestehendem Kurzüberblick und eindeutigem Öffnen-Button. Ohne eigenen Kurzüberblick wird ein ausdrücklich als Auftakt gekennzeichneter kurzer Auszug aus der ersten vorhandenen Szenenerzählung gezeigt. Die Anlegeaktion steht ausschließlich oben in der Werkzeugleiste; der bisherige zusätzliche Erstellen-Button im unteren Einführungsblock entfällt. Reihenfolge der Abende entspricht weiterhin dem serverseitigen Änderungsdatum, beschriftet als „Zuletzt bearbeitet zuerst“.
+
+Alle geöffneten Akten besitzen „Zurück zu allen Spielabenden“. Auch ein erneuter Klick auf den bereits aktiven Menüpunkt „Spielabende & Szenen“ führt zur Startübersicht. Versions-/Speicherschutz vor Navigation bleibt erhalten. Der Menüaufbau nutzt weiterhin eine erweiterbare zentrale Bereichsliste.
+
+Handlungsstränge und freie Szenen sind nur auf der Startseite als zwei klar abgegrenzte Vorbereitungsbereiche sichtbar. Im geöffneten Abend verbleiben der eigene Plan und die zugeordneten Szenen. Die Karten zeigen einen begrenzten Klartextauszug aus der vorhandenen Erzählung vor den Inhaltsmerkmalen. Kein neues persistentes Beschreibungsfeld und keine generierten Storytexte; Auszug maximal 280 Zeichen, nur im bestehenden SL-Katalog. Tests stellen sicher, dass Geheimnisfelder und sonstige private Textbereiche nicht in diesen Auszug geraten.
+
+„Kontext, Medien & Verlauf“, Wiederherstellungsbedienung und „Tatsächlich geschehen“ sind aus dieser Oberfläche entfernt. Historien, Sitzungsereignisse, Dateien und die vorhandenen Serverfunktionen werden nicht gelöscht oder verändert; sie bleiben Grundlage einer später separat geplanten Bedienung.
+
+Geprüft: 141 Tests, Typecheck, gezielter Lint, Build und vollständiger isolierter Browser-Smoke. Browsernachweise enthalten beide Rückwege, fehlenden Kontextblock, sichtbaren Erzählungsauszug und Ausblendung unabhängiger Vorbereitungen beim geöffneten Abend. Mobil und CSS125 bestanden; nativer Zoom weiter persönlich zu prüfen. Mechanischer Designcheck der geänderten Vorbereitungsansichten ohne Befunde. Die abschließende lesende Auftakt-Fallbackanzeige wurde zusätzlich durch Typecheck/Build und lokale Browserprüfung bestätigt.
+
+Lokaler Abnahmestand unverändert weiterverwendet, vorher zusätzlich unter `.local-test/before-flow-cleanup` gesichert. Kein Live-Eingriff und kein Beginn der geführten Szenenbearbeitung aus Etappe 2.

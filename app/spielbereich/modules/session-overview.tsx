@@ -9,6 +9,25 @@ export const preparationStatusNames: Record<string, string> = {
   draft: 'Entwurf', ready: 'Vorbereitet', active: 'In Arbeit', completed: 'Abgeschlossen', archived: 'Archiviert',
 };
 
+export function SessionList({sessions,scenes,references,busy,message,onOpen}:{sessions:PreparedSession[];scenes:SceneSummary[];references:CommandReference[];busy:boolean;message:string;onOpen:(id:string)=>void}) {
+  const names=new Map(references.map(reference=>[reference.id,reference.title]));
+  return <section className={s.sessionIndex} aria-label="Alle Spielabende">
+    <header className={s.indexHead}><div><h2>Deine Spielabende</h2><p>Öffne einen Abend, um seine Szenen zu planen. Einen neuen Abend legst du oben über „Spielabend anlegen“ an.</p></div><small>Zuletzt bearbeitet zuerst</small></header>
+    <p role="status" className={s.overviewHint}>{message}</p>
+    {!sessions.length&&<p className={s.indexEmpty}>Keine passenden Spielabende vorhanden. Lege oben deinen ersten Abend an oder passe Suche und Filter an.</p>}
+    <ul className={s.sessionIndexList}>{sessions.map(session=>{
+      const linked=orderedSessionScenes(session.id,session.document,scenes);
+      const places=[...new Set(linked.map(scene=>scene.placeId).filter(Boolean))];
+      return <li key={session.id}>
+        <div className={s.indexEntryHead}><h3>{session.document.title}</h3><span className={s.indexStatus}>{preparationStatusNames[session.document.status]}</span></div>
+        <p className={s.indexMeta}>{session.document.date?`${session.document.date.replace('T',' · ')} · `:''}{linked.length} {linked.length===1?'Szene':'Szenen'}{places.length?` · ${places.map(id=>names.get(id)||'Verknüpfter Schauplatz').join(', ')}`:''}</p>
+        <p className={s.indexDescription}>{session.document.summary||(linked[0]?.preparation?.narrationExcerpt ? `Auftakt: ${linked[0].preparation.narrationExcerpt}` : 'Noch kein Kurzüberblick hinterlegt. Du kannst ihn unter „Spielabend bearbeiten“ ergänzen.')}</p>
+        <div className={s.indexEntryFoot}><p>{linked.length?linked.slice(0,3).map(scene=>scene.title).join(' → '):'Dieser Abend wartet auf seine erste Szene.'}{linked.length>3?' …':''}</p><button disabled={busy} onClick={()=>onOpen(session.id)} aria-label={`Spielabend öffnen: ${session.document.title}`}>Spielabend öffnen</button></div>
+      </li>;
+    })}</ul>
+  </section>;
+}
+
 export function SessionOverview({ session, scenes, references, files, busy, onEdit, onScene, onCreate, onMove, message }:{
   session: PreparedSession; scenes: SceneSummary[]; references: CommandReference[];
   files: {id:string;name:string;mime:string}[]; busy:boolean; message:string;
@@ -23,7 +42,7 @@ export function SessionOverview({ session, scenes, references, files, busy, onEd
       <div><h2>{session.document.title}</h2><p>{preparationStatusNames[session.document.status]}{session.document.date ? ` · ${session.document.date.replace('T', ' · ')}` : ''}</p></div>
       <button type="button" disabled={busy} onClick={onEdit}>Spielabend bearbeiten</button>
     </header>
-    {session.document.summary && <p className={s.overviewSummary}>{session.document.summary}</p>}
+    <section className={s.eveningPlan}><h3>Für diesen Abend geplant</h3><p className={s.overviewSummary}>{session.document.summary||'Noch kein Kurzüberblick hinterlegt. Ergänze unter „Spielabend bearbeiten“, was du für diesen Abend vorhast.'}</p></section>
     <p role="status" className={s.overviewHint}>{message}</p>
     <div className={s.sessionHead}><h3>Dein Szenenablauf</h3><button disabled={busy} onClick={onCreate}>+ Szene für diesen Spielabend</button></div>
     <p className={s.overviewHint}>Plane deinen Abend Szene für Szene. Die Reihenfolge ist deine Orientierung; veröffentlicht wird erst durch deine bewusste Freigabe.</p>
@@ -40,6 +59,7 @@ export function SessionOverview({ session, scenes, references, files, busy, onEd
           <div className={s.sceneIdentity}><span className={s.sceneNumber} aria-label={`Szene ${index+1}`}>{String(index+1).padStart(2,'0')}</span><div><h4>{scene.title}</h4><p className={s.sceneLocation}><MapPin size={15} aria-hidden="true"/>{scene.placeId ? names.get(scene.placeId) || 'Verknüpfter Schauplatz nicht verfügbar' : 'Noch kein Schauplatz gewählt'}{scene.archived ? ' · Archiviert' : ''}</p></div></div>
           <button className={s.sceneEdit} disabled={busy} onClick={()=>onScene(scene.id)} aria-label={`Szene bearbeiten: ${scene.title}`}>Szene bearbeiten</button>
         </div>
+        <p className={s.sceneSynopsis}>{preparation?.narrationExcerpt||'Noch keine Erzählung vorbereitet. Über „Szene bearbeiten“ kannst du den geplanten Einstieg ergänzen.'}</p>
         <section className={s.sceneContents} aria-label={`Vorhandene Inhalte: ${scene.title}`}>
           <h5><NotebookPen size={16} aria-hidden="true"/>Vorhandene Inhalte</h5>
           {preparation?.sections.length ? <ul className={s.sectionTags}>{preparation.sections.map(key=><li key={key}>{preparationSections[key as keyof typeof preparationSections]}</li>)}</ul> : <p>{preparation?'Hier ist noch Raum für deine Erzählung und Regiehinweise.':'Vorbereitungsstand nicht verfügbar.'}</p>}

@@ -11,6 +11,7 @@ export const preparationSections = {
 /** SL-only catalog metadata; no second document or persisted status. */
 export function scenePreparation(document: SceneDocument) {
   return {
+    narrationExcerpt: richTextToPlainText(document.narration).replace(/\s+/g, " ").trim().slice(0, 280),
     sections: Object.entries(preparationSections).filter(([key]) =>
       richTextToPlainText(document[key as keyof typeof preparationSections]).trim().length > 0,
     ).map(([key]) => key),

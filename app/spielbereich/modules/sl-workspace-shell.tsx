@@ -18,7 +18,7 @@ export function SLWorkspaceShell({a,section,navigate,children,preparationDirty=f
       <nav className={styles.managementNav} aria-label="Verwaltungsbereiche">
         {preparationTools.filter(tool=>a.role!=='campaign_editor'||tool.section==='ortscms').map(tool=>{
           const Icon=tool.icon;
-          return <button key={tool.section} type="button" aria-current={section===tool.section?'page':undefined} disabled={preparationDirty&&section!==tool.section} onClick={()=>{if(!preparationDirty)navigate(tool.section);}}>
+          return <button key={tool.section} type="button" aria-current={section===tool.section?'page':undefined} disabled={preparationDirty} onClick={()=>{if(preparationDirty)return;if(tool.section==="sitzung"&&section==="sitzung"){window.history.pushState(null,"","/sl/command-center?bereich=sitzung");window.dispatchEvent(new PopStateEvent("popstate"));}else navigate(tool.section);}}>
             <Icon aria-hidden="true" size={20}/><span><strong>{tool.name}</strong><small>{tool.description}</small></span>
           </button>;
         })}

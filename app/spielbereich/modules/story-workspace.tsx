@@ -13,7 +13,6 @@ import {
   type StoryDocument,
   type StoryView,
   type CommandReference,
-  type MomentView,
 } from "@/domain/command-workspace";
 import {
   emptyScene,
@@ -32,7 +31,7 @@ import { PreparationPicker } from "./preparation-picker";
 import { preparationPlaces } from "./preparation-catalog";
 import { useCommandConfirmation } from "./command-confirmation";
 import s from "./story-workspace.module.css";
-import { SessionOverview, preparationStatusNames } from "./session-overview";
+import { SessionOverview, SessionList } from "./session-overview";
 import { orderedSessionScenes } from "@/domain/session-overview";
 type Kind = "story" | "session" | "scene";
 type Document = StoryDocument | SessionPreparation | SceneDocument;
@@ -51,7 +50,6 @@ type StorySummary = {
   searchText: string;
   status: StoryDocument["status"];
 };
-type Historic = { id: string; version: number; createdAt: string };
 const endpoint = (kind: Kind) =>
   "/api/command-center/" +
   (kind === "session" ? "preparation" : kind === "scene" ? "scenes" : "story");
@@ -63,12 +61,10 @@ type Reply = {
   sessions: PreparedSession[];
   scenes: SceneSummary[];
   references: CommandReference[];
-  moments: MomentView[];
   files: { id: string; name: string; mime: string }[];
   story: StoryView;
   scene: SceneView;
   session: PreparedSession;
-  history: Historic[];
 };
 async function request(path: string, body?: unknown) {
   const r = await fetch(path, {
@@ -131,7 +127,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [sessions, setSessions] = useState<PreparedSession[]>([]),
     [scenes, setScenes] = useState<SceneSummary[]>([]),
     [refs, setRefs] = useState<CommandReference[]>([]),
-    [moments, setMoments] = useState<MomentView[]>([]),
     [files, setFiles] = useState<{ id: string; name: string; mime: string }[]>(
       [],
     );
@@ -143,7 +138,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [search, setSearch] = useState(""),
     [filter, setFilter] = useState("all"),
     [section, setSection] = useState("background"),
-    [history, setHistory] = useState<Historic[]>([]),
     [recent, setRecent] = useState<string[]>([]),
     [elementFocus, setElementFocus] = useState(""),
     [recentReady, setRecentReady] = useState(false),
@@ -198,7 +192,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       ...catalog.references.filter((r) => r.type !== "PLACE"),
       ...preparationPlaces(prep.places),
     ]);
-    setMoments(catalog.moments);
     setSessions(prep.sessions);
     setFiles(media.files || []);
   }, []);
@@ -252,7 +245,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     setUnlinkDraft(null);
     setCurrent(next);
     setSaved(JSON.stringify(next.document));
-    setHistory([]);
     setRecent((old) =>
       [next.id, ...old.filter((id) => id !== next.id)].slice(0, 12),
     );
@@ -449,71 +441,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     } catch(error) {setMessage((error as Error).message+" Die bisherige Reihenfolge bleibt erhalten.");}
     finally {inflight.current=false;setBusy(false);}
   }
-  async function upload(file: File) {
-    const form = new FormData();
-    form.set("file", file);
-    form.set("visibility", "sl");
-    try {
-      setMessage("Lädt geschützte Datei hoch …");
-      const response = await fetch("/api/files", {
-        method: "POST",
-        body: form,
-      });
-      const result = (await response.json()) as { error?: string };
-      if (!response.ok)
-        throw new Error(result.error || "Upload fehlgeschlagen.");
-      await refresh();
-      setMessage(
-        "Datei privat gespeichert · im Editor als Bild oder Handout auswählen",
-      );
-    } catch (e) {
-      setMessage((e as Error).message);
-    }
-  }
   function change(patch: Partial<Document>) {
     setCurrent((c) =>
       c ? { ...c, document: { ...c.document, ...patch } as Document } : c,
     );
     setMessage("Ungespeicherte Änderungen · automatische Speicherung folgt");
-  }
-  async function loadHistory() {
-    if (!current) return;
-    try {
-      setHistory(
-        (
-          await request(
-            endpoint(current.kind) +
-              "?id=" +
-              encodeURIComponent(current.id) +
-              "&history=1",
-          )
-        ).history || [],
-      );
-    } catch (e) {
-      setMessage((e as Error).message);
-    }
-  }
-  async function restore(h: Historic) {
-    if (
-      !current ||
-      !(await confirmation.ask(
-        "Diesen Vorbereitungsstand als neuen Stand wiederherstellen? Tatsächliche Ereignisse und laufende Szenen bleiben erhalten.",
-      ))
-    )
-      return;
-    try {
-      const result = await request(endpoint(current.kind), {
-        action: "restore",
-        id: current.id,
-        version: current.version,
-        historyId: h.id,
-      });
-      accept(selection(current.kind, result[current.kind]));
-      setMessage("Vorbereitungsstand wiederhergestellt");
-      await refresh();
-    } catch (e) {
-      setMessage((e as Error).message);
-    }
   }
   function matches(v: {
     id: string;
@@ -634,8 +566,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       setSaved("");
       setUnlinkDraft(null);
       setExpandedEditor(null);
-      setHistory([]);
-      setRecent((old) => old.filter((id) => id !== start.id));
+        setRecent((old) => old.filter((id) => id !== start.id));
       window.history.replaceState(null, "", "/sl/command-center");
       try { await refresh(); setMessage(`${name} gelöscht.`); }
       catch { setMessage(`${name} gelöscht. Die Übersicht konnte nicht aktualisiert werden; bitte neu laden.`); }
@@ -689,6 +620,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       <div className={s.columns}>
         <section className={s.centralControls} aria-label="Vorbereitungsaktionen">
           <div className={s.controlBar}>
+          {current && <button type="button" disabled={busy} onClick={()=>void showSessionList()}>Zurück zu allen Spielabenden</button>}
           {current && <label>Spielabend auswählen<select aria-label="Spielabend auswählen" value={current.kind === "session" ? current.id : returnSession} onChange={e=>e.target.value ? void open("session",e.target.value) : void showSessionList()}>
             <option value="">Alle Spielabende</option>
             {sessions.map(value=><option key={value.id} value={value.id}>{value.document.title}</option>)}
@@ -1173,30 +1105,21 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
               )}
             </>
           ) : (
-            <div className={s.empty}>
-              <h2>Deine Spielabende</h2>
-              <ul className={s.overviewSessionList}>{sessions.filter(v=>matches({...v.document,id:v.id,searchText:v.document.summary})).map(v=><li key={v.id}><button disabled={busy} onClick={()=>void open("session",v.id)}>{v.document.title}</button><span>{preparationStatusNames[v.document.status]} · {orderedSessionScenes(v.id,v.document,scenes).length} Szenen</span></li>)}</ul>
-              <p>
-                Lege einen Spielabend an oder öffne eine bestehende Vorbereitung. Von dort aus verknüpfst du Schauplätze, Szenen und Medien. Nichts wird automatisch veröffentlicht.
-              </p>
-              <button disabled={busy} onClick={() => void create("session")}>
-                Spielabend anlegen
-              </button>
-              <p role="status">{message}</p>
-            </div>
+            <SessionList sessions={sessions.filter(v=>matches({...v.document,id:v.id,searchText:v.document.summary}))} scenes={scenes} references={refs} busy={busy} message={message} onOpen={id=>void open("session",id)}/>
+
           )}
         </main>
-        <section className={s.collections} aria-label="Weitere Vorbereitungen">
-          <h2>Weitere Vorbereitungen</h2><p className={s.collectionIntro}>Organisiere hier Geschichten und Szenen, die über den geöffneten Spielabend hinausgehen.</p><div className={s.collectionColumns}>
+        {!current && <section className={s.collections} aria-label="Weitere Vorbereitungen">
+          <h2>Weitere Vorbereitungen</h2><p className={s.collectionIntro}>Plane übergreifende Geschichten oder bereite Szenen vor, die noch keinem Spielabend zugeordnet sind.</p><div className={s.collectionColumns}>
           <section aria-label="Handlungsstränge">
-          <div className={s.collectionHead}><h3>Handlungsstränge</h3><button disabled={busy} onClick={()=>void create("story")}>Handlungsstrang anlegen</button></div>
+          <h3>Handlungsstränge</h3>
           <p>Verbinde Hintergründe, Konflikte und zugehörige Szenen über mehrere Spielabende hinweg. Ein Handlungsstrang ist deine übergreifende Geschichte.</p>
+          <button className={s.collectionCreate} disabled={busy} onClick={()=>void create("story")}>Handlungsstrang anlegen</button>
           {!stories.filter(matches).length&&<p className={s.collectionEmpty}>Noch kein passender Handlungsstrang vorhanden.</p>}
 
           {stories.filter(matches).map((v) => (
             <div key={v.id}>
               <button
-                className={current?.id === v.id ? s.selected : ""}
                 onClick={() => void open("story", v.id)}
               >
                 ▣ {v.title}
@@ -1207,8 +1130,9 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           ))}
 
           </section><section aria-label="Freie Szenen">
-          <div className={s.collectionHead}><h3>{search || filter !== "all" ? "Szenentreffer" : "Freie Szenen"}</h3><button disabled={busy} onClick={()=>void create("scene",false,true)}>Freie Szene anlegen</button></div>
+          <h3>{search || filter !== "all" ? "Szenentreffer" : "Freie Szenen"}</h3>
           <p>Bereite einzelne Szenen ohne festen Spielabend vor. Über „Spielabend bearbeiten“ kannst du sie später einem Abend zuordnen. Eine neue Szene im geöffneten Abend legst du direkt in dessen Übersicht an.</p>
+          <button className={s.collectionCreate} disabled={busy} onClick={()=>void create("scene",false,true)}>Freie Szene anlegen</button>
           {!scenes.some(v=>matches(v)&&(search || filter!=="all" || (!v.storyId&&!v.parentId&&!v.sessionIds.length&&!sessions.some(session=>session.document.sceneIds.includes(v.id)))))&&<p className={s.collectionEmpty}>Noch keine passende freie Szene vorhanden.</p>}
           {!search && filter === "all"
             ? tree("", "")
@@ -1224,76 +1148,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           )}
 
           </section></div>
-        </section>
-        <details className={s.context}>
-          <summary>Kontext, Medien & Verlauf</summary>
-          <div>
-          <label>
-            Private Datei hinzufügen
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void upload(file);
-                e.target.value = "";
-              }}
-            />
-          </label>
-          <small>
-            JPG, PNG, WebP oder PDF bis 10 MB. Keine automatische
-            Spielerfreigabe.
-          </small>
-          <p>Vorbereitung · ausschließlich SL</p>
-          <p>
-            Orte, Personen und Dateien bleiben in ihren zentralen Originalakten.
-          </p>
-          {scene?.parentId && (
-            <button onClick={() => void open("scene", scene.parentId)}>
-              Übergeordnete Szene öffnen
-            </button>
-          )}
-          <details>
-            <summary>Verlauf & Wiederherstellung</summary>
-            <button
-              disabled={!current || dirty}
-              onClick={() => void loadHistory()}
-            >
-              Verlauf laden
-            </button>
-            {history.map((h) => (
-              <div key={h.id}>
-                <small>
-                  {new Date(h.createdAt).toLocaleString("de-DE")} · Revision{" "}
-                  {h.version}
-                </small>
-                <button disabled={dirty} onClick={() => void restore(h)}>
-                  Wiederherstellen
-                </button>
-              </div>
-            ))}
-          </details>
-          <h2>Tatsächlich geschehen</h2>
-          <p>
-            Separate Sitzungsereignisse; keine automatische Ableitung aus deiner
-            Vorbereitung.
-          </p>
-          {moments
-            .filter((m) =>
-              current?.kind === "story"
-                ? m.storyId === current.id
-                : current?.kind === "session"
-                  ? m.sessionId === current.id
-                  : m.sceneId === current?.id,
-            )
-            .map((m) => (
-              <p key={m.id}>
-                {m.text}
-                <small>{new Date(m.occurredAt).toLocaleString("de-DE")}</small>
-              </p>
-            ))}
-          </div>
-        </details>
+        </section>}
+
       </div>
     </div>
   );

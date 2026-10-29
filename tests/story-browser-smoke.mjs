@@ -165,6 +165,12 @@ try {
   await chooseSession();
   const overview=page.getByRole("region",{name:"Spielabendübersicht"});
   assert.equal(await page.locator("main").getByLabel("Titel",{exact:true}).count(),0,"Reading does not open a form");
+  assert.ok((await overview.innerText()).includes("Eine stille Nacht in Kleve."),"Scene summary is visible before editing");
+  assert.equal(await page.getByRole("region",{name:"Weitere Vorbereitungen"}).count(),0,"Independent preparations remain on the home overview");
+  await management.getByRole("button",{name:/Spielabende & Szenen/}).click();
+  await page.getByRole("region",{name:"Alle Spielabende",exact:true}).waitFor();
+  await page.getByRole("button",{name:`Spielabend öffnen: ${sessionTitle}`,exact:true}).click();
+  await overview.waitFor();
   await overview.getByRole("button",{name:"Kaserne – Ankunft nach unten",exact:true}).press("Enter");
   await waitForStored("session",sessionId,s=>s.document.sceneIds[0]===tabernaId);
   await page.reload({waitUntil:"domcontentloaded"});
@@ -203,9 +209,14 @@ try {
   await page.getByRole("button", { name: "Zur Spielabendübersicht" }).click();
   await page.getByRole("region", { name: "Spielabendübersicht" }).waitFor();
   assert.equal(await page.getByRole("region",{name:"Spielabendübersicht"}).getByRole("button", { name: "Szene bearbeiten: Electric Taberna – Besuch",exact:true }).count(), 0);
+  await page.getByRole("button",{name:"Zurück zu allen Spielabenden",exact:true}).click();
+  await page.getByRole("region",{name:"Alle Spielabende",exact:true}).waitFor();
+  assert.equal(await page.getByRole("button",{name:"Kontext, Medien & Verlauf",exact:true}).count(),0);
   const freeFiles = page.getByRole("region", {name:"Freie Szenen",exact:true});
   assert.equal(await freeFiles.getByRole("button", { name: /Electric Taberna – Besuch/ }).count(), 1, "Unlinked scene remains available as a free original");
   assert.equal(await freeFiles.getByRole("button", { name: /Kaserne – Ankunft/ }).count(), 0, "Assigned scenes are not listed as free");
+  await page.getByRole("button",{name:`Spielabend öffnen: ${sessionTitle}`,exact:true}).click();
+  await page.getByRole("region",{name:"Spielabendübersicht"}).waitFor();
 
   phase = "unlink an existing scene-only reference";
   const oneSided = await api("/api/command-center/scenes", "POST", {

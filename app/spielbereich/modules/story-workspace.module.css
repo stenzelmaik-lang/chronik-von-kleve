@@ -224,6 +224,29 @@
 .collectionHead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
 .collectionHead h3 { font: 22px Georgia,serif; margin: 0; }
 .collectionEmpty { font-style: italic; }
+.sessionIndex { width: 100%; padding: 4px 0 12px; }
+.indexHead { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.indexHead h2 { margin: 0 0 8px; }
+.indexHead p { margin: 0; max-width: 75ch; color: #b5c1c9; line-height: 1.6; }
+.indexHead small { color: #b5c1c9; padding-top: 5px; }
+.sessionIndexList { list-style: none; padding: 0; display: grid; gap: 16px; margin: 20px 0 0; }
+.sessionIndexList > li { background: #101e2b; border: 1px solid #7791a444; border-radius: 12px; padding: 24px; }
+.indexEntryHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.indexEntryHead h3 { font: 25px Georgia, serif; margin: 0; overflow-wrap: anywhere; }
+.indexStatus { font-size: 13px; color: #e4c589; }
+.indexMeta { color: #b5c1c9; font-size: 14px; margin: 10px 0 16px; }
+.indexDescription { line-height: 1.6; max-width: 75ch; color: #eee6d6; }
+.indexEntryFoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid #7791a433; margin-top: 20px; padding-top: 16px; }
+.indexEntryFoot p { color: #b5c1c9; font-size: 14px; margin: 0; max-width: 75ch; }
+.indexEmpty { padding: 24px 0; color: #b5c1c9; line-height: 1.6; }
+.eveningPlan { margin: 22px 0 16px; }
+.eveningPlan h3 { color: #e4c589; font-size: 16px; margin: 0 0 8px; }
+.sceneSynopsis { color: #e5e1d5; font-size: 16px; line-height: 1.6; max-width: 75ch; margin: 20px 0; }
+.collectionColumns > section { display: flex; flex-direction: column; align-items: flex-start; padding: 24px; border: 1px solid #7791a444; border-radius: 12px; background: #101e2b; }
+.collectionColumns h3 { font: 23px Georgia,serif; margin: 0; }
+.collectionColumns p { max-width: 65ch; }
+.collectionCreate { margin: 4px 0 20px; }
+@media(max-width:760px){.sessionIndexList>li,.collectionColumns>section{padding:18px}.indexEntryFoot{align-items:stretch;flex-direction:column}.indexEntryFoot button{width:100%}.indexEntryHead h3{font-size:23px}}
 @media(max-width:760px){.overviewScene{padding:18px}.sceneResources,.collectionColumns{grid-template-columns:minmax(0,1fr);gap:20px}.sceneNumber{font-size:24px}.sceneIdentity{gap:12px}.overviewSceneHead>.sceneEdit{width:100%}}
 .overviewSessionList { list-style: none; padding: 0; }
 .overviewSessionList li { padding: 16px 0; border-bottom: 1px solid #b9985b44; }
