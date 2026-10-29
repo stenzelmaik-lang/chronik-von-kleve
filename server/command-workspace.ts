@@ -32,9 +32,13 @@ export async function saveWorkspace(db: D1Database, a: Actor, mode: WorkspaceMod
   for (const ref of typedIds.filter(r => r.expected === 'CHRONICLE')) await readStory(db, a, ref.id);
   const key = `command-workspace:${a.campaignId}:${a.id}:${mode}:${windowRole}`;
   const value = JSON.stringify({ version: version + 1, workspace });
+  const referenceIds = JSON.stringify([...new Set([...workspace.favorites, ...workspace.panels.flatMap(p => p.pinnedId ? [p.pinnedId] : []), ...Object.values(workspace.focus)].filter(Boolean))]);
+  // Recheck the same references at write time, so a simultaneous delete cannot
+  // leave an already-saved workspace pointing at a removed preparation.
+  const referencesExist = "NOT EXISTS (SELECT 1 FROM json_each(?) wanted WHERE NOT EXISTS (SELECT 1 FROM entities e WHERE e.campaign_id=? AND e.id=wanted.value))";
   const result = version === 0
-    ? await db.prepare('INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)').bind(key, value).run()
-    : await db.prepare("UPDATE settings SET value=? WHERE key=? AND json_extract(value,'$.version')=?").bind(value, key, version).run();
+    ? await db.prepare(`INSERT OR IGNORE INTO settings(key,value) SELECT ?,? WHERE ${referencesExist}`).bind(key, value, referenceIds, a.campaignId).run()
+    : await db.prepare(`UPDATE settings SET value=? WHERE key=? AND json_extract(value,'$.version')=? AND ${referencesExist}`).bind(value, key, version, referenceIds, a.campaignId).run();
   if (result.meta.changes !== 1) throw new HttpError(409, 'Diese Anordnung wurde in einem anderen Fenster verändert. Deine lokale Anordnung bleibt erhalten.');
   return { version: version + 1, workspace, mode, windowRole };
 }
@@ -68,9 +72,10 @@ export async function writeStory(db: D1Database, a: Actor, args: { id: string; v
   const { title, ...document } = args.document;
   const content = JSON.stringify({ documentKind: 'plot_dossier', canonStatus: 'GM_SECRET', document });
   const now = new Date().toISOString(), eventId = crypto.randomUUID();
+  const referencesExist = "NOT EXISTS (SELECT 1 FROM json_each(?) wanted WHERE NOT EXISTS (SELECT 1 FROM entities e WHERE e.campaign_id=? AND e.id=wanted.value))";
   const mutation = args.create
-    ? db.prepare("INSERT OR IGNORE INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at) VALUES(?,?,'CHRONICLE','GM_SECRET',?,'sl',?,?,'',1,?,?)").bind(args.id, a.campaignId, a.id, title, content, now, now)
-    : db.prepare(`UPDATE entities SET title=?,content=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=? AND ${storyPredicate}`).bind(title, content, now, a.campaignId, args.id, args.version);
+    ? db.prepare(`INSERT OR IGNORE INTO entities(id,campaign_id,type,canon_status,owner_id,visibility,title,content,gm_body,version,created_at,updated_at) SELECT ?,?,'CHRONICLE','GM_SECRET',?,'sl',?,?,'',1,?,? WHERE ${referencesExist} AND NOT EXISTS (SELECT 1 FROM world_events WHERE campaign_id=? AND entity_id=? AND type='command.story.deleted')`).bind(args.id, a.campaignId, a.id, title, content, now, now, JSON.stringify(args.document.references), a.campaignId, a.campaignId, args.id)
+    : db.prepare(`UPDATE entities SET title=?,content=?,version=version+1,updated_at=? WHERE campaign_id=? AND id=? AND version=? AND ${storyPredicate} AND ${referencesExist}`).bind(title, content, now, a.campaignId, args.id, args.version, JSON.stringify(args.document.references), a.campaignId);
   const results = await db.batch([mutation, db.prepare("INSERT INTO world_events(id,campaign_id,entity_id,actor_id,type,payload,created_at) SELECT ?,?,?,?,?,?,? WHERE changes()=1").bind(eventId, a.campaignId, args.id, a.id, args.create ? 'command.story.created' : args.restored ? 'command.story.restored' : 'command.story.saved', JSON.stringify({ version: args.version + 1, document: args.document }), now)]);
   if (results[0].meta.changes !== 1) {
     if (args.create) { const prior = await readStory(db, a, args.id).catch(() => null); if (prior?.version === 1 && JSON.stringify(storyDocumentSchema.parse({title:prior.title,summary:prior.summary,status:prior.status,favorite:prior.favorite,pinned:prior.pinned,sections:prior.sections,references:prior.references,possibilities:prior.possibilities})) === JSON.stringify(args.document)) return prior; }

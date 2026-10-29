@@ -275,6 +275,8 @@ export async function DELETE(req: Request) {
       throw new HttpError(404, "Eintrag nicht gefunden.");
     if (!canEdit(a, r))
       throw new HttpError(403, "Du darfst diesen Eintrag nicht löschen.");
+    if (r.kind === "sitzungen" && legacyBody(r.body).sl_preparation)
+      throw new HttpError(403, "Vorbereitete Spielabende bitte über Story & Szenen löschen; dort werden Verknüpfungen und Spielverlauf geschützt.");
     if(r.kind==='charaktere')throw new HttpError(403,'Charaktere bleiben erhalten. Bitte die bestätigte Archivierung verwenden.');
     if (r.kind === "inventory_carry" || (r.kind === "inventar" && await db.prepare("SELECT 1 AS present FROM entities WHERE id=? AND campaign_id=? AND type='ITEM'").bind(r.id, a.campaignId).first()))
       throw new HttpError(403, "Inventardaten bleiben erhalten. Gegenstände lassen sich im Charakterinventar archivieren.");

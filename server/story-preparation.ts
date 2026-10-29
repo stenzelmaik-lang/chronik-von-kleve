@@ -140,10 +140,23 @@ export async function writePreparation(
     sl_preparation: { canonStatus: "GM_SECRET", document: args.document },
   };
   const now = new Date().toISOString();
+  // A referenced preparation may have been deleted since the reads above.
+  // Recheck inside the same statement that creates or updates this record.
+  const referencesExist = `
+    AND NOT EXISTS (SELECT 1 FROM json_each(?) wanted WHERE NOT EXISTS (
+      SELECT 1 FROM entities e WHERE e.campaign_id=? AND e.id=wanted.value AND e.type='CHRONICLE'
+        AND e.canon_status='GM_SECRET' AND e.visibility='sl' AND e.legacy_record_id IS NULL
+        AND json_extract(e.content,'$.documentKind')='plot_dossier'))
+    AND NOT EXISTS (SELECT 1 FROM json_each(?) wanted WHERE NOT EXISTS (
+      SELECT 1 FROM entities e WHERE e.campaign_id=? AND e.id=wanted.value AND e.type='SCENE'
+        AND e.canon_status='WORKING' AND e.visibility='sl' AND e.legacy_record_id IS NULL
+        AND json_extract(e.content,'$.documentKind')='story_scene'))`;
   const mutation = args.create
     ? db
         .prepare(
-          "INSERT OR IGNORE INTO records(id,owner_id,campaign_id,kind,title,visibility,body,gm_body,version,created_at,updated_at) VALUES(?,?,?,'sitzungen',?,'sl',?,'',1,?,?) RETURNING id",
+          `INSERT OR IGNORE INTO records(id,owner_id,campaign_id,kind,title,visibility,body,gm_body,version,created_at,updated_at)
+           SELECT ?,?,?,'sitzungen',?,'sl',?,'',1,?,? WHERE 1=1 ${referencesExist}
+           AND NOT EXISTS (SELECT 1 FROM world_events WHERE campaign_id=? AND entity_id=? AND type='command.session.deleted') RETURNING id`,
         )
         .bind(
           args.id,
@@ -153,6 +166,9 @@ export async function writePreparation(
           JSON.stringify(body),
           now,
           now,
+          JSON.stringify(args.document.storyIds), a.campaignId,
+          JSON.stringify(args.document.sceneIds), a.campaignId,
+          a.campaignId, args.id,
         )
     : db
         .prepare(
@@ -161,7 +177,7 @@ export async function writePreparation(
              (SELECT 1 FROM entities e WHERE e.campaign_id=? AND e.id=json_extract(expected.value,'$.id')
                AND e.version=json_extract(expected.value,'$.version') AND e.type='SCENE'
                AND e.canon_status='WORKING' AND e.visibility='sl' AND e.legacy_record_id IS NULL
-               AND json_extract(e.content,'$.documentKind')='story_scene')) RETURNING id`,
+               AND json_extract(e.content,'$.documentKind')='story_scene')) ${referencesExist} RETURNING id`,
         )
         .bind(
           args.document.title,
@@ -172,6 +188,8 @@ export async function writePreparation(
           args.version,
           JSON.stringify(scenesToUnlink.map(({ id, version }) => ({ id, version }))),
           a.campaignId,
+          JSON.stringify(args.document.storyIds), a.campaignId,
+          JSON.stringify(args.document.sceneIds), a.campaignId,
         );
   const eventId = crypto.randomUUID();
   const statements = [
