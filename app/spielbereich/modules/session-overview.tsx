@@ -1,3 +1,4 @@
+import { ArrowUp, ArrowDown, MapPin, Users, FileText, NotebookPen } from 'lucide-react';
 import type { PreparedSession } from '@/domain/story-preparation';
 import type { SceneSummary } from '@/domain/story-scene';
 import type { CommandReference } from '@/domain/command-workspace';
@@ -23,9 +24,9 @@ export function SessionOverview({ session, scenes, references, files, busy, onEd
       <button type="button" disabled={busy} onClick={onEdit}>Spielabend bearbeiten</button>
     </header>
     {session.document.summary && <p className={s.overviewSummary}>{session.document.summary}</p>}
-    <p role="status">{message}</p>
-    <div className={s.sessionHead}><h3>Geplante Szenen</h3><button disabled={busy} onClick={onCreate}>+ Szene für diesen Spielabend</button></div>
-    <p className={s.overviewHint}>Deine geplante Reihenfolge. Die Vorbereitung bleibt privat; du entscheidest später, was ausgespielt wird.</p>
+    <p role="status" className={s.overviewHint}>{message}</p>
+    <div className={s.sessionHead}><h3>Dein Szenenablauf</h3><button disabled={busy} onClick={onCreate}>+ Szene für diesen Spielabend</button></div>
+    <p className={s.overviewHint}>Plane deinen Abend Szene für Szene. Die Reihenfolge ist deine Orientierung; veröffentlicht wird erst durch deine bewusste Freigabe.</p>
     {missing.length > 0 && <p role="alert">{missing.length} verknüpfte Szene(n) sind nicht verfügbar. Die Verknüpfungen bleiben erhalten; prüfe sie unter „Spielabend bearbeiten“.</p>}
     {!linked.length && <p>Noch keine Szenen vorbereitet. Lege die erste Szene an oder verknüpfe eine vorhandene über „Spielabend bearbeiten“.</p>}
     <ol className={s.overviewScenes}>{linked.map((scene, index) => {
@@ -33,18 +34,24 @@ export function SessionOverview({ session, scenes, references, files, busy, onEd
       const people = [...new Set([...(preparation?.npcIds || []), ...(preparation?.materials.filter(m=>m.kind==='person').map(m=>m.referenceId) || [])])];
       const materials = preparation?.materials.filter(m=>m.kind!=='person' && m.kind!=='place') || [];
       const embedded = preparation?.embeddedFileIds.filter(id=>!materials.some(material=>material.fileId===id)) || [];
+      const materialNames=[...materials.map(m=>`${m.kind==='audio'?'Audio':m.kind==='image'?'Bild':m.kind==='handout'?'Handout':m.kind==='video'?'Video':m.kind==='check'?'Probe':'Material'}: ${m.title}${m.fileId ? ` (${fileNames.get(m.fileId)||'Datei nicht verfügbar'})` : ''}`), ...embedded.map(id=>`Bild: ${fileNames.get(id)||'Datei nicht verfügbar'}`), ...(preparation?.clueIds.map(id=>names.get(id)||'Verknüpfter Hinweis nicht verfügbar') || [])];
       return <li key={scene.id} className={s.overviewScene}>
-        <div className={s.overviewSceneHead}><div><h4>{index+1}. {scene.title}</h4><p>{scene.placeId ? names.get(scene.placeId) || 'Verknüpfter Schauplatz nicht verfügbar' : 'Schauplatz optional'}{scene.archived ? ' · Archiviert' : ''}</p></div>
-          <button disabled={busy} onClick={()=>onScene(scene.id)} aria-label={`Szene bearbeiten: ${scene.title}`}>Szene bearbeiten</button></div>
-        <dl className={s.overviewFacts}>
-          <div><dt>Inhalte</dt><dd>{preparation ? (preparation.sections.length ? preparation.sections.map(key=>preparationSections[key as keyof typeof preparationSections]).join(' · ') : 'Noch keine Texte hinterlegt') : 'Vorbereitungsstand nicht verfügbar'}</dd></div>
-          <div><dt>NPCs</dt><dd>{people.length ? people.map(id=>names.get(id)||'Verknüpfte Person nicht verfügbar').join(', ') : 'Keine verknüpft'}</dd></div>
-          <div><dt>Spielmaterial</dt><dd>{[...materials.map(m=>`${m.kind==='audio'?'Audio':m.kind==='image'?'Bild':m.kind==='handout'?'Handout':m.kind==='video'?'Video':m.kind==='check'?'Probe':'Material'}: ${m.title}${m.fileId ? ` (${fileNames.get(m.fileId)||'Datei nicht verfügbar'})` : ''}`), ...embedded.map(id=>`Bild: ${fileNames.get(id)||'Datei nicht verfügbar'}`), ...(preparation?.clueIds.map(id=>names.get(id)||'Verknüpfter Hinweis nicht verfügbar') || [])].join(' · ') || 'Kein Material verknüpft'}</dd></div>
-        </dl>
+        <div className={s.overviewSceneHead}>
+          <div className={s.sceneIdentity}><span className={s.sceneNumber} aria-label={`Szene ${index+1}`}>{String(index+1).padStart(2,'0')}</span><div><h4>{scene.title}</h4><p className={s.sceneLocation}><MapPin size={15} aria-hidden="true"/>{scene.placeId ? names.get(scene.placeId) || 'Verknüpfter Schauplatz nicht verfügbar' : 'Noch kein Schauplatz gewählt'}{scene.archived ? ' · Archiviert' : ''}</p></div></div>
+          <button className={s.sceneEdit} disabled={busy} onClick={()=>onScene(scene.id)} aria-label={`Szene bearbeiten: ${scene.title}`}>Szene bearbeiten</button>
+        </div>
+        <section className={s.sceneContents} aria-label={`Vorhandene Inhalte: ${scene.title}`}>
+          <h5><NotebookPen size={16} aria-hidden="true"/>Vorhandene Inhalte</h5>
+          {preparation?.sections.length ? <ul className={s.sectionTags}>{preparation.sections.map(key=><li key={key}>{preparationSections[key as keyof typeof preparationSections]}</li>)}</ul> : <p>{preparation?'Hier ist noch Raum für deine Erzählung und Regiehinweise.':'Vorbereitungsstand nicht verfügbar.'}</p>}
+        </section>
+        <div className={s.sceneResources}>
+          <section><h5><Users size={16} aria-hidden="true"/>Mitwirkende</h5>{people.length?<ul>{people.map(id=><li key={id}>{names.get(id)||'Verknüpfte Person nicht verfügbar'}</li>)}</ul>:<p>Noch keine NPCs zugeordnet.</p>}</section>
+          <section><h5><FileText size={16} aria-hidden="true"/>Spielmaterial</h5>{materialNames.length?<ul>{materialNames.map((name,index)=><li key={index}>{name}</li>)}</ul>:<p>Noch kein Material zugeordnet.</p>}</section>
+        </div>
         <div className={s.overviewOrder} aria-label={`Reihenfolge: ${scene.title}`}>
-          <button disabled={busy||index===0} onClick={()=>onMove(scene.id,-1)} aria-label={`${scene.title} nach oben`}>Nach oben</button>
-          <button disabled={busy||index===linked.length-1} onClick={()=>onMove(scene.id,1)} aria-label={`${scene.title} nach unten`}>Nach unten</button>
-          <small>Position {index+1} von {linked.length}</small>
+          <button disabled={busy||index===0} onClick={()=>onMove(scene.id,-1)} aria-label={`${scene.title} nach oben`}><ArrowUp size={15} aria-hidden="true"/>Nach oben</button>
+          <button disabled={busy||index===linked.length-1} onClick={()=>onMove(scene.id,1)} aria-label={`${scene.title} nach unten`}><ArrowDown size={15} aria-hidden="true"/>Nach unten</button>
+          <small>Szene {index+1} von {linked.length}</small>
         </div>
       </li>;
     })}</ol>

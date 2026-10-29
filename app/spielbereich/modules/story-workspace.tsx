@@ -685,7 +685,6 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             Beginne mit einem Spielabend und bereite dort deine Schauplätze und Szenen vor.
           </p>
         </div>
-        <a href="/spielbereich?bereich=sitzung">Zum Live-Spieltisch →</a>
       </header>
       <div className={s.columns}>
         <section className={s.centralControls} aria-label="Vorbereitungsaktionen">
@@ -713,49 +712,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           </select>
           <button disabled={busy} onClick={()=>void create("session")}>+ Spielabend anlegen</button>
           </div>
-        <details className={s.secondary}>
-          <summary>Weitere Akten · Handlungsstränge & freie Szenen</summary>
-          <div className={s.actions}>
-            <button disabled={busy} onClick={() => void create("story")}>
-              + Handlungsstrang
-            </button>
-            
-            <button disabled={busy} onClick={() => void create("scene", false, true)}>
-              + freie Szene
-            </button>
-          </div>
-          
-          <h2>Handlungsstränge</h2>
-          {stories.filter(matches).map((v) => (
-            <div key={v.id}>
-              <button
-                className={current?.id === v.id ? s.selected : ""}
-                onClick={() => void open("story", v.id)}
-              >
-                ▣ {v.title}
-                {v.favorite ? " ★" : ""}
-              </button>
-              {!search && filter === "all" && tree("", v.id)}
-            </div>
-          ))}
-          
-          <h2>
-            {search || filter !== "all" ? "Szenentreffer" : "Freie Szenen"}
-          </h2>
-          {!search && filter === "all"
-            ? tree("", "")
-            : scenes.filter(matches).map((v) => (
-                <button key={v.id} onClick={() => void open("scene", v.id)}>
-                  ◇ {v.title}
-                </button>
-              ))}
-          {!stories.length && !sessions.length && !scenes.length && (
-            <p>
-              Noch kein Spielabend vorbereitet. Lege deinen ersten Spielabend an.
-            </p>
-          )}
-        
-        </details>
+
         </section>
         <main className={s.main}>
           {current?.kind === "scene" && returnSession && <div className={s.overviewNavigation}>
@@ -1229,6 +1186,45 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             </div>
           )}
         </main>
+        <section className={s.collections} aria-label="Weitere Vorbereitungen">
+          <h2>Weitere Vorbereitungen</h2><p className={s.collectionIntro}>Organisiere hier Geschichten und Szenen, die über den geöffneten Spielabend hinausgehen.</p><div className={s.collectionColumns}>
+          <section aria-label="Handlungsstränge">
+          <div className={s.collectionHead}><h3>Handlungsstränge</h3><button disabled={busy} onClick={()=>void create("story")}>Handlungsstrang anlegen</button></div>
+          <p>Verbinde Hintergründe, Konflikte und zugehörige Szenen über mehrere Spielabende hinweg. Ein Handlungsstrang ist deine übergreifende Geschichte.</p>
+          {!stories.filter(matches).length&&<p className={s.collectionEmpty}>Noch kein passender Handlungsstrang vorhanden.</p>}
+
+          {stories.filter(matches).map((v) => (
+            <div key={v.id}>
+              <button
+                className={current?.id === v.id ? s.selected : ""}
+                onClick={() => void open("story", v.id)}
+              >
+                ▣ {v.title}
+                {v.favorite ? " ★" : ""}
+              </button>
+              {!search && filter === "all" && tree("", v.id)}
+            </div>
+          ))}
+
+          </section><section aria-label="Freie Szenen">
+          <div className={s.collectionHead}><h3>{search || filter !== "all" ? "Szenentreffer" : "Freie Szenen"}</h3><button disabled={busy} onClick={()=>void create("scene",false,true)}>Freie Szene anlegen</button></div>
+          <p>Bereite einzelne Szenen ohne festen Spielabend vor. Über „Spielabend bearbeiten“ kannst du sie später einem Abend zuordnen. Eine neue Szene im geöffneten Abend legst du direkt in dessen Übersicht an.</p>
+          {!scenes.some(v=>matches(v)&&(search || filter!=="all" || (!v.storyId&&!v.parentId&&!v.sessionIds.length&&!sessions.some(session=>session.document.sceneIds.includes(v.id)))))&&<p className={s.collectionEmpty}>Noch keine passende freie Szene vorhanden.</p>}
+          {!search && filter === "all"
+            ? tree("", "")
+            : scenes.filter(matches).map((v) => (
+                <button key={v.id} onClick={() => void open("scene", v.id)}>
+                  ◇ {v.title}
+                </button>
+              ))}
+          {!stories.length && !sessions.length && !scenes.length && (
+            <p>
+              Noch kein Spielabend vorbereitet. Lege deinen ersten Spielabend an.
+            </p>
+          )}
+
+          </section></div>
+        </section>
         <details className={s.context}>
           <summary>Kontext, Medien & Verlauf</summary>
           <div>

@@ -109,6 +109,14 @@ try {
   phase = "create Spielabend from SL UI";
   await page.goto(base + "/sl/command-center", { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: "Spielabend & Story" }).waitFor();
+  const management=page.getByRole("navigation",{name:"Verwaltungsbereiche"});
+  assert.ok(await management.getByRole("button",{name:/Spieler & Charaktere/}).isVisible());
+  await management.getByRole("button",{name:/Orte/}).click();
+  await page.waitForFunction(()=>new URLSearchParams(location.search).get("bereich")==="ortscms");
+  await management.getByRole("button",{name:/Spielabende & Szenen/}).click();
+  await page.getByRole("heading", {name:"Spielabend & Story",exact:true}).waitFor();
+  assert.ok(await page.getByRole("region",{name:"Handlungsstränge",exact:true}).isVisible());
+  assert.ok(await page.getByRole("region",{name:"Freie Szenen",exact:true}).isVisible());
   await page.getByRole("button", { name: "+ Spielabend anlegen" }).click();
   await page.waitForFunction(() => new URLSearchParams(location.search).has("session"));
   const sessionId = new URL(page.url()).searchParams.get("session");
@@ -145,7 +153,6 @@ try {
   assert.ok(session.body.session.document.sceneIds.includes(tabernaId));
   await screenshot("spielabend-desktop-1920");
 
-  const nav = page.getByRole("region",{name:"Vorbereitungsaktionen"});
   await page.getByRole("button",{name:"Szene bearbeiten: Kaserne – Ankunft",exact:true}).click();
   await page.getByRole("heading", { name: "Spielabend & Story" }).waitFor();
   const first = await api("/api/command-center/scenes?id=" + encodeURIComponent(kaserneId));
@@ -195,9 +202,8 @@ try {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Zur Spielabendübersicht" }).click();
   await page.getByRole("region", { name: "Spielabendübersicht" }).waitFor();
-  assert.equal(await nav.getByRole("button", { name: /Electric Taberna – Besuch/ }).count(), 0);
-  const freeFiles = nav.locator("details").filter({ hasText: "Weitere Akten" });
-  await freeFiles.locator("summary").click();
+  assert.equal(await page.getByRole("region",{name:"Spielabendübersicht"}).getByRole("button", { name: "Szene bearbeiten: Electric Taberna – Besuch",exact:true }).count(), 0);
+  const freeFiles = page.getByRole("region", {name:"Freie Szenen",exact:true});
   assert.equal(await freeFiles.getByRole("button", { name: /Electric Taberna – Besuch/ }).count(), 1, "Unlinked scene remains available as a free original");
   assert.equal(await freeFiles.getByRole("button", { name: /Kaserne – Ankunft/ }).count(), 0, "Assigned scenes are not listed as free");
 

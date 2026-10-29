@@ -55,3 +55,15 @@ Auf ausdrückliche Rückmeldung des Projektleiters wurden die beiden linken Navi
 Typecheck, gezielter ESLint, 141 Tests, Build und der angepasste vollständige lokale Browser-Smoke sind bestanden. Der Browsertest läuft getrennt auf Port 8824; die persönliche Abnahme bleibt auf 8822. Desktop, Mobil und CSS125 sind abgedeckt, echter Browserzoom bleibt persönliche Prüfung. Der Design-Detektor meldet ausschließlich die unveränderte bestehende Akzentlinie der Charakterinspektion außerhalb dieser Korrektur.
 
 Der bisherige synthetische Abnahmestand wurde einschließlich Anmeldung und Szenen unverändert in `.local-test/character-weekend` übernommen. Neustart aus diesem Worktree: `CVK_TEST_PORT=8822 node --experimental-strip-types scripts/test-local.mjs --spieltisch-release --weekend` (Umgebungsvariable in der jeweiligen Shell setzen). Der markierte lokale Datenbestand wird wiederverwendet; die ursprüngliche Testkopie bleibt im temporären Verzeichnis erhalten. Kein produktiver Zugriff und keine neue Datenbankmigration.
+
+## UX-Nachbesserung: sichtbare Menüs und lesbarer Szenenablauf
+
+Die Verwaltungsbereiche sind als dauerhaft sichtbare obere Menüleiste erreichbar: Spielabende/Szenen, Spieler/Charaktere, Orte und Live-Spieltisch. Rolleneinschränkungen und der vorhandene Schutz ungespeicherter Vorbereitung bleiben erhalten. Redundante Live-Links wurden zusammengeführt. Nicht implementierte Platzhalter werden nicht als nutzbare Verwaltungsziele angeboten.
+
+Handlungsstränge und freie Szenen stehen unter der aktuellen Vorbereitung offen, jeweils mit Erklärung, vorhandenen Einträgen und Anlegeaktion. Handlungsstränge verbinden übergreifende Hintergründe/Konflikte; freie Szenen können später über die vorhandenen Spielabendverknüpfungen zugeordnet werden.
+
+Die Szenenübersicht verwendet klar gegliederte Abschnitte statt der bisherigen festen Begriff/Wert-Zeilen: Szenennummer, Titel/Schauplatz, vorhandene Inhalte, Mitwirkende, Spielmaterial und sichtbare Reihenfolgeaktionen. Original-IDs und Speicherverhalten bleiben unverändert.
+
+Geprüft: Typecheck, gezielter Lint, 141 Tests, Produktionsbuild und angepasster vollständiger Browser-Smoke auf getrenntem Port 8824, einschließlich tatsächlichem Wechsel Orte → Spielabende über die neue obere Menüleiste. Die offenen Vorbereitungsbereiche wurden auf Sichtbarkeit geprüft. Desktop/Mobil und CSS125 bestanden; nativer Browserzoom bleibt separat offen. Der mechanische Designcheck hat ausschließlich die bereits bekannte unveränderte Akzentlinie der Charakterinspektion gemeldet.
+
+Die persönliche Browseransicht auf Port 8822 ist mit demselben lokalen Spielstand und derselben Anmeldung neu gestartet. Vorherige synthetische Testdaten zusätzlich unter `.local-test/before-menu-polish` gesichert. Keine Veröffentlichung und kein Zugriff auf Produktionsdaten.
