@@ -111,4 +111,19 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check((await pcmd('a','edit_sheet',{patch:{humanity:7},reason:'After close'})).s===403,'CHAR3.1 closed editing is enforced on the server');
   const snapshot=(await pget()).d;
   check(snapshot.sheet.attributes.Körperkraft===5&&snapshot.historical===true,'CHAR3.1 adopted baseline contains the caught-up values');
+
+  // V20 new Disciplines on the adopted catch-up sheet (Toreador, 2 XP + 20 granted).
+  check((await pcmd('gm','xp_grant',{operationId:randomUUID(),amount:20,reason:'Synthetic reward'})).s===200,'CHAR3.2 SL grants XP after adoption');
+  const offer=(await pget('a')).d.targets;
+  check(offer.some(t=>t.target==='Präsenz'&&t.from===0&&t.cost===10&&!t.requiresApproval)&&offer.some(t=>t.target==='Potenz'&&t.from===0&&t.requiresApproval),'CHAR3.2 new clan Discipline offered for 10 XP; foreign Discipline marked for SL approval');
+  check((await pcmd('gm','permissions',{editing:false,development:'direct',reason:'Direct XP purchases'})).s===200,'CHAR3.2 SL allows direct development');
+  const bought=await pcmd('a','xp_purchase',{purchase:{category:'discipline',target:'Präsenz',from:0,to:1}});
+  check(bought.s===200&&bought.d.xp.available===12&&bought.d.sheet.disciplines.some(d=>d.name==='Präsenz'&&d.value===1),'CHAR3.2 player learns a new clan Discipline directly for 10 XP');
+  check((await pcmd('a','xp_purchase',{purchase:{category:'discipline',target:'Potenz',from:0,to:1}})).s===403,'CHAR3.2 even with direct development a foreign new Discipline needs SL approval');
+  const requested=await pcmd('a','xp_request',{operationId:randomUUID(),purchase:{category:'discipline',target:'Potenz',from:0,to:1}});
+  check(requested.s===200&&requested.d.xp.available===12,'CHAR3.2 foreign Discipline request books no XP yet');
+  const disciplineRequest=requested.d.requests.find(r=>r.status==='pending').id;
+  const decided=await pcmd('gm','xp_decision',{requestId:disciplineRequest,approved:true,reason:'Teacher found in play'});
+  check(decided.s===200&&decided.d.xp.available===2&&decided.d.sheet.disciplines.some(d=>d.name==='Potenz'&&d.value===1),'CHAR3.2 SL approval learns the foreign Discipline for 10 XP');
+  check((await pcmd('a','xp_request',{operationId:randomUUID(),purchase:{category:'background',target:'Status',from:0,to:1}})).s===400,'CHAR3.2 backgrounds keep no V20 XP price');
 }

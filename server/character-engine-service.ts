@@ -1,7 +1,7 @@
 import type { Actor } from "@/domain/types";
 import type { LegacyRecordRow } from "@/domain/legacy";
 import { availableClanForCampaign } from "@/domain/clan-config";
-import { appearanceExceptionMaximum, slAdjustmentTargets, creationBudgetSummary, creationDeviation, v20AbilityNames, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
+import { appearanceExceptionMaximum, slAdjustmentTargets, creationBudgetSummary, creationDeviation, v20AbilityNames, v20DisciplineNames, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
 import { creationGuidance } from "@/domain/character-guidance";
 import { canEdit, database, HttpError } from "./access";
 import { characterPermissions, characterSheet, characterXpSummary, validateExistingSheet } from '@/domain/character-management';
@@ -26,7 +26,7 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
   const historicalError=body.historicalSnapshot?validateExistingSheet(body):null;
   const readiness=body.historicalSnapshot?{ready:!historicalError,reason:historicalError||'Bestandsbogen bereit zur erneuten SL-Prüfung. Keine Neucharakterbudgets.',missing:[]}:{ready:guidance.reviewReady,reason:guidance.reviewReason,missing:guidance.missing};
   const clan = availableClanForCampaign(a.campaignId, body.clan);
-  const targets: Array<XpPurchase & { label: string; cost: number; available: boolean; hint: string }> = [];
+  const targets: Array<XpPurchase & { label: string; cost: number; available: boolean; hint: string; requiresApproval?: boolean }> = [];
   const add = (category: XpPurchase["category"], target: string | undefined, from: unknown) => {
     if (!Number.isInteger(from)) return;
     const value = Number(from), max = category === "humanity" || category === "willpower" ? 10 : 5;
@@ -45,6 +45,15 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
   if(Array.isArray(body.customAbilities))for(const item of body.customAbilities as Record<string,unknown>[])add("customAbility",String(item.name),item.value);
   for (const [key, category] of [["disciplines", "discipline"], ["backgrounds", "background"]] as const) {
     if (Array.isArray(body[key])) for (const item of body[key] as Record<string, unknown>[]) add(category, String(item.name), item.value);
+  }
+  // V20 new Disciplines (10 XP): clan Disciplines directly, others only through an SL-approved request.
+  if (!body.disciplines || Array.isArray(body.disciplines)) {
+    const owned = new Set((Array.isArray(body.disciplines) ? body.disciplines as Record<string, unknown>[] : []).map(item => String(item.name)));
+    for (const name of [...(clan?.disciplines ?? []), ...v20DisciplineNames.filter(item => !clan?.disciplines.includes(item))]) {
+      if (owned.has(name)) continue;
+      const inClan = !!clan?.disciplines.includes(name), purchase: XpPurchase = { category: "discipline", target: name, from: 0, to: 1, inClan };
+      targets.push({ ...purchase, label: name + (inClan ? " (neu, Clan)" : " (neu, clansfremd)"), cost: 10, requiresApproval: !inClan, available: state === "confirmed" && (a.gm || permissions.development !== "blocked") && xpBalance(body) >= 10, hint: inClan ? "" : "Clansfremde Disziplin: nur mit Lehrer und SL-Genehmigung (Antrag)." });
+    }
   }
   add("humanity", undefined, body.humanity); add("willpower", undefined, body.willpower);
   const ledger = Array.isArray(body.xpLedger) ? body.xpLedger as { kind: string; amount: number }[] : [];

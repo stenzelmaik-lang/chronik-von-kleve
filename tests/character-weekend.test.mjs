@@ -51,10 +51,10 @@ test('XP advances use the captured creation budget and never charge Freebies aga
  const upgraded=applyXpPurchase(confirmed,{category:'attribute',target:'Geschick',from:3,to:4});assert.equal(upgraded.ok,true);
  assert.equal(validateCharacterDraft('chronik-von-kleve',upgraded.body).ok,true);assert.equal(xpBalance(upgraded.body),18);assert.equal(freebieTotal(upgraded.body.creationSnapshot),0);
 });
-test('regular caps and Nosferatu lock apply to XP; unset discipline costs are never free',()=>{
+test('regular caps and Nosferatu lock apply to XP; a new discipline uses the V20 price, never free',()=>{
  assert.equal(applyXpPurchase(engineFixture,{category:'attribute',target:'Geschick',from:5,to:6}).ok,false);
  assert.equal(applyXpPurchase({...engineFixture,clan:'Nosferatu'},{category:'attribute',target:'Erscheinungsbild',from:0,to:1}).ok,false);
- assert.equal(xpCost({category:'discipline',from:0,to:1,inClan:true}).ok,false);
+ assert.deepEqual(xpCost({category:'discipline',from:0,to:1,inClan:true}),{ok:true,cost:10});
 });
 test('a previously unrated catalog ability can be learned, an invented ability cannot',()=>{
  const body={...engineFixture,xpLedger:[{kind:'grant',amount:10}]};

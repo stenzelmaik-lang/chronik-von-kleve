@@ -1,4 +1,4 @@
-import { availableClanForCampaign } from "./clan-config.ts";
+import { availableClanForCampaign, clansForCampaign } from "./clan-config.ts";
 import { characterLedger, ledgerDelta, validateExistingSheet } from './character-management.ts';
 
 export const characterStates = ["draft", "review", "confirmed"] as const;
@@ -35,6 +35,9 @@ const abilityGroups = {
   knowledges: ["Akademisches Wissen", "Computer", "Finanzen", "Gesetzeskenntnis", "Medizin", "Nachforschungen", "Naturwissenschaften", "Okkultismus", "Politik", "Technologie"],
 } as const;
 export const v20AbilityNames: readonly string[] = Object.values(abilityGroups).flat();
+/** Disciplines of the classic V20 clan catalogue; the only names a new XP Discipline may take. */
+// "Geschwindigkeit" (Assamiten) and "Schnelligkeit" both translate Celerity; only one may be learned as new.
+export const v20DisciplineNames: readonly string[] = [...new Set(clansForCampaign("").flatMap((clan) => clan.disciplines))].filter((name) => name !== "Geschwindigkeit");
 
 export type CreationBudgetLine = { spent: number; limit: number; remaining: number; exceeded: boolean; freebieDots?: number; freebieCost?: number };
 export type AutomaticFreebieLine = {
@@ -313,7 +316,7 @@ export function xpCost(purchase: XpPurchase) {
     return { ok: false as const, error: "XP-Steigerungen müssen genau eine Stufe umfassen." };
   const categoryCost = purchase.category === "attribute" ? purchase.from * 4
     : ["ability","customAbility"].includes(purchase.category) ? (purchase.from === 0 ? 3 : purchase.from * 2)
-      : purchase.category === "discipline" ? purchase.from * (purchase.inClan ? 5 : 7)
+      : purchase.category === "discipline" ? (purchase.from === 0 ? 10 : purchase.from * (purchase.inClan ? 5 : 7))
         : purchase.category === "background" ? NaN
           : ["humanity","virtue"].includes(purchase.category) ? purchase.from * 2
             : purchase.category === "willpower" ? purchase.from : NaN;
@@ -330,6 +333,11 @@ function withRaisedValue(body: CharacterLike, purchase: XpPurchase): CharacterLi
   if (!target) return null;
   const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
   const collection = body[key];
+  if (purchase.category === "discipline" && purchase.from === 0 && !(Array.isArray(collection) && collection.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target))) {
+    // V20: learning a new Discipline. Only catalogued names; legacy free text stays untouched.
+    if ((collection !== undefined && !Array.isArray(collection)) || (!v20DisciplineNames.includes(target) && !purchase.inClan)) return null;
+    return { ...body, disciplines: [...(Array.isArray(collection) ? collection : []), { name: target, value: 1, source: purchase.inClan ? "clan" : "foreign", ...(purchase.inClan ? {} : { slApproved: true }) }] };
+  }
   if (Array.isArray(collection)) {
     const next = collection.map((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target ? { ...(item as CharacterLike), value: purchase.to } : item);
     if (!next.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target)) return null;
@@ -348,7 +356,8 @@ function currentValue(body: CharacterLike, purchase: XpPurchase) {
   if (purchase.category === "humanity" || purchase.category === "willpower") return body[purchase.category];
   const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
   const collection = body[key];
-  if (Array.isArray(collection)) return (collection.find((item) => item && typeof item === "object" && String((item as CharacterLike).name) === purchase.target) as CharacterLike | undefined)?.value;
+  if (Array.isArray(collection)) return (collection.find((item) => item && typeof item === "object" && String((item as CharacterLike).name) === purchase.target) as CharacterLike | undefined)?.value ?? (purchase.category === "discipline" ? 0 : undefined);
+  if (purchase.category === "discipline" && collection === undefined) return 0;
   return collection && typeof collection === "object" ? (collection as CharacterLike)[String(purchase.target)] : undefined;
 }
 

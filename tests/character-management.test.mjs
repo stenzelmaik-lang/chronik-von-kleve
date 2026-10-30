@@ -47,3 +47,19 @@ test('Creation deviation compares a played sheet with the V20 frame without bloc
   const nosferatu=creationDeviation({clan:'Nosferatu',attributes:{Erscheinungsbild:0}});
   assert.equal(nosferatu.lines.find(row=>row.key==='attributes:Gesellschaftliche Attribute').spent,0);
 });
+test('V20 new Discipline costs 10 XP, is appended once and only from the catalogue',()=>{
+  assert.deepEqual(xpCost({category:'discipline',from:0,to:1,inClan:true}),{ok:true,cost:10});
+  assert.deepEqual(xpCost({category:'discipline',from:0,to:1,inClan:false}),{ok:true,cost:10});
+  assert.equal(xpCost({category:'background',from:0,to:1}).ok,false);
+  const body={clan:'Toreador',disciplines:[{name:'Auspex',value:1}],xpLedger:[{id:'h',kind:'historical',amount:12,reason:'x',createdAt:'now'}]};
+  const learned=applyXpPurchase(body,{category:'discipline',target:'Präsenz',from:0,to:1,inClan:true});
+  assert.equal(learned.ok,true);assert.equal(learned.cost,10);assert.deepEqual(learned.body.disciplines[1],{name:'Präsenz',value:1,source:'clan'});assert.equal(xpBalance(learned.body),2);
+  assert.equal(applyXpPurchase(learned.body,{category:'discipline',target:'Präsenz',from:0,to:1,inClan:true}).ok,false);
+  assert.equal(applyXpPurchase(body,{category:'discipline',target:'Erfundene Kraft',from:0,to:1,inClan:false}).ok,false);
+  assert.equal(applyXpPurchase({...body,disciplines:'Auspex 1 (Freitext)'},{category:'discipline',target:'Präsenz',from:0,to:1,inClan:true}).ok,false);
+  assert.equal(applyXpPurchase({...body,xpLedger:[{id:'h',kind:'historical',amount:9,reason:'x',createdAt:'now'}]},{category:'discipline',target:'Präsenz',from:0,to:1,inClan:true}).ok,false);
+});
+test('Celerity is not offered twice under two German names',()=>{
+  const toreador={clan:'Toreador',disciplines:[{name:'Schnelligkeit',value:1}],xpLedger:[{id:'h',kind:'historical',amount:20,reason:'x',createdAt:'now'}]};
+  assert.equal(applyXpPurchase(toreador,{category:'discipline',target:'Geschwindigkeit',from:0,to:1,inClan:false}).ok,false);
+});

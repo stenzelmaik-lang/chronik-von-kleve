@@ -131,6 +131,8 @@ export async function POST(req: Request) {
       if (!a.gm && characterPermissions(body).development !== 'direct') throw new HttpError(403,'Diese Entwicklung muss bei der Spielleitung beantragt werden oder ist gesperrt.');
       if (body.characterState !== "confirmed") throw new HttpError(409, "XP erst nach SL-Bestätigung ausgeben.");
       const normalized: XpPurchase = { ...d.purchase, inClan: !!availableClanForCampaign(a.campaignId, body.clan)?.disciplines.includes(d.purchase.target || "") };
+      // V20: a Discipline outside the clan needs a teacher and therefore an SL decision.
+      if (!a.gm && normalized.category === "discipline" && normalized.from === 0 && !normalized.inClan) throw new HttpError(403, "Eine clansfremde neue Disziplin bitte bei der Spielleitung beantragen.");
       if (!body.creationSnapshot && !body.historicalSnapshot) throw new HttpError(409, "Der ältere bestätigte Engine-Bogen benötigt zuerst eine dokumentierte Erschaffungsprüfung. Historische Werte werden nicht automatisch umgedeutet.");
       const result = applyXpPurchase(body, normalized); if (!result.ok) throw new HttpError(400, result.error);
       next = result.body; auditReason = d.purchase.reason || `${d.purchase.target || d.purchase.category}: ${d.purchase.from} → ${d.purchase.to} (${result.cost} XP)`;
