@@ -111,4 +111,33 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check((await pcmd('a','edit_sheet',{patch:{humanity:7},reason:'After close'})).s===403,'CHAR3.1 closed editing is enforced on the server');
   const snapshot=(await pget()).d;
   check(snapshot.sheet.attributes.Körperkraft===5&&snapshot.historical===true,'CHAR3.1 adopted baseline contains the caught-up values');
+
+  // V20 new Disciplines on the adopted catch-up sheet (Toreador, 2 XP + 20 granted).
+  check((await pcmd('gm','xp_grant',{operationId:randomUUID(),amount:20,reason:'Synthetic reward'})).s===200,'CHAR3.2 SL grants XP after adoption');
+  const offer=(await pget('a')).d.targets;
+  check(offer.some(t=>t.target==='Präsenz'&&t.from===0&&t.cost===10&&!t.requiresApproval)&&offer.some(t=>t.target==='Potenz'&&t.from===0&&t.requiresApproval),'CHAR3.2 new clan Discipline offered for 10 XP; foreign Discipline marked for SL approval');
+  check((await pcmd('gm','permissions',{editing:false,development:'direct',reason:'Direct XP purchases'})).s===200,'CHAR3.2 SL allows direct development');
+  const bought=await pcmd('a','xp_purchase',{purchase:{category:'discipline',target:'Präsenz',from:0,to:1}});
+  check(bought.s===200&&bought.d.xp.available===12&&bought.d.sheet.disciplines.some(d=>d.name==='Präsenz'&&d.value===1),'CHAR3.2 player learns a new clan Discipline directly for 10 XP');
+  check((await pcmd('a','xp_purchase',{purchase:{category:'discipline',target:'Potenz',from:0,to:1}})).s===403,'CHAR3.2 even with direct development a foreign new Discipline needs SL approval');
+  const requested=await pcmd('a','xp_request',{operationId:randomUUID(),purchase:{category:'discipline',target:'Potenz',from:0,to:1}});
+  check(requested.s===200&&requested.d.xp.available===12,'CHAR3.2 foreign Discipline request books no XP yet');
+  const disciplineRequest=requested.d.requests.find(r=>r.status==='pending').id;
+  const decided=await pcmd('gm','xp_decision',{requestId:disciplineRequest,approved:true,reason:'Teacher found in play'});
+  check(decided.s===200&&decided.d.xp.available===2&&decided.d.sheet.disciplines.some(d=>d.name==='Potenz'&&d.value===1),'CHAR3.2 SL approval learns the foreign Discipline for 10 XP');
+  check((await pcmd('a','xp_request',{operationId:randomUUID(),purchase:{category:'background',target:'Status',from:0,to:1}})).s===400,'CHAR3.2 backgrounds keep no V20 XP price');
+
+  // V20 Paths on a synthetic Tremere: new Path only through an approved request, 7 XP.
+  const tremere=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC PATH SHEET',visibility:'private',body:{clan:'Tremere',disciplines:[{name:'Thaumaturgie',value:2}],paths:[{name:'Pfad des Blutes',value:2,primary:true}]}});
+  check(tremere.s===200,'CHAR3.3 synthetic Tremere with primary Path stored'); const tid=tremere.d.id;
+  const tget=async(who='gm')=>req('/api/character-engine?id='+tid,who);
+  const tcmd=async(who,action,extra={})=>{const view=await tget();return req('/api/character-engine',who,'POST',{id:tid,version:view.d.version,action,...extra});};
+  check((await tcmd('gm','historical_import',{operationId:randomUUID(),available:10,earned:null,spent:null,source:'Synthetic',reason:'Adopt path sheet',confirm:true})).s===200,'CHAR3.3 path sheet adopted and released');
+  const pathTargets=(await tget('a')).d.targets.filter(t=>t.category==='path');
+  check(!pathTargets.some(t=>t.target==='Pfad des Blutes'),'CHAR3.3 primary Path is not sold separately');
+  check((await tcmd('a','xp_purchase',{purchase:{category:'path',target:'Neuer Pfad',from:0,to:1}})).s===403,'CHAR3.3 player cannot buy a new Path directly');
+  const pathRequest=await tcmd('a','xp_request',{operationId:randomUUID(),purchase:{category:'path',target:'Neuer Pfad',from:0,to:1}});
+  check(pathRequest.s===200&&pathRequest.d.xp.available===10,'CHAR3.3 Path request books no XP yet');
+  const pathDecision=await tcmd('gm','xp_decision',{requestId:pathRequest.d.requests.find(r=>r.status==='pending').id,approved:true,reason:'Teacher in play'});
+  check(pathDecision.s===200&&pathDecision.d.xp.available===3&&pathDecision.d.sheet.paths.some(p=>p.name==='Neuer Pfad'&&p.value===1&&p.primary===false),'CHAR3.3 approved new Path costs 7 XP and is secondary');
 }

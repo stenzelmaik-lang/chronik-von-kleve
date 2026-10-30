@@ -9,11 +9,12 @@ import {attrsGroups,skillGroups} from './character';
 import sheet from './character-sheet.module.css';
 
 type Body=Record<string,unknown>;
-type Row={name:string;value?:number;cost?:number;category?:string};
+type Row={name:string;value?:number;cost?:number;category?:string;primary?:boolean};
 const map=(v:unknown):Record<string,number>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,number>:{};
 const rows=(v:unknown):Row[]=>Array.isArray(v)?(v as Row[]).filter(r=>r&&typeof r==='object'):[];
 const str=(v:unknown)=>typeof v==='string'?v:v===undefined||v===null?'':String(v);
-const fieldLabels:Record<string,string>={player:'Spieler',chronicle:'Chronik',nature:'Wesen',demeanor:'Verhalten',concept:'Konzept',clan:'Clan',generation:'Generation',sire:'Erzeuger',attributes:'Attribute',skills:'Fähigkeiten',customAbilities:'Weitere Fähigkeiten',disciplines:'Disziplinen',backgrounds:'Hintergründe',virtues:'Tugenden',humanity:'Menschlichkeit / Pfad',humanityPath:'Pfad',willpower:'Willenskraft',bloodMax:'Blutvorrat',bloodPerRound:'Blut pro Runde',merits:'Vorzüge',flaws:'Schwächen',clanWeakness:'Clansschwäche',individualInfo:'Individuelle Angaben',text:'Geschichte',goals:'Ziele',characterPermissions:'Freigaben',title:'Name',playGuide:'Spielhilfe',inventory:'Ausrüstung'};
+const fieldLabels:Record<string,string>={player:'Spieler',chronicle:'Chronik',nature:'Wesen',demeanor:'Verhalten',concept:'Konzept',clan:'Clan',generation:'Generation',sire:'Erzeuger',attributes:'Attribute',skills:'Fähigkeiten',customAbilities:'Weitere Fähigkeiten',disciplines:'Disziplinen',backgrounds:'Hintergründe',virtues:'Tugenden',humanity:'Menschlichkeit / Pfad',humanityPath:'Pfad',willpower:'Willenskraft',bloodMax:'Blutvorrat',bloodPerRound:'Blut pro Runde',merits:'Vorzüge',flaws:'Schwächen',clanWeakness:'Clansschwäche',individualInfo:'Individuelle Angaben',text:'Geschichte',goals:'Ziele',characterPermissions:'Freigaben',paths:'Pfade',title:'Name',playGuide:'Spielhilfe',inventory:'Ausrüstung'};
+const listFields=['customAbilities','disciplines','paths','backgrounds','merits','flaws'];
 export const sheetFieldLabel=(key:string)=>fieldLabels[key]??key;
 const allDisciplines=[...new Set(clansForCampaign('chronik-von-kleve').flatMap(c=>c.disciplines))].sort((a,b)=>a.localeCompare(b,'de'));
 const commonBackgrounds=['Status','Ressourcen','Zuflucht','Herde','Mentor','Verbündete','Kontakte','Einfluss','Gefolgsleute','Generation','Ruhm'];
@@ -32,7 +33,7 @@ function Stepper({value,onChange,min=0,max,label,fallback=min}:{value:number|nul
 }
 const numberOrNull=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)?v:null;
 
-function RowList({label,value,onChange,metric,suggestions,high}:{label:string;value:unknown;onChange:(v:unknown)=>void;metric:'value'|'cost';suggestions?:string[];high:boolean}){
+function RowList({label,value,onChange,metric,suggestions,high,primary=false}:{label:string;value:unknown;onChange:(v:unknown)=>void;metric:'value'|'cost';suggestions?:string[];high:boolean;primary?:boolean}){
   if(typeof value==='string')return <div className={sheet.legacyText}><p>Historischer Freitext – bleibt erhalten, bis du ihn in Einträge umwandelst.</p><textarea aria-label={label} value={value} onChange={e=>onChange(e.target.value)}/><button type="button" className="button" onClick={()=>onChange(value.split(/[\n,;]/).map(s=>s.trim()).filter(Boolean).map(name=>({name,[metric]:0})))}>In Einträge umwandeln</button></div>;
   const list=rows(value),listId=suggestions?'sugg-'+label.replace(/\W/g,''):undefined;
   return <div className={sheet.rowList}>
@@ -40,6 +41,7 @@ function RowList({label,value,onChange,metric,suggestions,high}:{label:string;va
     {list.map((row,i)=><div className={sheet.rowItem} key={i}>
       <input aria-label={`${label} ${i+1} Name`} list={listId} placeholder="Name" value={row.name??''} maxLength={120} onChange={e=>onChange(list.map((r,j)=>j===i?{...r,name:e.target.value}:r))}/>
       {metric==='value'?<DotInput label={row.name||label} value={Number(row.value??0)} high={high} onChange={n=>onChange(list.map((r,j)=>j===i?{...r,value:n}:r))}/>:<Stepper label={`${row.name||label} Punkte`} value={Number(row.cost??0)} max={99} onChange={n=>onChange(list.map((r,j)=>j===i?{...r,cost:n}:r))}/>}
+      {primary&&<label className={sheet.primaryToggle}><input type="radio" name={'primary-'+label} checked={row.primary===true} onChange={()=>onChange(list.map((r,j)=>({...r,primary:j===i})))}/>Primär</label>}
       <button type="button" className={sheet.iconButton} aria-label={`${row.name||label} entfernen`} onClick={()=>onChange(list.filter((_,j)=>j!==i))}><Trash2 size={15}/></button>
     </div>)}
     <button type="button" className={sheet.addRow} onClick={()=>onChange([...list,{name:'',[metric]:metric==='value'?1:1}])}><Plus size={14}/>{label} hinzufügen</button>
@@ -55,11 +57,13 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
   const [body,setBody]=useState<Body>(()=>structuredClone(initial)),[title,setTitle]=useState(initialTitle),[reason,setReason]=useState(''),[high,setHigh]=useState(()=>[...Object.values(map(initial.attributes)),...Object.values(map(initial.skills))].some(v=>Number(v)>5)),[section,setSection]=useState('identity'),[showChanges,setShowChanges]=useState(false);
   const set=(key:string,value:unknown)=>setBody(prev=>({...prev,[key]:value}));
   const setIn=(key:string,name:string,value:number)=>setBody(prev=>({...prev,[key]:{...map(prev[key]),[name]:value}}));
-  const changed=useMemo(()=>characterSheetFields.filter(key=>JSON.stringify(body[key]??null)!==JSON.stringify(initial[key]??null)),[body,initial]);
-  const deviation=useMemo(()=>creationDeviation(body),[body]);
-  const invalid=useMemo(()=>validateExistingSheet(body),[body]);
+  // Freshly added rows without a name are drafts, not data: they are dropped instead of blocking the save.
+  const cleaned=useMemo(()=>Object.fromEntries(Object.entries(body).map(([key,value])=>[key,listFields.includes(key)&&Array.isArray(value)?(value as Row[]).filter(row=>String(row?.name??'').trim()):value])),[body]);
+  const changed=useMemo(()=>characterSheetFields.filter(key=>JSON.stringify(cleaned[key]??null)!==JSON.stringify(initial[key]??null)),[cleaned,initial]);
+  const deviation=useMemo(()=>creationDeviation(cleaned),[cleaned]);
+  const invalid=useMemo(()=>{const error=validateExistingSheet(cleaned);return error&&error.replace(/: (\w+)/,(_,key:string)=>': '+sheetFieldLabel(key));},[cleaned]);
   const dirty=changed.length>0||title.trim()!==initialTitle;
-  async function save(){const patch=Object.fromEntries(changed.map(key=>[key,body[key]]));if(!Object.keys(patch).length)patch.concept=body.concept??'';if(await onSave(patch,title.trim(),reason))onClose();}
+  async function save(){const patch=Object.fromEntries(changed.map(key=>[key,cleaned[key]]));if(!Object.keys(patch).length)patch.concept=cleaned.concept??'';if(await onSave(patch,title.trim(),reason))onClose();}
   function close(){if(dirty&&!window.confirm('Ungespeicherte Änderungen am Bogen verwerfen?'))return;onClose();}
   const text=(key:string,label:string,props:{wide?:boolean;area?:boolean}={})=><label className={props.wide?sheet.wide:undefined}><span>{label}</span>{props.area?<textarea aria-label={label} value={str(body[key])} maxLength={30000} onChange={e=>set(key,e.target.value)}/>:<input aria-label={label} value={str(body[key])} maxLength={300} onChange={e=>set(key,e.target.value)}/>}</label>;
   const virtues=map(body.virtues);
@@ -89,7 +93,8 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
         <div className={sheet.subBlock}><h4>Zusätzliche Fähigkeiten (freie Zeilen des Bogens)</h4><RowList label="Fähigkeit" value={body.customAbilities??[]} onChange={v=>set('customAbilities',v)} metric="value" high={high}/></div>
       </section>
       <section id="cvk-sheet-advantages" className={sheet.block}><h3>Vorteile</h3><div className={sheet.columns}>
-        <div><h4>Disziplinen</h4><RowList label="Disziplin" value={body.disciplines??[]} onChange={v=>set('disciplines',v)} metric="value" suggestions={allDisciplines} high={high}/></div>
+        <div><h4>Disziplinen</h4><RowList label="Disziplin" value={body.disciplines??[]} onChange={v=>set('disciplines',v)} metric="value" suggestions={allDisciplines} high={high}/>
+          {(rows(body.disciplines).some(r=>['Thaumaturgie','Nekromantie'].includes(r.name))||rows(body.paths).length>0)&&<div className={sheet.subBlock}><h4>Pfade</h4><RowList label="Pfad" value={body.paths??[]} onChange={v=>set('paths',v)} metric="value" high={high} primary/><p className={sheet.hint}>Der Primärpfad entspricht dem Disziplinwert. Sekundärpfade dürfen ihn nicht übersteigen.</p></div>}</div>
         <div><h4>Hintergründe</h4><RowList label="Hintergrund" value={body.backgrounds??[]} onChange={v=>set('backgrounds',v)} metric="value" suggestions={commonBackgrounds} high={high}/></div>
         <div><h4>Tugenden</h4>{virtuePairs.map(([classic,alt])=>{const name=alt in virtues&&!(classic in virtues)?alt:classic;return <div className={sheet.ratingRow} key={classic}><select aria-label={`Tugend ${classic} oder ${alt}`} value={name} onChange={e=>{const next={...virtues};const v=next[name]??1;delete next[name];next[e.target.value]=v;set('virtues',next);}}><option value={classic}>{classic}</option><option value={alt}>{alt}</option></select><DotInput label={name} value={Number(virtues[name]??1)} onChange={n=>setIn('virtues',name,n)}/></div>;})}
           <div className={sheet.ratingRow}><span>Mut</span><DotInput label="Mut" value={Number(virtues.Mut??1)} onChange={n=>setIn('virtues','Mut',n)}/></div>

@@ -10,7 +10,7 @@ export function characterFieldEqual(left:unknown,right:unknown):boolean {
   }
   return false;
 }
-export const characterSheetFields = ['player','chronicle','nature','demeanor','concept','clan','generation','sire','attributes','skills','customAbilities','disciplines','backgrounds','virtues','humanity','humanityPath','willpower','bloodMax','bloodPerRound','merits','flaws','clanWeakness','text','goals','playGuide','inventory','individualInfo'] as const;
+export const characterSheetFields = ['player','chronicle','nature','demeanor','concept','clan','generation','sire','attributes','skills','customAbilities','disciplines','paths','backgrounds','virtues','humanity','humanityPath','willpower','bloodMax','bloodPerRound','merits','flaws','clanWeakness','text','goals','playGuide','inventory','individualInfo'] as const;
 export function characterPermissions(body: CharacterBody): CharacterPermissions {
   const saved = body.characterPermissions as Partial<CharacterPermissions> | undefined;
   return { editing: saved?.editing === true, development: ['direct','approval','blocked'].includes(String(saved?.development)) ? saved!.development! : 'direct' };
@@ -31,7 +31,7 @@ export function validateExistingSheet(body: CharacterBody): string | null {
     if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length > 100) return `Ungültige Werte: ${key}.`;
     if (Object.entries(value).some(([name,n]) => !name.trim() || name.length > 120 || !Number.isInteger(n) || Number(n) < 0 || Number(n) > 10)) return 'Bogenwerte müssen ganze Zahlen zwischen 0 und 10 sein.';
   }
-  for (const key of ['disciplines','backgrounds','customAbilities','merits','flaws']) {
+  for (const key of ['disciplines','paths','backgrounds','customAbilities','merits','flaws']) {
     const value = body[key];
     if (value === undefined || typeof value === 'string') continue; // Historical free text remains intact.
     if (!Array.isArray(value) || value.length > 100 || value.some(row => !row || typeof row !== 'object' || typeof row.name !== 'string' || !row.name.trim() || row.name.length > 120 || !Number.isInteger(row[key === 'merits' || key === 'flaws' ? 'cost' : 'value']) || row[key === 'merits' || key === 'flaws' ? 'cost' : 'value'] < 0 || row[key === 'merits' || key === 'flaws' ? 'cost' : 'value'] > (key === 'merits' || key === 'flaws' ? 999 : 10))) return `Ungültige Einträge: ${key}.`;
