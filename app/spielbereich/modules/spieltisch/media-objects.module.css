@@ -1,0 +1,32 @@
+.polaroid{margin:0;width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:10px 10px 0;background:#f1ece0;box-shadow:6px 12px 24px #0007,0 1px 2px #0005;border-radius:2px;touch-action:none;cursor:grab;transition:rotate .2s ease}
+.polaroid:hover{rotate:0deg!important}
+.photo{flex:1;min-height:0;padding:0;border:0;background:#1b1d1c;cursor:zoom-in;overflow:hidden}
+.photo img{display:block;width:100%;height:100%;object-fit:cover;filter:sepia(.12) contrast(1.04)}
+.polaroid figcaption{min-height:38px;padding:4px 4px 10px;text-align:center;color:#2f2b25;font:italic 15px/1.3 Georgia,serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cassette{width:100%;height:100%;display:grid;grid-template-rows:auto auto auto auto 1fr;gap:6px;padding:12px 14px;border-radius:10px;background:linear-gradient(160deg,#3a3430,#1f1c1a 70%);border:2px solid #4c443c;box-shadow:inset 0 1px 0 #ffffff14,6px 12px 24px #0007;color:#eee3cf;touch-action:none;cursor:grab;overflow:hidden}
+.tape{display:flex;justify-content:space-around;align-items:center;height:46px;border-radius:6px;background:#d9cfb8;box-shadow:inset 0 0 0 6px #b8ab8f}
+.tape span{width:30px;height:30px;border-radius:50%;background:repeating-conic-gradient(#2c2622 0 30deg,#5b5047 30deg 60deg);border:4px solid #f3ead6}
+.tape[data-playing=true] span{animation:spin 2.4s linear infinite}
+.label{font:600 13px/1.3 Georgia,serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.progress{height:5px;border-radius:3px;background:#ffffff1f;overflow:hidden}.progress span{display:block;height:100%;background:#d6b36f}
+.time{font:11px ui-monospace,Consolas,monospace;color:#c9bca3}
+.keys{display:flex;align-items:center;gap:6px;cursor:default}
+.keys button{display:grid;place-items:center;width:36px;height:36px;border:1px solid #6a5d4f;border-radius:5px;background:#2b2622;color:#f0e3c7}
+.keys button svg{width:17px;height:17px}.keys button[aria-pressed=true]{background:#5a3b31}
+.keys input{flex:1;min-width:50px;accent-color:#d6b36f}
+.blocked{margin:0;font-size:11px;color:#f3c6a5}
+.screen{width:100%;height:100%;display:flex;flex-direction:column;gap:8px;padding:16px 16px 10px;border-radius:18px;background:linear-gradient(170deg,#4a4038,#2a241f);box-shadow:inset 0 2px 0 #ffffff12,8px 14px 28px #0008;touch-action:none;cursor:grab}
+.glass{flex:1;min-height:0;border-radius:22px/16px;overflow:hidden;background:#050806;box-shadow:inset 0 0 26px #000c,0 0 0 4px #1a1714;cursor:default}
+.glass video{display:block;width:100%;height:100%;object-fit:contain;filter:contrast(1.06) saturate(.85)}
+.panel{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#e6d8bd;font:12px Georgia,serif}
+.panel strong{font-weight:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel button{display:grid;place-items:center;width:34px;height:34px;border:1px solid #6a5d4f;border-radius:5px;background:#231f1b;color:#f0e3c7}.panel button svg{width:16px;height:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.tape[data-playing=true] span{animation:none}.polaroid{transition:none}}
+
+/* Scene backdrop crossfade: incoming place fades in slowly, the previous one fades out underneath. */
+.backdropLayer.backdropLayer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:backdropIn 1.2s ease-out both}
+.backdropLayer.backdropLayer[data-leaving=true]{animation:backdropOut 1.4s ease-in both}
+@keyframes backdropIn{from{opacity:0;transform:scale(1.05);filter:brightness(.6)}to{opacity:1;transform:scale(1);filter:brightness(1)}}
+@keyframes backdropOut{from{opacity:1}to{opacity:0;filter:brightness(.5)}}
+@media(prefers-reduced-motion:reduce){.backdropLayer.backdropLayer,.backdropLayer.backdropLayer[data-leaving=true]{animation-duration:.01s}}
