@@ -84,7 +84,7 @@
 .studio :global(.sheet-heading h3){font-size:22px;margin:0}.studio :global(.sheet-heading .eyebrow){font-size:10px;margin:0}
 .studio :global(.sheet-block){padding:18px 20px}.studio :global(.sheet-block-heading){margin-bottom:13px}
 .studio .tabs{margin:14px 0 12px}
-.liveVitals{position:sticky;top:144px;z-index:35;display:grid;grid-template-columns:1fr 1fr 1.35fr 1fr;gap:0;background:#0d1826f5;border:1px solid #c9a26655;border-radius:5px;margin:12px 0 0;backdrop-filter:blur(12px);box-shadow:0 8px 24px #0003}
+.liveVitals{position:sticky;top:8px;z-index:35;display:grid;grid-template-columns:1fr 1fr 1.35fr 1fr;gap:0;background:#0d1826f5;border:1px solid #c9a26655;border-radius:5px;margin:12px 0 0;backdrop-filter:blur(12px);box-shadow:0 8px 24px #0003}
 .liveMetric{min-width:0;padding:12px 16px;border-right:1px solid #c9a26625}
 .liveMetric>span{display:flex;align-items:center;gap:6px;font-size:12px;color:#dcc399;flex-wrap:wrap;margin-bottom:7px}
 .liveMetric small{font:11px system-ui;color:#9fabb9}.liveMetric>span small{margin-left:auto}
@@ -125,3 +125,50 @@
 .playerManagement h2{font:500 28px/1.2 Georgia,serif;margin:0 0 10px}.playerManagement h3{font:500 24px/1.25 Georgia,serif;margin:0 0 8px}.playerManagement input,.sheetEditor input,.sheetEditor textarea,.sheetEditor select{background:#091320;color:#ece5d6;border:1px solid #708091;border-radius:5px;padding:10px 12px;box-sizing:border-box}.playerManagement input:focus-visible,.sheetEditor input:focus-visible,.sheetEditor textarea:focus-visible,.sheetEditor select:focus-visible{outline:2px solid #e2c089;outline-offset:2px}.playerSearch{gap:10px;align-content:start}.playerSearch input{display:block;width:100%;height:44px}.sheetEditor input[type=checkbox]{width:auto}.managementTools .form input[type=checkbox]{width:18px;height:18px}.historyItem details{grid-column:1/-1;overflow-wrap:anywhere}.historyItem details p{font-size:13px;max-width:75ch;max-height:240px;overflow:auto}
 
 .managementXp{padding:16px 0;border-block:1px solid #c9a26635;font-size:14px;line-height:1.7;color:#c5ccd5}.managementXp p{margin:0}.managementXp strong{font-size:20px;color:#e2c089}
+/* 3.0: catch-up call to action for players with an explicit SL permission. */
+.catchUp{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 16px;border:1px solid #c9a26688;border-radius:6px;background:linear-gradient(160deg,#c9a26614,#0d1826 50%);margin-bottom:10px}
+.catchUp>div:first-child{display:grid;gap:4px;max-width:60ch}.catchUp strong{font:500 18px Georgia,serif;color:#f2eadc}.catchUp span{font-size:14px;color:#cfc8ba}
+.catchUpActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.catchUpActions span{font-size:13px;color:#9fd6ad}
+/* The runtime strip only sticks where the player header has the matching height;
+   in the SL inspection it stays in the flow instead of floating over the sheet. */
+.inspection .liveVitals{position:static}
+/* Identity always visible like the head of the paper sheet. */
+.identityGrid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 18px;margin:12px 0 0}
+.identityGrid dt{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#a9a397}.identityGrid dd{margin:0;font-size:14px;color:#efe9dc;overflow-wrap:anywhere}
+@media(max-width:700px){.identityGrid{grid-template-columns:1fr 1fr}}
+/* 3.0 Spielrunde: fixed two-column layout. Selecting a player only changes the
+   right panel; nothing below jumps or pushes the list away. */
+.headerActions{display:flex;gap:8px;flex-wrap:wrap}
+.rosterLayout{display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);gap:20px;margin-top:20px;align-items:start}
+.rosterColumn{display:grid;gap:12px;position:sticky;top:12px}
+.rosterColumn .playerSearch{margin:0;max-width:none}.rosterColumn .playerSearch span{font-size:12px;color:#a9a397}
+.rosterColumn .playerRoster{grid-template-columns:1fr;gap:6px;max-height:calc(100dvh - 260px);overflow:auto}
+.rosterColumn .playerRow{padding:12px 14px;gap:12px}
+.playerRow em{font-style:normal;font-size:12px;color:#a9a397;min-width:20px;text-align:center}
+.flag{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:999px;background:#d2ad6d;color:#1a1207;font-size:12px}
+.profilePanel{min-width:0;border:1px solid #c9a26633;border-radius:8px;background:#0d1826;padding:18px 20px;min-height:280px}
+.profileEmpty{display:grid;place-items:center;gap:8px;min-height:240px;text-align:center;color:#a9a397}
+.profileHead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #c9a26626}
+.profileHead p{margin:0}
+.profileSub{margin:16px 0 10px;font:600 12px system-ui!important;letter-spacing:.14em;text-transform:uppercase;color:#d2ad6d}
+.characterCards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.characterCards .playerCharacter{display:grid;gap:10px;padding:14px 16px;border:1px solid #c9a26633;border-radius:6px;background:#0a1420;align-items:stretch}
+.characterCards .playerCharacter[data-archived]{opacity:.65}
+.characterCards .playerCharacter header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.characterCards .playerCharacter header p{margin:2px 0 0;font-size:13px}
+.characterCards h4{font:500 19px Georgia,serif!important;color:#f2eadc!important}
+.characterCards dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0}
+.characterCards dt{font-size:11px;color:#a9a397;text-transform:uppercase;letter-spacing:.06em}.characterCards dd{margin:2px 0 0;font-size:13px;color:#efe9dc}
+.characterCards footer{display:flex;gap:8px;flex-wrap:wrap}
+.stateChip{flex:none;font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid #c9a26655;color:#d8cfbf;white-space:nowrap}
+.stateChip[data-state=confirmed]{border-color:#7fb08a;color:#a6dcb1}.stateChip[data-state=review]{border-color:#d2ad6d;color:#f0c58a;background:#d2ad6d1a}.stateChip[data-state=legacy]{border-style:dashed}
+.attention{margin:0!important;font-size:13px;color:#f0c58a!important}
+.dossierFrame{display:grid;gap:12px}
+.breadcrumb{display:flex;align-items:center;gap:10px;font-size:14px;color:#a9a397}
+@media(max-width:860px){.rosterLayout{grid-template-columns:1fr}.rosterColumn{position:static}.rosterColumn .playerRoster{max-height:none}}
+@media(max-width:480px){.characterCards dl{grid-template-columns:1fr 1fr}.headerActions .button{flex:1;justify-content:center}}
+/* Character picker: real cards instead of run-together text. */
+.studio :global(.character-picker){display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:10px;margin-top:16px}
+.studio :global(.character-picker .entry-card){display:grid;gap:4px;text-align:left;padding:14px 16px;border:1px solid #c9a26640;border-radius:6px;color:#efe9dc;cursor:pointer}
+.studio :global(.character-picker .entry-card strong){font:500 18px Georgia,serif}.studio :global(.character-picker .entry-card span){font-size:13px;color:#a9a397}
+.studio :global(.character-picker .entry-card:hover){border-color:#d2ad6d}

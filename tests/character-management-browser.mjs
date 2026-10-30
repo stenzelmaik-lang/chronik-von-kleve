@@ -1,56 +1,82 @@
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync} from 'node:fs';
+// Browser acceptance for Spieler- und Charakterverwaltung 3.0 against the isolated
+// synthetic instance (scripts/start-charakter-3.ps1). Never against production.
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
-const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8838';
-assert.equal(new URL(base).hostname,'127.0.0.1');assert.equal(new URL(base).port,'8838','Only this task’s isolated synthetic character fixture');
+const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8846';
+assert.equal(new URL(base).hostname,'127.0.0.1');assert.equal(new URL(base).port,'8846','Only the isolated synthetic character fixture');
 const output='.local-work/character-3/browser';mkdirSync(output,{recursive:true});
-const browser=await chromium.launch({headless:true}),checks=[],errors=[];let phase='setup',page;
+const browser=await chromium.launch({headless:true,...(process.env.CVK_PLAYWRIGHT_CHANNEL?{channel:process.env.CVK_PLAYWRIGHT_CHANNEL}:{})}),checks=[],errors=[];let phase='setup',page;
 const pass=label=>{checks.push(label);console.log('PASS '+label);};
+const fits=p=>p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1);
 try{
-  const contexts=await Promise.all(['command-gm','command-a','command-b'].map(async name=>{const c=await browser.newContext({viewport:{width:1440,height:1000}});const r=await c.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:name+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(r.status(),200);return c;}));
-  const [gm,a,b]=contexts;
+  const [gm,a,b]=await Promise.all(['command-gm','command-a','command-b'].map(async name=>{const c=await browser.newContext({viewport:{width:1440,height:1000}});const r=await c.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:name+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(r.status(),200);return c;}));
   const get=async(context,path)=>{const r=await context.request.get(base+path);assert.equal(r.status(),200,await r.text());return r.json();};
   const post=async(context,path,data)=>{const r=await context.request.post(base+path,{headers:{Origin:base},data});assert.equal(r.status(),200,await r.text());return r.json();};
   const title='SYNTHETISCH – Bestandsbogen '+Date.now();
   const {id}=await post(a,'/api/records',{kind:'charaktere',title,visibility:'private',body:{clan:'Toreador',attributes:{Geschick:6},skills:{'Historische Fähigkeit':6},disciplines:[{name:'Auspex',value:1}],virtues:{Überzeugung:3,Instinkt:3,Mut:4},humanity:6,willpower:5,bloodMax:11,bloodPerRound:1,concept:'Synthetischer Bestandscharakter'}});
-  page=await gm.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(base+'/sl/command-center?bereich=charaktere');await page.waitForLoadState('networkidle');
-  await page.getByRole('button',{name:/Demo Spieler A/}).click();
-  await page.getByRole('article').filter({hasText:title}).getByRole('button',{name:'Charakterakte öffnen'}).click();
-  await page.getByRole('heading',{name:title,exact:true}).waitFor();
+  page=await gm.newPage();page.setDefaultTimeout(15000);page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
+  const card=()=>page.getByRole('article').filter({hasText:title});
+  const openProfile=async()=>{await page.goto(base+'/sl/command-center?bereich=charaktere');await page.getByRole('button',{name:/Demo Spieler A/}).click();await card().waitFor();};
+
+  phase='profile and sheet';await openProfile();
+  assert.ok((await card().innerText()).includes('Noch nicht übernommen'));
+  await card().getByRole('button',{name:'Bogen ansehen'}).click();await page.getByRole('heading',{name:title,exact:true}).waitFor();
   assert.equal(await page.getByRole('group',{name:'Geschick',exact:true}).getByRole('button',{pressed:true}).count(),6);
-  assert.ok((await page.locator('main').innerText()).includes('Historische Fähigkeit'));assert.equal(await page.getByRole('group',{name:'Überzeugung',exact:true}).getByRole('button',{pressed:true}).count(),3);pass('SL opens a player profile and the same original dossier; six dots and noncatalog skills are visible');
-  await page.getByRole('button',{name:'SL-Werte ändern',exact:true}).click();
-  phase='cancel full edit';await page.getByRole('button',{name:'Bogen als SL bearbeiten',exact:true}).click();
-  let dialog=page.getByRole('dialog');await dialog.getByLabel('Charaktername',{exact:true}).fill(title+' UNSAVED');await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();
-  assert.equal((await get(gm,'/api/character-engine?id='+id)).title,title);pass('Cancel discards a complete SL sheet edit without a write');
-  phase='SL sheet edit';await page.getByRole('button',{name:'Bogen als SL bearbeiten',exact:true}).click();dialog=page.getByRole('dialog');
-  await dialog.getByLabel('Geschick',{exact:true}).fill('7');await dialog.getByLabel('Historische Fähigkeit',{exact:true}).fill('7');await dialog.getByLabel('Grund der Bogenänderung',{exact:true}).fill('Synthetic historical correction');
-  await dialog.getByRole('button',{name:'Bogen speichern & protokollieren',exact:true}).click();await dialog.waitFor({state:'detached'});
-  let engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.sheet.attributes.Geschick,7);assert.equal(engine.sheet.skills['Historische Fähigkeit'],7);pass('SL saves a seven-point existing attribute and saved custom skill with an audit reason');
-  phase='historical import';await page.getByText('Gespielten Charakter übernehmen',{exact:true}).click();await page.getByLabel('Historische verfügbare XP',{exact:true}).fill('20');await page.getByLabel('Quelle der Übernahme',{exact:true}).fill('Synthetic reference sheet');await page.getByLabel('Grund der Bestandsübernahme',{exact:true}).fill('Synthetic XP opening, totals unknown');await page.getByRole('button',{name:'Bestand übernehmen · zur Prüfung vormerken',exact:true}).click();
-  await page.getByRole('button',{name:'Charakter bestätigen',exact:true}).waitFor();engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.state,'review');assert.equal(engine.xp.received,null);
-  await page.getByRole('button',{name:'Charakter bestätigen',exact:true}).click();await page.getByRole('alertdialog').getByRole('button',{name:'Verbindlich bestätigen',exact:true}).click();await page.getByRole('button',{name:'XP vergeben',exact:true}).waitFor();
-  engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.state,'confirmed');pass('Historical XP opening stays distinct from confirmation; unknown totals are preserved');
-  phase='XP award';await page.getByRole('button',{name:'XP vergeben',exact:true}).click();await page.getByLabel('XP-Gutschrift',{exact:true}).fill('5');await page.getByLabel('Grund der XP-Gutschrift',{exact:true}).fill('Synthetic session reward');await page.getByRole('button',{name:'5 XP gutschreiben',exact:true}).click();
-  engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.xp.available,25);pass('SL awards XP through the existing character workflow');
-  phase='permissions';await page.getByText('Bearbeitungs- und Entwicklungsrechte',{exact:true}).click();await page.getByLabel('Spieler darf den Bogen nachtragen / bearbeiten').check();await page.getByLabel('Entwicklungsfreigabe',{exact:true}).selectOption('approval');await page.getByLabel('Grund der Rechteänderung',{exact:true}).fill('Synthetic explicit permission');await page.getByRole('button',{name:'Rechte speichern',exact:true}).click();
-  await a.request.patch(base+'/api/character-selection',{headers:{Origin:base},data:{characterId:id}});
-  const player=await a.newPage();player.setDefaultTimeout(15000);player.on('pageerror',e=>errors.push(e.message));await player.goto(base+'/spielbereich?bereich=charaktere');await player.getByRole('heading',{name:title,exact:true}).waitFor();
-  await player.getByRole('tab',{name:'Entwicklung',exact:true}).click();await player.getByRole('button',{name:'Freigegebenen Bogen bearbeiten',exact:true}).waitFor();
-  await player.getByRole('button',{name:'Freigegebenen Bogen bearbeiten',exact:true}).click();await player.getByRole('dialog').getByLabel('Konzept',{exact:true}).fill('Owner backfill');await player.getByRole('dialog').getByLabel('Grund der Bogenänderung',{exact:true}).fill('Synthetic granted edit');await player.getByRole('dialog').getByRole('button',{name:'Bogen speichern & protokollieren',exact:true}).click();await player.getByRole('dialog').waitFor({state:'detached'});
-  assert.equal((await get(a,'/api/character-engine?id='+id)).state,'review');pass('Authorized player edits their own sheet; it returns to SL review');
-  engine=await get(gm,'/api/character-engine?id='+id);await post(gm,'/api/character-engine',{id,version:engine.version,action:'confirm'});await player.reload();await player.getByRole('tab',{name:'Entwicklung',exact:true}).click();
-  phase='development request';await player.getByLabel('XP-Eigenschaftsgruppe',{exact:true}).selectOption('discipline');await player.getByLabel('XP-Eigenschaft',{exact:true}).selectOption({label:'Auspex · 1 → 2 · 5 XP'});await player.getByRole('button',{name:'Steigerung prüfen',exact:true}).click();await player.getByRole('button',{name:'Bei der SL beantragen',exact:true}).click();
-  engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.xp.available,25);assert.equal(engine.requests.filter(r=>r.status==='pending').length,1);pass('Player requests development without spending XP or self-approving');
-  phase='SL approval';await page.reload();await page.getByRole('button',{name:'Alle Charakterakten',exact:true}).click();await page.getByLabel('Charakter in SL-Inspektion',{exact:true}).selectOption({label:title});await page.getByRole('button',{name:'SL-Werte ändern',exact:true}).click();
-  const pending=(await get(gm,'/api/character-engine?id='+id)).requests.find(r=>r.status==='pending');await page.getByText('1 → 2 · 5 XP',{exact:true}).waitFor();await page.getByLabel('Entscheidungsbegründung '+pending.id,{exact:true}).fill('Synthetic approved development');await page.getByRole('button',{name:'Genehmigen',exact:true}).click();
-  engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.xp.available,20);assert.equal(engine.sheet.disciplines[0].value,2);pass('SL decision applies exactly one rule-priced purchase to the same character');
-  phase='counterbooking';await page.getByText('XP korrigieren / gegenbuchen',{exact:true}).click();const award=engine.ledger.find(r=>r.kind==='grant');await page.getByLabel('XP-Gegenbuchung',{exact:true}).selectOption(award.id);await page.getByLabel('Grund der XP-Korrektur',{exact:true}).fill('Synthetic award reversal');await page.getByRole('button',{name:'Korrektur protokollieren',exact:true}).click();assert.equal((await get(gm,'/api/character-engine?id='+id)).xp.available,15);pass('SL counterbooking retains prior ledger entries and the purchased rating');
-  phase='privacy and messaging';assert.equal((await b.request.get(base+'/api/character-engine?id='+id)).status(),404);assert.equal((await b.request.get(base+'/api/members?characters=1')).status(),200);
-  assert.equal(await player.getByRole('button',{name:'XP vergeben',exact:true}).count(),0);assert.equal(await player.getByText('Vertrauliche SL-Notiz',{exact:true}).count(),0);pass('Separate player B cannot access the dossier; player A has no SL management controls');
-  await page.getByRole('button',{name:'Zur Spielerübersicht',exact:true}).click();await page.getByRole('button',{name:/Demo Spieler A/}).click();await page.getByRole('button',{name:'Persönliche Nachricht',exact:true}).click();await page.getByRole('dialog').getByRole('heading',{name:'Briefe aus der Nacht'}).waitFor();assert.equal(await page.getByRole('dialog').getByLabel('Demo Spieler A',{exact:true}).isChecked(),true);await page.keyboard.press('Escape');pass('Profile opens the existing private composer with its recipient, without sending');
-  phase='responsive and keyboard';for(const [width,height] of [[1920,1080],[1440,900],[390,844]]){await page.setViewportSize({width,height});await page.screenshot({path:output+'/profiles-'+width+'.png',fullPage:true,animations:'disabled'});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.getByRole('button',{name:'Spielerübersicht aktualisieren',exact:true}).focus();await page.keyboard.press('Tab');assert.ok(await page.evaluate(()=>document.activeElement?.tagName==='BUTTON'));pass('Player profiles fit '+width+'px; keyboard remains operable');}
-  await page.setViewportSize({width:1440,height:1000});await page.getByRole('article').filter({hasText:title}).getByRole('button',{name:'Charakterakte öffnen'}).click();await page.getByRole('button',{name:'SL-Werte ändern',exact:true}).click();await page.getByRole('button',{name:'Bogen als SL bearbeiten',exact:true}).click();await page.screenshot({path:output+'/sl-editor.png',fullPage:false,animations:'disabled'});await page.setViewportSize({width:390,height:844});await page.screenshot({path:output+'/sl-editor-mobile.png',fullPage:false,animations:'disabled'});assert.ok(await page.getByRole('dialog').evaluate(el=>el.getBoundingClientRect().right<=innerWidth+1&&el.getBoundingClientRect().x>=-1&&el.getBoundingClientRect().bottom<=innerHeight+1&&el.getBoundingClientRect().y>=-1));await page.keyboard.press('Escape');pass('SL sheet editor fits desktop and mobile, and Escape closes it');
-  assert.deepEqual(errors,[]);writeFileSync(output+'/result.json',JSON.stringify({checks,errors,id,base},null,2));
-}catch(error){if(page){console.error('PHASE '+phase);console.error((await page.locator('body').innerText()).slice(-4500));await page.screenshot({path:output+'/failure.png',fullPage:true,animations:'disabled'}).catch(()=>{});}throw error;}finally{await browser.close();}
+  assert.equal(await page.getByRole('group',{name:'Auspex',exact:true}).getByRole('button',{pressed:true}).count(),1);
+  assert.equal(await page.getByRole('group',{name:'Überzeugung',exact:true}).getByRole('button',{pressed:true}).count(),3);
+  pass('SL opens the player profile and the dossier; values above five, disciplines and alternative virtues show as dots');
+
+  phase='editor cancel';await page.getByRole('tab',{name:'Verwaltung',exact:true}).click();
+  await page.getByRole('button',{name:'Bogen bearbeiten',exact:true}).click();let dialog=page.getByRole('dialog');
+  await dialog.getByLabel('Charaktername',{exact:true}).fill(title+' UNSAVED');await dialog.getByRole('button',{name:'Abbrechen',exact:true}).click();await dialog.waitFor({state:'detached'});
+  assert.equal((await get(gm,'/api/character-engine?id='+id)).title,title);pass('Cancel discards an SL sheet edit without a write');
+
+  phase='editor save';await page.getByRole('button',{name:'Bogen bearbeiten',exact:true}).click();dialog=page.getByRole('dialog');
+  await dialog.getByRole('button',{name:'Geschick auf 7 setzen'}).click();await dialog.getByRole('button',{name:'Historische Fähigkeit auf 7 setzen'}).click();
+  await dialog.getByRole('button',{name:'Hintergrund hinzufügen'}).click();await dialog.getByLabel('Hintergrund 1 Name',{exact:true}).fill('Status');
+  await dialog.getByLabel('Grund der Bogenänderung',{exact:true}).fill('Synthetische Übernahme vom Papierbogen');
+  await dialog.getByRole('button',{name:'Bogen speichern',exact:true}).click();await dialog.waitFor({state:'detached'});
+  let engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.sheet.attributes.Geschick,7);assert.equal(engine.sheet.skills['Historische Fähigkeit'],7);assert.deepEqual(engine.sheet.backgrounds,[{name:'Status',value:1}]);assert.equal(engine.deviation.lines.find(l=>l.key==='attributes:Körperliche Attribute').spent,6);
+  pass('SL sets values by clicking dots (including above five), adds a background and saves with a reason; no creation budget blocks it');
+
+  phase='permissions';await page.getByRole('switch',{name:'Spieler darf Bogen bearbeiten'}).click();await page.getByRole('radio',{name:'Steigerung beantragen'}).click();
+  await page.getByLabel('Grund der Rechteänderung',{exact:true}).fill('Nachtrag freigegeben');await page.getByRole('button',{name:'Speichern',exact:true}).click();
+  await page.getByRole('switch',{name:'Spieler darf Bogen bearbeiten',checked:true}).waitFor();
+  engine=await get(gm,'/api/character-engine?id='+id);assert.deepEqual([engine.permissions.editing,engine.permissions.development],[true,'approval']);pass('SL opens catch-up editing and sets development to requests for this character only');
+
+  phase='player catch-up';await a.request.patch(base+'/api/character-selection',{headers:{Origin:base},data:{characterId:id}});
+  const player=await a.newPage();player.setDefaultTimeout(15000);player.on('pageerror',e=>errors.push(e.message));player.on('dialog',d=>d.accept());
+  await player.goto(base+'/spielbereich?bereich=charaktere');await player.getByRole('heading',{name:title,exact:true}).waitFor();
+  await player.getByRole('tab',{name:'Entwicklung',exact:true}).click();await player.getByRole('button',{name:/Nachtrag fertig/}).waitFor();await player.getByRole('button',{name:'Bogen bearbeiten',exact:true}).last().click();
+  dialog=player.getByRole('dialog');await dialog.getByLabel('Konzept',{exact:true}).fill('Nachgetragenes Konzept');await dialog.getByLabel('Grund der Bogenänderung',{exact:true}).fill('Werte vom Papierbogen');
+  await dialog.getByRole('button',{name:'Bogen speichern',exact:true}).click();await dialog.waitFor({state:'detached'});
+  await player.getByRole('button',{name:/Nachtrag fertig/}).click();await player.getByText(/Nachtrag gemeldet/).waitFor();
+  engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.sheet.concept,'Nachgetragenes Konzept');assert.equal(typeof engine.catchUpReadyAt,'string');
+  const own=await get(a,'/api/character-engine?id='+id);assert.equal(own.historicalSource,null);assert.equal(own.gmNotes,undefined);assert.equal(await player.getByText('Verwaltung der Akte').count(),0);
+  pass('Player A catches up the sheet without budgets, reports it, and sees no SL data or controls');
+
+  phase='adoption';await openProfile();assert.ok((await card().innerText()).includes('Nachtrag abgeschlossen'));
+  await card().getByRole('button',{name:'Verwalten'}).click();await page.getByRole('heading',{name:'Bestehenden Charakter übernehmen'}).waitFor();
+  await page.getByLabel('Historische verfügbare XP',{exact:true}).fill('20');await page.getByLabel('Quelle der Übernahme',{exact:true}).fill('Synthetischer Papierbogen');await page.getByLabel('Grund der Bestandsübernahme',{exact:true}).fill('Synthetische Übernahme, Summen unbekannt');
+  await page.getByRole('button',{name:'Bestand übernehmen und freigeben',exact:true}).click();await page.getByText('Freigegeben',{exact:true}).waitFor();
+  engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.state,'confirmed');assert.equal(engine.permissions.editing,false);assert.equal(engine.xp.available,20);assert.equal(engine.xp.received,null);
+  pass('One SL step adopts the caught-up sheet, books 20 historical XP once, releases it for play and closes editing');
+
+  phase='xp';await page.getByLabel('XP-Gutschrift',{exact:true}).fill('5');await page.getByLabel('Grund der XP-Gutschrift',{exact:true}).fill('Synthetischer Spielabend');await page.getByRole('button',{name:'5 XP gutschreiben',exact:true}).click();
+  await page.getByText('Vergabe durch SL').waitFor();engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.xp.available,25);
+  await page.getByRole('tab',{name:'Korrigieren'}).click();await page.getByLabel('XP-Gegenbuchung',{exact:true}).selectOption({index:1});await page.getByLabel('Grund der XP-Korrektur',{exact:true}).fill('Doppelt gebucht');await page.getByRole('button',{name:'Korrektur buchen',exact:true}).click();
+  await page.locator('[aria-label="Erfahrungspunkte"]').getByText('20',{exact:true}).waitFor();engine=await get(gm,'/api/character-engine?id='+id);assert.equal(engine.xp.available,20);assert.equal(engine.ledger.length,3);
+  pass('SL awards XP and reverses that award once; the ledger keeps every booking');
+
+  phase='player b';const foreign=await b.request.get(base+'/api/character-engine?id='+id);assert.equal(foreign.status(),404);
+  const bPage=await b.newPage();bPage.on('pageerror',e=>errors.push(e.message));await bPage.goto(base+'/spielbereich?bereich=charaktere');await bPage.waitForTimeout(2500);assert.equal(await bPage.getByText(title).count(),0);
+  pass('Player B can neither read nor see the foreign dossier');
+
+  phase='responsive';for(const [width,height] of [[1440,900],[375,812]]){await page.setViewportSize({width,height});await openProfile();assert.ok(await fits(page));await page.screenshot({path:output+'/profiles-'+width+'.png',fullPage:false,animations:'disabled'});
+    await card().getByRole('button',{name:'Verwalten'}).click();await page.getByRole('button',{name:'Bogen bearbeiten',exact:true}).click();dialog=page.getByRole('dialog');
+    assert.ok(await dialog.evaluate(el=>{const r=el.getBoundingClientRect();return r.right<=innerWidth+1&&r.x>=-1&&r.bottom<=innerHeight+1&&r.y>=-1;}));
+    assert.ok(await dialog.getByRole('button',{name:'Bogen speichern',exact:true}).isVisible());await page.screenshot({path:output+'/editor-'+width+'.png',fullPage:false,animations:'disabled'});
+    await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});assert.ok(await fits(page));pass('Profiles, administration and editor fit '+width+'px; save stays visible; Escape closes');}
+  assert.deepEqual(errors,[]);writeFileSync(output+'/result.json',JSON.stringify({checks,errors,base},null,2));
+}catch(error){if(page){console.error('PHASE '+phase);await page.screenshot({path:output+'/failure.png',fullPage:true,animations:'disabled'}).catch(()=>{});}throw error;}finally{await browser.close();}

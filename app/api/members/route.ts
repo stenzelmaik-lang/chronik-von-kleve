@@ -9,7 +9,7 @@ import {
   HttpError,
 } from "@/server/access";
 import {commandCharacterSummary} from '@/domain/character-live';
-import {characterPermissions} from '@/domain/character-management';
+import {characterPermissions,characterXpSummary} from '@/domain/character-management';
 export const dynamic = "force-dynamic";
 
 type MemberRevision = {
@@ -35,7 +35,7 @@ export async function GET(req:Request) {
       const campaign=await db.prepare('SELECT name FROM campaigns WHERE id=?').bind(a.campaignId).first<{name:string}>();
       return json({campaign:{id:a.campaignId,name:campaign?.name||a.campaignId},players:members.map(member=>{
         let active:string|null=null;try{active=JSON.parse(member.preferences||'{}').activeCharacters?.[a.campaignId]??null;}catch{}
-        const owned=characters.filter(row=>row.owner_id===member.id).flatMap(row=>{const summary=commandCharacterSummary(row);if(!summary)return[];const body=JSON.parse(row.body);return [{...summary,archived:body.archived===true||body.lifecycleStatus==='ARCHIVED',permissions:characterPermissions(body)}];});
+        const owned=characters.filter(row=>row.owner_id===member.id).flatMap(row=>{const summary=commandCharacterSummary(row);if(!summary)return[];const body=JSON.parse(row.body);return [{...summary,archived:body.archived===true||body.lifecycleStatus==='ARCHIVED',permissions:characterPermissions(body),clan:typeof body.clan==='string'?body.clan:'',xpAvailable:characterXpSummary(body).available,catchUpReady:typeof body.catchUpReadyAt==='string'}];});
         return {id:member.id,name:member.name,status:member.status,role:member.role,activeCharacterId:owned.some(row=>row.id===active&&!row.archived)?active:null,characters:owned};
       })});
     }

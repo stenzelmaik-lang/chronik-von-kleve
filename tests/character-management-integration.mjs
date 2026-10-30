@@ -89,4 +89,26 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check(confirmed.s===200,'CHAR3 reviewed old origin is separately confirmed');
   const approved=await req('/api/character-engine','gm','POST',{id:oldId,version:confirmed.d.version,action:'xp_decision',requestId:'old-request',approved:true,reason:'Development after explicit origin review'});
   check(approved.s===200&&approved.d.xp.available===7&&approved.d.ledger.length===2,'CHAR3 verified older character can progress using its unchanged original ledger');
+
+  // 3.0 catch-up flow: SL opens editing, player fills in the paper sheet without
+  // budgets, reports it, SL adopts and releases in one step and closes editing.
+  const paper=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC CATCH-UP SHEET',visibility:'private',body:{clan:'Toreador',attributes:{Körperkraft:2},disciplines:[{name:'Auspex',value:1}]}});
+  check(paper.s===200,'CHAR3.1 synthetic paper character created'); const pid=paper.d.id;
+  const pget=async(who='gm')=>req('/api/character-engine?id='+pid,who);
+  const pcmd=async(who,action,extra={})=>{const view=await pget();return req('/api/character-engine',who,'POST',{id:pid,version:view.d.version,action,...extra});};
+  check((await pcmd('a','catch_up_done')).s===403,'CHAR3.1 catch-up report requires explicit SL permission');
+  check((await pcmd('gm','permissions',{editing:true,development:'approval',reason:'Catch-up from paper'})).s===200,'CHAR3.1 SL opens catch-up for one character');
+  const filled=await pcmd('a','edit_sheet',{patch:{attributes:{Körperkraft:5,Geschick:4,Widerstandsfähigkeit:4},virtues:{Gewissen:3,Selbstbeherrschung:3,Mut:4},humanity:6,willpower:5,bloodMax:11,bloodPerRound:1},reason:'Paper sheet values'});
+  check(filled.s===200&&filled.d.deviation.over>0,'CHAR3.1 player enters values above the creation frame; deviation is reported, not blocked');
+  check((await pcmd('b','catch_up_done')).s===404,'CHAR3.1 foreign player cannot report a catch-up');
+  const reported=await pcmd('a','catch_up_done',{note:'Fertig'});
+  check(reported.s===200&&typeof reported.d.catchUpReadyAt==='string'&&reported.d.xp.available===null,'CHAR3.1 catch-up report changes neither values nor XP');
+  check((await pget('a')).d.historicalSource===null,'CHAR3.1 player view never contains the SL source note');
+  const adopted=await pcmd('gm','historical_import',{operationId:randomUUID(),available:2,earned:null,spent:null,source:'Synthetic paper sheet',reason:'Adopt and release',confirm:true,closeEditing:true});
+  check(adopted.s===200&&adopted.d.state==='confirmed'&&adopted.d.permissions.editing===false&&adopted.d.permissions.development==='approval'&&adopted.d.catchUpReadyAt===null,'CHAR3.1 one SL step adopts, releases for play and closes editing; development choice kept');
+  check(adopted.d.xp.available===2&&adopted.d.xp.received===null&&adopted.d.ledger.length===1&&adopted.d.ledger[0].kind==='historical','CHAR3.1 historical opening booked once, unknown totals stay unknown');
+  check((await pcmd('gm','historical_import',{operationId:randomUUID(),available:2,earned:null,spent:null,source:'Again',reason:'Double opening',confirm:true})).s===409,'CHAR3.1 a second historical opening is refused');
+  check((await pcmd('a','edit_sheet',{patch:{humanity:7},reason:'After close'})).s===403,'CHAR3.1 closed editing is enforced on the server');
+  const snapshot=(await pget()).d;
+  check(snapshot.sheet.attributes.Körperkraft===5&&snapshot.historical===true,'CHAR3.1 adopted baseline contains the caught-up values');
 }

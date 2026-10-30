@@ -1,5 +1,7 @@
 # Spieler- und Charakterverwaltung 3.0 – lokale Abnahme
 
+> Überarbeitet und neu abgenommen: siehe `Spieler-und-Charakterverwaltung-3-Ueberarbeitung.md` (Bedienung, Abläufe, Port 8846). Die Abnahmeanleitung unten beschreibt den älteren Codex-Stand.
+
 Stand: 30.10.2026. Basis: `989f26ef752fa6b0ec329034896df46c0fda9207` (enthält den freigegebenen Produktionsstand `0b5c427`). Eigener Worktree `work/charakterverwaltung-3`, Branch `codex/charakterverwaltung-3`. Keine Veröffentlichung, keine Produktionsmigration und keine produktiven Schreibtests.
 
 ## Umfang und vorhandene Grundlage

@@ -499,3 +499,30 @@ export function applySlAdjustment(body: CharacterLike, adjustment: SlAdjustment,
   // No ledger, historical creation snapshot or temporary values are rewritten.
   return {ok:true,body:next,previous:selected.value};
 }
+
+export type CreationDeviationLine = { key: string; label: string; spent: number; limit: number; over: number };
+/**
+ * Informational comparison of a played sheet with the V20 creation frame
+ * (7/5/3, 13/9/5, 3, 5, 7). It never blocks a historical sheet and does not
+ * convert the surplus into XP: played development is documented, not priced.
+ */
+export function creationDeviation(body: CharacterLike): { lines: CreationDeviationLine[]; over: number } {
+  const attributes = body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as NumericMap : {};
+  const skills = body.skills && typeof body.skills === "object" && !Array.isArray(body.skills) ? body.skills as NumericMap : {};
+  const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
+  const groupLines = (entries: Array<[string, number]>, limits: readonly number[], prefix: string) => {
+    const sorted = [...entries].sort((left, right) => right[1] - left[1]);
+    return sorted.map(([label, spent], index) => ({ key: prefix + ":" + label, label, spent, limit: limits[index], over: Math.max(0, spent - limits[index]) }));
+  };
+  const attributeLabels: Record<string, string> = { physical: "Körperliche Attribute", social: "Gesellschaftliche Attribute", mental: "Geistige Attribute" };
+  const abilityLabels: Record<string, string> = { talents: "Talente", skills: "Fertigkeiten", knowledges: "Kenntnisse" };
+  const lines: CreationDeviationLine[] = [
+    ...groupLines(Object.entries(attributeGroups).map(([group, names]) => [attributeLabels[group], names.reduce((total, name) => total + Math.max(0, integer(attributes[name], attributeBase(body, name)) - attributeBase(body, name)), 0)]), creationBudgets.attributes, "attributes"),
+    ...groupLines(Object.entries(abilityGroups).map(([group, names]) => [abilityLabels[group], names.reduce((total, name) => total + Math.max(0, integer(skills[name])), 0)]), creationBudgets.abilities, "abilities"),
+  ];
+  const single = (key: string, label: string, spent: number, limit: number) => lines.push({ key, label, spent, limit, over: Math.max(0, spent - limit) });
+  single("disciplines", "Disziplinen", rows(body.disciplines).reduce((total, row) => total + numericValue(row.value), 0), creationBudgets.disciplines);
+  single("backgrounds", "Hintergründe", rows(body.backgrounds).reduce((total, row) => total + numericValue(row.value), 0), creationBudgets.backgrounds);
+  single("virtues", "Tugenden", Object.values(virtues).reduce<number>((total, value) => total + Math.max(0, integer(value, 1) - 1), 0), creationBudgets.virtues);
+  return { lines, over: lines.reduce((total, row) => total + row.over, 0) };
+}

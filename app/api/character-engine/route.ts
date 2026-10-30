@@ -3,7 +3,7 @@ import { validateCharacterDraft, applySlAdjustment, applyXpPurchase, type XpPurc
 import { availableClanForCampaign } from "@/domain/clan-config";
 import { actor, gmOnly, sameOrigin, input, json, failure, HttpError } from "@/server/access";
 import { editableCharacter, engineProjection, saveEngine, characterBody } from "@/server/character-engine-service";
-import { adoptHistoricalCharacter, appendCharacterXp, characterPermissions, characterSheetFields, validateExistingSheet,verifyHistoricalCharacter } from '@/domain/character-management';
+import { adoptHistoricalCharacter, appendCharacterXp, characterPermissions, characterSheet, characterSheetFields, validateExistingSheet,verifyHistoricalCharacter } from '@/domain/character-management';
 
 export const dynamic = "force-dynamic";
 const base = { id: z.string().trim().min(1).max(100), version: z.number().int().positive() };
@@ -15,13 +15,14 @@ const requestChange = z.object({ category: z.enum(["foreignDiscipline", "appeara
 const slAdjustment = z.object({category:z.enum(['attribute','ability','discipline','background','virtue','humanity','willpower']),target:z.string().trim().min(1).max(120),value:z.number().int().min(0).max(10)}).strict();
 const schema = z.discriminatedUnion("action", [
   z.object({...base,action:z.literal('edit_sheet'),patch:sheetPatch,title:z.string().trim().min(1).max(160).optional(),reason}).strict(),
-  z.object({...base,action:z.literal('historical_import'),verifyOnly:z.boolean().default(false),operationId,available:z.number().int().min(0).max(1000000),earned:z.number().int().min(0).max(1000000).nullable(),spent:z.number().int().min(0).max(1000000).nullable(),source:z.string().trim().min(3).max(1000),reason}).strict(),
+  z.object({...base,action:z.literal('historical_import'),verifyOnly:z.boolean().default(false),confirm:z.boolean().default(false),closeEditing:z.boolean().default(false),operationId,available:z.number().int().min(0).max(1000000),earned:z.number().int().min(0).max(1000000).nullable(),spent:z.number().int().min(0).max(1000000).nullable(),source:z.string().trim().min(3).max(1000),reason}).strict(),
   z.object({...base,action:z.literal('permissions'),editing:z.boolean(),development:z.enum(['direct','approval','blocked']),reason}).strict(),
   z.object({...base,action:z.literal('xp_correction'),operationId,amount:z.number().int().min(-1000000).max(1000000),referenceId:z.string().max(100).optional(),reason}).strict(),
   z.object({...base,action:z.literal('xp_request'),operationId,purchase}).strict(),
   z.object({...base,action:z.literal('xp_decision'),requestId:z.string().max(100),approved:z.boolean(),reason}).strict(),
   z.object({ ...base, action: z.literal("sl_adjustment"), adjustment:slAdjustment, reason }).strict(),
   z.object({ ...base, action: z.literal("review") }).strict(),
+  z.object({ ...base, action: z.literal("catch_up_done"), note: z.string().trim().max(2000).optional() }).strict(),
   z.object({ ...base, action: z.literal("confirm"), reason: reason.optional() }).strict(),
   z.object({ ...base, action: z.literal("return_draft"), reason }).strict(),
   z.object({ ...base, action: z.literal("xp_purchase"), purchase }).strict(),
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     if(body.archived===true||body.lifecycleStatus==='ARCHIVED')throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
     if (row.version !== d.version) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
     if (["historical_import","permissions","xp_correction","xp_decision","sl_adjustment", "confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes", "grant_exception"].includes(d.action)) gmOnly(a);
-    if (!body.engineVersion && !((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && !['historical_import','permissions','edit_sheet','sl_adjustment','gm_notes','correction'].includes(d.action)) throw new HttpError(409, "Bestehenden Bogen zuerst bewusst als Bestandscharakter übernehmen. Keine automatische Erschaffung.");
+    if (!body.engineVersion && !((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && !['historical_import','permissions','edit_sheet','sl_adjustment','gm_notes','correction','catch_up_done'].includes(d.action)) throw new HttpError(409, "Bestehenden Bogen zuerst bewusst als Bestandscharakter übernehmen. Keine automatische Erschaffung.");
     let next = { ...body }, visibility = row.visibility, notes = row.gm_body, auditReason = "", title = row.title;
     if (d.action === 'edit_sheet') {
       if (!a.gm && (row.owner_id !== a.id || !characterPermissions(body).editing)) throw new HttpError(403,'Für diese Bearbeitung fehlt die ausdrückliche SL-Freigabe.');
@@ -72,7 +73,12 @@ export async function POST(req: Request) {
       auditReason = d.reason + ' · '+(a.gm?'SL-Korrektur':'Freigegebene Spielerbearbeitung')+' · XP und ursprünglicher Bogen unverändert';
     } else if (d.action === 'historical_import') {
       try { next = d.verifyOnly?verifyHistoricalCharacter(body,d,a.id):adoptHistoricalCharacter(body,d,a.id); } catch (error) { throw new HttpError(409,(error as Error).message); }
-      auditReason = d.reason + (d.verifyOnly?' · Bestandsprüfung, bestehender XP-Verlauf unverändert':' · Bestandsübernahme, keine neue Belohnung')+' · Quelle: '+d.source+' · gesonderte SL-Bestätigung ausstehend';
+      // One deliberate SL step: adopt the completed sheet, confirm it for play and
+      // optionally close the player's catch-up permission. Still no budgets, no reward.
+      delete next.catchUpReadyAt;
+      if (d.confirm) { next.characterState = 'confirmed'; if (next.historicalXp && typeof next.historicalXp === 'object') next.historicalXp = {...next.historicalXp as Record<string, unknown>,confirmedAt:new Date().toISOString(),confirmedBy:a.id}; }
+      if (d.closeEditing) next.characterPermissions = {...characterPermissions(next),editing:false,decidedBy:a.id,decidedAt:new Date().toISOString()};
+      auditReason = d.reason + (d.verifyOnly?' · Bestandsprüfung, bestehender XP-Verlauf unverändert':' · Bestandsübernahme, keine neue Belohnung')+' · Quelle: '+d.source+(d.confirm?' · für den Spielbetrieb freigegeben':' · gesonderte SL-Bestätigung ausstehend')+(d.closeEditing?' · Spielerbearbeitung beendet':'');
     } else if (d.action === 'permissions') {
       next.characterPermissions = {editing:d.editing,development:d.development,decidedBy:a.id,decidedAt:new Date().toISOString()}; auditReason=d.reason;
     } else if (d.action === 'xp_correction') {
@@ -99,6 +105,11 @@ export async function POST(req: Request) {
       if(!result.ok)throw new HttpError(400,result.error);
       next=result.body;
       auditReason=d.reason+' · SL-Korrektur '+d.adjustment.target+': '+result.previous+' → '+d.adjustment.value+' · XP unverändert';
+    } else if (d.action === "catch_up_done") {
+      // The player reports a finished catch-up; values, XP and permissions stay unchanged.
+      if (row.owner_id !== a.id || !characterPermissions(body).editing || body.characterState === 'confirmed') throw new HttpError(403, "Nur der Besitzer meldet einen freigegebenen Nachtrag.");
+      next.catchUpReadyAt = new Date().toISOString(); if (visibility === "private") visibility = "sl";
+      auditReason = "Spieler meldet den Nachtrag als abgeschlossen" + (d.note ? ": " + d.note : ".");
     } else if (d.action === "review") {
       if (row.owner_id !== a.id || body.characterState !== "draft") throw new HttpError(403, "Nur der Besitzer reicht seinen Entwurf ein.");
       next.characterState = "review"; if (visibility === "private") visibility = "sl";
@@ -107,12 +118,15 @@ export async function POST(req: Request) {
       if (body.characterState !== "review") throw new HttpError(409, "Zuerst den vollständigen Entwurf zur Prüfung einreichen.");
       if (body.historicalSnapshot || body.creationSnapshot) { const error=validateExistingSheet(body); if(error)throw new HttpError(400,error); }
       else { const checked = validateCharacterDraft(a.campaignId, body); if (!checked.ok) throw new HttpError(400, checked.error); }
-      next.characterState = "confirmed";
+      next.characterState = "confirmed"; delete next.catchUpReadyAt;
+      // A catch-up after the adoption belongs to the verified baseline.
+      const historicalXp = body.historicalXp as Record<string, unknown> | undefined;
+      if (historicalXp && body.historicalSnapshot && !body.creationSnapshot && !historicalXp.confirmedAt) { next.historicalSnapshot = characterSheet(body); next.historicalXp = {...historicalXp,confirmedAt:new Date().toISOString(),confirmedBy:a.id}; }
       if (!body.historicalSnapshot && !body.creationSnapshot) next.creationSnapshot = Object.fromEntries(Object.entries(body).filter(([key]) => !["xpLedger", "characterRequests", "engineOperationId"].includes(key)));
       auditReason = d.reason || "Charakter durch die Spielleitung bestätigt.";
     } else if (d.action === "return_draft") {
       if (body.characterState !== "review") throw new HttpError(409, "Nur einen eingereichten Entwurf zurückgeben.");
-      next.characterState = "draft"; auditReason = d.reason;
+      next.characterState = "draft"; delete next.catchUpReadyAt; auditReason = d.reason;
     } else if (d.action === "xp_purchase") {
       if (!a.gm && characterPermissions(body).development !== 'direct') throw new HttpError(403,'Diese Entwicklung muss bei der Spielleitung beantragt werden oder ist gesperrt.');
       if (body.characterState !== "confirmed") throw new HttpError(409, "XP erst nach SL-Bestätigung ausgeben.");
@@ -158,7 +172,7 @@ export async function POST(req: Request) {
       auditReason = `${d.reason} · ${d.category}: ${d.target} · Wert ${d.rating}, Maximum ${d.maximum}`;
     } else if (d.action === "correction") { next[d.field] = d.value; auditReason = d.reason; }
     else if (d.action === "gm_notes") { notes = d.text; auditReason = "Vertrauliche SL-Notiz aktualisiert."; }
-    if (!((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && !["edit_sheet","historical_import","permissions","xp_correction","xp_request","xp_decision","sl_adjustment", "gm_notes", "correction", "request_change", "resolve_request"].includes(d.action)) {
+    if (!((d.action === "grant_exception" || d.action === "resolve_request") && d.asCorrection) && !["edit_sheet","historical_import","permissions","xp_correction","xp_request","xp_decision","sl_adjustment", "gm_notes", "correction", "request_change", "resolve_request", "catch_up_done"].includes(d.action)) {
       const validation = validateCharacterDraft(a.campaignId, next); if (!validation.ok) throw new HttpError(400, validation.error);
     } else if (d.action === "resolve_request" && d.approved && !d.asCorrection && ["draft", "review"].includes(String(body.characterState))) {
       const validation = validateCharacterDraft(a.campaignId, next); if (!validation.ok) throw new HttpError(400, validation.error);

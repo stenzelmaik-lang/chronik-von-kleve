@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {adoptHistoricalCharacter,verifyHistoricalCharacter,appendCharacterXp,characterPermissions,characterFieldEqual,characterSheet,characterXpSummary,validateExistingSheet} from '../domain/character-management.ts';
-import {applySlAdjustment,applyXpPurchase,validateCharacterDraft,withCreationBaseValues,xpBalance,xpCost} from '../domain/character-engine.ts';
+import {applySlAdjustment,applyXpPurchase,creationDeviation,validateCharacterDraft,withCreationBaseValues,xpBalance,xpCost} from '../domain/character-engine.ts';
 const original={clan:'Toreador',attributes:{Geschick:7},skills:{'Historische Fähigkeit':6},disciplines:[{name:'Auspex',value:3}],virtues:{Mut:4},willpower:5,willpowerTemporary:2,blood:3,bloodMax:11,unknownLegacy:{keep:true}};
 const input={available:9,earned:null,spent:null,source:'Synthetic original sheet',reason:'Deliberate historical takeover',operationId:'opening'};
 const adopt=()=>adoptHistoricalCharacter(structuredClone(original),input,'gm','2026-01-01');
@@ -33,3 +33,17 @@ test("Independently known historical totals remain known without inventing the m
 test('Review of an older confirmed origin preserves every existing XP entry without a second opening',()=>{const ledger=[{id:'old',kind:'grant',amount:20,reason:'old'},{id:'purchase',kind:'spend',amount:5,reason:'old spend'}];const body={...original,engineVersion:1,characterState:'confirmed',xpLedger:ledger};const verified=verifyHistoricalCharacter(body,{...input,available:15},'gm');assert.deepEqual(verified.xpLedger,ledger);assert.equal(verified.historicalXp,undefined);assert.equal(verified.characterState,'review');assert.equal(xpBalance(verified),15);assert.equal(characterXpSummary(verified).received,null);assert.throws(()=>verifyHistoricalCharacter(verified,{...input,available:15},'gm'));assert.throws(()=>verifyHistoricalCharacter(body,{...input,available:99},'gm'));});
 
 test("Existing alternative virtues remain correctable without changing the moral path",()=>{const body={virtues:{Überzeugung:3,Instinkt:2,Mut:4},humanity:5,humanityPath:"Synthetic path"};const result=applySlAdjustment(body,{category:"virtue",target:"Überzeugung",value:4},"gm","Historical correction");assert.equal(result.ok,true);assert.equal(result.body.virtues.Überzeugung,4);assert.equal(result.body.humanity,5);assert.equal(result.body.humanityPath,"Synthetic path");});
+
+test('Creation deviation compares a played sheet with the V20 frame without blocking or pricing it',()=>{
+  const played={clan:'Toreador',attributes:{Körperkraft:3,Geschick:5,Widerstandsfähigkeit:2,Charisma:3,Manipulation:3,Erscheinungsbild:3,Wahrnehmung:2,Intelligenz:3,Geistesschärfe:2},skills:{Sportlichkeit:3,Ausdruck:2,Ausflüchte:2,Aufmerksamkeit:1,Einschüchtern:1,Empathie:1,Führungsqualitäten:1,Magiegespür:1,Szenekenntnis:1},disciplines:[{name:'Auspex',value:1},{name:'Schnelligkeit',value:2},{name:'Präsenz',value:1}],virtues:{Gewissen:3,Selbstbeherrschung:3,Mut:4}};
+  const result=creationDeviation(played);
+  const line=key=>result.lines.find(row=>row.key===key);
+  assert.deepEqual([line('attributes:Körperliche Attribute').spent,line('attributes:Körperliche Attribute').limit],[7,7]);
+  assert.deepEqual([line('attributes:Gesellschaftliche Attribute').spent,line('attributes:Gesellschaftliche Attribute').over],[6,1]);
+  assert.equal(line('disciplines').over,1);
+  assert.equal(line('virtues').over,0);
+  assert.equal(result.over,result.lines.reduce((n,row)=>n+row.over,0));
+  assert.equal(creationDeviation({}).over,0);
+  const nosferatu=creationDeviation({clan:'Nosferatu',attributes:{Erscheinungsbild:0}});
+  assert.equal(nosferatu.lines.find(row=>row.key==='attributes:Gesellschaftliche Attribute').spent,0);
+});

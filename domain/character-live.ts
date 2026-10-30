@@ -5,7 +5,7 @@ export type CharacterChangeRequest = { id:string; category:string; target:string
 export type CharacterEngineView = {
   adjustmentTargets?:Array<{category:string;target:string;value:number;minimum:number;maximum:number}>;
   id:string; ownerId:string; version:number; state:string; enrolled:boolean; owner:boolean; canManage:boolean; canSubmit:boolean;
-  title:string;sheet:Record<string,unknown>;historical:boolean;canAdopt:boolean;needsBaseline:boolean;permissions:CharacterPermissions;
+  title:string;sheet:Record<string,unknown>;deviation:{lines:Array<{key:string;label:string;spent:number;limit:number;over:number}>;over:number};historicalSource:string|null;catchUpReadyAt:string|null;historical:boolean;canAdopt:boolean;needsBaseline:boolean;permissions:CharacterPermissions;
   readiness:{ ready:boolean; reason:string; missing:Array<{label:string;remaining:number;step:string}> };
   budget:CreationBudgetSummary; xp:ReturnType<typeof characterXpSummary>; ledger:XpLedgerEntry[];
   targets:Array<XpPurchase & {label:string;cost:number;available:boolean;hint:string}>;
