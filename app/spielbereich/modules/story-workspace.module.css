@@ -461,3 +461,21 @@
 .selectedPeople>li>img { width:30px; height:44px; object-fit:contain; }
 .selectedPeople>li>button { display:inline-flex; justify-content:center; align-items:center; width:36px; min-height:36px; padding:6px; background:transparent; border:0; }
 .selectedPeople>li>span { font-size:14px; }
+
+/* Spieltisch 2.0 media preparation: uploads, scene backdrop and material thumbnails. */
+.uploadField{display:grid;gap:4px;justify-items:start}
+.uploadButton{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px dashed #b9985b88;border-radius:6px;color:#eee6d6;cursor:pointer}
+.uploadButton[aria-disabled=true]{opacity:.6;cursor:wait}
+.uploadButton:focus-within,.uploadField:focus-within .uploadButton{outline:2px solid #d6b36f;outline-offset:3px}
+.uploadInput{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.uploadField small{color:#b4b9b0;font-size:12px}
+.backdropPicker{display:grid;gap:12px;margin-bottom:22px;padding:16px;border:1px solid #b9985b44;border-radius:8px;background:#0e1a24}
+.backdropPicker h3{margin:0;font-size:20px}.backdropPicker header p{margin:6px 0 0;color:#c3ced4;font-size:14px}
+.backdropPicker>img{width:100%;max-width:640px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;border:1px solid #b9985b55}
+.backdropPicker>small{color:#b4b9b0}
+.backdropActions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px}
+.backdropActions>button{min-height:44px}
+.backdropMissing{display:flex;align-items:center;gap:8px;color:#e9b3a6}
+.materialThumb{flex:0 0 auto;display:grid;place-items:center;width:56px;height:56px;object-fit:cover;border-radius:5px;border:1px solid #b9985b44;background:#0b1620;color:#d6b36f}
+.materialActions>button{display:inline-flex;align-items:center;gap:7px}
+audio.materialPreview{width:100%;max-width:420px}

@@ -21,6 +21,7 @@
     "demo:command-center": "node --experimental-strip-types scripts/test-local.mjs --command-center-2",
     "demo:spieltisch": "node --experimental-strip-types scripts/test-local.mjs --spieltisch-2",
     "test:spieltisch-regie": "node --experimental-strip-types tests/spieltisch-regie-integration.mjs",
+    "test:spieltisch-medien": "node --experimental-strip-types --test tests/live-stage.test.mjs && node --experimental-strip-types tests/spieltisch-medien-integration.mjs",
     "test:integration": "npm run build && npm run test:integration:run",
     "typecheck": "tsc --noEmit --incremental false",
     "work:story": "node --experimental-strip-types scripts/test-local.mjs --story-workspace",
