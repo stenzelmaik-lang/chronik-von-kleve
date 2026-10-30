@@ -48,19 +48,20 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
  const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:evaluateNormalV20(e.roll!.dice,e.roll!.target),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
- const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string}[]=[];
+ const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string;mime?:string}[]=[];
  let scenes:{id:string;title:string;image:string;version:number}[]=[],moreScenes:typeof scenes=[];
  if(a.gm&&includeCatalog){
   const [entities,files,availableScenes,preparation]=await Promise.all([loadEntities(database(),a.campaignId),database().prepare('SELECT id,name,mime FROM files WHERE campaign_id=? AND (owner_id=? OR visibility IN (\'group\',\'sl\')) ORDER BY name LIMIT 300').bind(a.campaignId,a.id).all<{id:string;name:string;mime:string}>(),listScenes(database(),a),preparedSession(database(),a,sessionId).catch(()=>null)]);
   for(const e of entities.filter(e=>['NPC','HANDOUT'].includes(e.type)))catalog.push({id:e.id,title:e.title,kind:e.type==='NPC'?'npc':'document',sourceKind:'entity',...(e.type==='NPC'?{image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(e.id)}:{})});
-  for(const f of files.results)if(/^(image\/|application\/pdf|audio\/|video\/)/.test(f.mime))catalog.push({id:f.id,title:f.name,kind:'document',sourceKind:'file'});
+  for(const f of files.results)if(/^(image\/|application\/pdf|audio\/|video\/)/.test(f.mime))catalog.push({id:f.id,title:f.name,kind:'document',sourceKind:'file',mime:f.mime});
   const split=liveSceneChoice(sessionId,preparation?.view.document.sceneIds||[],availableScenes),card=(s:SceneSummary)=>({id:s.id,title:s.title,image:'',version:s.version});
   scenes=split.session.map(card);moreScenes=split.more.map(card);
  }
  const version=stage.version,diceRevision=rolls.length+rolls.reduce((n,e)=>n+(e.revision||1),0);
  return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,
   // The backdrop belongs to the whole round; its file is only served through the stage asset route.
-  backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12)+':'+stage.version}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
+  // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
+  backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,
   crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents}};

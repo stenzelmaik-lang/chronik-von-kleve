@@ -42,6 +42,13 @@ Zustände: *vorbereitet* (Szenendokument) → *privat in der Regie* (nur SL-Endp
 - Drag-and-drop im Editor nicht umgesetzt (Reihenfolge per Pfeilen wie bisher).
 - Persönliche Abnahme mit Originalmaterial und Review durch Codex stehen aus.
 
+## Nachbesserung nach erster Live-Sichtung
+
+- **Szene starten:** Hauptaktion in „Szenen des Abends“. Bringt die Szene auf den Tisch (Szenenbild automatisch für alle, Material der Vorszene abgeräumt) und öffnet ihre Regie. „Erzählung zeigen“ startet eine noch nicht laufende Szene ebenfalls automatisch. „Nur privat lesen“ öffnet die Regie ohne Tischänderung.
+- **Hintergrund live austauschbar:** Regie › Material zeigt den aktuellen Hintergrund, die Bilder der Szene und auf Wunsch alle Kampagnenbilder mit Suche; jederzeit wechseln oder „Standardbühne“. Die vorbereitete Szene bleibt unverändert. Kurzweg „Hintergrund wechseln“ in der Statuszeile.
+- **Animierter Wechsel:** weiche Überblendung (neues Bild blendet mit leichtem Zoom ein, altes aus); bei reduzierter Bewegung sofortiger Wechsel.
+- **Fehler behoben:** Der Bildschlüssel enthielt die Bühnenversion, dadurch wurde der Hintergrund bei jeder Objektbewegung neu geladen. Jetzt hängt er nur am Bild.
+
 ## Live-Release 30.10.2026
 
 - Auf ausdrückliche Anweisung des Projektinhabers veröffentlicht, **vor** Codex-Review und vor Merge von PR #44 (Merge in dieser Sitzung blockiert). Veröffentlichter Stand: Branch-Commit `e865f91` (Code identisch zu `main` + PR #44; `main` enthält zusätzlich nur Doku-Commits).

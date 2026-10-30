@@ -23,3 +23,10 @@
 .panel button{display:grid;place-items:center;width:34px;height:34px;border:1px solid #6a5d4f;border-radius:5px;background:#231f1b;color:#f0e3c7}.panel button svg{width:16px;height:16px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.tape[data-playing=true] span{animation:none}.polaroid{transition:none}}
+
+/* Scene backdrop crossfade: incoming place fades in slowly, the previous one fades out underneath. */
+.backdropLayer.backdropLayer{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:backdropIn 1.2s ease-out both}
+.backdropLayer.backdropLayer[data-leaving=true]{animation:backdropOut 1.4s ease-in both}
+@keyframes backdropIn{from{opacity:0;transform:scale(1.05);filter:brightness(.6)}to{opacity:1;transform:scale(1);filter:brightness(1)}}
+@keyframes backdropOut{from{opacity:1}to{opacity:0;filter:brightness(.5)}}
+@media(prefers-reduced-motion:reduce){.backdropLayer.backdropLayer,.backdropLayer.backdropLayer[data-leaving=true]{animation-duration:.01s}}

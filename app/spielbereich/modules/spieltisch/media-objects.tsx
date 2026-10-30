@@ -43,6 +43,19 @@ export function CassettePlayer({title,src,drag}:{title:string;src:string;drag:Dr
  </div>;
 }
 
+type Layer={id:string;key:string;src:string;title:string;leaving:boolean};
+/** Scene backdrop with a slow crossfade: the new place fades in over the old one, which then fades out. */
+export function StageBackdrop({image,className}:{image:{key:string;src:string;title:string}|null;className:string}){
+ const [layers,setLayers]=useState<Layer[]>(()=>image?[{...image,id:crypto.randomUUID(),leaving:false}]:[]);
+ const current=image?.key||'';
+ useEffect(()=>{queueMicrotask(()=>setLayers(old=>{
+  if((old.findLast(l=>!l.leaving)?.key||'')===current)return old;
+  return [...old.map(l=>({...l,leaving:true})),...(image?[{...image,id:crypto.randomUUID(),leaving:false}]:[])];
+ }));},[current,image]);
+ useEffect(()=>{if(!layers.some(l=>l.leaving))return;const t=window.setTimeout(()=>setLayers(old=>old.filter(l=>!l.leaving)),1500);return()=>window.clearTimeout(t);},[layers]);
+ return <>{layers.map(l=><img key={l.id} className={className} data-leaving={l.leaving} src={l.src} alt={l.leaving?'':'Schauplatz: '+l.title} decoding="async"/>)}</>;
+}
+
 /** Old CRT-style screen around the native video player. */
 export function RetroScreen({title,src,onEnlarge,drag}:{title:string;src:string;onEnlarge:()=>void;drag:Drag}){
  const video=useRef<HTMLVideoElement>(null);

@@ -90,3 +90,6 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .sceneHeader small{font:10px Arial,sans-serif;letter-spacing:.08em;color:#c5a46a}
 .sceneHeader button{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:7px 10px;border:1px solid var(--line);border-radius:5px;background:#16282b;color:#eee8dc;font-size:12px}
 @media(max-width:700px){.resizableDrawer{width:auto;min-width:0;max-width:none;left:8px;right:8px}.resizeHandle{display:none}}
+
+.startScene{width:100%;margin:10px 0 6px;background:#d6b36f!important;color:#141a1b!important;border-color:#d6b36f!important;font-weight:600}
+.sceneChoice[data-running=true]{border-left:3px solid #8fc3a0;padding-left:11px}

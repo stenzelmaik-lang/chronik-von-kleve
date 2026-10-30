@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Session-authorized media must bypass public image proxies. */
-import {useCallback,useEffect,useId,useRef,useState,type PointerEvent as PE,type ReactNode,type CSSProperties} from 'react';
+import {useCallback,useEffect,useId,useMemo,useRef,useState,type PointerEvent as PE,type ReactNode,type CSSProperties} from 'react';
 import {createPortal} from 'react-dom';
 import {Clapperboard,BookOpen,Users,Files,PenLine,StickyNote as NoteIcon,Dices,X,Plus,Minus,Eye,EyeOff,ArrowLeft,ArrowRight,ArrowUp,ArrowDown,GripVertical,Expand,Maximize2,Info} from 'lucide-react';
 import type {Actor} from '@/domain/types';
@@ -19,15 +19,19 @@ import {useSharedDice} from './use-shared-dice';
 import type {Snapshot,StageObject,Rect,TestDocument} from './types';
 import {Regie,regieTabs,type RegieTab} from './regie';
 import {useDrawerWidth} from './use-drawer-width';
-import {Polaroid,CassettePlayer,RetroScreen} from './media-objects';
+import {Polaroid,CassettePlayer,RetroScreen,StageBackdrop} from './media-objects';
+import mediaStyles from './media-objects.module.css';
 import styles from './stage.module.css';
 
 type Panel='scenes'|'regie'|'npcs'|'documents'|'sticky'|'dice'|'context'|'help';
 const titles:Record<Panel,string>={scenes:'Szenen des Abends',regie:'Regie',npcs:'Figuren',documents:'Dokumente',sticky:'Notizzettel',dice:'Würfel',context:'Kontext',help:'Bedienhilfe'};
 function Icon({label,active=false,onClick,children}:{label:string;active?:boolean;onClick:()=>void;children:ReactNode}){return <span className={styles.iconWrap}><button className={styles.iconButton} aria-label={label} aria-pressed={active} onClick={onClick}>{children}</button><span className={styles.tooltip} role="tooltip">{label}</span></span>;}
 
-function SceneChoice({index,title,active,shared,busy,onRegie,onShow}:{index?:number;title:string;active:boolean;shared:boolean;busy:boolean;onRegie:()=>void;onShow:()=>void}){
- return <section className={styles.sceneChoice} data-active={active}><div><h2>{index?<span>{String(index).padStart(2,'0')}</span>:null}{title}</h2>{(active||shared)&&<p className={styles.hint}>{active?'In deiner Regie':''}{active&&shared?' · ':''}{shared?'Erzählung freigegeben':''}</p>}<div><button onClick={onRegie}><BookOpen/> Regie öffnen</button><button disabled={busy} onClick={onShow}><Eye/> Erzählung zeigen</button></div></div></section>;
+function SceneChoice({index,title,active,running,shared,busy,onStart,onRegie,onShow}:{index?:number;title:string;active:boolean;running:boolean;shared:boolean;busy:boolean;onStart:()=>void;onRegie:()=>void;onShow:()=>void}){
+ const state=[running?'Läuft auf dem Tisch':'',active&&!running?'In deiner Regie':'',shared?'Erzählung freigegeben':''].filter(Boolean).join(' · ');
+ return <section className={styles.sceneChoice} data-active={active} data-running={running}><div><h2>{index?<span>{String(index).padStart(2,'0')}</span>:null}{title}</h2>{state&&<p className={styles.hint}>{state}</p>}
+  {!running&&<button className={styles.startScene} disabled={busy} onClick={onStart}><Clapperboard/> Szene starten</button>}
+  <div><button onClick={onRegie}><BookOpen/> {running?'Regie öffnen':'Nur privat lesen'}</button><button disabled={busy} onClick={onShow}><Eye/> Erzählung zeigen</button></div></div></section>;
 }
 type StageProps={a:Actor;sessionId:string;runId:string;onExit:()=>void;onEnd:()=>Promise<void>};
 /** The stage owns its viewport; underlying application navigation stays inert until exit. */
@@ -94,6 +98,18 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
   if(current?.media&&!current.media.hidden)await command({action:'hideMedia',eventId:current.media.id});
   if(current?.sceneInfo&&current.sceneInfo.id!==id&&current.sceneEventId)await command({action:'hideScene',eventId:current.sceneEventId});
  }
+ /** Starting a scene always brings it to the table first, so its backdrop appears automatically. */
+ async function startScene(id:string,openRegie=true){
+  if(latest.current?.stageSceneId!==id)await activateScene(id);
+  if(openRegie){setRegie({sceneId:id,tab:'narration'});setPanel('regie');}
+ }
+ async function showNarration(id:string){
+  if(latest.current?.stageSceneId!==id)await activateScene(id);
+  await command({action:'scene',id});
+ }
+ const backdropKey=snapshot?.backdrop?.key||'',backdropTitle=snapshot?.backdrop?.title||'';
+ const backdropImage=useMemo(()=>backdropKey?{key:backdropKey,title:backdropTitle,src:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&objectId=backdrop&k='+encodeURIComponent(backdropKey)}:null,[backdropKey,backdropTitle,sessionId]);
+ const images=useMemo(()=>(snapshot?.catalog||[]).filter(o=>o.sourceKind==='file'&&o.mime?.startsWith('image/')).map(o=>({id:o.id,title:o.title})),[snapshot?.catalog]);
  // Without an explicit choice the Regie follows the released scene, then the evening's first scene.
  const regieScene=regie.sceneId||snapshot?.sceneInfo?.id||snapshot?.scenes[0]?.id||'';
  const choice=snapshot?.objects.find(o=>o.id===selected),chosen=choice&&(localRects[choice.id]||choice.rect);
@@ -107,7 +123,7 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
   <nav inert={personalMenu} className={styles.rail} aria-label="Spieltisch-Werkzeuge">{a.gm&&<><Icon label="Szenen des Abends" active={panel==='scenes'} onClick={()=>openPanel('scenes')}><Clapperboard/></Icon><Icon label="Regie (privat)" active={panel==='regie'} onClick={()=>openPanel('regie')}><BookOpen/></Icon><Icon label="Figuren" active={panel==='npcs'} onClick={()=>openPanel('npcs')}><Users/></Icon></>}<Icon label="Dokumente" active={panel==='documents'} onClick={()=>openPanel('documents')}><Files/></Icon><span className={styles.railDivider}/><Icon label={annotation?'Zeichenmodus schließen':'Gemeinsam zeichnen'} active={annotation} onClick={()=>{setAnnotation(v=>!v);setPanel(null);setSelected('');}}><PenLine/></Icon><Icon label="Notizzettel" active={panel==='sticky'} onClick={()=>openPanel('sticky')}><NoteIcon/></Icon><span className={styles.railSpacer}/><Icon label="Bedienhilfe" onClick={()=>openPanel('help')}><Info/></Icon></nav>
   <main inert={personalMenu} ref={stage} className={styles.stage} aria-label="Dynamische Spielbühne" onPointerDown={e=>{if(e.target===e.currentTarget)setSelected('');}}>
    {/* The scene backdrop is the only full-stage image. Released photos stay table objects or personal views. */}
-   <div className={styles.background} data-layer="background"/><div className={styles.scene} data-layer="scene">{snapshot?.backdrop&&<img key={snapshot.backdrop.key} alt={'Schauplatz: '+snapshot.backdrop.title} src={asset('backdrop')+'&k='+encodeURIComponent(snapshot.backdrop.key)} decoding="async"/>}<div className={styles.scrim}/></div>
+   <div className={styles.background} data-layer="background"/><div className={styles.scene} data-layer="scene"><StageBackdrop className={mediaStyles.backdropLayer} image={backdropImage}/><div className={styles.scrim}/></div>
    {/* Only released narration lives on the shared stage. Private reading happens in the Regie drawer. */}
    {snapshot?.sceneInfo&&<section className={styles.sceneInfo} aria-label="Freigegebene Erzählung"><header className={styles.sceneHeader}><small>{a.gm?'FÜR DIE ZIELGRUPPE SICHTBAR':'FÜR DICH IM SPIEL'}</small>{a.gm?<button disabled={busy} onClick={()=>void command({action:'hideScene',eventId:snapshot.sceneEventId})}><EyeOff size={15}/> Für alle entfernen</button>:<button aria-expanded={collapsedScene!==snapshot.sceneEventId} onClick={()=>setCollapsedScene(collapsedScene===snapshot.sceneEventId?'':snapshot.sceneEventId||'')}><Eye size={15}/>{collapsedScene===snapshot.sceneEventId?'Erzählung nur für mich aufklappen':'Erzählung nur für mich einklappen'}</button>}</header><h2>{snapshot.sceneInfo.title}</h2>{collapsedScene!==snapshot.sceneEventId&&<RichTextView value={snapshot.sceneInfo.narration||''} readable flowing/>}</section>}
    {!snapshot?.sceneInfo&&!snapshot?.media&&!snapshot?.backdrop&&!snapshot?.objects.length&&<div className={styles.idle} aria-hidden="true"><small>{snapshot?.title||'Spielabend'}</small><p>{a.gm?'Die Bühne ist leer. Öffne links „Szenen des Abends“ und starte die Regie.':'Die Spielleitung bereitet die nächste Szene vor …'}</p></div>}
@@ -125,15 +141,15 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
     {panel==='scenes'&&<>
      {snapshot?.sceneEventId&&<button disabled={busy} onClick={()=>void command({action:'hideScene',eventId:snapshot.sceneEventId})}><EyeOff size={15}/> Erzählung für alle entfernen</button>}
      {!snapshot?.scenes.length&&<p className={styles.hint}>Diesem Spielabend sind noch keine Szenen zugeordnet. Zuordnen in der SL-Vorbereitung – oder unten frei improvisieren.</p>}
-     {snapshot?.scenes.map((s,i)=><SceneChoice key={s.id} index={i+1} title={s.title} active={regieScene===s.id} shared={snapshot.sceneInfo?.id===s.id} busy={busy||recipients?.length===0} onRegie={()=>{setRegie({sceneId:s.id,tab:'narration'});setPanel('regie');}} onShow={()=>void command({action:'scene',id:s.id})}/>)}
-     {!!snapshot?.moreScenes?.length&&<details className={styles.moreScenes}><summary>Weitere Szenen der Kampagne ({snapshot.moreScenes.length}) · Improvisation</summary><p className={styles.hint}>Nicht diesem Spielabend zugeordnet.</p><input aria-label="Weitere Szenen durchsuchen" placeholder="Szene suchen …" value={sceneSearch} onChange={e=>setSceneSearch(e.target.value)}/>{snapshot.moreScenes.filter(s=>s.title.toLowerCase().includes(sceneSearch.toLowerCase())).map(s=><SceneChoice key={s.id} title={s.title} active={regieScene===s.id} shared={snapshot.sceneInfo?.id===s.id} busy={busy||recipients?.length===0} onRegie={()=>{setRegie({sceneId:s.id,tab:'narration'});setPanel('regie');}} onShow={()=>void command({action:'scene',id:s.id})}/>)}</details>}
+     {snapshot?.scenes.map((s,i)=><SceneChoice key={s.id} index={i+1} title={s.title} active={regieScene===s.id} running={snapshot.stageSceneId===s.id} shared={snapshot.sceneInfo?.id===s.id} busy={busy||recipients?.length===0} onStart={()=>void startScene(s.id)} onRegie={()=>{setRegie({sceneId:s.id,tab:'narration'});setPanel('regie');}} onShow={()=>void showNarration(s.id)}/>)}
+     {!!snapshot?.moreScenes?.length&&<details className={styles.moreScenes}><summary>Weitere Szenen der Kampagne ({snapshot.moreScenes.length}) · Improvisation</summary><p className={styles.hint}>Nicht diesem Spielabend zugeordnet.</p><input aria-label="Weitere Szenen durchsuchen" placeholder="Szene suchen …" value={sceneSearch} onChange={e=>setSceneSearch(e.target.value)}/>{snapshot.moreScenes.filter(s=>s.title.toLowerCase().includes(sceneSearch.toLowerCase())).map(s=><SceneChoice key={s.id} title={s.title} active={regieScene===s.id} running={snapshot.stageSceneId===s.id} shared={snapshot.sceneInfo?.id===s.id} busy={busy||recipients?.length===0} onStart={()=>void startScene(s.id)} onRegie={()=>{setRegie({sceneId:s.id,tab:'narration'});setPanel('regie');}} onShow={()=>void showNarration(s.id)}/>)}</details>}
     </>}
-    {panel==='regie'&&a.gm&&<Regie sessionId={sessionId} sceneId={regieScene} tab={regie.tab} onTab={tab=>setRegie({sceneId:regieScene,tab})} busy={busy||recipients?.length===0} audience={recipients===null?'ganze Runde':recipients.length+' Teilnehmer'} onShowScene={id=>void command({action:'scene',id})} onShowMedia={fileId=>void command({action:'showMedia',eventId:crypto.randomUUID(),fileIds:[fileId]})} onStage={(kind,sourceId)=>void command({action:'add',kind,sourceId,sourceKind:'entity'})}
-     table={{objects:snapshot?.objects.filter(o=>o.kind!=='note')||[],backdrop:snapshot?.backdrop?.title||'',activeScene:snapshot?.stageSceneId||''}}
+    {panel==='regie'&&a.gm&&<Regie sessionId={sessionId} sceneId={regieScene} tab={regie.tab} onTab={tab=>setRegie({sceneId:regieScene,tab})} busy={busy||recipients?.length===0} audience={recipients===null?'ganze Runde':recipients.length+' Teilnehmer'} onShowScene={id=>void showNarration(id)} onShowMedia={fileId=>void command({action:'showMedia',eventId:crypto.randomUUID(),fileIds:[fileId]})} onStage={(kind,sourceId)=>void command({action:'add',kind,sourceId,sourceKind:'entity'})}
+     table={{objects:snapshot?.objects.filter(o=>o.kind!=='note')||[],backdrop:snapshot?.backdrop?.title||'',backdropFileId:snapshot?.backdrop?.fileId||'',activeScene:snapshot?.stageSceneId||''}} images={images}
      onPlace={(sourceId,sourceKind,title)=>void command({action:'add',kind:'document',sourceId,sourceKind,...(title?{title}:{}),visible:true,recipients})}
      onRemove={id=>void command({action:'remove',id})}
      onBackdrop={fileId=>void command({action:'backdrop',fileId})}
-     onActivate={id=>void activateScene(id)}/>}
+     onActivate={id=>void startScene(id,false)}/>}
     {(panel==='npcs'||panel==='documents')&&<>{a.gm?snapshot?.catalog.filter(o=>o.kind===(panel==='npcs'?'npc':'document')).map(o=><section key={o.sourceKind+o.id} className={panel==='npcs'?styles.figureChoice:styles.documentChoice}>{o.image&&<img loading="lazy" src={o.image} alt=""/>}<h2>{o.title}</h2><button disabled={busy} onClick={()=>void command({action:'add',kind:o.kind,sourceId:o.id,sourceKind:o.sourceKind})}>Privat auflegen</button></section>):snapshot?.objects.filter(o=>o.kind==='document').map(o=><button key={o.id} onClick={()=>void read(o)}>{o.title} lesen</button>)}<p>Neue Originalobjekte bleiben zunächst SL-intern. Eine Bühnenfreigabe verändert die Originalakte nicht.</p></>}
     {panel==='documents'&&a.gm&&<><label>Medium privat hochladen<input aria-label="Bühnenmedium privat hochladen" type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,audio/mpeg,audio/ogg,audio/wav,audio/mp4,video/mp4,video/webm" disabled={busy} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void upload(file);}}/></label><h2>Medien gemeinsam zeigen</h2>{snapshot?.catalog.filter(o=>o.sourceKind==='file').map(o=><label key={o.id}><input type="checkbox" checked={mediaSelection.includes(o.id)} disabled={!mediaSelection.includes(o.id)&&mediaSelection.length>=20} onChange={e=>setMediaSelection(e.target.checked?[...mediaSelection,o.id]:mediaSelection.filter(id=>id!==o.id))}/>{o.title}</label>)}<button disabled={busy||!mediaSelection.length||recipients?.length===0} onClick={()=>void command({action:'showMedia',eventId:crypto.randomUUID(),fileIds:mediaSelection})}>Medien für Zielgruppe einspielen</button></>}
     {panel==='sticky'&&<><p>Neue Zettel sind privat: du &amp; SL. Nur du kannst eigene Zettel bearbeiten, entfernen oder für die Gruppe freigeben.</p><button disabled={busy||!snapshot||!!editing} onClick={()=>void createNote()}><Plus/> Neuer Notizzettel</button><button aria-pressed={hiddenPrivate} disabled={!!editing} onClick={()=>setHiddenPrivate(v=>!v)}>Eigene private Zettel {hiddenPrivate?'einblenden':'ausblenden'}</button>{snapshot?.objects.filter(o=>o.kind==='note').map(o=><section className={styles.noteListItem} key={o.id}><small>{o.kind==='note'?o.ownerName:''} · {o.visibility==='private'?'Privat · SL-Einsicht':'Gruppe'}</small><p>{o.kind==='note'?o.content.slice(0,120)||'Noch unbeschriftet':''}</p></section>)}</>}

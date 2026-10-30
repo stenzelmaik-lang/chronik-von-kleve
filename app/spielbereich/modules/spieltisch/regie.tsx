@@ -13,7 +13,7 @@ export type RegieTab=typeof regieTabs[number][0];
 
 type Props={sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
  onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string)=>void;
- table:{objects:StageObject[];backdrop:string;activeScene:string};
+ table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};images:{id:string;title:string}[];
  onPlace:(sourceId:string,sourceKind:'entity'|'file',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
 type Media=RegieContext['media'][number];
 const groups:[string,string,(m:Media)=>boolean,typeof ImageIcon][]=[
@@ -29,7 +29,18 @@ function tableState(o:StageObject|undefined){if(!o||o.kind==='note')return 'Vorb
 function Text({value,empty}:{value:string;empty:string}){return value.trim()?<RichTextView value={value} readable flowing className={styles.prose}/>:<p className={styles.empty}>{empty}</p>;}
 
 /** Private direction drawer. Reading never publishes; every release is a separate, labelled action. */
-export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
+/** Live backdrop choice: scene images first, every campaign image on demand. Choosing never touches the prepared scene. */
+function BackdropChoice({current,sceneImages,images,busy,onChoose}:{current:string;sceneImages:{id:string;title:string}[];images:{id:string;title:string}[];busy:boolean;onChoose:(fileId:string)=>void}){
+ const [search,setSearch]=useState('');
+ const tile=(img:{id:string;title:string})=><li key={img.id}><button type="button" disabled={busy||current===img.id} aria-pressed={current===img.id} aria-label={'Als Hintergrund: '+img.title} onClick={()=>onChoose(img.id)}><img src={'/api/files?id='+encodeURIComponent(img.id)} alt="" loading="lazy"/><span>{current===img.id?'Aktiv · ':''}{img.title}</span></button></li>;
+ const others=images.filter(i=>!sceneImages.some(s=>s.id===i.id)&&i.title.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de')));
+ return <>
+  {!!sceneImages.length&&<ul className={styles.backdropGrid} aria-label="Bilder dieser Szene">{sceneImages.map(tile)}</ul>}
+  <details className={styles.moreImages}><summary>Anderes Bild wählen ({images.length})</summary><input aria-label="Bilder durchsuchen" placeholder="Bild suchen …" value={search} onChange={e=>setSearch(e.target.value)}/>{others.length?<ul className={styles.backdropGrid}>{others.slice(0,60).map(tile)}</ul>:<p className={styles.empty}>Keine passenden Bilder.</p>}</details>
+ </>;
+}
+
+export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,images,onPlace,onRemove,onBackdrop,onActivate}:Props){
  const [preview,setPreview]=useState<Media|null>(null),previewDialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  // Loaded scenes stay cached for the evening: switching back costs no request.
@@ -54,8 +65,8 @@ export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onS
   <h2 className={styles.title}>{s.title}</h2>
   {context.place&&<p className={styles.place}>Schauplatz: {context.place.title}</p>}
   <div className={styles.activate}>
-   {table.activeScene===s.id?<p><Clapperboard size={15}/> Diese Szene liegt auf dem Tisch{table.backdrop?' · Hintergrund: '+table.backdrop:''}.</p>:<button className={styles.release} disabled={busy} onClick={()=>onActivate(s.id)}><Clapperboard/> Szene auf den Tisch bringen</button>}
-   <small>{table.activeScene===s.id?'Medien legst du unter „Material“ einzeln auf.':'Setzt das Szenenbild als Hintergrund für die ganze Runde und räumt Material der vorigen Szene ab. Notizzettel bleiben.'}</small>
+   {table.activeScene===s.id?<><p><Clapperboard size={15}/> Läuft auf dem Tisch · Hintergrund: {table.backdrop||'Standardbühne'}</p><button className={styles.secondary} onClick={()=>onTab('material')}><ImageIcon/> Hintergrund wechseln</button></>:<button className={styles.release} disabled={busy} onClick={()=>onActivate(s.id)}><Clapperboard/> Szene starten</button>}
+   <small>{table.activeScene===s.id?'Medien legst du unter „Material“ einzeln auf.':'Blendet das Szenenbild für die ganze Runde ein und räumt Material der vorigen Szene ab. Notizzettel bleiben.'}</small>
   </div>
   <div className={styles.tabs} role="tablist" aria-label="Regiebereiche">{regieTabs.map(([id,label])=><button key={id} role="tab" id={'regie-tab-'+id} aria-selected={tab===id} aria-controls="regie-panel" onClick={()=>onTab(id)}>{label}</button>)}</div>
   <section id="regie-panel" role="tabpanel" aria-labelledby={'regie-tab-'+tab} className={styles.panel} key={s.id+':'+tab}>
@@ -70,8 +81,12 @@ export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onS
    {tab==='material'&&<>
     <section className={styles.backdrop} aria-label="Szenenbild">
      <h3>Szenenbild / Bühnenhintergrund</h3>
-     {context.backdrop?<><img src={'/api/files?id='+encodeURIComponent(context.backdrop.fileId)} alt="" loading="lazy"/><p className={styles.state}>{table.backdrop===context.backdrop.name?'Aktiv auf dem Tisch':'Vorbereitet'}</p><div className={styles.row}><button disabled={busy} onClick={()=>onBackdrop(context.backdrop!.fileId)}><ImageIcon/> Als Hintergrund setzen</button></div></>:<p className={styles.empty}>Kein Szenenbild vorbereitet. Festlegen in der SL-Vorbereitung unter „Atmosphäre“.</p>}
-     {table.backdrop&&<button disabled={busy} onClick={()=>onBackdrop(null)}><RotateCcw/> Standardbühne wiederherstellen</button>}
+     <p className={styles.state} data-placed={!!table.backdropFileId}>Jetzt auf dem Tisch: {table.backdrop||'Standardbühne'}</p>
+     {!context.backdrop&&<p className={styles.empty}>Für diese Szene ist kein Szenenbild vorbereitet (SL-Vorbereitung › Atmosphäre). Du kannst trotzdem jedes Bild wählen.</p>}
+     <BackdropChoice current={table.backdropFileId} busy={busy} onChoose={onBackdrop} images={images}
+      sceneImages={[...(context.backdrop?[{id:context.backdrop.fileId,title:'Szenenbild · '+context.backdrop.name}]:[]),...context.media.filter(m=>m.mime.startsWith('image/')&&m.fileId!==context.backdrop?.fileId).map(m=>({id:m.fileId,title:m.title}))]}/>
+     {table.backdropFileId&&<button disabled={busy} onClick={()=>onBackdrop(null)}><RotateCcw/> Standardbühne</button>}
+     <small className={styles.empty}>Der Wechsel gilt sofort für die ganze Runde und blendet weich über. Die vorbereitete Szene bleibt unverändert.</small>
     </section>
     {!context.media.length&&!context.handouts.length&&<p className={styles.empty}>Kein weiteres Material mit dieser Szene verknüpft.</p>}
     {groups.map(([title,hint,match,GroupIcon])=>{const items=context.media.filter(match);return items.length?<section key={title} className={styles.group} aria-label={title}><h3><GroupIcon size={16}/> {title}</h3><p className={styles.empty}>{hint}</p><div className={styles.gallery}>{items.map(m=>{const placed=table.objects.find(o=>o.kind!=='note'&&o.sourceKind==='file'&&o.sourceId===m.fileId);return <article key={m.id}>
