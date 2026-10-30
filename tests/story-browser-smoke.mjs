@@ -299,6 +299,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileGeometry = await page.evaluate(() => ({ viewport: window.innerWidth, scroll: document.documentElement.scrollWidth }));
   assert.ok(mobileGeometry.scroll <= mobileGeometry.viewport + 1, "Delete controls should not overflow on mobile");
+  await page.getByRole("button",{name:"Aktenaktionen",exact:true}).click();
   await deleteButton.press("Enter");
   await dialog.getByRole("button", { name: "Bestätigen" }).waitFor();
   await page.waitForFunction(() => { const box = document.querySelector('[role="alertdialog"]'); return box && Number(getComputedStyle(box).opacity) >= 0.99; });

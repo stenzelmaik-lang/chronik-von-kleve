@@ -24,6 +24,10 @@ try{
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
  const upload=await context.request.post(base+'/api/files',{headers:{Origin:base},multipart:{visibility:'sl',file:{name:imageName,mimeType:'image/png',buffer:png}}});assert.equal(upload.status(),200);const imageId=(await upload.json()).id;
  const npcWithImage=await api('/api/entities/npc',{title:npcTitle+' Zweite Person',canonStatus:'draft',playState:null,defaultVisibility:'sl_secret',profile:{image_primary:'/api/files?id='+imageId,field_visibility:{}},blocks:[],retainedRelationships:[],addedRelationships:[]});assert.equal(npcWithImage.status,200);
+ const identityContext=await browser.newContext();assert.equal((await identityContext.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:'command-a@example.invalid',password:'ChroniPlay-Demo-2036!'}})).status(),200);
+ const owned=(await (await identityContext.request.get(base+'/api/records?kind=charaktere')).json()).records.find(character=>!character.body.archived&&!character.body.recoveryOnly);
+ assert.ok(owned);assert.equal((await identityContext.request.patch(base+'/api/character-selection',{headers:{Origin:base},data:{characterId:owned.id}})).status(),200);await identityContext.close();
+ const preparedRecipients=(await api('/api/messages?recipients=1&context=preparation')).body.recipients;assert.equal(preparedRecipients.find(player=>player.id==='command-a').character.id,owned.id);
  await page.goto(base+'/sl/command-center?bereich=sitzung');
  await page.getByRole('button',{name:'+ Spielabend anlegen',exact:true}).click();
  await snav().waitFor();
@@ -45,6 +49,12 @@ try{
  assert.equal(session.document.title,'SYNTHETISCH – Geführter Testabend');assert.equal(session.document.status,'draft');
  await page.getByRole('button',{name:'+ Szene für diesen Spielabend',exact:true}).click();await cnav().waitFor();assert.equal(await page.getByRole('navigation',{name:'Szene vorbereiten Schritte'}).count(),0);
  const header=page.locator('header[aria-label="Planungsleiste"]');assert.ok((await header.boundingBox()).height<155);
+ phase='header overlays do not move the page';
+ const beforeHeader=await header.boundingBox();const beforeGuide=await cnav().boundingBox();
+ await page.getByRole('button',{name:'Wechseln',exact:true}).click();await page.getByRole('dialog',{name:'Wechseln',exact:true}).waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('[role=dialog]')].every(node=>Number(getComputedStyle(node).opacity)>=.99));await page.screenshot({path:output+'/wechselschieber-desktop.png',fullPage:true});
+ assert.equal((await header.boundingBox()).height,beforeHeader.height);assert.ok(Math.abs((await cnav().boundingBox()).y-beforeGuide.y)<1);
+ await page.getByRole('button',{name:'Aktenaktionen',exact:true}).click();await page.getByRole('dialog',{name:'Aktenaktionen',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),1);assert.equal((await header.boundingBox()).height,beforeHeader.height);
+ await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Aktenaktionen',{},{timeout:2000});
  const sceneId=new URL(page.url()).searchParams.get('scene');assert.ok(sceneId);assert.equal(new URL(page.url()).searchParams.get('returnGuide'),'1');
  await page.getByLabel('Titel',{exact:true}).fill('SYNTHETISCH – Geführte Kaserne');
  await page.getByLabel('Zentraler Schauplatz').selectOption({label:'Electric Taberna'});
@@ -52,7 +62,8 @@ try{
  phase='narration HTML and forward save';
  await page.getByRole('button',{name:'HTML-Hilfe',exact:true}).click();await page.getByRole('complementary',{name:'HTML-Hilfe'}).waitFor();await page.getByRole('button',{name:'HTML-Hilfe',exact:true}).click();
  assert.equal(await page.getByText('Link zur Auswahl',{exact:true}).count(),0);
- await page.getByRole('button',{name:'Galerie',exact:true}).press('Enter');await page.getByRole('button',{name:'Bild auswählen: '+imageName,exact:true}).press('Enter');
+ const editorPosition=await page.getByRole('textbox',{name:'Erzählung',exact:true}).boundingBox();
+ await page.getByRole('button',{name:'Galerie',exact:true}).press('Enter');assert.ok(Math.abs((await page.getByRole('textbox',{name:'Erzählung',exact:true}).boundingBox()).y-editorPosition.y)<1);await page.getByRole('button',{name:'Bild auswählen: '+imageName,exact:true}).press('Enter');
  await source('Erzählung','<h2 class="cp-intro">Ankunft</h2><p>Erster Absatz.</p><ul><li>Ein Hinweis</li></ul><img src="/api/files?id='+imageId+'" alt="Szenenbild">');
  await footer().click();await assertStep('atmosphere','section');
  assert.equal(await page.getByLabel('Titel',{exact:true}).count(),0);assert.equal(await page.getByLabel('Zentraler Schauplatz').count(),0);assert.equal(await page.getByText('Metadaten & Kurzüberblick',{exact:true}).count(),0);
@@ -60,8 +71,8 @@ try{
  await footer().click();await assertStep('dialogueNotes','section');
  await source('NPCs und Dialoge','<p>Ein Gespräch mit dem Kontakt.</p>');
  await page.getByRole('button',{name:'NPCs auswählen',exact:true}).click();
- await page.getByRole('group',{name:'NPCs dieser Szene'}).getByRole('button',{name:npcTitle,exact:true}).press('Enter');
- await page.getByRole('group',{name:'NPCs dieser Szene'}).getByRole('button',{name:npcTitle+' Zweite Person',exact:true}).press('Enter');
+ const npcPanel=page.getByRole('dialog',{name:'NPCs auswählen',exact:true});await npcPanel.getByRole('button',{name:npcTitle,exact:true}).press('Enter');
+ await npcPanel.getByRole('button',{name:npcTitle+' Zweite Person',exact:true}).press('Enter');await page.waitForFunction(()=>[...document.querySelectorAll('[role=dialog]')].every(node=>Number(getComputedStyle(node).opacity)>=.99));await page.screenshot({path:output+'/npc-auswahl-desktop.png',fullPage:true});await npcPanel.getByRole('button',{name:'Auswahl übernehmen',exact:true}).click();
  assert.equal(await page.getByRole('group',{name:'NPCs dieser Szene'}).locator('img[src="/api/files?id='+imageId+'"]').count(),1);
  await footer().click();await assertStep('interactions','section');
  phase='material types, handout and gallery persist in the same scene';
@@ -70,7 +81,7 @@ try{
  await material.getByRole('button',{name:'HTML-Quelltext',exact:true}).click();await material.getByRole('textbox',{name:'Handout – Inhalt HTML',exact:true}).fill('<h2>Der Brief</h2><p>PRIVATE_PREPARED_HANDOUT</p>');
  await material.getByRole('button',{name:'Anderes Spielmaterial hinzufügen',exact:true}).click();
  await material.getByRole('button',{name:/^Bild Wähle/}).click();await material.getByLabel('Bausteintitel',{exact:true}).fill('Szenenfoto');
- await material.getByRole('button',{name:'Bildgalerie',exact:true}).click();await material.getByRole('button',{name:'Bild auswählen: '+imageName,exact:true}).press('Enter');
+ await material.getByRole('button',{name:'Bildgalerie',exact:true}).click();await page.getByRole('dialog',{name:'Bildgalerie',exact:true}).getByRole('button',{name:'Bild auswählen: '+imageName,exact:true}).press('Enter');
  for(const width of [1920,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
  await page.evaluate(()=>document.documentElement.style.zoom='125%');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.evaluate(()=>document.documentElement.style.zoom='');
  await page.screenshot({path:output+'/material-galerie-desktop.png',fullPage:true});
@@ -81,7 +92,7 @@ try{
  await source('Visionen & persönliche Botschaften','<p>PRIVATE_VISION_FOR_LATER</p>');
  phase='private message preparation and deliberate delivery';
  assert.equal((await api('/api/messages?sent=1')).body.messages.filter(message=>message.title==='Persönliche Botschaft · SYNTHETISCH – Geführte Kaserne').length,0);
- await page.getByRole('button',{name:'Spieler auswählen',exact:true}).click();await page.getByRole('checkbox',{name:'Demo Spieler A',exact:true}).check();
+ await page.getByRole('button',{name:'Spieler auswählen',exact:true}).click();const recipientPanel=page.getByRole('dialog',{name:'Spieler auswählen',exact:true});await recipientPanel.getByText(owned.title,{exact:true}).waitFor();await recipientPanel.getByRole('button',{name:owned.title+' · Demo Spieler A',exact:true}).press('Enter');await page.waitForFunction(()=>[...document.querySelectorAll('[role=dialog]')].every(node=>Number(getComputedStyle(node).opacity)>=.99));await page.screenshot({path:output+'/spieler-charakter-auswahl.png',fullPage:true});await recipientPanel.getByRole('button',{name:'Auswahl übernehmen',exact:true}).click();
  await page.getByRole('button',{name:'Bild anhängen',exact:true}).click();await page.getByRole('button',{name:'Bild auswählen: '+imageName,exact:true}).press('Enter');
  await page.getByText('Handout, Datei oder Szenenmaterial übernehmen',{exact:true}).click();await page.getByLabel('Vorhandener Szenenbaustein').selectOption({label:'Brief an die Gruppe'});
  await page.getByRole('button',{name:'HTML-Quelltext',exact:true}).click();assert.ok((await page.getByRole('textbox',{name:'Visionen & persönliche Botschaften HTML',exact:true}).inputValue()).includes('PRIVATE_PREPARED_HANDOUT'));
@@ -137,6 +148,7 @@ try{
  phase='responsive guide';
  await page.setViewportSize({width:390,height:844});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ await page.getByRole('button',{name:'Wechseln',exact:true}).click();const mobilePanel=page.getByRole('dialog',{name:'Wechseln',exact:true});await mobilePanel.waitFor();const bounds=await mobilePanel.boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=390);await page.screenshot({path:output+'/wechselschieber-mobil.png',fullPage:true});await page.keyboard.press('Escape');
  await page.screenshot({path:output+'/guide-mobil-konflikt.png',fullPage:true});
  const player=await browser.newContext();
  assert.equal((await player.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:'command-a@example.invalid',password:'ChroniPlay-Demo-2036!'}})).status(),200);

@@ -1,6 +1,8 @@
 # SL-CMS 3.0 – Kompakte Führung und persönliche Botschaften
 
-30.10.2026 · ausschließlich lokal · Folgeauftrag zur persönlichen UX-Prüfung.
+30.10.2026 · historischer Folgeauftrag, ausschließlich lokal.
+
+Der nächste persönliche Durchgang und die Qualitätsüberarbeitung von Schiebern und Charakterauswahl sind in [Etappe-2-Qualitaetspruefung.md](Etappe-2-Qualitaetspruefung.md) dokumentiert.
 
 ## Umsetzung des aktuellen Durchgangs
 

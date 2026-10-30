@@ -11,12 +11,24 @@ export async function characterSelectionIntegration({req,check,localSql,sqlQuote
  check((await select('missing')).s===404,'SELECT unknown ID rejected');
  check((await select(a.d.id)).s===200&&(await req('/api/character-selection','a')).d.characterId===a.d.id,'SELECT persists server-side for the current user');
  check((await req('/api/dashboard','a')).d.character.id===a.d.id,'SELECT overview uses saved character without URL');
+ const recipientContext='/api/messages?recipients=1&context=preparation';
+ const chosen=(await req(recipientContext,'gm')).d.recipients.find(player=>player.id==='sprint1-a');
+ check(chosen.character?.id===a.d.id&&chosen.character.name==='SYNTHETIC SELECTION A','RECIPIENT SL chooser uses the saved active character and player identity');
+ check(Object.keys(chosen.character).sort().join(',')==='id,name,portrait'&&!JSON.stringify(chosen).includes('attributes'),'RECIPIENT projection contains identity only, no private sheet values');
+ check((await req(recipientContext,'a')).s===403,'RECIPIENT active character metadata is SL-only');
+ check(!(await req('/api/messages?recipients=1','a')).d.recipients.some(player=>'character' in player),'RECIPIENT ordinary player recipient list stays unchanged');
+ const foreign=await req('/api/records','b','POST',{kind:'charaktere',title:'SYNTHETIC FOREIGN SELECTION',visibility:'private',body:{...engineFixture}});
+ localSql("UPDATE auth_profiles SET preferences=json_set(preferences,'$.activeCharacters.\"chronik-von-kleve\"',"+sqlQuote(foreign.d.id)+") WHERE user_id=(SELECT auth_user_id FROM auth_member_links WHERE member_id='sprint1-a')");
+ check((await req(recipientContext,'gm')).d.recipients.find(player=>player.id==='sprint1-a').character===null,'RECIPIENT foreign-owner preference never becomes a guessed active character');
+ await select(a.d.id);
+
  const profile=(await req('/api/profile','a')).d;
  check((await req('/api/profile','a','PATCH',{version:profile.version,displayName:profile.displayName,avatarFileId:profile.avatarFileId,preferences:profile.preferences})).s===200,'SELECT existing strict profile form still works');
  check((await req('/api/character-selection','a')).d.characterId===a.d.id,'SELECT profile save preserves campaign choice');
  const sessionId=randomUUID();await req('/api/live-table','gm','POST',{action:'start',sessionId,title:'SYNTHETIC unchanged session',create:true});
  const before=(await req('/api/live-table?sessionId='+sessionId,'gm')).d;
  check((await select(b.d.id)).s===200&&(await req('/api/dashboard','a')).d.character.id===b.d.id,'SELECT switches own identity and XP source');
+ check((await req(recipientContext,'gm')).d.recipients.find(player=>player.id==='sprint1-a').character?.id===b.d.id,'RECIPIENT SL chooser follows the real active character change');
  check((await life('archive',b.d.id,1,'b')).s===403,'ARCHIVE another owner denied');
  check((await life('archive',b.d.id,1,'a',false)).s===400,'ARCHIVE requires explicit confirmation');
  const original=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===b.d.id);
@@ -25,6 +37,7 @@ export async function characterSelectionIntegration({req,check,localSql,sqlQuote
  const archived=(await req('/api/records?kind=charaktere','a')).d.records.find(r=>r.id===b.d.id);
  check(archived.body.archived===true&&archived.title===original.title&&Object.keys(original.body).every(k=>JSON.stringify(archived.body[k])===JSON.stringify(original.body[k])),'ARCHIVE complete prior sheet and XP retained');
  check((await req('/api/character-selection','a')).d.characterId===null,'ARCHIVE clears only the archived active choice');
+ check((await req(recipientContext,'gm')).d.recipients.find(player=>player.id==='sprint1-a').character===null,'RECIPIENT archived active character is not displayed and no fallback is invented');
  check((await select(b.d.id)).s===404&&!(await req('/api/dashboard','a')).d.characters.some(c=>c.id===b.d.id),'ARCHIVE cannot select archived character');
  check((await req('/api/character-detail?id='+b.d.id,'a')).s===200&&(await req('/api/character-detail?id='+b.d.id,'b')).s===404,'ARCHIVE owner retains readable sheet, foreign user denied');
  check((await req('/api/inventory?characterId='+b.d.id,'a')).s===404,'ARCHIVE inventory excludes archived actor');

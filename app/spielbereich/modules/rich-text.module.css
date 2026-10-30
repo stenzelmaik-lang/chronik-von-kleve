@@ -77,3 +77,5 @@
 .galleryGrid span { color: #eee6d6; font-size: 13px; margin-top: 8px; }
 .galleryGrid button:focus-visible { outline: 2px solid #e4c589; outline-offset: 2px; }
 @media(max-width:600px) { .galleryGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+.galleryGrid { max-height:none; overflow:visible; }

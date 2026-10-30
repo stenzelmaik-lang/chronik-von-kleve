@@ -6,6 +6,9 @@ import {
   useRef,
   useState,
 } from "react";
+import type {PreparationRecipient} from "@/domain/personal-message";
+import {PreparationPanel} from "./preparation-panel";
+import panel from "./preparation-panel.module.css";
 import type { Actor } from "@/domain/types";
 import {
   emptyStory,
@@ -31,7 +34,7 @@ import { preparationPlaces, isCentralPreparationPlace } from "./preparation-cata
 import { useCommandConfirmation } from "./command-confirmation";
 import s from "./story-workspace.module.css";
 import { SessionOverview, SessionList } from "./session-overview";
-import { Info, Maximize2, Minimize2 } from "lucide-react";
+import { Info, Maximize2, Minimize2, ArrowLeftRight, FolderCog, Archive, Trash2, Plus, List } from "lucide-react";
 import { PreparationWhispers } from "./preparation-whispers";
 import { PreparationNPCs } from "./preparation-npcs";
 import { PreparationMaterials } from "./preparation-materials";
@@ -66,7 +69,7 @@ type Reply = {
   sessions: PreparedSession[];
   scenes: SceneSummary[];
   references: CommandReference[];
-  recipients?:{id:string;name:string;role:string}[];
+  recipients?:PreparationRecipient[];
   files: { id: string; name: string; mime: string }[];
   story: StoryView;
   scene: SceneView;
@@ -119,11 +122,12 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [files, setFiles] = useState<{ id: string; name: string; mime: string }[]>(
       [],
     );
-  const [players,setPlayers]=useState<{id:string;name:string}[]>([]);
+  const [players,setPlayers]=useState<PreparationRecipient[]>([]);
   const [sessionEditing,setSessionEditing]=useState(false), [returnSession,setReturnSession]=useState("");
   const [guideStep,setGuideStep]=useState<SessionGuideStep>("basics"), [returnGuide,setReturnGuide]=useState(false);
   const [expandedEditor,setExpandedEditor]=useState<string|null>(null);
   const [helpEditor,setHelpEditor]=useState<string|null>(null);
+  const [headerPanel,setHeaderPanel]=useState<"switch"|"actions"|null>(null);
   const [current, setCurrent] = useState<Selection | null>(null),
     [saved, setSaved] = useState(""),
     [message, setMessage] = useState("Lade Arbeitsbestand …"),
@@ -177,7 +181,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       request("/api/command-center"),
       request("/api/command-center/preparation"),
       request("/api/files"),
-      request("/api/messages?recipients=1"),
+      request("/api/messages?recipients=1&context=preparation"),
     ]);
     setStories(catalog.stories);
     setScenes(catalog.scenes);
@@ -235,6 +239,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
       null, "", "/sl/command-center?bereich=sitzung&" + next.kind + "=" + encodeURIComponent(next.id) + (fromSession ? "&fromSession=" + encodeURIComponent(fromSession) : "") + (editing ? "&edit=1&step="+targetStep : "") + (resumeGuide ? "&returnGuide=1" : ""),
     );
     activeUrl.current=window.location.pathname+window.location.search;
+    setHeaderPanel(null);
     setReturnSession(fromSession);
     setSessionEditing(editing);
     setGuideStep(targetStep);
@@ -333,6 +338,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   }
   async function showSessionList() {
     if(!(await leave())) return;
+    setHeaderPanel(null);
     generation.current++; setCurrent(null); setSaved(""); setReturnSession(""); setSessionEditing(false); setUnlinkDraft(null); setExpandedEditor(null);
     window.history.pushState(null,"","/sl/command-center?bereich=sitzung");
     activeUrl.current=window.location.pathname+window.location.search;
@@ -681,8 +687,17 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         </section>}
         {guided&&current&&<header className={s.compactHeader} aria-label="Planungsleiste">
           <div className={s.compactIdentity}><button type="button" disabled={busy} onClick={()=>scene&&returnSession?void backToSession():session?void open("session",current.id):void showSessionList()}>{scene&&returnSession?"Zurück zum Spielabend":session?"Zur Spielabendübersicht":"Zurück zu allen Spielabenden"}</button><h1>{scene?"Szene vorbereiten":"Spielabend planen"}</h1></div>
-          <div className={s.compactActions}><details className={s.switchMenu}><summary>Wechseln</summary><label>Spielabend auswählen<select aria-label="Spielabend auswählen" value={current.kind==="session"?current.id:returnSession} onChange={e=>e.target.value?void open("session",e.target.value):void showSessionList()}><option value="">Alle Spielabende</option>{sessions.map(item=><option key={item.id} value={item.id}>{item.document.title}</option>)}</select></label>{scene&&returnSession&&<><label>Weitere Szene öffnen<select aria-label="Weitere Szene dieses Spielabends" value={current.id} onChange={e=>void open("scene",e.target.value,returnSession,"push",false,returnGuide)}>{scenes.filter(item=>item.id===current.id||item.sessionIds.includes(returnSession)||sessions.find(value=>value.id===returnSession)?.document.sceneIds.includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label><button disabled={busy} onClick={()=>void create("scene")}>Neue Szene im Spielabend</button></>}<button disabled={busy} onClick={()=>void showSessionList()}>Alle Spielabende</button></details>
-          <details className={s.saveActions}><summary>Aktenaktionen</summary><button disabled={busy} onClick={()=>void toggleArchive()}>{scene?.archived||session?.status==="archived"?"Aus Archiv wiederherstellen":"Archivieren"}</button><button type="button" className={s.deleteAction} disabled={busy} onClick={()=>void deleteCurrent()}>{scene?"Szene":"Spielabend"} löschen</button></details><button disabled={busy||!dirty} onClick={()=>void save()}>Jetzt speichern</button></div>
+          <div className={s.compactActions}>
+            <PreparationPanel label="Wechseln" icon={<ArrowLeftRight size={16} aria-hidden="true"/>} open={headerPanel==="switch"} onOpenChange={open=>setHeaderPanel(value=>open?"switch":value==="switch"?null:value)}>
+              <label>Spielabend auswählen<select aria-label="Spielabend auswählen" value={current.kind==="session"?current.id:returnSession} onChange={e=>{setHeaderPanel(null);if(e.target.value)void open("session",e.target.value);else void showSessionList();}}><option value="">Alle Spielabende</option>{sessions.map(item=><option key={item.id} value={item.id}>{item.document.title}</option>)}</select></label>
+              {scene&&returnSession&&<label>Weitere Szene öffnen<select aria-label="Weitere Szene dieses Spielabends" value={current.id} onChange={e=>{setHeaderPanel(null);void open("scene",e.target.value,returnSession,"push",false,returnGuide);}}>{scenes.filter(item=>item.id===current.id||item.sessionIds.includes(returnSession)||sessions.find(value=>value.id===returnSession)?.document.sceneIds.includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
+              <div className={panel.actions}>{scene&&returnSession&&<button disabled={busy} onClick={()=>{setHeaderPanel(null);void create("scene");}}><Plus size={16} aria-hidden="true"/>Neue Szene im Spielabend</button>}<button disabled={busy} onClick={()=>{setHeaderPanel(null);void showSessionList();}}><List size={16} aria-hidden="true"/>Alle Spielabende</button></div>
+            </PreparationPanel>
+            <PreparationPanel label="Aktenaktionen" icon={<FolderCog size={16} aria-hidden="true"/>} open={headerPanel==="actions"} onOpenChange={open=>setHeaderPanel(value=>open?"actions":value==="actions"?null:value)}>
+              <p>Diese Aktionen betreffen {scene?"die aktuelle Szene":"den aktuellen Spielabend"}.</p><div className={panel.actions}><button disabled={busy} onClick={()=>{setHeaderPanel(null);void toggleArchive();}}><Archive size={16} aria-hidden="true"/>{scene?.archived||session?.status==="archived"?"Aus Archiv wiederherstellen":"Archivieren"}</button><button type="button" className={panel.danger} disabled={busy} onClick={()=>{setHeaderPanel(null);void deleteCurrent();}}><Trash2 size={16} aria-hidden="true"/>{scene?"Szene":"Spielabend"} löschen</button></div>
+            </PreparationPanel>
+            <button disabled={busy||!dirty} onClick={()=>void save()}>Jetzt speichern</button>
+          </div>
           <span role="status" className={s.compactStatus}>{message}</span>{message.startsWith("Konflikt:")&&<button onClick={()=>void open(current.kind,current.id)}>Aktuellen Serverstand laden</button>}
         </header>}
         <main className={s.main}>

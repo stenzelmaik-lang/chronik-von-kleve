@@ -454,3 +454,10 @@
 @media(max-width:760px) { .compactHeader { gap: 8px; }.compactIdentity { flex-basis: 100%; flex-wrap: wrap; gap: 8px; }.compactActions { flex-wrap: wrap; }.npcPicker ul { grid-template-columns: minmax(0,1fr); } }
 
 .optionalSelection>summary svg { display: inline-block; }
+
+/* Selected people stay compact; selection lives in bounded, portaled panels. */
+.npcPicker .selectedPeople { display:flex; flex-wrap:wrap; gap:8px; max-height:none; overflow:visible; }
+.selectedPeople>li { display:flex; align-items:center; gap:9px; padding:6px 8px; background:#142a3b; border:1px solid #7791a455; border-radius:8px; }
+.selectedPeople>li>img { width:30px; height:44px; object-fit:contain; }
+.selectedPeople>li>button { display:inline-flex; justify-content:center; align-items:center; width:36px; min-height:36px; padding:6px; background:transparent; border:0; }
+.selectedPeople>li>span { font-size:14px; }

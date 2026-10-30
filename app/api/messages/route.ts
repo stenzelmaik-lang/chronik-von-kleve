@@ -5,6 +5,7 @@ import { personalMessageSchema } from "@/domain/personal-message";
 import { richTextFileIds,sanitizeRichTextInput } from "@/domain/location-rich-text";
 import { validatePreparationMedia } from "@/server/preparation-media";
 import { personalMessageFiles } from "@/server/personal-message-files";
+import { preparationRecipients } from "@/server/preparation-recipients";
 import { characterBody } from "@/server/character-engine-service";
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export async function GET(req: Request) {
     const a = await actor(), db = database(), query = new URL(req.url).searchParams;
     if (query.has("recipients")) {
       requireSender(a);
+      if(query.get('context')==='preparation')return json({recipients:await preparationRecipients(db,a)});
       const rows = await db.prepare("SELECT m.id,m.name,c.role FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role IN ('player','campaign_owner','campaign_gm') AND m.status='active' ORDER BY m.name,m.id").bind(a.campaignId).all<{id:string;name:string;role:string}>();
       return json({ recipients: rows.results });
     }

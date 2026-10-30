@@ -12,3 +12,5 @@ export const personalMessageSchema=z.object({
     if(!richTextToPlainText(text).trim()&&!value.fileIds?.length&&!richTextFileIds(text).length)ctx.addIssue({code:'custom',message:'Ergänze eine Botschaft oder eine Datei.'});
   } else if(!value.text.trim()||value.text.trim().length>20000||value.fileIds!==undefined)ctx.addIssue({code:'custom',message:'Ungültige persönliche Nachricht.'});
 });
+
+export type PreparationRecipient={id:string;name:string;role:string;character:{id:string;name:string;portrait:string|null}|null};
