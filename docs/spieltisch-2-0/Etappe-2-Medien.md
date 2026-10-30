@@ -42,6 +42,17 @@ Zustände: *vorbereitet* (Szenendokument) → *privat in der Regie* (nur SL-Endp
 - Drag-and-drop im Editor nicht umgesetzt (Reihenfolge per Pfeilen wie bisher).
 - Persönliche Abnahme mit Originalmaterial und Review durch Codex stehen aus.
 
+## Live-Release 30.10.2026
+
+- Auf ausdrückliche Anweisung des Projektinhabers veröffentlicht, **vor** Codex-Review und vor Merge von PR #44 (Merge in dieser Sitzung blockiert). Veröffentlichter Stand: Branch-Commit `e865f91` (Code identisch zu `main` + PR #44; `main` enthält zusätzlich nur Doku-Commits).
+- Worker `chronik-von-kleve`, Version `7971d484-27db-4a38-848d-7fd99db30c42`, Tag `spieltisch-medien`, 100 % Verkehr seit 2026-10-30T12:31Z. Bindings unverändert: D1 `chronik-von-kleve-db` (`a4bc79e6…`), R2 `chronik-von-kleve-r2`, `AUTH_ACCESS_ENVIRONMENT=closed-alpha-production`, CPU 5000 ms, `workers_dev` an, `preview_urls` explizit aus.
+- Rückfallversion: `2ed5e1e7-3550-4936-8cfe-ed6e3b489a0a` (Regie-UX, `0b5c427`). Hinweise zum Rückfall siehe oben (Fix-forward bevorzugt).
+- Sicherung vorab: D1-Export der 32 Anwendungstabellen (22.142 Zeilen; FTS-Index `codex_fts` nicht exportierbar, aus `codex_sections` rekonstruierbar), lokal in SQLite wiederhergestellt, `integrity_check ok`, Zeilenzahlen gleich bis auf 28 nach dem Export neu protokollierte `world_events`. Zusätzlich D1-Time-Travel-Lesezeichen `00000189-0000a5d8-00005114-11f229bb4e6f51bd44b9d33e9f6934b1`. Private Dateien unter `.local-work/release-medien/` (nicht im Git).
+- Bekannte Schema-Eigenheit (vorbestehend): `PRAGMA foreign_key_check` meldet „foreign key mismatch“ für zusammengesetzte Verweise auf `entities(campaign_id,id)` ohne passenden eindeutigen Index.
+- Live-Prüfung ohne Anmeldung, ohne Schreibzugriffe: `/anmelden` 200; Spielbereich und SL-Zentrale 307; `/api/live-stage` (inkl. `regie`), `/api/live-stage/asset?objectId=backdrop`, Szenen, Dateien, Live-Tisch jeweils 401 mit `private, no-store`; workers.dev 200; ausgeliefertes Stylesheet enthält die neuen Regeln.
+- CI zum Zeitpunkt des Deploys: Typecheck/Lint/Tests/Build grün; SL-Browserdurchlauf war mit `c4ae552` an einem Überlauf durch das versteckte Upload-Feld gescheitert, korrigiert in `e865f91` (lokal geprüft 1920/1440/125 %/375 px); erneuter CI-Lauf beim Deploy noch offen. „Workers Builds“ rot wie bei früheren PRs (Auto-Build pausiert).
+- Offen: Merge von PR #44 durch den Projektinhaber, Codex-Review, persönliche Abnahme mit Originalmaterial.
+
 ## Ausprobieren
 
 `Start-Spieltisch-2.cmd` → `http://127.0.0.1:8830/anmelden` (synthetische Konten wie Etappe 1). Bei bestehendem altem Testspeicher `.local-test/spieltisch-2` vorher löschen, damit die neuen Mediendaten angelegt werden.
