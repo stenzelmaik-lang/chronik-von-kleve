@@ -53,7 +53,13 @@ try{
  const beforeHeader=await header.boundingBox();const beforeGuide=await cnav().boundingBox();
  await page.getByRole('button',{name:'Wechseln',exact:true}).click();await page.getByRole('dialog',{name:'Wechseln',exact:true}).waitFor();await page.waitForFunction(()=>[...document.querySelectorAll('[role=dialog]')].every(node=>Number(getComputedStyle(node).opacity)>=.99));await page.screenshot({path:output+'/wechselschieber-desktop.png',fullPage:true});
  assert.equal((await header.boundingBox()).height,beforeHeader.height);assert.ok(Math.abs((await cnav().boundingBox()).y-beforeGuide.y)<1);
- await page.getByRole('button',{name:'Aktenaktionen',exact:true}).click();await page.getByRole('dialog',{name:'Aktenaktionen',exact:true}).waitFor();assert.equal(await page.getByRole('dialog').count(),1);assert.equal((await header.boundingBox()).height,beforeHeader.height);
+ const panelCPU=await context.newCDPSession(page);await panelCPU.send('Emulation.setCPUThrottlingRate',{rate:6});
+ for(const name of ['Aktenaktionen','Wechseln','Aktenaktionen','Wechseln','Aktenaktionen']) {
+  await page.getByRole('button',{name,exact:true}).click();await page.getByRole('dialog',{name,exact:true}).waitFor();
+  // Exercise deferred focus restoration, not just the first frame after opening.
+  await page.waitForTimeout(300);assert.equal(await page.getByRole('dialog',{name,exact:true}).count(),1);assert.equal(await page.getByRole('dialog').count(),1);assert.equal((await header.boundingBox()).height,beforeHeader.height);
+ }
+ await panelCPU.send('Emulation.setCPUThrottlingRate',{rate:1});await panelCPU.detach();
  await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Aktenaktionen',{},{timeout:2000});
  const sceneId=new URL(page.url()).searchParams.get('scene');assert.ok(sceneId);assert.equal(new URL(page.url()).searchParams.get('returnGuide'),'1');
  await page.getByLabel('Titel',{exact:true}).fill('SYNTHETISCH – Geführte Kaserne');

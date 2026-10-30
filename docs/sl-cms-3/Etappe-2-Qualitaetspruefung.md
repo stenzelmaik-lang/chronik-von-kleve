@@ -40,3 +40,11 @@ Die neue reine Leseprojektion unter `/api/messages?recipients=1&context=preparat
 Die Schreibprüfungen laufen ausschließlich auf frischen synthetischen lokalen Daten unter Port 8824 bzw. in der isolierten Integration. Die persönliche Abnahmeinstanz 8822 wird mit ihrem bisherigen Spielstand weitergeführt. Sicherung vor dem Eingriff: `.local-test/before-panel-quality-review-20261030`.
 
 Keine neue Tabelle, keine Migration, keine Änderung produktiver Daten oder Konten, kein Import, kein Push/Merge und kein Deployment. Die neue Charakterprojektion verändert keine aktive Auswahl und erweitert keine Dateifreigabe. Die persönliche UX-Abnahme erfolgt an der bedienbaren lokalen Anwendung; danach Stopp.
+
+## Release-Prüfung nach persönlicher Freigabe, 30.10.2026
+
+Die anschließende Live-Freigabe erlaubt Push, PR und kontrolliertes Deployment. GitHub-PR #39 prüft den freigegebenen Gesamtstand. Der erste CI-Lauf bestand Typecheck, Lint, Build, 145 Tests sowie die vollständige Integration, meldete aber beim direkten Schieberwechsel einen Browserfehler. Unter sechsfach gedrosselter Browserleistung ließ sich reproduzieren, dass die verzögerte Fokus-Rückkehr des geschlossenen Schiebers den gerade geöffneten Schieber wieder schloss.
+
+Die Korrektur verhindert diese Fokus-Rückkehr nur dann, wenn bereits ein anderer Vorbereitungsschieber geöffnet ist. Reguläres Schließen und Escape behalten die bestehende Fokus-Rückkehr. Der Browsertest wechselt bei sechsfacher CPU-Drosselung mehrfach zwischen beiden Schiebern und prüft nach der verzögerten Fokusverarbeitung weiterhin genau einen geöffneten Schieber ohne Änderung der Leistenhöhe. Der vollständige lokale geführte Browserablauf besteht mit dieser Korrektur. Keine Design-, Datenbank- oder Berechtigungsänderung.
+
+Frische D1-Sicherung inklusive Originalschema und geprüftem FTS-Wiederaufbau liegt privat außerhalb Git. Integrität und Fremdschlüssel sind fehlerfrei, 3.520 Suchabschnitte wiederhergestellt. Es ist keine Produktionsmigration erforderlich. Nach neuen Szenenfeldern oder längeren Texten gilt Fix-forward; keine blinde Rücksetzung auf einen alten Worker oder Datenbankstand.
