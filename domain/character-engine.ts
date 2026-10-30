@@ -1,4 +1,5 @@
-import { availableClanForCampaign } from "./clan-config.ts";
+import { availableClanForCampaign, clansForCampaign } from "./clan-config.ts";
+import { characterLedger, ledgerDelta, validateExistingSheet } from './character-management.ts';
 
 export const characterStates = ["draft", "review", "confirmed"] as const;
 export type CharacterState = typeof characterStates[number];
@@ -34,6 +35,9 @@ const abilityGroups = {
   knowledges: ["Akademisches Wissen", "Computer", "Finanzen", "Gesetzeskenntnis", "Medizin", "Nachforschungen", "Naturwissenschaften", "Okkultismus", "Politik", "Technologie"],
 } as const;
 export const v20AbilityNames: readonly string[] = Object.values(abilityGroups).flat();
+/** Disciplines of the classic V20 clan catalogue; the only names a new XP Discipline may take. */
+// "Geschwindigkeit" (Assamiten) and "Schnelligkeit" both translate Celerity; only one may be learned as new.
+export const v20DisciplineNames: readonly string[] = [...new Set(clansForCampaign("").flatMap((clan) => clan.disciplines))].filter((name) => name !== "Geschwindigkeit");
 
 export type CreationBudgetLine = { spent: number; limit: number; remaining: number; exceeded: boolean; freebieDots?: number; freebieCost?: number };
 export type AutomaticFreebieLine = {
@@ -54,18 +58,22 @@ export type CreationBudgetSummary = {
 
 export type XpLedgerEntry = {
   id: string;
-  kind: "grant" | "spend";
+  kind: "grant" | "spend" | "historical" | "correction";
   amount: number;
   reason: string;
   createdAt: string;
+  referenceId?: string;
+  purchase?: XpPurchase;
 };
 
 export type XpPurchase = {
-  category: "attribute" | "ability" | "discipline" | "background" | "humanity" | "willpower";
+  category: "attribute" | "ability" | "customAbility" | "virtue" | "discipline" | "path" | "background" | "humanity" | "willpower";
   target?: string;
   from: number;
   to: number;
   inClan?: boolean;
+  /** Derived from the sheet, never trusted from a client: Caitiff pay ×6 for every Discipline (V20). */
+  caitiff?: boolean;
   reason?: string;
 };
 
@@ -100,7 +108,7 @@ export function attributeBase(body: CharacterLike, name: string) {
 /** Materialize free starting dots for explicit engine drafts only. Existing
  * values are preserved, including invalid values for validation to reject. */
 export function withCreationBaseValues(body: CharacterLike): CharacterLike {
-  if (body.engineVersion !== 1 || body.characterState !== "draft") return body;
+  if (body.engineVersion !== 1 || body.characterState !== "draft" || body.historicalSnapshot) return body;
   const attributes = body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as NumericMap : {};
   const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
   const next = {
@@ -302,22 +310,20 @@ export function freebieTotal(body: CharacterLike) {
 }
 
 export function xpBalance(body: CharacterLike) {
-  const ledger = Array.isArray(body.xpLedger) ? body.xpLedger : [];
-  return ledger.reduce((total, row) => {
-    const item = row as CharacterLike;
-    return total + (item.kind === "grant" ? integer(item.amount) : -integer(item.amount));
-  }, 0);
+  return characterLedger(body).reduce((total, row) => total + ledgerDelta(row), 0);
 }
 
 export function xpCost(purchase: XpPurchase) {
   if (!Number.isInteger(purchase.from) || purchase.from < 0 || !Number.isInteger(purchase.to) || purchase.to !== purchase.from + 1)
     return { ok: false as const, error: "XP-Steigerungen müssen genau eine Stufe umfassen." };
   const categoryCost = purchase.category === "attribute" ? purchase.from * 4
-    : purchase.category === "ability" ? (purchase.from === 0 ? 3 : purchase.from * 2)
-      : purchase.category === "discipline" ? purchase.from * (purchase.inClan ? 5 : 7)
-        : purchase.category === "background" ? purchase.from * 3
-          : purchase.category === "humanity" ? purchase.from * 2
-            : purchase.category === "willpower" ? 1 : NaN;
+    : ["ability","customAbility"].includes(purchase.category) ? (purchase.from === 0 ? 3 : purchase.from * 2)
+      : purchase.category === "discipline" ? (purchase.from === 0 ? 10 : purchase.from * (purchase.caitiff ? 6 : purchase.inClan ? 5 : 7))
+        // V20 experience chart: new Path 7, secondary Path current rating ×4.
+        : purchase.category === "path" ? (purchase.from === 0 ? 7 : purchase.from * 4)
+        : purchase.category === "background" ? NaN
+          : ["humanity","virtue"].includes(purchase.category) ? purchase.from * 2
+            : purchase.category === "willpower" ? purchase.from : NaN;
   if (!Number.isFinite(categoryCost) || categoryCost <= 0) return { ok: false as const, error: "Dieses XP-Ziel benötigt eine gesonderte Regelentscheidung." };
   return { ok: true as const, cost: categoryCost };
 }
@@ -329,8 +335,17 @@ function withRaisedValue(body: CharacterLike, purchase: XpPurchase): CharacterLi
     return { ...body, [key]: purchase.to };
   }
   if (!target) return null;
-  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
+  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : purchase.category === "path" ? "paths" : "backgrounds";
   const collection = body[key];
+  if (purchase.category === "discipline" && purchase.from === 0 && !(Array.isArray(collection) && collection.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target))) {
+    // V20: learning a new Discipline. Only catalogued names; legacy free text stays untouched.
+    if ((collection !== undefined && !Array.isArray(collection)) || (!v20DisciplineNames.includes(target) && !purchase.inClan)) return null;
+    return { ...body, disciplines: [...(Array.isArray(collection) ? collection : []), { name: target, value: 1, source: purchase.inClan ? "clan" : "foreign", ...(purchase.inClan ? {} : { slApproved: true }) }] };
+  }
+  if (purchase.category === "path" && purchase.from === 0 && !(Array.isArray(collection) && collection.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target))) {
+    if ((collection !== undefined && !Array.isArray(collection)) || target.length > 120) return null;
+    return { ...body, paths: [...(Array.isArray(collection) ? collection : []), { name: target, value: 1, primary: false }] };
+  }
   if (Array.isArray(collection)) {
     const next = collection.map((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target ? { ...(item as CharacterLike), value: purchase.to } : item);
     if (!next.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target)) return null;
@@ -347,9 +362,10 @@ function currentValue(body: CharacterLike, purchase: XpPurchase) {
   if (purchase.category === "ability" && v20AbilityNames.includes(purchase.target || ""))
     return integer((body.skills as CharacterLike | undefined)?.[purchase.target || ""]);
   if (purchase.category === "humanity" || purchase.category === "willpower") return body[purchase.category];
-  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
+  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : purchase.category === "path" ? "paths" : "backgrounds";
   const collection = body[key];
-  if (Array.isArray(collection)) return (collection.find((item) => item && typeof item === "object" && String((item as CharacterLike).name) === purchase.target) as CharacterLike | undefined)?.value;
+  if (Array.isArray(collection)) return (collection.find((item) => item && typeof item === "object" && String((item as CharacterLike).name) === purchase.target) as CharacterLike | undefined)?.value ?? (["discipline", "path"].includes(purchase.category) ? 0 : undefined);
+  if (["discipline", "path"].includes(purchase.category) && collection === undefined) return 0;
   return collection && typeof collection === "object" ? (collection as CharacterLike)[String(purchase.target)] : undefined;
 }
 
@@ -362,6 +378,11 @@ export function validateCharacterDraft(campaignId: string, body: CharacterLike, 
     return { ok: false, error: "Bestätigte permanente Charakterwerte sind gesperrt." };
   if (body.characterState && !characterStates.includes(body.characterState as CharacterState))
     return { ok: false, error: "Unbekannter Charakterstatus." };
+  if ((body.engineVersion !== undefined && body.engineVersion !== 1) || body.historicalSnapshot && body.engineVersion !== 1) return {ok:false,error:'Ungültige Engine-Zuordnung des Charakterbogens.'};
+  if (body.historicalSnapshot || body.creationSnapshot && ['review','confirmed'].includes(state)) {
+    const error = validateExistingSheet(body);
+    return error ? {ok:false,error} : xpBalance(body) < 0 ? {ok:false,error:'Der XP-Saldo darf nicht negativ sein.'} : {ok:true,state,freebieSpent:0,freebieAvailable:0,xpAvailable:xpBalance(body)};
+  }
   if (!body.engineVersion && !body.creationAllocations && !body.freebiePurchases && !body.xpLedger && !body.characterState)
     return { ok: true, state, freebieSpent: 0, freebieAvailable: freebieCapacity(body), xpAvailable: xpBalance(body) };
   if (body.characterState && (!body.engineVersion || !body.creationAllocations || !body.freebiePurchases))
@@ -450,15 +471,23 @@ export function applyXpPurchase(body: CharacterLike, purchase: XpPurchase, now =
     const grant = (body.ruleExceptions as CharacterLike[]).find(g => g.category === "foreignDiscipline" && g.target === purchase.target);
     if (grant && purchase.to > Number(grant.maximum)) return { ok: false, error: "Diese Stufe überschreitet die genehmigte SL-Ausnahme." };
   }
+  if (purchase.category === "path") {
+    const pathError = pathPurchaseError(body, purchase);
+    if (pathError) return { ok: false, error: pathError };
+  }
   if (currentValue(body, purchase) !== purchase.from) return { ok: false, error: "Der aktuelle Charakterwert passt nicht zur XP-Anfrage." };
-  const raised = withRaisedValue(body, purchase);
+  purchase = { ...purchase, caitiff: isCaitiff(body) };
+  let raised = withRaisedValue(body, purchase);
   if (!raised) return { ok: false, error: "Das angegebene XP-Ziel existiert nicht im Charakter." };
+  // V20: the primary Path is the Thaumaturgy/Necromancy rating and rises with it.
+  if (purchase.category === "discipline" && (pathDisciplines as readonly string[]).includes(String(purchase.target)) && Array.isArray(raised.paths))
+    raised = { ...raised, paths: (raised.paths as CharacterLike[]).map((row) => row && row.primary === true ? { ...row, value: purchase.to } : row) };
   const price = xpCost(purchase);
   if (!price.ok) return price;
   const available = xpBalance(body);
   if (available < price.cost) return { ok: false, error: "Nicht genügend XP verfügbar." };
   const ledger = Array.isArray(body.xpLedger) ? [...body.xpLedger] : [];
-  ledger.push({ id: crypto.randomUUID(), kind: "spend", amount: price.cost, reason: purchase.reason || `${purchase.category} ${purchase.from} → ${purchase.to}`, createdAt: now });
+  ledger.push({ id: crypto.randomUUID(), kind: "spend", amount: price.cost, purchase, reason: purchase.reason || `${purchase.category} ${purchase.from} → ${purchase.to}`, createdAt: now });
   return { ok: true, body: { ...raised, xpLedger: ledger }, cost: price.cost };
 }
 
@@ -467,11 +496,11 @@ export function applyXpPurchase(body: CharacterLike, purchase: XpPurchase, now =
 export type SlAdjustment = { category: 'attribute'|'ability'|'discipline'|'background'|'virtue'|'humanity'|'willpower'; target: string; value: number };
 export function slAdjustmentTargets(body: CharacterLike) {
   const targets: Array<SlAdjustment & {minimum:number;maximum:number}> = [];
-  const add=(category:SlAdjustment['category'],target:string,value:unknown,minimum=0,maximum=5)=>{if(Number.isInteger(value))targets.push({category,target,value:Number(value),minimum,maximum});};
+  const add=(category:SlAdjustment['category'],target:string,value:unknown,minimum=0,maximum=10)=>{if(Number.isInteger(value))targets.push({category,target,value:Number(value),minimum,maximum});};
   for(const name of Object.values(attributeGroups).flat()) add('attribute',name,(body.attributes as NumericMap|undefined)?.[name]??attributeBase(body,name),attributeBase(body,name));
   for(const name of v20AbilityNames) add('ability',name,(body.skills as NumericMap|undefined)?.[name]??0);
   for(const [key,category] of [['disciplines','discipline'],['backgrounds','background']] as const) for(const row of rows(body[key])) if(typeof row.name==='string')add(category,row.name,row.value);
-  for(const name of ['Gewissen','Selbstbeherrschung','Mut']) add('virtue',name,(body.virtues as NumericMap|undefined)?.[name]??1,1);
+  for(const name of new Set(['Gewissen','Selbstbeherrschung','Mut',...Object.keys(body.virtues&&typeof body.virtues==='object'?body.virtues:{})])) add('virtue',name,(body.virtues as NumericMap|undefined)?.[name]??1,1);
   add('humanity','Menschlichkeit',body.humanity,0,10);add('willpower','Willenskraft',body.willpower,Math.max(1,integer(body.willpowerTemporary)),10);
   return targets;
 }
@@ -494,4 +523,47 @@ export function applySlAdjustment(body: CharacterLike, adjustment: SlAdjustment,
   }
   // No ledger, historical creation snapshot or temporary values are rewritten.
   return {ok:true,body:next,previous:selected.value};
+}
+
+export type CreationDeviationLine = { key: string; label: string; spent: number; limit: number; over: number };
+/**
+ * Informational comparison of a played sheet with the V20 creation frame
+ * (7/5/3, 13/9/5, 3, 5, 7). It never blocks a historical sheet and does not
+ * convert the surplus into XP: played development is documented, not priced.
+ */
+export function creationDeviation(body: CharacterLike): { lines: CreationDeviationLine[]; over: number } {
+  const attributes = body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes) ? body.attributes as NumericMap : {};
+  const skills = body.skills && typeof body.skills === "object" && !Array.isArray(body.skills) ? body.skills as NumericMap : {};
+  const virtues = body.virtues && typeof body.virtues === "object" && !Array.isArray(body.virtues) ? body.virtues as NumericMap : {};
+  const groupLines = (entries: Array<[string, number]>, limits: readonly number[], prefix: string) => {
+    const sorted = [...entries].sort((left, right) => right[1] - left[1]);
+    return sorted.map(([label, spent], index) => ({ key: prefix + ":" + label, label, spent, limit: limits[index], over: Math.max(0, spent - limits[index]) }));
+  };
+  const attributeLabels: Record<string, string> = { physical: "Körperliche Attribute", social: "Gesellschaftliche Attribute", mental: "Geistige Attribute" };
+  const abilityLabels: Record<string, string> = { talents: "Talente", skills: "Fertigkeiten", knowledges: "Kenntnisse" };
+  const lines: CreationDeviationLine[] = [
+    ...groupLines(Object.entries(attributeGroups).map(([group, names]) => [attributeLabels[group], names.reduce((total, name) => total + Math.max(0, integer(attributes[name], attributeBase(body, name)) - attributeBase(body, name)), 0)]), creationBudgets.attributes, "attributes"),
+    ...groupLines(Object.entries(abilityGroups).map(([group, names]) => [abilityLabels[group], names.reduce((total, name) => total + Math.max(0, integer(skills[name])), 0)]), creationBudgets.abilities, "abilities"),
+  ];
+  const single = (key: string, label: string, spent: number, limit: number) => lines.push({ key, label, spent, limit, over: Math.max(0, spent - limit) });
+  single("disciplines", "Disziplinen", rows(body.disciplines).reduce((total, row) => total + numericValue(row.value), 0), creationBudgets.disciplines);
+  single("backgrounds", "Hintergründe", rows(body.backgrounds).reduce((total, row) => total + numericValue(row.value), 0), creationBudgets.backgrounds);
+  single("virtues", "Tugenden", Object.values(virtues).reduce<number>((total, value) => total + Math.max(0, integer(value, 1) - 1), 0), creationBudgets.virtues);
+  return { lines, over: lines.reduce((total, row) => total + row.over, 0) };
+}
+
+export const pathDisciplines = ["Thaumaturgie", "Nekromantie"] as const;
+export function isCaitiff(body: CharacterLike) { return String(body.clan ?? "").trim().toLocaleLowerCase("de") === "caitiff"; }
+/** Highest rating a secondary Path may reach: the primary Path, otherwise the path Discipline itself. */
+export function pathCeiling(body: CharacterLike) {
+  const primary = rows(body.paths).filter((row) => row.primary === true).reduce((max, row) => Math.max(max, numericValue(row.value)), 0);
+  const discipline = rows(body.disciplines).filter((row) => (pathDisciplines as readonly string[]).includes(String(row.name))).reduce((max, row) => Math.max(max, numericValue(row.value)), 0);
+  return primary || discipline;
+}
+function pathPurchaseError(body: CharacterLike, purchase: XpPurchase): string | null {
+  const row = rows(body.paths).find((item) => String(item.name) === String(purchase.target ?? "").trim());
+  if (row?.primary === true) return "Der Primärpfad steigt mit der Disziplin (V20), nicht einzeln.";
+  if (pathCeiling(body) < 1) return "Pfade setzen Thaumaturgie oder Nekromantie voraus.";
+  if (purchase.to > pathCeiling(body)) return "Ein Sekundärpfad darf den Primärpfad nicht übersteigen (V20).";
+  return null;
 }

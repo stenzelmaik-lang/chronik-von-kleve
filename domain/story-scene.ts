@@ -15,7 +15,7 @@ export type SceneElement=z.infer<typeof sceneElementSchema>;
 export const sceneDocumentSchema = z.object({
   archived: z.boolean().default(false),
   title: z.string().trim().min(1).max(200), storyId: optionalId, placeId: optionalId,
-  parentId: optionalId, sessionIds: ids.default([]), favorite:z.boolean().default(false),pinned:z.boolean().default(false), elements:z.array(sceneElementSchema).max(100).default([]).refine(v=>new Set(v.map(e=>e.id)).size===v.length,'Elemente benötigen eindeutige Identitäten.'),
+  parentId: optionalId, sessionIds: ids.default([]), backdropFileId: optionalId, favorite:z.boolean().default(false),pinned:z.boolean().default(false), elements:z.array(sceneElementSchema).max(100).default([]).refine(v=>new Set(v.map(e=>e.id)).size===v.length,'Elemente benötigen eindeutige Identitäten.'),
   narration: text, atmosphere: text, gmNotes: text, dialogueNotes: text,
   interactions: text, secrets: text, visions: text.default(''), possibleConsequences: text,
   visionRecipientIds:z.array(id).max(20).default([]).refine(v=>new Set(v).size===v.length,'Empfänger dürfen nicht doppelt sein.'),
@@ -25,7 +25,7 @@ export const sceneDocumentSchema = z.object({
     .refine(v => new Set(v.map(p => p.id)).size === v.length, 'Möglichkeiten dürfen nicht doppelt sein.'),
 }).strict();
 export type SceneDocument = z.infer<typeof sceneDocumentSchema>;
-export const emptyScene = (storyId = ''): SceneDocument => ({ archived:false,title: 'Neue Szene', storyId, placeId: '',parentId:'',sessionIds:[],favorite:false,pinned:false,elements:[], narration: '', atmosphere: '', gmNotes: '', dialogueNotes: '', interactions: '', secrets: '', visions: '', visionRecipientIds:[],visionFileIds:[],possibleConsequences: '', npcIds: [], clueIds: [], possibilities: [] });
+export const emptyScene = (storyId = ''): SceneDocument => ({ archived:false,title: 'Neue Szene', storyId, placeId: '',parentId:'',sessionIds:[],backdropFileId:'',favorite:false,pinned:false,elements:[], narration: '', atmosphere: '', gmNotes: '', dialogueNotes: '', interactions: '', secrets: '', visions: '', visionRecipientIds:[],visionFileIds:[],possibleConsequences: '', npcIds: [], clueIds: [], possibilities: [] });
 export const sceneTargetSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('group') }).strict(),
   z.object({ scope: z.literal('character'), characterId: id }).strict(),

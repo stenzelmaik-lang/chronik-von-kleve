@@ -18,6 +18,11 @@ import { personal } from "./navigation";
 import { Choice, visibilityNames } from "./shared";
 
 import type { Dispatch, SetStateAction } from "react";
+import { PersonalMessageBody, type PersonalMessageAttachment } from "./personal-message-body";
+// Notes kept from a letter carry its attachment list; files stay access-checked by /api/files.
+function messageAttachments(value: unknown): PersonalMessageAttachment[] {
+  return Array.isArray(value) ? value.filter((f): f is PersonalMessageAttachment => !!f && typeof f.id === "string" && typeof f.name === "string" && typeof f.mime === "string").slice(0, 20) : [];
+}
 export function RecordEditor({
   edit,
   setEdit,
@@ -152,6 +157,12 @@ export function RecordEditor({
                   )}
                   {field("Kurzbeschreibung", "summary")}
                   {field("Lesetext", "text", true)}
+                  {edit.kind === "notizen" && messageAttachments(edit.body.attachments).length > 0 && (
+                    <section className="field wide" aria-label="Anhänge aus dem Postfach">
+                      <span>Anhänge aus dem Postfach</span>
+                      <PersonalMessageBody text="" attachments={messageAttachments(edit.body.attachments)} />
+                    </section>
+                  )}
                 </>
               )}
               {a.gm && !personal.includes(edit.kind) && (

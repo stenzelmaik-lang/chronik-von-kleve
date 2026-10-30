@@ -40,7 +40,8 @@ export async function weekendIntegration({req,check,localSql,sqlQuote,now}) {
  check((await nosCommand('gm','sl_adjustment',correction)).s===200,'SL CORRECTION confirmed Nosferatu receives requested appearance');
  nosRecord=(await req('/api/records?kind=charaktere','b')).d.records.find(r=>r.id===nosId);
  check(nosRecord.body.attributes.Erscheinungsbild===3&&nosRecord.body.xpLedger.length===1&&nosRecord.body.xpLedger[0].amount===5,'SL CORRECTION reload preserves ledger and actual dots');
- check((await nosCommand('gm','sl_adjustment',{...correction,adjustment:{...correction.adjustment,value:6}})).s===400,'SL CORRECTION unsupported high value denied');
+ check((await nosCommand('gm','sl_adjustment',{...correction,adjustment:{...correction.adjustment,value:6}})).s===200,'SL CORRECTION documented played value above five is supported');
+ check((await nosCommand('gm','sl_adjustment',{...correction,adjustment:{...correction.adjustment,value:11}})).s===400,'SL CORRECTION impossible rating above ten is denied');
  check((await nosCommand('gm','sl_adjustment',{...correction,adjustment:{category:'attribute',target:'xpLedger',value:2}})).s===400,'SL CORRECTION cannot change arbitrary keys');
  check((await nosCommand('gm','grant_exception',{category:'foreignDiscipline',target:'Auspex',rating:3,maximum:3,asCorrection:true,reason:'Synthetic confirmed SL discipline correction'})).s===200,'SL CORRECTION can grant foreign discipline for confirmed character');
  const slVersion=(await req('/api/character-engine?id='+nosId,'gm')).d.version;

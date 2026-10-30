@@ -14,14 +14,33 @@ export function syntheticPng(width,height,[r1,g1,b1],[r2,g2,b2]){
  return Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),chunk('IHDR',header),chunk('IDAT',deflateSync(Buffer.concat(rows))),chunk('IEND',Buffer.alloc(0))]);
 }
 
+/** Short synthetic radio-hum tone as 16-bit mono WAV. */
+export function syntheticWav(seconds=4,rate=8000){
+ const n=seconds*rate,data=Buffer.alloc(n*2);
+ for(let i=0;i<n;i++)data.writeInt16LE(Math.round(Math.sin(i/rate*2*Math.PI*220)*Math.sin(i/rate*Math.PI/seconds)*9000),i*2);
+ const h=Buffer.alloc(44);h.write('RIFF',0);h.writeUInt32LE(36+data.length,4);h.write('WAVEfmt ',8);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(rate,24);h.writeUInt32LE(rate*2,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write('data',36);h.writeUInt32LE(data.length,40);
+ return Buffer.concat([h,data]);
+}
+/** Minimal one-page PDF with a single text line. */
+export function syntheticPdf(text){
+ const stream=`BT /F1 20 Tf 60 760 Td (${text.replace(/[()\\]/g,'')}) Tj ET`;
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>','<< /Type /Pages /Kids [3 0 R] /Count 1 >>','<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+ let out='%PDF-1.4\n';const offsets=[];objects.forEach((o,i)=>{offsets.push(out.length);out+=`${i+1} 0 obj\n${o}\nendobj\n`;});
+ const xref=out.length;out+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`+offsets.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<< /Size ${objects.length+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+ return Buffer.from(out,'latin1');
+}
+
 export async function seedSpieltischKaserne({db,base,cookie}){
  const headers={Origin:base,Cookie:cookie};
  const call=async(path,body,expected=[200,201])=>{const r=await fetch(base+path,{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(body)});const text=await r.text();if(!expected.includes(r.status))throw new Error('Spieltisch fixture failed: '+path+' '+r.status+' '+text.slice(0,300));return JSON.parse(text);};
- const upload=async(name,png)=>{const form=new FormData();form.set('file',new Blob([png],{type:'image/png'}),name);form.set('visibility','sl');const r=await fetch(base+'/api/files',{method:'POST',headers,body:form});if(!r.ok)throw new Error('Spieltisch fixture upload failed '+r.status);return (await r.json()).id;};
+ const upload=async(name,png,type='image/png')=>{const form=new FormData();form.set('file',new Blob([png],{type}),name);form.set('visibility','sl');const r=await fetch(base+'/api/files',{method:'POST',headers,body:form});if(!r.ok)throw new Error('Spieltisch fixture upload failed '+r.status);return (await r.json()).id;};
 
  const kaserneImage=await upload('Kaserne Schwarzholz – Tor bei Nacht.png',syntheticPng(960,540,[18,22,20],[72,78,58]));
  const hallImage=await upload('Kaserne – Wachstube.png',syntheticPng(960,540,[30,18,14],[110,74,40]));
  const schaeferImage=await upload('Herr Schäfer – Porträt.png',syntheticPng(360,480,[24,24,30],[120,110,96]));
+ const foundPhoto=await upload('Fundfoto – Silas am Tor 1994.png',syntheticPng(480,600,[60,52,40],[190,170,130]));
+ const tape=await upload('Funkspruch Wache 3.wav',syntheticWav(),'audio/wav');
+ const order=await upload('Dienstbuch Seite 12.pdf',syntheticPdf('Dienstbuch Kaserne Schwarzholz - Eintrag 12'),'application/pdf');
 
  const place=await call('/api/cms/locations',{level:'location',title:'Kaserne Schwarzholz im Reichswald'});
  const npc=await call('/api/entities',{type:'NPC',title:'Herr Schäfer',text:'Ehemaliger Feldwebel, heute Hausmeister der stillgelegten Kaserne. Wortkarg, misstrauisch gegenüber Fremden.',gmBody:'SL_PRIVATE_NPC: Schäfer weiß, dass Silas Vance im Keller war.'});
@@ -41,7 +60,7 @@ export async function seedSpieltischKaserne({db,base,cookie}){
  };
 
  const kaserne=await scene('Szene 01 – Spielort Kaserne (Auftakt)',{
-  storyId,placeId:place.id,npcIds:[npc.id],clueIds:[handout.id],
+  storyId,placeId:place.id,npcIds:[npc.id],clueIds:[handout.id],backdropFileId:kaserneImage,
   narration:'<h2>Ankunft am Tor</h2><p>Der Reichswald schluckt das Scheinwerferlicht. Hinter dem rostigen Tor liegt die Kaserne Schwarzholz – still, aber nicht verlassen.</p><p class="cp-intro">Ein einzelnes Fenster der Wachstube ist erleuchtet.</p>',
   atmosphere:'<ul><li><strong>Licht:</strong> Natriumdampf, flackernd, ein Mast defekt.</li><li><strong>Geräusche:</strong> Kiefern im Wind, entferntes Hundegebell.</li><li><strong>Geruch:</strong> Diesel, nasses Laub, etwas Metallisches.</li></ul>',
   dialogueNotes:'<h3>Herr Schäfer</h3><p><em>Erster Eindruck:</em> „Hier ist seit 1994 niemand mehr stationiert.“</p><h3>Fragen zu Silas Vance</h3><p>Schäfer weicht aus, schaut zum Kellerabgang. Bei Druck: „Der Amerikaner? Der war nur einmal hier.“</p>',
@@ -50,17 +69,20 @@ export async function seedSpieltischKaserne({db,base,cookie}){
   possibleConsequences:'<ul><li>Gewalt gegen Schäfer: Silas erwacht in der nächsten Nacht.</li><li>Freundliches Gespräch: Schäfer verrät den Kellerzugang.</li></ul>',
   gmNotes:'<p><strong>Spickzettel:</strong> Tempo langsam, Schäfer nicht sofort als Bedrohung zeigen. Dienstbuch ist der rote Faden.</p>',
   elements:[
-   {id:randomUUID(),kind:'image',title:'Tor bei Nacht',text:'<p>Für den Auftakt zeigen.</p>',referenceId:'',fileId:kaserneImage},
+   {id:randomUUID(),kind:'image',title:'Fundfoto: Silas am Tor',text:'<p>Liegt unter dem Dienstbuch.</p>',referenceId:'',fileId:foundPhoto},
    {id:randomUUID(),kind:'image',title:'Wachstube',text:'',referenceId:'',fileId:hallImage},
+   {id:randomUUID(),kind:'audio',title:'Funkspruch Wache 3',text:'<p>Läuft im alten Funkgerät der Wachstube.</p>',referenceId:'',fileId:tape},
+   {id:randomUUID(),kind:'handout',title:'Dienstbuch, Seite 12',text:'',referenceId:'',fileId:order},
    {id:randomUUID(),kind:'handout',title:'Versiegelte Order',text:'',referenceId:handout.id,fileId:''},
    {id:randomUUID(),kind:'person',title:'Herr Schäfer',text:'<p>Steht rauchend am Tor.</p>',referenceId:npc.id,fileId:''},
   ],
  });
- const second=await scene('Szene 02 – Der Keller',{storyId,placeId:place.id,narration:'<p>Eine Betontreppe führt hinab.</p>',gmNotes:'<p>Nur wenn die Spieler den Zugang finden.</p>'});
+ const cellarImage=await upload('Kellertreppe.png',syntheticPng(960,540,[10,10,14],[50,40,44]));
+ const second=await scene('Szene 02 – Der Keller',{storyId,placeId:place.id,backdropFileId:cellarImage,narration:'<p>Eine Betontreppe führt hinab.</p>',gmNotes:'<p>Nur wenn die Spieler den Zugang finden.</p>'});
  // Decoys: same campaign, not linked to the evening. They must not appear in Live-Regie by default.
  await scene('Technische Prüfung Hauptszene',{narration:'<p>Testinhalt.</p>'});
  await scene('Neue Szene');
 
  const session=await call('/api/command-center/preparation',{action:'create',clientRequestId:randomUUID(),document:{title:'Der Hunger bleibt – Spielabend 01',summary:'Auftakt in der Kaserne Schwarzholz.',sceneIds:[kaserne,second],storyIds:storyId?[storyId]:[],status:'ready'}});
- return {sessionId:session.session?.id||session.id,kaserne,second,npc:npc.id,place:place.id,images:[kaserneImage,hallImage]};
+ return {sessionId:session.session?.id||session.id,kaserne,second,npc:npc.id,place:place.id,images:[kaserneImage,hallImage,foundPhoto],audio:tape,pdf:order,cellarImage};
 }

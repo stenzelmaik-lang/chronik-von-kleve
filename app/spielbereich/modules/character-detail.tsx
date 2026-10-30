@@ -37,6 +37,7 @@ import {
   CharacterCompanionNote,
   CharacterDetailProjection,
   CharacterListReadout,
+  Dots,
   RatingGroup,
   attrsGroups,
   skillGroups,
@@ -68,7 +69,9 @@ export function CharacterDetail({
   onCreate,
   onEdit,
   onRefresh,
+  initialView = "sheet",
 }: {
+  initialView?: string;
   a: Actor;
   inspection?: boolean;
   entries: Entry[];
@@ -79,7 +82,7 @@ export function CharacterDetail({
   onEdit: (e: Entry) => void;
   onRefresh?: () => void;
 }) {
-  const [view, setView] = useState("sheet");
+  const [view, setView] = useState(initialView);
   const [projectionState, setProjection] = useState<CharacterDetailProjection | null>(
     null,
   );
@@ -458,7 +461,7 @@ export function CharacterDetail({
   ];
 
   return (
-    <div className={`character-detail-page ${studio.studio}`}>
+    <div className={`character-detail-page ${studio.studio} ${inspection?studio.inspection:""}`}>
       {archiveNav}{lifecycleConfirmation.dialog}
       {archived&&<p role="status" className="panel">Archivierter Charakter · Daten erhalten · vor Änderungen wiederherstellen.</p>}
       {refreshing && <p className="muted" role="status">Charakterbogen wird aktualisiert …</p>}
@@ -480,14 +483,14 @@ export function CharacterDetail({
           <p className="character-motto">
             {String(i.concept || "Keine Charakteraussage hinterlegt.")}
           </p>
-          <details className={studio.identityFold}><summary>Identität & Hintergrund</summary><dl className="character-identity">
+          <dl className={`character-identity ${studio.identityGrid}`}>
             {identityFields.map(([label, value]) => (
               <div key={label}>
                 <dt>{label}</dt>
                 <dd>{String(value ?? "Nicht angegeben")}</dd>
               </div>
             ))}
-          </dl></details>
+          </dl>
         </div>
         <div className="character-hero-actions">
           {!inspection && !archived && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
@@ -510,11 +513,11 @@ export function CharacterDetail({
           {permissions.canEdit === true && (
             <button
               className="button primary character-edit"
-              disabled={!(inspection && a.gm) && (characterState === "confirmed" || characterState === "review")}
+              disabled={!(inspection && a.gm) && projection.permissions.sheetEditing !== true && (characterState === "confirmed" || characterState === "review")}
               title={inspection && a.gm ? "Werte als zuständige SL begründet korrigieren und Ausnahmen freigeben." : characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : characterState === "review" ? "Der eingereichte Bogen ist während der SL-Prüfung geschützt." : undefined}
-              onClick={() => inspection && a.gm ? setView("management") : onEdit(active)}
+              onClick={() => inspection && a.gm ? setView("management") : projection.permissions.sheetEditing === true ? setView("development") : onEdit(active)}
             >
-              <Pencil size={16} /> {inspection && a.gm ? "SL-Werte ändern" : "Bogen bearbeiten"}
+              <Pencil size={16} /> {inspection && a.gm ? "Akte verwalten" : "Bogen bearbeiten"}
             </button>
           )}
           {active.owner_id===a.id&&!inspection&&<button className="button" disabled={companionBusy} onClick={()=>void changeLifecycle(!archived)}>{archived?"Charakter wiederherstellen":"Charakter archivieren"}</button>}
@@ -537,9 +540,9 @@ export function CharacterDetail({
       </header>
       <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>setView("development")}/>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
-      {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
+      {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
@@ -564,6 +567,7 @@ export function CharacterDetail({
               ))}
             </div>
           </section>
+          {Object.keys(obj(s.attributes)).some(name=>!attrsGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Attribute" value={Object.entries(obj(s.attributes)).filter(([name])=>!attrsGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
           <section className="sheet-block">
             <div className="sheet-block-heading">
               <span>02</span>
@@ -579,6 +583,7 @@ export function CharacterDetail({
                   disabled
                 />
               ))}
+              {Object.keys(obj(s.abilities)).some(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Fähigkeiten" value={Object.entries(obj(s.abilities)).filter(([name])=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
               {((Array.isArray(s.customAbilities) && s.customAbilities.length > 0) || (typeof s.customAbilities === "string" && s.customAbilities.trim())) && <CharacterListReadout label="Freie Fähigkeiten (Legacy)" value={s.customAbilities} />}
             </div>
           </section>
@@ -588,7 +593,10 @@ export function CharacterDetail({
               <h3>Vorteile</h3>
             </div>
             <div className="sheet-columns advantage-columns">
-              <CharacterListReadout label="Disziplinen" value={s.disciplines} />
+              <div>
+                <CharacterListReadout label="Disziplinen" value={s.disciplines} />
+                {Array.isArray(s.paths) && s.paths.length > 0 && <CharacterListReadout label="Pfade" value={(s.paths as Array<Record<string, unknown>>).map(row => ({ ...row, name: String(row.name ?? "") + (row.primary === true ? " · Primärpfad" : "") }))} />}
+              </div>
               <CharacterListReadout label="Hintergründe" value={s.backgrounds} />
               <RatingGroup
                 title="Tugenden"
@@ -607,18 +615,34 @@ export function CharacterDetail({
               <CharacterListReadout label="Vorzüge" value={s.merits} metric="cost" />
               <CharacterListReadout label="Schwächen" value={s.flaws} metric="cost" />
               <section className="rating-section">
-                <h4>Menschlichkeit & Pfad</h4>
-                <p className="character-list-line">
-                  <span>Menschlichkeit</span>
-                  <b>{String(s.humanity ?? "–")}</b>
-                </p>
-                <p className="muted">{String(s.humanityPath || "Kein Pfad hinterlegt")}</p>
+                <h4>Clansschwäche</h4>
                 <p className="muted preserve-lines">
                   {String(s.clanWeakness || "Keine Clansschwäche hinterlegt.")}
                 </p>
               </section>
             </div>
           </section>
+          <section className="sheet-block">
+            <div className="sheet-block-heading">
+              <span>05</span>
+              <h3>Menschlichkeit, Willenskraft & Blut</h3>
+            </div>
+            <div className="sheet-columns">
+              <section className="rating-section">
+                <h4>{String(s.humanityPath || "Menschlichkeit")}</h4>
+                {typeof s.humanity === "number" ? <Dots value={s.humanity} max={10} disabled label={String(s.humanityPath || "Menschlichkeit")}/> : <p className="muted">Noch nicht erfasst.</p>}
+              </section>
+              <section className="rating-section">
+                <h4>Willenskraft</h4>
+                {permanent > 0 ? <><Dots value={permanent} max={10} disabled label="Willenskraft permanent"/><p className="muted">Aktuell {temporary} von {permanent}</p></> : <p className="muted">Noch nicht erfasst.</p>}
+              </section>
+              <section className="rating-section">
+                <h4>Blutvorrat</h4>
+                {max > 0 ? <><p className="sheet-blood" aria-label={`Blutvorrat ${current} von ${max}`}>{Array.from({length:Math.min(max,50)},(_,index)=><span key={index} data-filled={index<current||undefined}/>)}</p><p className="muted">{current} / {max} · pro Runde {String(blood.perRound ?? "–")}</p></> : <p className="muted">Noch nicht erfasst.</p>}
+              </section>
+            </div>
+          </section>
+          {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
         </section>
 
 

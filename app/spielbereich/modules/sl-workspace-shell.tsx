@@ -3,6 +3,7 @@
 import { Clapperboard, Users, MapPin, Play } from 'lucide-react';
 import type { Actor } from '@/domain/types';
 import { Toaster } from '@/components/ui/sonner';
+import {MessageCenter} from './message-center';
 import styles from './sl-workspace-shell.module.css';
 
 const preparationTools = [
@@ -13,6 +14,7 @@ const preparationTools = [
 
 export function SLWorkspaceShell({a,section,navigate,children,preparationDirty=false}:{a:Actor;section:string;navigate:(id:string)=>void;children:React.ReactNode;preparationDirty?:boolean}) {
   return <div className={`${styles.shell} ${styles.central}`}>
+    {a.status==='active'&&a.gm&&<MessageCenter key={a.campaignId+a.id} a={a} showTrigger={false}/>}
     <header className={styles.header}><a href="/">CHRONIPLAY</a><strong>COMMAND CENTER · VORBEREITUNG</strong><span>{a.name} · Kampagnenredaktion</span><a href="/spielbereich">Mein Spielerbereich ↗</a></header>
     <main className={styles.content}>
       <nav className={styles.managementNav} aria-label="Verwaltungsbereiche">

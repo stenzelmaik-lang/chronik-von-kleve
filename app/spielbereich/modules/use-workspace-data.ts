@@ -97,13 +97,16 @@ export function useWorkspaceData(
 
     if (key.startsWith("empty:")) return;
 
-    setResult({
+    setResult(current => {
+      const retainCharacter = section === 'charaktere' && force && current.key === resultKey && current.hasValue;
+      return {
       key: resultKey,
-      hasValue: cached !== undefined,
-      data: cached?.value ?? empty,
+      hasValue: cached !== undefined || retainCharacter,
+      data: cached?.value ?? (retainCharacter ? current.data : empty),
       error: null,
-      loading: cached === undefined,
-      refreshing: cached !== undefined && (force || !cached.fresh),
+      loading: cached === undefined && !retainCharacter,
+      refreshing: retainCharacter || cached !== undefined && (force || !cached.fresh),
+      };
     });
 
     requestPlayerData(scope, key, () => fetchSection(section, inspection), { force })

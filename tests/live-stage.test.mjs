@@ -35,3 +35,24 @@ test('commands and stored states reject forged owners, payloads and positions',(
  let s=changeStageObjects(emptyStage(),a,{action:'add',kind:'note'});assert.equal(emptyStage().objects.length,0);assert.equal(s.version,1);
  assert.throws(()=>changeStageObjects(s,a,{action:'edit',id:s.objects[0].id,content:'x'.repeat(3001),expectedRevision:1}));
 });
+
+test('scene media: backdrop, polaroid release in one step, scene change clears table material but keeps notes',()=>{
+ const photo={title:'Foto Tor',kind:'document',sourceId:'file-photo',sourceKind:'file',media:'image'};
+ let s=changeStageObjects(emptyStage(),a,{action:'add',kind:'note'});
+ assert.throws(()=>changeStageObjects(s,a,{action:'backdrop',fileId:'f'},undefined,{fileId:'f',title:'T',sceneId:''}),e=>e.status===403,'Players cannot change the backdrop');
+ s=changeStageObjects(s,gm,{action:'backdrop',fileId:'bg'},undefined,{fileId:'bg',title:'Kaserne',sceneId:'scene-1'});
+ assert.equal(s.backdrop.fileId,'bg');
+ s=changeStageObjects(s,gm,{action:'add',kind:'document',sourceId:'file-photo',sourceKind:'file',visible:true,recipients:['a']},photo);
+ const card=s.objects.find(o=>o.kind==='document');
+ assert.equal(card.media,'image');assert.ok(card.rect.w<.25,'Photos are placed as small cards');
+ assert.equal(stageVisible(card,a),true);assert.equal(stageVisible(card,b),false,'Targeted photo stays hidden from B');
+ s=changeStageObjects(s,gm,{action:'add',kind:'document',sourceId:'file-photo',sourceKind:'file',visible:true,recipients:null},photo);
+ assert.equal(s.objects.filter(o=>o.kind==='document').length,1,'Placing again changes the release, never duplicates');
+ assert.equal(stageVisible(s.objects.find(o=>o.kind==='document'),b),true);
+ s=changeStageObjects(s,gm,{action:'activateScene',sceneId:'scene-2'},undefined,null);
+ assert.deepEqual(s.objects.map(o=>o.kind),['note'],'Scene change removes previous material, keeps player notes');
+ assert.equal(s.backdrop,null,'A scene without backdrop returns to the default stage');assert.equal(s.sceneId,'scene-2');
+ assert.equal(stageSchema.safeParse(s).success,true);
+ assert.equal(stageSchema.safeParse({format:1,version:0,objects:[]}).success,true,'Stages stored before this change stay readable');
+ assert.equal(stageCommandSchema.safeParse({action:'backdrop',fileId:null}).success,true);
+});

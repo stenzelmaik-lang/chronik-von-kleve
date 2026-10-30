@@ -447,3 +447,9 @@ body{background:#101418;color:#ece5d8;font-family:Arial,sans-serif;font-size:16p
 .character-editor-form .v20-note{grid-column:1/-1;margin:16px 0 0}
 .character-editor-form .form-actions{margin-top:18px;padding-top:16px;background:linear-gradient(180deg,rgba(16,20,24,.2),#101418 35%)}
 @media(max-width:700px){.character-editor-dialog{max-width:calc(100% - 18px)!important;padding:18px!important}.character-editor-form>.form-grid{grid-template-columns:1fr}.character-editor-form .bio-grid{grid-template-columns:1fr;padding:15px}.character-editor-form .bio-grid .v20-emblem{grid-row:auto}.character-editor-form .form-heading{margin-top:16px;padding-left:14px;padding-right:14px}.character-editor-form .form-heading+.ratings-columns{grid-template-columns:1fr;padding:12px}.character-editor-form .field.wide:not(.gm-field),.character-editor-form .virtue-grid{padding:14px}.character-editor-form .inline-list-row{grid-template-columns:1fr}}
+/* Charakterbogen 3.0: Blutvorrat als Kästchen wie auf dem Papierbogen. */
+.sheet-blood{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px}.sheet-blood span{width:16px;height:16px;border:1.5px solid #8a5a55;border-radius:2px}.sheet-blood span[data-filled]{background:#9a4547;border-color:#d07a74}
+/* Charakterbogen 3.0: read-only ratings as clear paper-sheet circles (sheet, Spieltisch, SL views). */
+.dots .dot:disabled{font-size:0;line-height:0;width:15px;height:15px;padding:0;border:1.5px solid #6f6553;border-radius:50%;background:transparent;cursor:default;opacity:1;transform:none;text-shadow:none}
+.dots .dot.active:disabled{background:#d2ad6d;border-color:#d2ad6d;box-shadow:0 0 6px rgba(210,173,109,.35)}
+.character-sheet .dots .dot:disabled{width:16px;height:16px}
