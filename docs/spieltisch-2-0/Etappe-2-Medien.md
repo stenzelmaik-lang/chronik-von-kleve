@@ -60,6 +60,12 @@ Zustände: *vorbereitet* (Szenendokument) → *privat in der Regie* (nur SL-Endp
 - CI zum Zeitpunkt des Deploys: Typecheck/Lint/Tests/Build grün; SL-Browserdurchlauf war mit `c4ae552` an einem Überlauf durch das versteckte Upload-Feld gescheitert, korrigiert in `e865f91` (lokal geprüft 1920/1440/125 %/375 px); erneuter CI-Lauf beim Deploy noch offen. „Workers Builds“ rot wie bei früheren PRs (Auto-Build pausiert).
 - Offen: Merge von PR #44 durch den Projektinhaber, Codex-Review, persönliche Abnahme mit Originalmaterial.
 
+### Folge-Release „Szenenstart & Hintergrund“ (30.10.2026, 13:21Z)
+
+- Auf Anweisung des Projektinhabers. Stand `aaacd3e` (PR #44, weiterhin nicht gemergt). Version `80c77f40-fed2-4a1a-8ae4-b011dd327795`, Tag `szenenstart-hintergrund`, 100 % Verkehr. Bindings unverändert.
+- Rückfallversion: `7971d484-27db-4a38-848d-7fd99db30c42` (vollständig kompatibel, keine Datenänderung). Time-Travel-Lesezeichen vor dem Deploy: `0000018a-00001580-00005114-ac1efe1f66c09659500873afdf239ff4`. Keine Schemaänderung gegenüber dem vorherigen Release.
+- Live-Prüfung ohne Anmeldung: `/anmelden` 200; Spielbereich/SL 307; Bühne, Regie, Hintergrund-Asset, Dateien, Live-Tisch 401; Überblend-Stylesheet ausgeliefert.
+
 ## Ausprobieren
 
 `Start-Spieltisch-2.cmd` → `http://127.0.0.1:8830/anmelden` (synthetische Konten wie Etappe 1). Bei bestehendem altem Testspeicher `.local-test/spieltisch-2` vorher löschen, damit die neuen Mediendaten angelegt werden.
