@@ -18,7 +18,7 @@ export function MessageCenter({ a,embedded=false,initialRecipient,showTrigger=tr
     let live=true,running=false;
     const load=async()=>{if(running)return;running=true;try{const data=await api<Inbox>("/api/messages");if(live){setInbox(current=>({...data,messages:opened.current?current.messages.map(m=>data.messages.find(n=>n.id===m.id)||m).concat(data.messages.filter(n=>!current.messages.some(m=>m.id===n.id))).sort((x,y)=>y.createdAt.localeCompare(x.createdAt)||y.id.localeCompare(x.id)):data.messages,next:opened.current?current.next:data.next}));}}catch(e){if(live){setError((e as Error).message);setInbox({messages:[],unread:0,next:null});setSent({messages:[],unread:0,next:null});setSelected(null);}}finally{running=false;}};
     void load();const timer=embedded?null:window.setInterval(()=>{if(document.visibilityState==="visible")void load();},2500);window.addEventListener("focus",load);
-    const compose=(event:Event)=>{if(!canSend)return;const recipient=(event as CustomEvent<string>).detail;setChosen(recipient?[recipient]:[]);setMode("compose");setOpen(true);opened.current=true;};
+    const compose=(event:Event)=>{if(!canSend)return;const recipient=(event as CustomEvent<string|string[]>).detail;requestId.current=null;setChosen(Array.isArray(recipient)?recipient:recipient?[recipient]:[]);setMode("compose");setOpen(true);opened.current=true;};
     window.addEventListener("chroniplay:compose-message",compose);
     const showInbox=()=>{if(embedded)return;setSelected(null);setMode('inbox');setOpen(true);opened.current=true;void load();};
     window.addEventListener('chroniplay:open-inbox',showInbox);

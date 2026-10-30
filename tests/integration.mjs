@@ -21,6 +21,7 @@ import {locationCreationIntegration} from './location-creation-integration.mjs';
 import {locationLibraryIntegration} from './location-library-integration.mjs';
 import {locationDossierIntegration} from './location-dossier-integration.mjs';
 import {engineFixture} from "./fixtures/engine-character.mjs";
+import {characterManagementIntegration} from "./character-management-integration.mjs";
 import {weekendIntegration} from "./weekend-integration.mjs";
 import {accountAccessIntegration} from "./account-access-integration.mjs";
 import assert from 'node:assert/strict';
@@ -1028,6 +1029,7 @@ const regieUpdate={id:regieStored.id,version:regieStored.version,kind:'sitzungen
 check((await req('/api/records','gm','POST',regieUpdate)).s===200,'Scene update with preserved location succeeds');
 check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session revision cannot overwrite regie association');
 await weekendIntegration({req,check,localSql,sqlQuote,now});
+await characterManagementIntegration({req,check,localSql,sqlQuote});
 await commandWorkspaceIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId});
 await storySceneIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId,characterBody});
 await storyPreparationIntegration({req,check,localSql,sqlQuote,session:regieStored,base,ids});

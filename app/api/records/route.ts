@@ -18,6 +18,7 @@ import {
 import { locationReferenceIsVisible } from "@/server/location-repository";
 import { validateCharacterClanSelection } from "@/domain/clan-config";
 import { validateCharacterDraft, withCreationBaseValues } from "@/domain/character-engine";
+import {characterFieldEqual,characterSheetFields} from '@/domain/character-management';
 export const dynamic = "force-dynamic";
 // Rule markers are accepted only for the GM-owned campaign character route;
 // POST below rejects marked character payloads before persisting for anyone else.
@@ -165,12 +166,14 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Spielraumdaten werden ausschließlich im gemeinsamen Spielraum verwaltet.");
     if (d.kind === "charaktere") {
       const previous = old ? legacyBody(old.body) : undefined;
+      if(old&&(previous?.engineVersion!==undefined||previous?.historicalSnapshot)&&previous?.engineVersion!==d.body.engineVersion)throw new HttpError(403,'Die bestätigte Engine-Zuordnung darf nicht über den allgemeinen Editor geändert werden.');
+      if (old && !a.gm && (previous?.historicalSnapshot || ['review','confirmed'].includes(String(previous?.characterState))) && (old.title!==d.title || characterSheetFields.some(key=>!characterFieldEqual(previous?.[key],d.body[key])))) throw new HttpError(previous?.characterState==='review'?409:previous?.characterState==='confirmed'?400:403,'Geschützte Bogenwerte ausschließlich über die ausdrücklich freigegebene Bogenbearbeitung ändern.');
       if(previous?.archived===true||previous?.lifecycleStatus==='ARCHIVED')throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
       for(const field of ['archived','archivedAt','archivedBy','lifecycleStatus'])if(JSON.stringify(previous?.[field]??null)!==JSON.stringify(d.body[field]??null))throw new HttpError(403,'Charaktere ausschließlich über die bestätigte Archivierung verwalten.');
       Object.assign(d.body, withCreationBaseValues(d.body));
       if (previous?.characterState === "review" && ["attributes","skills","disciplines","backgrounds","virtues","humanity","willpower","clan","generation","merits","flaws","creationAllocations","freebiePurchases"].some(key=>JSON.stringify(previous[key]??null)!==JSON.stringify(d.body[key]??null)))
         throw new HttpError(409,"Der eingereichte Bogen ist geschützt. Die Spielleitung muss ihn zuerst zur Überarbeitung zurückgeben.");
-      const protectedKeys = ["xpLedger", "creationSnapshot", "engineOperationId", "characterRequests", "ruleExceptions"];
+      const protectedKeys = ["xpLedger", "creationSnapshot", "historicalSnapshot", "historicalXp", "historicalVerification", "characterPermissions", "engineOperationId", "characterRequests", "ruleExceptions"];
       for (const key of protectedKeys) {
         if (old ? JSON.stringify(previous?.[key] ?? (key === "xpLedger" ? [] : null)) !== JSON.stringify(d.body[key] ?? (key === "xpLedger" ? [] : null)) : d.body[key] !== undefined && !(key === "xpLedger" && Array.isArray(d.body[key]) && d.body[key].length === 0))
           throw new HttpError(403, "XP, Bestätigung und Anträge dürfen nur über die zentrale Regel-Engine verändert werden.");
@@ -198,6 +201,7 @@ export async function POST(req: Request) {
         allowPending: d.body.characterState === "draft",
       });
       if (!clanSelection.ok) throw new HttpError(400, clanSelection.error);
+      if(old&&!a.gm&&!previous?.engineVersion&&["attributes","skills","customAbilities","disciplines","backgrounds","virtues","humanity","willpower","generation","clan","merits","flaws","bloodMax","bloodPerRound"].some(key=>!characterFieldEqual(previous?.[key],d.body[key]))) throw new HttpError(403,"Historische mechanische Werte benötigen eine ausdrückliche SL-Bearbeitungsfreigabe. Texte und unveränderte Legacy-Werte bleiben erhalten.");
       const engine = validateCharacterDraft(a.campaignId, d.body, previous);
       if (!engine.ok) throw new HttpError(400, engine.error);
     }

@@ -512,7 +512,7 @@ export function CharacterDetail({
               className="button primary character-edit"
               disabled={!(inspection && a.gm) && (characterState === "confirmed" || characterState === "review")}
               title={inspection && a.gm ? "Werte als zuständige SL begründet korrigieren und Ausnahmen freigeben." : characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : characterState === "review" ? "Der eingereichte Bogen ist während der SL-Prüfung geschützt." : undefined}
-              onClick={() => inspection && a.gm ? setView("management") : onEdit(active)}
+              onClick={() => inspection && a.gm ? setView("management") : projection.permissions.sheetEditing === true ? setView("development") : onEdit(active)}
             >
               <Pencil size={16} /> {inspection && a.gm ? "SL-Werte ändern" : "Bogen bearbeiten"}
             </button>
@@ -539,7 +539,7 @@ export function CharacterDetail({
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
         {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"SL-Prüfung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
-      {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true);onRefresh?.();}}/>}
+      {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
@@ -564,6 +564,7 @@ export function CharacterDetail({
               ))}
             </div>
           </section>
+          {Object.keys(obj(s.attributes)).some(name=>!attrsGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Attribute" value={Object.entries(obj(s.attributes)).filter(([name])=>!attrsGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
           <section className="sheet-block">
             <div className="sheet-block-heading">
               <span>02</span>
@@ -579,6 +580,7 @@ export function CharacterDetail({
                   disabled
                 />
               ))}
+              {Object.keys(obj(s.abilities)).some(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Fähigkeiten" value={Object.entries(obj(s.abilities)).filter(([name])=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
               {((Array.isArray(s.customAbilities) && s.customAbilities.length > 0) || (typeof s.customAbilities === "string" && s.customAbilities.trim())) && <CharacterListReadout label="Freie Fähigkeiten (Legacy)" value={s.customAbilities} />}
             </div>
           </section>
@@ -619,6 +621,7 @@ export function CharacterDetail({
               </section>
             </div>
           </section>
+          {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
         </section>
 
 

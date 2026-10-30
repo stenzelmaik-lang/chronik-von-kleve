@@ -48,6 +48,7 @@ import { personal, sections } from "./modules/navigation";
 import { RecordEditor } from "./modules/record-editor";
 import { CommandCenter } from "./modules/command-center";
 import { Choice, safeImage, visibilityNames } from "./modules/shared";
+import { PlayerCharacterManagement } from "./modules/player-character-management";
 import { CharacterDetail } from "./modules/character-detail";
 import { NPCPanel } from "./modules/npc-panel";
 import { CodexPanel } from "./modules/codex-panel";
@@ -331,7 +332,7 @@ export default function Workspace({
         <LocationCMS a={a} dataScope={dataScope} />
       ) : section === "regelwerk" ? (
         <CodexPanel key={dataScope} dataScope={dataScope} />
-      ) : loading ? (
+      ) : loading && !(section === "charaktere" && hasData) ? (
         <div className="entry-grid">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-56 w-full" />
@@ -346,7 +347,7 @@ export default function Workspace({
       ) : section === "nscs" ? (
         <NPCPanel key={dataScope} dataScope={dataScope} gm={a.gm} />
       ) : section === "charaktere" ? (
-        <CharacterDetail a={a} inspection={surface === "sl"} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />
+        <>{surface === "sl" ? <PlayerCharacterManagement a={a} inspection key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} /> : <CharacterDetail a={a} inspection={false} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />}</>
       ) : section === "inventar" ? (
         <InventoryPanel key={dataScope} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "verwaltung" ? (

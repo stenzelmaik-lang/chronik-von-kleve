@@ -8,6 +8,8 @@ import {
   input,
   HttpError,
 } from "@/server/access";
+import {commandCharacterSummary} from '@/domain/character-live';
+import {characterPermissions} from '@/domain/character-management';
 export const dynamic = "force-dynamic";
 
 type MemberRevision = {
@@ -19,10 +21,24 @@ type MemberRevision = {
   membership_version: number | null;
 };
 
-export async function GET() {
+export async function GET(req:Request) {
   try {
     const a = await actor(false);
     if (a.status !== "active" || !a.gm) return json({ actor: a, members: [] });
+    if(new URL(req.url).searchParams.get('characters')==='1'){
+      const db=database();
+      const members=(await db.prepare(`SELECT m.id,m.name,COALESCE(cm.status,m.status) AS status,cm.role,p.preferences
+        FROM members m LEFT JOIN campaign_memberships cm ON cm.campaign_id=? AND cm.user_id=m.id
+        LEFT JOIN auth_member_links l ON l.member_id=m.id LEFT JOIN auth_profiles p ON p.user_id=l.auth_user_id
+        WHERE m.campaign_id=? OR cm.user_id IS NOT NULL ORDER BY m.name,m.id`).bind(a.campaignId,a.campaignId).all<{id:string;name:string;status:string;role:string;preferences:string|null}>()).results;
+      const characters=(await db.prepare("SELECT id,title,owner_id,body,version FROM records WHERE campaign_id=? AND kind='charaktere' AND NOT EXISTS(SELECT 1 FROM entities e WHERE e.id=records.id AND e.campaign_id=records.campaign_id AND e.canon_status='GM_SECRET') ORDER BY title,id").bind(a.campaignId).all<{id:string;title:string;owner_id:string;body:string;version:number}>()).results;
+      const campaign=await db.prepare('SELECT name FROM campaigns WHERE id=?').bind(a.campaignId).first<{name:string}>();
+      return json({campaign:{id:a.campaignId,name:campaign?.name||a.campaignId},players:members.map(member=>{
+        let active:string|null=null;try{active=JSON.parse(member.preferences||'{}').activeCharacters?.[a.campaignId]??null;}catch{}
+        const owned=characters.filter(row=>row.owner_id===member.id).flatMap(row=>{const summary=commandCharacterSummary(row);if(!summary)return[];const body=JSON.parse(row.body);return [{...summary,archived:body.archived===true||body.lifecycleStatus==='ARCHIVED',permissions:characterPermissions(body)}];});
+        return {id:member.id,name:member.name,status:member.status,role:member.role,activeCharacterId:owned.some(row=>row.id===active&&!row.archived)?active:null,characters:owned};
+      })});
+    }
     const r = await database()
       .prepare(
         `SELECT m.id,m.email,m.name,COALESCE(cm.status,m.status) AS status,
