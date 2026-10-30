@@ -2,7 +2,10 @@ import {database,gmOnly,HttpError,type Actor} from './access';
 import {readLiveRoom,liveMembers,liveFile} from './live-game';
 import {liveEvents} from './live-commands';
 import {loadEntities,loadEntitiesForIds} from './entities';
-import {listScenes} from './story-scenes';
+import {listScenes,readScene} from './story-scenes';
+import {preparedSession} from './story-preparation';
+import type {SceneSummary} from '@/domain/story-scene';
+import {liveSceneChoice} from '@/domain/session-overview';
 import {stageSchema,emptyStage,stageVisible,changeStageObjects,stageSourceToken,type StageCommand,type StageState,type StageObject} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
 import {participantPresence} from '@/domain/live-participants';
@@ -19,6 +22,25 @@ export async function stageSource(a:Actor,id:string,kind:'entity'|'file'){
  if(!e||!['NPC','HANDOUT'].includes(e.type))throw new HttpError(404,'Originalobjekt nicht verfügbar.');
  return {title:e.title,kind:e.type==='NPC'?'npc' as const:'document' as const,sourceId:e.id,sourceKind:kind,sourceVersion:e.version,sourceToken:await stageSourceToken(e)};
 }
+/** Private SL direction context for one prepared scene. GM only; never part of a player snapshot. */
+export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
+ gmOnly(a);await stageRoom(a,sessionId);
+ const db=database(),scene=await readScene(db,a,sceneId),d=scene.document;
+ const refs=[d.placeId,...d.npcIds,...d.clueIds,...d.elements.map(e=>e.referenceId)].filter(Boolean);
+ const fileIds=[...new Set(d.elements.map(e=>e.fileId).filter(Boolean))];
+ const [entities,files]=await Promise.all([loadEntitiesForIds(db,a.campaignId,refs),fileIds.length?db.prepare(`SELECT id,name,mime FROM files WHERE campaign_id=? AND id IN (${fileIds.map(()=>'?').join(',')})`).bind(a.campaignId,...fileIds).all<{id:string;name:string;mime:string}>():Promise.resolve({results:[] as {id:string;name:string;mime:string}[]})]);
+ const entity=(id:string)=>entities.find(e=>e.id===id),text=(v:unknown)=>typeof v==='string'?v:'';
+ const npcIds=[...new Set([...d.npcIds,...d.elements.filter(e=>e.kind==='person'&&entity(e.referenceId)?.type==='NPC').map(e=>e.referenceId)])];
+ const handoutIds=[...new Set([...d.clueIds,...d.elements.filter(e=>e.kind==='handout'&&e.referenceId).map(e=>e.referenceId)])];
+ return {
+  scene:{id:scene.id,version:scene.version,title:d.title,narration:d.narration,atmosphere:d.atmosphere,dialogueNotes:d.dialogueNotes,interactions:d.interactions,secrets:d.secrets,visions:d.visions,possibleConsequences:d.possibleConsequences,gmNotes:d.gmNotes,possibilities:d.possibilities},
+  place:entity(d.placeId)?{id:d.placeId,title:entity(d.placeId)!.title}:null,
+  npcs:npcIds.flatMap(id=>{const e=entity(id);return e&&e.type==='NPC'?[{id,title:e.title,summary:text(e.content.text),gmBody:e.gmBody||'',image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(id),cue:d.elements.filter(x=>x.referenceId===id).map(x=>x.text).join('')}]:[];}),
+  handouts:handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT'}]:[];}),
+  media:d.elements.flatMap(e=>{const f=files.results.find(f=>f.id===e.fileId);return f?[{id:e.id,title:e.title,kind:e.kind,text:e.text,fileId:f.id,name:f.name,mime:f.mime}]:[];}),
+  notes:d.elements.filter(e=>!e.fileId&&!['person','handout'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
+ };
+}
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){
  const {row,room}=await stageRoom(a,sessionId),stage=storedStage(room);
  const [events,members]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a)]);
@@ -26,17 +48,18 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:evaluateNormalV20(e.roll!.dice,e.roll!.target),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
  const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string}[]=[];
- let scenes:{id:string;title:string;image:string;version:number}[]=[];
+ let scenes:{id:string;title:string;image:string;version:number}[]=[],moreScenes:typeof scenes=[];
  if(a.gm&&includeCatalog){
-  const [entities,files,availableScenes]=await Promise.all([loadEntities(database(),a.campaignId),database().prepare('SELECT id,name,mime FROM files WHERE campaign_id=? AND (owner_id=? OR visibility IN (\'group\',\'sl\')) ORDER BY name LIMIT 300').bind(a.campaignId,a.id).all<{id:string;name:string;mime:string}>(),listScenes(database(),a)]);
+  const [entities,files,availableScenes,preparation]=await Promise.all([loadEntities(database(),a.campaignId),database().prepare('SELECT id,name,mime FROM files WHERE campaign_id=? AND (owner_id=? OR visibility IN (\'group\',\'sl\')) ORDER BY name LIMIT 300').bind(a.campaignId,a.id).all<{id:string;name:string;mime:string}>(),listScenes(database(),a),preparedSession(database(),a,sessionId).catch(()=>null)]);
   for(const e of entities.filter(e=>['NPC','HANDOUT'].includes(e.type)))catalog.push({id:e.id,title:e.title,kind:e.type==='NPC'?'npc':'document',sourceKind:'entity',...(e.type==='NPC'?{image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(e.id)}:{})});
   for(const f of files.results)if(/^(image\/|application\/pdf|audio\/|video\/)/.test(f.mime))catalog.push({id:f.id,title:f.name,kind:'document',sourceKind:'file'});
-  scenes=availableScenes.filter(s=>!s.archived).map(s=>({id:s.id,title:s.title,image:'',version:s.version}));
+  const split=liveSceneChoice(sessionId,preparation?.view.document.sceneIds||[],availableScenes),card=(s:SceneSummary)=>({id:s.id,title:s.title,image:'',version:s.version});
+  scenes=split.session.map(card);moreScenes=split.more.map(card);
  }
  const version=stage.version,diceRevision=rolls.length+rolls.reduce((n,e)=>n+(e.revision||1),0);
  return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,
-  crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,catalog,
+  crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents}};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){

@@ -35,3 +35,12 @@ export function orderedSessionScenes(sessionId: string, document: SessionPrepara
   return [...ordered, ...scenes.filter(scene => scene.sessionIds.includes(sessionId) && !included.has(scene.id))
     .sort((a, b) => a.title.localeCompare(b.title, 'de') || a.id.localeCompare(b.id))];
 }
+
+/** Live direction offers the evening's own scenes in planned order. All other
+ * active campaign scenes stay reachable for improvisation, listed apart. */
+export function liveSceneChoice(sessionId: string, sceneIds: string[], scenes: SceneSummary[]) {
+  const active = scenes.filter(scene => !scene.archived);
+  const session = orderedSessionScenes(sessionId, { sceneIds } as SessionPreparation, active);
+  const included = new Set(session.map(scene => scene.id));
+  return { session, more: active.filter(scene => !included.has(scene.id)) };
+}

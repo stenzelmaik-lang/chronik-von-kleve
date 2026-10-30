@@ -61,3 +61,20 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .app *{box-sizing:border-box}.app button,.app select,.app input,.app textarea{font:inherit}.app button{cursor:pointer}.app button:disabled{opacity:.5;cursor:wait}.app button:focus-visible,.app select:focus-visible,.app input:focus-visible,.app textarea:focus-visible{outline:2px solid #d6b36f;outline-offset:3px}.app button{color:inherit}.sceneInfo{position:absolute;left:28px;top:28px;max-width:min(720px,80%);padding:18px;background:#10191de6;z-index:1;max-height:36%;overflow:auto}.readerViewport img,.readerViewport video{max-width:100%;max-height:75vh}.empty{padding:2rem;color:#b7bdb6}
 
 .app .readButton{color:#292720;background:#eee7d7;border-color:#8b8069}
+
+/* Spieltisch 2.0: atmospheric default stage, private Regie drawer, evening-scoped scene list. */
+.background{background:radial-gradient(ellipse at 50% 38%,#1d2b2c 0%,#111c21 55%,#090f12 100%)}
+.background::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,#ffffff04 0 2px,transparent 2px 7px),radial-gradient(circle at 50% 50%,transparent 55%,#00000066 100%)}
+.idle{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:1;display:grid;gap:10px;justify-items:center;text-align:center;max-width:min(560px,80%);color:#d9d1c0;pointer-events:none;animation:breathe 5s ease-in-out infinite}
+.idle small{font:11px Arial,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#c5a46a}.idle p{margin:0;font:20px/1.45 Georgia,serif}
+@keyframes breathe{0%,100%{opacity:.75}50%{opacity:1}}
+.regieDrawer{width:460px}
+.audience{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:12px;display:flex;flex-wrap:wrap;gap:6px 14px}.audience legend{padding:0 4px;color:var(--muted);font-size:11px}.audience label{display:flex;align-items:center;gap:6px}
+.hint{margin:6px 0 0;color:var(--muted);font-size:12px}
+.sceneChoice{margin-top:14px;padding-bottom:14px}.sceneChoice h2{display:flex;gap:10px;align-items:baseline;font-size:18px;margin:0}.sceneChoice h2 span{font:11px Arial,sans-serif;color:#c5a46a;letter-spacing:.08em}
+.sceneChoice>div>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sceneChoice[data-active=true]{border-left:3px solid #d6b36f;padding-left:11px}
+.moreScenes{margin-top:22px;border-top:1px solid var(--line);padding-top:12px}.moreScenes summary{cursor:pointer;color:#d9c8a2;font-size:13px;min-height:36px;display:flex;align-items:center}.moreScenes input{width:100%;margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:5px;background:#0c1417;color:#eee8dc}
+.sceneInfo{border:1px solid var(--line);border-radius:8px;font:15px/1.6 Georgia,serif}.sceneInfo>small{font:10px Arial,sans-serif;letter-spacing:.12em;color:#c5a46a}.sceneInfo>h2{font:normal 22px/1.25 Georgia,serif;margin:6px 0 10px}
+@media(max-width:1100px){.regieDrawer{width:400px}}
+@media(max-width:700px){.regieDrawer,.drawer{width:auto;left:8px;right:8px;max-width:none}}
