@@ -71,3 +71,17 @@ node tests/erzaehlung-ux-browser.mjs
 2. Auf 375 px überlappen sich in der Kopfleiste die Teilnehmernamen mit dem Abendtitel. Das ist bereits vorhanden und nicht Teil der Erzählung.
 3. Die Leseansicht der Spielleitung im Regie-Drawer und die ältere `scene-player-view` nutzen weiter die allgemeine RichText-Darstellung. Sie lassen sich bei Bedarf mit denselben Typografieregeln angleichen.
 4. Die Scrollposition wird anteilig gespeichert. Ändert sich der Text einer laufenden Freigabe stark, springt die Position entsprechend mit.
+
+## Live-Release 30.10.2026
+
+- Auf Anweisung des Projektinhabers („live push bitte“) veröffentlicht. Stand `65a1468`, aufbauend auf dem Release `claude/release-charakter-postfach` (`6c50969`, PR #45).
+- Worker `chronik-von-kleve`, Version `482ef8d5-7e05-4722-be09-4ee99ac7c669`, Tag `erzaehlung-ux`, 100 % Verkehr. Bindings unverändert.
+- Rückfallversion: `c6b88d01-cb27-467e-8d0a-333503ade398`. Sie ist voll kompatibel, weil reine Oberflächenänderung ohne Daten- oder Schemaänderung. Die persönlichen Leseeinstellungen liegen nur im Browser.
+- Time-Travel-Lesezeichen vor dem Deploy: `0000018c-00004c7c-00005114-3fbdebf8edb29002a6cf89900d75ff2a`.
+- Prüfungen vor dem Deploy:
+  - Typecheck, ESLint, `pnpm test` (190/190) und Build sind grün.
+  - Regie-, Medien- und Zustandswerte-Integration mit SL, Spieler A und Spieler B sind grün.
+  - Der Browsertest `tests/erzaehlung-ux-browser.mjs` ist bei 1920, 1440, 125 % und 375 px grün.
+- Live-Prüfung ohne Anmeldung:
+  - `/anmelden` antwortet mit 200; Spielbereich und SL leiten mit 307 weiter.
+  - Bühne, Live-Tisch, Nachrichten und Datensätze antworten mit 401 und `private, no-store`.
