@@ -463,11 +463,12 @@
 .selectedPeople>li>span { font-size:14px; }
 
 /* Spieltisch 2.0 media preparation: uploads, scene backdrop and material thumbnails. */
-.uploadField{display:grid;gap:4px;justify-items:start}
+.uploadField{position:relative;display:grid;gap:4px;justify-items:start}
 .uploadButton{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:1px dashed #b9985b88;border-radius:6px;color:#eee6d6;cursor:pointer}
 .uploadButton[aria-disabled=true]{opacity:.6;cursor:wait}
 .uploadButton:focus-within,.uploadField:focus-within .uploadButton{outline:2px solid #d6b36f;outline-offset:3px}
-.uploadInput{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+/* Visually hidden but focusable; must beat the global input width rules. */
+.uploadField .uploadInput{position:absolute;top:0;left:0;width:1px!important;min-width:0!important;height:1px!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none}
 .uploadField small{color:#b4b9b0;font-size:12px}
 .backdropPicker{display:grid;gap:12px;margin-bottom:22px;padding:16px;border:1px solid #b9985b44;border-radius:8px;background:#0e1a24}
 .backdropPicker h3{margin:0;font-size:20px}.backdropPicker header p{margin:6px 0 0;color:#c3ced4;font-size:14px}
