@@ -67,11 +67,13 @@ export type XpLedgerEntry = {
 };
 
 export type XpPurchase = {
-  category: "attribute" | "ability" | "customAbility" | "virtue" | "discipline" | "background" | "humanity" | "willpower";
+  category: "attribute" | "ability" | "customAbility" | "virtue" | "discipline" | "path" | "background" | "humanity" | "willpower";
   target?: string;
   from: number;
   to: number;
   inClan?: boolean;
+  /** Derived from the sheet, never trusted from a client: Caitiff pay ×6 for every Discipline (V20). */
+  caitiff?: boolean;
   reason?: string;
 };
 
@@ -316,7 +318,9 @@ export function xpCost(purchase: XpPurchase) {
     return { ok: false as const, error: "XP-Steigerungen müssen genau eine Stufe umfassen." };
   const categoryCost = purchase.category === "attribute" ? purchase.from * 4
     : ["ability","customAbility"].includes(purchase.category) ? (purchase.from === 0 ? 3 : purchase.from * 2)
-      : purchase.category === "discipline" ? (purchase.from === 0 ? 10 : purchase.from * (purchase.inClan ? 5 : 7))
+      : purchase.category === "discipline" ? (purchase.from === 0 ? 10 : purchase.from * (purchase.caitiff ? 6 : purchase.inClan ? 5 : 7))
+        // V20 experience chart: new Path 7, secondary Path current rating ×4.
+        : purchase.category === "path" ? (purchase.from === 0 ? 7 : purchase.from * 4)
         : purchase.category === "background" ? NaN
           : ["humanity","virtue"].includes(purchase.category) ? purchase.from * 2
             : purchase.category === "willpower" ? purchase.from : NaN;
@@ -331,12 +335,16 @@ function withRaisedValue(body: CharacterLike, purchase: XpPurchase): CharacterLi
     return { ...body, [key]: purchase.to };
   }
   if (!target) return null;
-  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
+  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : purchase.category === "path" ? "paths" : "backgrounds";
   const collection = body[key];
   if (purchase.category === "discipline" && purchase.from === 0 && !(Array.isArray(collection) && collection.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target))) {
     // V20: learning a new Discipline. Only catalogued names; legacy free text stays untouched.
     if ((collection !== undefined && !Array.isArray(collection)) || (!v20DisciplineNames.includes(target) && !purchase.inClan)) return null;
     return { ...body, disciplines: [...(Array.isArray(collection) ? collection : []), { name: target, value: 1, source: purchase.inClan ? "clan" : "foreign", ...(purchase.inClan ? {} : { slApproved: true }) }] };
+  }
+  if (purchase.category === "path" && purchase.from === 0 && !(Array.isArray(collection) && collection.some((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target))) {
+    if ((collection !== undefined && !Array.isArray(collection)) || target.length > 120) return null;
+    return { ...body, paths: [...(Array.isArray(collection) ? collection : []), { name: target, value: 1, primary: false }] };
   }
   if (Array.isArray(collection)) {
     const next = collection.map((item) => item && typeof item === "object" && String((item as CharacterLike).name) === target ? { ...(item as CharacterLike), value: purchase.to } : item);
@@ -354,10 +362,10 @@ function currentValue(body: CharacterLike, purchase: XpPurchase) {
   if (purchase.category === "ability" && v20AbilityNames.includes(purchase.target || ""))
     return integer((body.skills as CharacterLike | undefined)?.[purchase.target || ""]);
   if (purchase.category === "humanity" || purchase.category === "willpower") return body[purchase.category];
-  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : "backgrounds";
+  const key = purchase.category === "attribute" ? "attributes" : purchase.category === "ability" ? "skills" : purchase.category === "customAbility" ? "customAbilities" : purchase.category === "virtue" ? "virtues" : purchase.category === "discipline" ? "disciplines" : purchase.category === "path" ? "paths" : "backgrounds";
   const collection = body[key];
-  if (Array.isArray(collection)) return (collection.find((item) => item && typeof item === "object" && String((item as CharacterLike).name) === purchase.target) as CharacterLike | undefined)?.value ?? (purchase.category === "discipline" ? 0 : undefined);
-  if (purchase.category === "discipline" && collection === undefined) return 0;
+  if (Array.isArray(collection)) return (collection.find((item) => item && typeof item === "object" && String((item as CharacterLike).name) === purchase.target) as CharacterLike | undefined)?.value ?? (["discipline", "path"].includes(purchase.category) ? 0 : undefined);
+  if (["discipline", "path"].includes(purchase.category) && collection === undefined) return 0;
   return collection && typeof collection === "object" ? (collection as CharacterLike)[String(purchase.target)] : undefined;
 }
 
@@ -463,9 +471,17 @@ export function applyXpPurchase(body: CharacterLike, purchase: XpPurchase, now =
     const grant = (body.ruleExceptions as CharacterLike[]).find(g => g.category === "foreignDiscipline" && g.target === purchase.target);
     if (grant && purchase.to > Number(grant.maximum)) return { ok: false, error: "Diese Stufe überschreitet die genehmigte SL-Ausnahme." };
   }
+  if (purchase.category === "path") {
+    const pathError = pathPurchaseError(body, purchase);
+    if (pathError) return { ok: false, error: pathError };
+  }
   if (currentValue(body, purchase) !== purchase.from) return { ok: false, error: "Der aktuelle Charakterwert passt nicht zur XP-Anfrage." };
-  const raised = withRaisedValue(body, purchase);
+  purchase = { ...purchase, caitiff: isCaitiff(body) };
+  let raised = withRaisedValue(body, purchase);
   if (!raised) return { ok: false, error: "Das angegebene XP-Ziel existiert nicht im Charakter." };
+  // V20: the primary Path is the Thaumaturgy/Necromancy rating and rises with it.
+  if (purchase.category === "discipline" && (pathDisciplines as readonly string[]).includes(String(purchase.target)) && Array.isArray(raised.paths))
+    raised = { ...raised, paths: (raised.paths as CharacterLike[]).map((row) => row && row.primary === true ? { ...row, value: purchase.to } : row) };
   const price = xpCost(purchase);
   if (!price.ok) return price;
   const available = xpBalance(body);
@@ -534,4 +550,20 @@ export function creationDeviation(body: CharacterLike): { lines: CreationDeviati
   single("backgrounds", "Hintergründe", rows(body.backgrounds).reduce((total, row) => total + numericValue(row.value), 0), creationBudgets.backgrounds);
   single("virtues", "Tugenden", Object.values(virtues).reduce<number>((total, value) => total + Math.max(0, integer(value, 1) - 1), 0), creationBudgets.virtues);
   return { lines, over: lines.reduce((total, row) => total + row.over, 0) };
+}
+
+export const pathDisciplines = ["Thaumaturgie", "Nekromantie"] as const;
+export function isCaitiff(body: CharacterLike) { return String(body.clan ?? "").trim().toLocaleLowerCase("de") === "caitiff"; }
+/** Highest rating a secondary Path may reach: the primary Path, otherwise the path Discipline itself. */
+export function pathCeiling(body: CharacterLike) {
+  const primary = rows(body.paths).filter((row) => row.primary === true).reduce((max, row) => Math.max(max, numericValue(row.value)), 0);
+  const discipline = rows(body.disciplines).filter((row) => (pathDisciplines as readonly string[]).includes(String(row.name))).reduce((max, row) => Math.max(max, numericValue(row.value)), 0);
+  return primary || discipline;
+}
+function pathPurchaseError(body: CharacterLike, purchase: XpPurchase): string | null {
+  const row = rows(body.paths).find((item) => String(item.name) === String(purchase.target ?? "").trim());
+  if (row?.primary === true) return "Der Primärpfad steigt mit der Disziplin (V20), nicht einzeln.";
+  if (pathCeiling(body) < 1) return "Pfade setzen Thaumaturgie oder Nekromantie voraus.";
+  if (purchase.to > pathCeiling(body)) return "Ein Sekundärpfad darf den Primärpfad nicht übersteigen (V20).";
+  return null;
 }

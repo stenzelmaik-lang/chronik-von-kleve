@@ -49,6 +49,8 @@
 .rowList{display:grid;gap:6px}
 .rowItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-items:center;border-top:1px solid #c9a2661c;padding-top:8px}
 .rowItem>input{grid-column:1/-1}
+.primaryToggle{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--muted)}.primaryToggle input{accent-color:var(--gold)}
+.rowItem:has(.primaryToggle){grid-template-columns:minmax(0,1fr) auto auto}
 .editor .rowItem input{padding:6px 8px;font-size:15px}
 .addRow{display:inline-flex;gap:6px;align-items:center;justify-self:start;border:1px dashed #c9a26655;border-radius:5px;background:transparent;color:var(--gold);padding:6px 10px;font-size:13px;cursor:pointer}
 .legacyText{display:grid;gap:8px}.legacyText p{margin:0;font-size:12px;color:var(--muted)}

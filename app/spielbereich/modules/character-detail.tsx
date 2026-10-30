@@ -593,7 +593,10 @@ export function CharacterDetail({
               <h3>Vorteile</h3>
             </div>
             <div className="sheet-columns advantage-columns">
-              <CharacterListReadout label="Disziplinen" value={s.disciplines} />
+              <div>
+                <CharacterListReadout label="Disziplinen" value={s.disciplines} />
+                {Array.isArray(s.paths) && s.paths.length > 0 && <CharacterListReadout label="Pfade" value={(s.paths as Array<Record<string, unknown>>).map(row => ({ ...row, name: String(row.name ?? "") + (row.primary === true ? " · Primärpfad" : "") }))} />}
+              </div>
               <CharacterListReadout label="Hintergründe" value={s.backgrounds} />
               <RatingGroup
                 title="Tugenden"

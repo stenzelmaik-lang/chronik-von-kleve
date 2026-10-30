@@ -40,23 +40,26 @@ Kernproblem Bestandscharaktere: Gespielte Papierbögen liegen erwartbar über de
 
 ## 3. Regeln und XP
 
-Grundlage bleibt das Drive-Dokument „Erfahrungs- & Belohnungssystem der Kleve-Chronik“ (Attribut ×4, Fähigkeit neu 3/×2, Clansdisziplin ×5, fremde ×7, Tugend/Menschlichkeit ×2, Willenskraft ×1) sowie die V20-Erschaffungswerte (7/5/3, 13/9/5, 3, 5, 7, 15 Freebies). Auf Entscheidung des Projektinhabers gilt für bisher offene Fälle der V20-Standard:
+Grundlage bleibt das Drive-Dokument „Erfahrungs- & Belohnungssystem der Kleve-Chronik“ (Attribut ×4, Fähigkeit neu 3/×2, Clansdisziplin ×5, fremde ×7, Tugend/Menschlichkeit ×2, Willenskraft ×1) sowie die V20-Erschaffungswerte (7/5/3, 13/9/5, 3, 5, 7, 15 Freebies). Regelhierarchie laut SL: **Hausregel vor offiziellem V20-Regelbuch**, für die Erschaffung die V20-Erschaffungsregeln. Bei gespielten Bögen gilt, was auf dem Bogen steht. Daraus folgt für Fälle ohne Hausregel:
 - **Neue Disziplin (0→1): 10 XP.** Clansdisziplinen lernt der Spieler im Rahmen seiner Entwicklungsfreigabe. Eine clansfremde neue Disziplin ist serverseitig nur per Antrag mit SL-Genehmigung möglich (V20: Lehrer erforderlich), auch bei direkter Entwicklungsfreigabe. Nur Namen aus dem V20-Disziplinkatalog. „Geschwindigkeit“ (Assamiten-Bezeichnung für Celerity) wird neben „Schnelligkeit“ nicht zusätzlich angeboten.
 - **Hintergründe:** V20 kennt dafür keinen XP-Preis; sie wachsen über das Spielgeschehen. Sie bleiben per XP gesperrt; die SL trägt sie im Bogen-Editor ein.
-- Weiterhin offen: Thaumaturgie-Pfade (V20: neuer Pfad 7, Sekundärpfad ×4), Rituale, Caitiff-Kosten. Das V20-Regelwerk-PDF im Drive ist ein Bildscan ohne Textebene und konnte nicht maschinell gegengeprüft werden.
+- **Pfade (Thaumaturgie/Nekromantie):** neuer Pfad 7 XP, nur per Antrag mit SL-Genehmigung (Lehrer). Sekundärpfade aktueller Wert ×4, höchstens bis zum Primärpfad. Der Primärpfad entspricht dem Disziplinwert und steigt mit der Disziplin; er ist nicht einzeln käuflich. Im Bogen-Editor gibt es eine Pfad-Liste mit Kennzeichen „Primär“.
+- **Caitiff:** jede Disziplin aktueller Wert ×6 (aus dem Bogen abgeleitet, nicht vom Client übernommen).
+- **Rituale:** V20 nennt keinen festen XP-Preis; sie bleiben SL-Entscheidung und werden im Bogen notiert.
+- Hinweis: Das V20-Regelwerk-PDF im Drive ist ein Bildscan ohne Textebene. Die V20-Werte stammen aus der Standard-Erfahrungstabelle der Jubiläumsausgabe und sollten bei Gelegenheit am Buch gegengelesen werden.
 
 Historische Gesamt- und Verbrauchswerte bleiben „?“, solange sie nicht belegt sind. Die drei Felder erhalten/verbraucht/verfügbar sind immer sichtbar. Doppelte Eröffnung, doppelte Gegenbuchung und negativer Saldo bleiben serverseitig ausgeschlossen.
 
 ## 4. Referenzcharakter
 
-Abgleich Originalbogen ↔ gespeicherter Stand ↔ Anzeige ausschließlich privat in `.local-work/character-3/` (ignoriert). Wichtiger offener Punkt: Bei Disziplinen und einem Hintergrund weicht die sichtbare Bogenseite von Codex' privatem Formularfeld-Abgleich ab. Die sichtbare Seite stimmt bei den Disziplinen mit dem gespeicherten Stand überein. **Nicht automatisch entscheiden – SL klärt mit der Spielerin.** Es wurde nichts an Produktionsdaten geändert.
+Abgleich Originalbogen ↔ gespeicherter Stand ↔ Anzeige ausschließlich privat in `.local-work/character-3/` (ignoriert). Bei Disziplinen und einem Hintergrund wich die sichtbare Bogenseite von Codex' privatem Formularfeld-Abgleich ab. Entscheidung der SL: Es gilt die sichtbare Bogenseite (entspricht dem gespeicherten Stand). Lokal wurden zusätzlich die Bogenwerte für Blut pro Runde, aktuelle Willenskraft und Blut übernommen. Es wurde nichts an Produktionsdaten geändert.
 
 ## 5. Prüfergebnisse
 
 | Prüfung | Ergebnis |
 |---|---|
-| Einzel-/Regressionstests (`pnpm test`) | 171/171 bestanden (neu: Erschaffungsrahmen-Vergleich, neue Disziplin, Celerity-Doppelname) |
-| Vollständige Integration, frische lokale D1 mit allen Migrationen | Exit 0, 1.918 Prüfungen bestanden, darunter 20 neue (u. a. neue Clansdisziplin direkt, fremde nur per SL-Genehmigung, Hintergrund ohne XP-Preis, (Nachtrag, Meldung, Übernahme+Freigabe in einem Schritt, doppelte Eröffnung, geschlossene Bearbeitung, keine SL-Daten beim Spieler, fremder Spieler) |
+| Einzel-/Regressionstests (`pnpm test`) | 173/173 bestanden (neu: Erschaffungsrahmen-Vergleich, neue Disziplin, Celerity-Doppelname, Caitiff, Pfade) |
+| Vollständige Integration, frische lokale D1 mit allen Migrationen | Exit 0, 1.924 Prüfungen bestanden, darunter 26 neue (u. a. neuer Pfad nur per Genehmigung für 7 XP, Primärpfad nicht einzeln käuflich, neue Clansdisziplin direkt, fremde nur per SL-Genehmigung, Hintergrund ohne XP-Preis, (Nachtrag, Meldung, Übernahme+Freigabe in einem Schritt, doppelte Eröffnung, geschlossene Bearbeitung, keine SL-Daten beim Spieler, fremder Spieler) |
 | Browserabnahme (`tests/character-management-browser.mjs`, Edge headless) | 10/10: Profil → Bogen, Abbrechen ohne Schreiben, Punkte über 5, Freigabe, Spielernachtrag + Meldung, Übernahme+Freigabe, XP vergeben/zurücknehmen, Spieler B ohne Zugriff, 1440 px und 375 px ohne Überlauf, keine JS-Fehler |
 | Typecheck, ESLint der geänderten Dateien, Produktionsbuild | bestanden |
 | Manipulationsversuche Spieler A per API (XP, Rechte, Übernahme, Freigabe) | 403; Spieler B auf fremde Akte 404 |
@@ -83,8 +86,7 @@ Browserabnahme erneut ausführen (Instanz läuft): `CVK_PLAYWRIGHT_MODULE=<playw
 
 ## 7. Offen
 
-- Regelentscheidungen für Pfade, Rituale und Caitiff (Abschnitt 3).
-- Klärung der Disziplin-/Hintergrund-Abweichung beim Referenzcharakter.
+- Rituale: bewusst ohne XP-Preis (SL-Entscheidung).
 - Bereichsnavigation im Editor markiert den aktuellen Abschnitt nur beim Anklicken, nicht beim Scrollen.
 - Spieltisch-Leseansicht profitiert von den gemeinsamen Bausteinen; eigene Gestaltung des Spieltisch-Bogens bewusst nicht angefasst (paralleler Branch `claude/spieltisch-medien`).
 - Produktion: keine Migration nötig (alles im bestehenden Charakter-JSON). Vor Übernahme in Produktion fachliche Abnahme durch den Projektinhaber.

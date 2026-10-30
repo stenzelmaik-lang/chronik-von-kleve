@@ -63,3 +63,19 @@ test('Celerity is not offered twice under two German names',()=>{
   const toreador={clan:'Toreador',disciplines:[{name:'Schnelligkeit',value:1}],xpLedger:[{id:'h',kind:'historical',amount:20,reason:'x',createdAt:'now'}]};
   assert.equal(applyXpPurchase(toreador,{category:'discipline',target:'Geschwindigkeit',from:0,to:1,inClan:false}).ok,false);
 });
+test('V20 Caitiff pay current rating ×6 for every Discipline, derived from the sheet',()=>{
+  const caitiff={clan:'Caitiff',disciplines:[{name:'Potenz',value:2}],xpLedger:[{id:'h',kind:'historical',amount:20,reason:'x',createdAt:'now'}]};
+  const result=applyXpPurchase(caitiff,{category:'discipline',target:'Potenz',from:2,to:3,inClan:false,caitiff:false});
+  assert.equal(result.ok,true);assert.equal(result.cost,12);
+  assert.equal(applyXpPurchase({...caitiff,clan:'Toreador'},{category:'discipline',target:'Potenz',from:2,to:3,inClan:false,caitiff:true}).cost,14);
+});
+test('V20 Paths: new Path 7, secondary ×4 up to the primary, primary rises with its Discipline',()=>{
+  const tremere={clan:'Tremere',disciplines:[{name:'Thaumaturgie',value:3}],paths:[{name:'Pfad des Blutes',value:3,primary:true},{name:'Lure of Flames',value:1,primary:false}],xpLedger:[{id:'h',kind:'historical',amount:60,reason:'x',createdAt:'now'}]};
+  assert.deepEqual(xpCost({category:'path',from:0,to:1}),{ok:true,cost:7});assert.deepEqual(xpCost({category:'path',from:2,to:3}),{ok:true,cost:8});
+  const secondary=applyXpPurchase(tremere,{category:'path',target:'Lure of Flames',from:1,to:2});assert.equal(secondary.ok,true);assert.equal(secondary.cost,4);
+  assert.equal(applyXpPurchase({...tremere,paths:[tremere.paths[0],{name:'Lure of Flames',value:3,primary:false}]},{category:'path',target:'Lure of Flames',from:3,to:4}).ok,false);
+  assert.equal(applyXpPurchase(tremere,{category:'path',target:'Pfad des Blutes',from:3,to:4}).ok,false);
+  const learned=applyXpPurchase(tremere,{category:'path',target:'Neuer Pfad',from:0,to:1});assert.equal(learned.ok,true);assert.equal(learned.cost,7);assert.deepEqual(learned.body.paths[2],{name:'Neuer Pfad',value:1,primary:false});
+  const raised=applyXpPurchase(tremere,{category:'discipline',target:'Thaumaturgie',from:3,to:4,inClan:true});assert.equal(raised.ok,true);assert.equal(raised.body.paths[0].value,4);assert.equal(raised.body.paths[1].value,1);
+  assert.equal(applyXpPurchase({clan:'Toreador',disciplines:[{name:'Auspex',value:2}],xpLedger:tremere.xpLedger},{category:'path',target:'Irgendein Pfad',from:0,to:1}).ok,false);
+});

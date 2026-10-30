@@ -1,7 +1,7 @@
 import type { Actor } from "@/domain/types";
 import type { LegacyRecordRow } from "@/domain/legacy";
 import { availableClanForCampaign } from "@/domain/clan-config";
-import { appearanceExceptionMaximum, slAdjustmentTargets, creationBudgetSummary, creationDeviation, v20AbilityNames, v20DisciplineNames, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
+import { appearanceExceptionMaximum, slAdjustmentTargets, creationBudgetSummary, creationDeviation, v20AbilityNames, v20DisciplineNames, isCaitiff, pathCeiling, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
 import { creationGuidance } from "@/domain/character-guidance";
 import { canEdit, database, HttpError } from "./access";
 import { characterPermissions, characterSheet, characterXpSummary, validateExistingSheet } from '@/domain/character-management';
@@ -31,7 +31,7 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
     if (!Number.isInteger(from)) return;
     const value = Number(from), max = category === "humanity" || category === "willpower" ? 10 : 5;
     if (value >= max || (category === "attribute" && target === "Erscheinungsbild" && clan?.id === "nosferatu" && value + 1 > appearanceExceptionMaximum(body))) return;
-    const purchase: XpPurchase = { category, target, from: value, to: value + 1, ...(category === "discipline" ? { inClan: !!clan?.disciplines.includes(target || "") } : {}) };
+    const purchase: XpPurchase = { category, target, from: value, to: value + 1, ...(category === "discipline" ? { inClan: !!clan?.disciplines.includes(target || ""), caitiff: isCaitiff(body) } : {}) };
     const price = xpCost(purchase);
     targets.push({ ...purchase, label: target || (category === "humanity" ? "Menschlichkeit" : "Willenskraft"), cost: price.ok ? price.cost : 0, available: price.ok && state === "confirmed" && (a.gm || permissions.development !== 'blocked') && xpBalance(body) >= price.cost, hint: price.ok ? "" : price.error });
   };
@@ -54,6 +54,11 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
       const inClan = !!clan?.disciplines.includes(name), purchase: XpPurchase = { category: "discipline", target: name, from: 0, to: 1, inClan };
       targets.push({ ...purchase, label: name + (inClan ? " (neu, Clan)" : " (neu, clansfremd)"), cost: 10, requiresApproval: !inClan, available: state === "confirmed" && (a.gm || permissions.development !== "blocked") && xpBalance(body) >= 10, hint: inClan ? "" : "Clansfremde Disziplin: nur mit Lehrer und SL-Genehmigung (Antrag)." });
     }
+  }
+  // V20 Paths: secondary Paths ×4 up to the primary Path; the primary rises with its Discipline.
+  if (Array.isArray(body.paths)) for (const row of body.paths as Record<string, unknown>[]) {
+    if (row.primary === true || !Number.isInteger(row.value) || Number(row.value) >= pathCeiling(body)) continue;
+    add("path", String(row.name), row.value);
   }
   add("humanity", undefined, body.humanity); add("willpower", undefined, body.willpower);
   const ledger = Array.isArray(body.xpLedger) ? body.xpLedger as { kind: string; amount: number }[] : [];

@@ -10,7 +10,7 @@ const base = { id: z.string().trim().min(1).max(100), version: z.number().int().
 const reason = z.string().trim().min(3, "Bitte begründe die Aktion kurz.").max(2000);
 const operationId = z.string().uuid();
 const sheetPatch = z.record(z.string(),z.unknown()).refine(value => Object.keys(value).length > 0 && Object.keys(value).every(key => (characterSheetFields as readonly string[]).includes(key)), 'Nur Bogenfelder sind bearbeitbar.');
-const purchase = z.object({ category: z.enum(["attribute", "ability", "customAbility", "virtue", "discipline", "background", "humanity", "willpower"]), target: z.string().trim().min(1).max(120).optional(), from: z.number().int().min(0).max(10), to: z.number().int().min(1).max(10), inClan: z.boolean().optional(), reason: z.string().max(2000).optional() }).strict();
+const purchase = z.object({ category: z.enum(["attribute", "ability", "customAbility", "virtue", "discipline", "path", "background", "humanity", "willpower"]), target: z.string().trim().min(1).max(120).optional(), from: z.number().int().min(0).max(10), to: z.number().int().min(1).max(10), inClan: z.boolean().optional(), reason: z.string().max(2000).optional() }).strict();
 const requestChange = z.object({ category: z.enum(["foreignDiscipline", "appearance", "merit", "flaw", "identity"]), target: z.string().trim().min(1).max(120), value: z.string().trim().max(2000).optional(), reason }).strict();
 const slAdjustment = z.object({category:z.enum(['attribute','ability','discipline','background','virtue','humanity','willpower']),target:z.string().trim().min(1).max(120),value:z.number().int().min(0).max(10)}).strict();
 const schema = z.discriminatedUnion("action", [
@@ -133,6 +133,7 @@ export async function POST(req: Request) {
       const normalized: XpPurchase = { ...d.purchase, inClan: !!availableClanForCampaign(a.campaignId, body.clan)?.disciplines.includes(d.purchase.target || "") };
       // V20: a Discipline outside the clan needs a teacher and therefore an SL decision.
       if (!a.gm && normalized.category === "discipline" && normalized.from === 0 && !normalized.inClan) throw new HttpError(403, "Eine clansfremde neue Disziplin bitte bei der Spielleitung beantragen.");
+      if (!a.gm && normalized.category === "path" && normalized.from === 0) throw new HttpError(403, "Einen neuen Pfad bitte bei der Spielleitung beantragen.");
       if (!body.creationSnapshot && !body.historicalSnapshot) throw new HttpError(409, "Der ältere bestätigte Engine-Bogen benötigt zuerst eine dokumentierte Erschaffungsprüfung. Historische Werte werden nicht automatisch umgedeutet.");
       const result = applyXpPurchase(body, normalized); if (!result.ok) throw new HttpError(400, result.error);
       next = result.body; auditReason = d.purchase.reason || `${d.purchase.target || d.purchase.category}: ${d.purchase.from} → ${d.purchase.to} (${result.cost} XP)`;
