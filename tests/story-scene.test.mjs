@@ -83,6 +83,8 @@ test('Private message HTML uses the safe existing format while legacy plain text
   assert.ok(personalMessageSchema.safeParse({...base,format:'rich',text:'cvk-html-v1:<h2>Vision</h2><p>Safe</p>'}).success);
   assert.ok(personalMessageSchema.safeParse({...base,format:'rich',text:'',fileIds:['image']}).success);
   assert.equal(personalMessageSchema.safeParse({...base,format:'rich',text:''}).success,false);
-  assert.equal(personalMessageSchema.safeParse({...base,fileIds:['file']}).success,false);
+  // Mailbox 2.0: every member may attach own files to plain letters; access is checked server-side.
+  assert.ok(personalMessageSchema.safeParse({...base,fileIds:['file']}).success);
+  assert.equal(personalMessageSchema.safeParse({...base,text:' '}).success,false);
   assert.equal(personalMessageSchema.safeParse({...base,format:'rich',text:'x'.repeat(10001)}).success,false);
 });

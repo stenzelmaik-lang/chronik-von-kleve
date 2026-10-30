@@ -2,7 +2,7 @@
 import {RichTextView} from './rich-text';
 import {richTextFileIds} from '@/domain/location-rich-text';
 
-export type PersonalMessageAttachment={id:string;name:string;mime:string};
+export type PersonalMessageAttachment={id:string;name:string;mime:string;forwardable?:boolean};
 export function PersonalMessageBody({text,format,attachments=[]}:{text:string;format?:'rich';attachments?:PersonalMessageAttachment[]}) {
   const embedded=format==='rich'?richTextFileIds(text):[];
   return <>{format==='rich'?<RichTextView value={text} readable flowing/>:text}

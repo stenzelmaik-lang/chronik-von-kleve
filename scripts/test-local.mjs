@@ -1,3 +1,4 @@
+import {seedMailbox} from '../tests/fixtures/mailbox-demo.mjs';
 import {seedInventoryDemo} from "../tests/fixtures/inventory-demo.mjs";
 import {seedSilasNPC} from '../tests/fixtures/silas-npc.mjs';
 import {seedCodex} from '../tests/fixtures/codex-demo.mjs';
@@ -23,15 +24,16 @@ const stageReleaseTest=process.argv.includes('--spieltisch-release');
 const accessDemo=process.argv.includes('--access-alpha');
 const storyWork=process.argv.includes('--story-workspace');
 const commandDemo=process.argv.includes('--command-center-2');
+const mailDemo=process.argv.includes('--nachrichten');
 const stageDemo=process.argv.includes('--spieltisch-2');
 const npcDemo=process.argv.includes('--npc-detail');
 const areaDemo=process.argv.includes('--location-areas');
 const codexPlayers=process.argv.includes('--codex-players');
 const codexAll=process.argv.includes('--codex-all')||codexPlayers;
 const codexDemo=process.argv.includes('--codex')||codexAll;
-const interactive=stageDemo||stageReleaseTest||areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const preserve=storyWork||commandDemo||stageDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const state=preserve?resolve(storyWork?'.local-work/story-workspace':stageDemo?'.local-test/spieltisch-2':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const interactive=mailDemo||stageDemo||stageReleaseTest||areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const preserve=mailDemo||storyWork||commandDemo||stageDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
+const state=preserve?resolve(mailDemo?'.local-test/nachrichten':storyWork?'.local-work/story-workspace':stageDemo?'.local-test/spieltisch-2':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
@@ -43,7 +45,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const defaultPort=stageDemo?8830:stageReleaseTest?8820:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const defaultPort=mailDemo?8850:stageDemo?8830:stageReleaseTest?8820:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 const port=process.env.CVK_TEST_PORT ? Number(process.env.CVK_TEST_PORT) : defaultPort;
 if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local test port');
 if(interactive){const probe=createServer();await new Promise((ok,fail)=>{probe.once('error',()=>fail(new Error('Der lokale Port '+port+' ist bereits belegt. Öffne die laufende Anwendung; kein anderer Prozess wird beendet.')));probe.listen(port,'127.0.0.1',()=>probe.close(ok));});}
@@ -164,6 +166,7 @@ try{
    await command(bCookie,bId,'review');await command(fixtureCookie,bId,'confirm');await command(fixtureCookie,bId,'xp_grant',{amount:15,reason:'Synthetische Demonstration, kein Kanon'});
    await author('/api/command-center/story',{action:'create',clientRequestId:randomUUID(),document:{title:'SYNTHETISCH – Die offene Frage',sections:{core:'Dies ist ein reiner Bedienungstest. Beschreibe hier deinen roten Faden; die Software erzwingt keine Szenenfolge.',background:'Vorbereitete Informationen bleiben von tatsächlich geschehenen Ereignissen getrennt.',secrets:'PRIVATE_COMMAND_QA: Diese Information gehört ausschließlich der Spielleitung.',clues:'Verknüpfe vorhandene Hinweise, statt ihre Inhalte zu kopieren.',consequences:'Mögliche Folgen sind Vorschläge für deine Regie, keine automatischen Kampagnenereignisse.',notes:''},references:['place.electric-taberna'],possibilities:[{id:randomUUID(),title:'Synthetische mögliche Begegnung',text:'Nur vorbereitet. Ein Protokolleintrag erledigt diese Möglichkeit nicht automatisch.',status:'open'}]}});
   }
+  if(mailDemo)console.log('Synthetic mailbox letters: '+JSON.stringify(await seedMailbox({base:env.CVK_TEST_URL,gmCookie:fixtureCookie,playerCookie})));
   if(stageDemo)console.log('Synthetic Spieltisch 2.0 fixture: '+JSON.stringify(await seedSpieltischKaserne({db:localDb,base:env.CVK_TEST_URL,cookie:fixtureCookie})));
   }
   if(preserve)writeFileSync(marker,JSON.stringify({purpose,migrations:fingerprint}));
