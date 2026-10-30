@@ -2,7 +2,7 @@ import {database,HttpError,gmOnly,canRead,type Actor} from '@/server/access';
 import {liveMembers,readLiveRoom,liveFile,type LiveRoom} from './live-game';
 import {liveAudience,liveRoll,LIVE_MEDIA_TYPES,type LiveEvent} from '@/domain/live-game';
 import {readScene} from './story-scenes';
-export const LIVE_ACTIONS=['start','end','showScene','showMedia','mediaIndex','hideMedia','roll','closeRoll'];
+export const LIVE_ACTIONS=['start','end','showScene','hideScene','showMedia','mediaIndex','hideMedia','roll','closeRoll'];
 type Command={action:string;sessionId:string;runId?:string;eventId?:string;title?:string;create?:boolean;audience?:unknown;sceneId?:string;sceneVersion?:number;fileIds?:string[];pool?:number;target?:number;index?:number;expectedRevision?:number};
 export async function liveEvents(a:Actor,sessionId:string,knownRoom?:LiveRoom){
  const room=knownRoom||(await readLiveRoom(a,sessionId)).room;if(!room.open||!room.started)return [];
@@ -37,6 +37,22 @@ export async function liveCommand(a:Actor,d:Command){
  if(!room.started||!room.open)throw new HttpError(409,'Zuerst den Spielabend starten.');
  if(!d.eventId||!/^[a-f0-9-]{36}$/.test(d.eventId))throw new HttpError(400,'Ungültige Live-Aktion.');
  const eventId='live-event:'+d.eventId;
+ if(d.action==='hideScene'){
+  gmOnly(a);
+  const latest=await db.prepare("SELECT id,created_at FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='scene' ORDER BY created_at DESC,id DESC LIMIT 1").bind(a.campaignId,d.sessionId,room.runId).first<{id:string;created_at:string}>();
+  if(!latest)throw new HttpError(404,'Keine veröffentlichte Erzählung vorhanden.');
+  if(latest.id!==eventId)throw new HttpError(409,'Die Erzählung wurde inzwischen gewechselt. Bitte aktualisieren.');
+  // Use the existing hidden event state. Clear all audiences in this run so
+  // earlier individual releases cannot remain visible or reappear for players.
+  // The newest-event guard is stable throughout the UPDATE and rejects stale
+  // clicks if a newer publication was inserted after the read above.
+  await db.prepare("UPDATE records SET body=json_set(body,'$.hidden',json('true')),version=version+1,updated_at=? WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='scene' AND COALESCE(json_extract(body,'$.hidden'),0)<>1 AND NOT EXISTS(SELECT 1 FROM records newer WHERE newer.campaign_id=? AND newer.kind='notizen' AND json_valid(newer.body) AND json_extract(newer.body,'$.context')='live-table-event' AND json_extract(newer.body,'$.sessionId')=? AND json_extract(newer.body,'$.runId')=? AND json_extract(newer.body,'$.kind')='scene' AND (newer.created_at>? OR (newer.created_at=? AND newer.id>?))) AND EXISTS(SELECT 1 FROM records r WHERE r.id=? AND r.campaign_id=? AND json_extract(r.body,'$.runId')=? AND json_extract(r.body,'$.open')=1)").bind(stamp,a.campaignId,d.sessionId,room.runId,a.campaignId,d.sessionId,room.runId,latest.created_at,latest.created_at,latest.id,id,a.campaignId,d.runId).run();
+  const current=await db.prepare("SELECT id FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='scene' ORDER BY created_at DESC,id DESC LIMIT 1").bind(a.campaignId,d.sessionId,room.runId).first<{id:string}>();
+  if(current?.id!==eventId)throw new HttpError(409,'Die Erzählung wurde inzwischen gewechselt. Bitte aktualisieren.');
+  const after=(await readLiveRoom(a,d.sessionId)).room;
+  if(!after.started||!after.open||after.runId!==d.runId)throw new HttpError(409,'Spielabend inzwischen gewechselt. Bitte aktualisieren.');
+  return {ok:true};
+ }
  if(d.action==='mediaIndex'||d.action==='hideMedia'){
   gmOnly(a);const r=await db.prepare("SELECT body,version FROM records WHERE id=? AND campaign_id=? AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=?").bind(eventId,a.campaignId,d.sessionId).first<{body:string;version:number}>();
   if(!r)throw new HttpError(404,'Medienansicht nicht verfügbar.');const event=JSON.parse(r.body) as LiveEvent;

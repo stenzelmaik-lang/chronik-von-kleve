@@ -78,3 +78,15 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .sceneInfo{border:1px solid var(--line);border-radius:8px;font:15px/1.6 Georgia,serif}.sceneInfo>small{font:10px Arial,sans-serif;letter-spacing:.12em;color:#c5a46a}.sceneInfo>h2{font:normal 22px/1.25 Georgia,serif;margin:6px 0 10px}
 @media(max-width:1100px){.regieDrawer{width:400px}}
 @media(max-width:700px){.regieDrawer,.drawer{width:auto;left:8px;right:8px;max-width:none}}
+
+/* Personal drawer widths never alter the shared stage's geometry. */
+.resizableDrawer{width:var(--drawer-width);min-width:320px;max-width:calc(100vw - 96px)}
+.resizeHandle{position:absolute;left:-10px;top:0;bottom:0;width:20px;z-index:2;cursor:col-resize;touch-action:none;user-select:none;border-radius:6px}
+.resizeHandle::after{content:'';position:absolute;left:9px;top:calc(50% - 22px);height:44px;width:2px;background:var(--muted);border-radius:2px}
+.resizeHandle:hover::after,.resizeHandle:focus-visible::after{background:#d6b36f}
+.resizeHandle:focus-visible{outline:2px solid #d6b36f;outline-offset:1px}
+.drawerBody,.drawerBody :global([role=tabpanel]),.drawerBody :global([data-rich-flow]),.drawerBody :global([data-rich-flow] > div){min-width:0;max-width:100%}
+.sceneHeader{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;background:#10191d;z-index:1;padding-bottom:8px}
+.sceneHeader small{font:10px Arial,sans-serif;letter-spacing:.08em;color:#c5a46a}
+.sceneHeader button{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:7px 10px;border:1px solid var(--line);border-radius:5px;background:#16282b;color:#eee8dc;font-size:12px}
+@media(max-width:700px){.resizableDrawer{width:auto;min-width:0;max-width:none;left:8px;right:8px}.resizeHandle{display:none}}

@@ -64,4 +64,36 @@ const groupEvent=randomUUID();
 assert.equal((await gm.post('/api/live-table',{action:'showMedia',sessionId,runId:active.room.runId,eventId:groupEvent,fileIds:[image.fileId],audience:{scope:'all'}})).status,200);
 for(const [name,player] of [['A',a],['B',b]]){const again=json(await player.get(q));assert.equal(again.media?.id,groupEvent,'Player '+name+' sees the shared image after reload');assert.equal(again.runId,active.room.runId);}
 console.log('PASS group release and state recovery after reload');
+
+// Hide uses the same live-event flag as media, never edits the prepared scene.
+const original=json(await gm.get('/api/command-center/scenes?id='+barracks));
+const originalSecond=json(await gm.get('/api/command-center/scenes?id='+gmStage.scenes[1].id));
+const publish=async(scene,audience={scope:'all'})=>{
+ const eventId=randomUUID();
+ const result=await gm.post('/api/live-table',{action:'showScene',sessionId,runId:active.room.runId,eventId,sceneId:scene.id,sceneVersion:scene.version,audience});
+ assert.equal(result.status,200,result.text);return eventId;
+};
+const remove=eventId=>gm.post('/api/live-table',{action:'hideScene',sessionId,runId:active.room.runId,eventId});
+const published=await publish(gmStage.scenes[0]);
+for(const player of [a,b])assert.equal(json(await player.get(q)).sceneEventId,published);
+assert.equal((await a.post('/api/live-table',{action:'hideScene',sessionId,runId:active.room.runId,eventId:published})).status,403);
+assert.equal((await gm.post('/api/live-table',{action:'hideScene',sessionId,runId:randomUUID(),eventId:published})).status,409);
+assert.equal((await remove(groupEvent)).status,409,'A media event cannot clear narration');
+assert.equal((await remove(published)).status,200);
+for(const viewer of [gm,a,b]){const hidden=json(await viewer.get(q));assert.equal(hidden.sceneInfo,undefined);assert.equal(hidden.sceneEventId,undefined);assert.equal(hidden.media.id,groupEvent,'Removing narration leaves media alone');}
+assert.equal((await remove(published)).status,200,'Repeated removal is harmless');
+console.log('PASS narration removal reaches all viewers; players and wrong/stale commands denied');
+
+const again=await publish(gmStage.scenes[0]);assert.notEqual(again,published);
+for(const player of [a,b])assert.equal(json(await player.get(q)).sceneEventId,again);
+const onlyA=await publish(gmStage.scenes[0],{scope:'players',playerIds:['command-a']});
+const onlyB=await publish(gmStage.scenes[1],{scope:'players',playerIds:['command-b']});
+assert.equal(json(await a.get(q)).sceneEventId,onlyA);assert.equal(json(await b.get(q)).sceneEventId,onlyB);
+assert.equal((await remove(onlyA)).status,409,'A stale close must not remove a newer release');
+assert.equal(json(await b.get(q)).sceneEventId,onlyB);
+assert.equal((await remove(onlyB)).status,200);
+for(const player of [a,b])assert.equal(json(await player.get(q)).sceneInfo,undefined,'All old targeted releases are cleared as well');
+assert.deepEqual(json(await gm.get('/api/command-center/scenes?id='+barracks)),original);
+assert.deepEqual(json(await gm.get('/api/command-center/scenes?id='+gmStage.scenes[1].id)),originalSecond);
+console.log('PASS re-publication, global clearing of different audiences and unchanged original scenes');
 console.log('ALL PASS: Spieltisch 2.0 role separation');
