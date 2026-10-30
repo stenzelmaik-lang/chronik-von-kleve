@@ -9,6 +9,7 @@ import {liveSceneChoice} from '@/domain/session-overview';
 import {stageSchema,emptyStage,stageVisible,changeStageObjects,stageSourceToken,stageMediaOf,type StageCommand,type StageState,type StageObject,type StageBackdrop} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
 import {participantPresence} from '@/domain/live-participants';
+import {vitalsSnapshot} from './live-vitals';
 
 export function storedStage(room:{stage?:unknown}):StageState{
  if(room.stage===undefined)return emptyStage();
@@ -44,7 +45,7 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
 }
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){
  const {row,room}=await stageRoom(a,sessionId),stage=storedStage(room);
- const [events,members]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a)]);
+ const [events,members,vitals]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room)]);
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
  const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:evaluateNormalV20(e.roll!.dice,e.roll!.target),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
@@ -64,7 +65,9 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,
   crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
-  dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents}};
+  dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
+  // Character condition values: own and explicitly released characters only; GM sees the whole table.
+  vitals};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){
  const {row,room}=await stageRoom(a,sessionId),state=storedStage(room);

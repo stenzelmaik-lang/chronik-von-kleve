@@ -30,7 +30,9 @@ export async function PATCH(req: Request) {
     } else {
       if (typeof d.value !== "string" || !health.includes(d.value as (typeof health)[number])) throw new HttpError(400, "Gesundheitszustand ungültig.");
       const existing = body.health && typeof body.health === "object" && !Array.isArray(body.health) ? body.health as Record<string, unknown> : {};
-      body.health = { ...existing, current: d.value };
+      // Keep the table's V20 damage track consistent: known damage types stay, new levels have no recorded type.
+      const levels = health.indexOf(d.value as (typeof health)[number]), track = Array.isArray(existing.track) ? existing.track.slice(0, levels) : [];
+      body.health = { ...existing, current: d.value, ...(Array.isArray(existing.track) || levels === 0 ? { track: [...track, ...Array(levels - track.length).fill("unspecified")], ...(levels === 0 ? { status: "active" } : {}) } : {}) };
     }
     const update = await db.prepare("UPDATE records SET body=?,version=version+1,updated_at=? WHERE id=? AND version=?").bind(JSON.stringify(body), new Date().toISOString(), r.id, d.version).run();
     if (!update.meta.changes) throw new HttpError(409, "Konflikt: Charakter wurde inzwischen geändert.");

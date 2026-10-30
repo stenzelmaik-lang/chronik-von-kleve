@@ -1,0 +1,51 @@
+/* Zustandsfeld am Spieltisch: Kästchen und Punkte wie auf dem V20-Papierbogen. */
+.boxes{display:inline-flex;flex-wrap:wrap;gap:3px;max-width:100%}.boxes>i{display:block;width:13px;height:13px;border:1px solid #c5a46a88;border-radius:2px;background:#0c1417}
+.boxes[data-shape=dot]>i{border-radius:50%}.boxes>i[data-on=true]{background:#d6b36f;border-color:#d6b36f}.boxes>i[data-off=true]{opacity:.28;border-style:dashed}
+.boxes[data-tone=blood]>i[data-on=true]{background:#9b2a35;border-color:#c4505b}.boxes[data-tone=will]>i[data-on=true]{background:#5a7fa0;border-color:#87a9c6}
+.boxes[data-tone=stress0]>i[data-on=true]{background:#6f8f73;border-color:#94b398}.boxes[data-tone=stress1]>i[data-on=true]{background:#c49a45;border-color:#e0bc6f}.boxes[data-tone=stress2]>i[data-on=true],.boxes[data-tone=stress3]>i[data-on=true]{background:#b4473f;border-color:#e0766c}
+.boxes[data-tone=masq]>i[data-on=true]{background:#7b5ea3;border-color:#a88bd0}
+.missing{font-size:11px;color:#b7bdb6;font-style:italic}
+.willpower{display:grid;gap:4px}
+
+/* Kompakte Anzeige auf der Bühne. */
+.dock{pointer-events:auto;position:absolute;left:12px;bottom:18px;z-index:6;display:grid;gap:5px;width:min(300px,calc(50% - 50px));padding:10px 12px;border:1px solid #c5a46a55;border-radius:9px;background:#0d171af2;color:#eee8dc;text-align:left;box-shadow:0 8px 24px #0005;font-size:12px}
+.dock:hover{border-color:#d6b36f99}.dockTitle{display:flex;align-items:center;gap:6px;font:15px/1.2 Georgia,serif;min-width:0}.dockTitle>svg{margin-left:auto;flex-shrink:0;color:#c5a46a}
+.dockTitle em{font:normal 10px Arial,sans-serif;color:#ffb3b8;border:1px solid #a84953;border-radius:4px;padding:1px 5px}
+.dockRow{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:7px;color:#c5a46a}.dockRow small{color:#e5ddcb;font-size:11px;font-variant-numeric:tabular-nums}
+.dockRow .boxes{gap:2px;flex-wrap:nowrap;overflow:hidden}.dockRow .boxes>i{width:9px;height:11px;flex-shrink:0}
+.healthMini{display:flex;gap:2px}.healthMini>i{display:grid;place-items:center;width:15px;height:15px;border:1px solid #c5a46a88;border-radius:2px;background:#0c1417;font:normal 700 11px/1 Arial,sans-serif;color:#eee8dc}
+.healthMini>i[data-type=lethal],.healthChart b[data-type=lethal]{color:#ff9aa2}.healthMini>i[data-type=aggravated],.healthChart b[data-type=aggravated]{color:#ffd27a;background:#4a1b20}.healthMini>i[data-type=unspecified],.healthChart b[data-type=unspecified]{color:#c9c2b4}
+
+/* Ausführliches Feld in der Seitenleiste. */
+.panel{display:grid;gap:16px}
+.group,.card{border:1px solid #c5a46a40;border-radius:8px;padding:14px;background:#0f1c1f}
+.group h3,.trait h4{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 0 8px;font:normal 16px/1.3 Georgia,serif;color:#eee8dc}.group h3>svg,.trait h4>svg{color:#c5a46a}
+.group h3 small,.trait h4 small{font:11px Arial,sans-serif;color:#b7bdb6;font-variant-numeric:tabular-nums}.group h3:not(:first-child){margin-top:16px}
+.card>header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;border-bottom:1px solid #c5a46a40;padding-bottom:10px;margin-bottom:12px}
+.card h3{margin:0;font:normal 19px/1.25 Georgia,serif}.card header small{display:block;margin-top:3px;font-size:11px;color:#b7bdb6}
+.state{font:normal 11px Arial,sans-serif;color:#ffb3b8;border:1px solid #a84953;border-radius:4px;padding:3px 7px;white-space:nowrap}
+.trait{padding:10px 0;border-bottom:1px solid #c5a46a22}.trait:last-of-type{border-bottom:0}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.panel button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 11px;border:1px solid #c5a46a55;border-radius:5px;background:#1b292b;color:#eee8dc;font-size:12px}
+.panel button:hover:not(:disabled){border-color:#d6b36f}.panel .danger{background:#5a2328;border-color:#a84953}
+.confirm{display:inline-flex;gap:6px;flex-wrap:wrap}
+.hint{margin:8px 0 0;color:#b7bdb6;font-size:12px;line-height:1.5}.warn{margin:8px 0 0;color:#ffb3b8;font-size:12px}
+.legend{margin:6px 0 0;font-size:11px;color:#b7bdb6}
+.healthChart{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+.healthChart li{display:grid;grid-template-columns:minmax(0,1fr) 32px 24px;align-items:center;gap:8px;font-size:12px;padding:2px 4px;border-radius:3px}
+.healthChart li[data-current=true]{background:#d6b36f1c}.healthChart small{color:#b7bdb6;text-align:right;font-variant-numeric:tabular-nums}
+.healthChart b{display:grid;place-items:center;width:22px;height:22px;border:1px solid #c5a46a88;border-radius:3px;background:#0c1417;font:700 14px/1 Arial,sans-serif;color:#eee8dc}
+.damage{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-top:12px;padding-top:10px;border-top:1px dashed #c5a46a33}
+.damage label{display:grid;gap:4px;font-size:11px;color:#b7bdb6}.damage select,.damage input,.settings select{min-height:40px;border:1px solid #c5a46a55;border-radius:5px;background:#0c1417;color:#eee8dc;padding:0 8px}
+.damage input{width:64px}.damage small{flex-basis:100%;font-size:11px;color:#b7bdb6}
+.footer{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #c5a46a40}
+.settings{border:1px solid #c5a46a40;border-radius:8px;padding:10px 14px}.settings summary{cursor:pointer;min-height:36px;display:flex;align-items:center;color:#d9c8a2}
+.settings fieldset{border:0;padding:0;margin:8px 0;display:grid;gap:8px}.settings legend{font-size:12px;color:#b7bdb6;margin-bottom:4px}
+.settings fieldset label{display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.45}.settings fieldset input{margin-top:3px}
+.check{display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0}
+.log{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px;font-size:12px}.log time{color:#c5a46a;font-variant-numeric:tabular-nums}.log small{color:#b7bdb6}
+
+@media(max-width:700px){
+ .dock{left:8px;bottom:84px;width:min(260px,calc(100% - 16px));padding:8px 10px;gap:4px}
+ .dockTitle{font-size:14px}.dockRow .boxes>i{width:7px;height:10px}.healthMini>i{width:13px;height:13px;font-size:10px}
+}
