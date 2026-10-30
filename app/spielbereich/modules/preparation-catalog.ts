@@ -1,4 +1,7 @@
 type PlaceChoice={id:string;title:string;parent_id?:string|null;level?:string};
+export function isCentralPreparationPlace(place:{type:string;parent_id?:string|null;level?:string}) {
+  return place.type==='PLACE' && !place.parent_id && (!place.level||place.level==='location');
+}
 export function preparationPlaces(places:PlaceChoice[]) {
   const byId=new Map(places.map(place=>[place.id,place]));
   return places.map(place=>{

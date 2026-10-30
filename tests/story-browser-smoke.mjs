@@ -72,7 +72,7 @@ async function addScene(title, placeTitle, html) {
   await page.getByRole("button", { name: "Vorschau", exact: true }).click();
   await page.getByRole("region", { name: "Erzählung Vorschau" }).getByRole("heading").first().waitFor();
   await page.getByRole("button", { name: "Editor vergrößern" }).click();
-  assert.equal(await page.locator('main [aria-pressed="true"]').filter({ hasText: "Vollbild schließen" }).count(), 1);
+  assert.equal(await page.getByRole("button",{name:"Vollbild schließen",exact:true}).count(), 1);
   await screenshot("szene-" + (title.includes("Kaserne") ? "kaserne" : "taberna") + "-vollbild");
   await page.keyboard.press("Escape");
   assert.equal(await page.getByRole("button", { name: "Editor vergrößern" }).getAttribute("aria-pressed"), "false");

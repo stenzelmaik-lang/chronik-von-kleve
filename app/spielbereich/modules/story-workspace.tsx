@@ -16,7 +16,6 @@ import {
 } from "@/domain/command-workspace";
 import {
   emptyScene,
-  sceneElementKinds,
   type SceneDocument,
   type SceneView,
   type SceneSummary,
@@ -28,10 +27,13 @@ import {
 } from "@/domain/story-preparation";
 import { RichTextEditor } from "./rich-text";
 import { PreparationPicker } from "./preparation-picker";
-import { preparationPlaces } from "./preparation-catalog";
+import { preparationPlaces, isCentralPreparationPlace } from "./preparation-catalog";
 import { useCommandConfirmation } from "./command-confirmation";
 import s from "./story-workspace.module.css";
 import { SessionOverview, SessionList } from "./session-overview";
+import { Info, Maximize2, Minimize2 } from "lucide-react";
+import { PreparationNPCs } from "./preparation-npcs";
+import { PreparationMaterials } from "./preparation-materials";
 import { PreparationGuide } from "./preparation-guide";
 import { sessionGuideSteps, sceneGuideSteps, sessionStep, sceneStep, type SessionGuideStep } from "@/domain/preparation-guide";
 import { orderedSessionScenes } from "@/domain/session-overview";
@@ -107,23 +109,6 @@ function selection(
   const v = value as SceneView | PreparedSession;
   return { kind, id: v.id, version: v.version, document: v.document };
 }
-const elementNames: Record<(typeof sceneElementKinds)[number], string> = {
-  text: "Text",
-  "sl-note": "SL-Notiz",
-  description: "Beschreibung",
-  object: "Gegenstand",
-  clue: "Hinweis",
-  check: "Probe",
-  dialogue: "Dialog",
-  encounter: "Begegnung",
-  place: "Ortsverweis",
-  person: "Person / Platzhalter",
-  image: "Bild",
-  audio: "Audio",
-  video: "Video",
-  handout: "Handout",
-  puzzle: "Rätsel / Platzhalter",
-};
 export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:boolean)=>void }) {
   const [stories, setStories] = useState<StorySummary[]>([]),
     [sessions, setSessions] = useState<PreparedSession[]>([]),
@@ -135,6 +120,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   const [sessionEditing,setSessionEditing]=useState(false), [returnSession,setReturnSession]=useState("");
   const [guideStep,setGuideStep]=useState<SessionGuideStep>("basics"), [returnGuide,setReturnGuide]=useState(false);
   const [expandedEditor,setExpandedEditor]=useState<string|null>(null);
+  const [helpEditor,setHelpEditor]=useState<string|null>(null);
   const [current, setCurrent] = useState<Selection | null>(null),
     [saved, setSaved] = useState(""),
     [message, setMessage] = useState("Lade Arbeitsbestand …"),
@@ -470,6 +456,16 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     } catch(error) {setMessage((error as Error).message+" Die bisherige Reihenfolge bleibt erhalten.");}
     finally {inflight.current=false;setBusy(false);}
   }
+  async function toggleSessionFlag(id:string,key:"favorite"|"pinned") {
+    if(inflight.current||dirty)return;
+    const evening=sessions.find(item=>item.id===id);if(!evening)return;
+    inflight.current=true;setBusy(true);
+    try {
+      const result=await request(endpoint("session"),{action:"save",id,version:evening.version,document:{...evening.document,[key]:!evening.document[key]}});
+      if(latest.current?.kind==="session"&&latest.current.id===id){const next=selection("session",result.session);setCurrent(next);setSaved(JSON.stringify(next.document));}
+      await refresh();setMessage("Spielabend-Markierung gespeichert.");
+    }catch(error){setMessage((error as Error).message);}finally{inflight.current=false;setBusy(false);}
+  }
   function change(patch: Partial<Document>) {
     setCurrent((c) =>
       c ? { ...c, document: { ...c.document, ...patch } as Document } : c,
@@ -523,6 +519,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         dialogueNotes: "Dialoge",
         interactions: "Interaktion",
         secrets: "Geheimnisse",
+        visions: "Visionen",
         possibleConsequences: "Mögliche Folgen",
       };
   const text = story
@@ -534,15 +531,15 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     <div key={key} className={`${zFull(key)}`}
       onKeyDown={e=>{if(e.key==="Escape"&&expandedEditor===key)setExpandedEditor(null);}}>
       <div className={s.editorBar}>
-        <span>Visuell · HTML-Quelltext · Vorschau</span>
-        <button type="button" aria-pressed={expandedEditor===key} onClick={()=>setExpandedEditor(expandedEditor===key?null:key)}>
-          {expandedEditor===key?"Vollbild schließen":"Editor vergrößern"}
-        </button>
+        <strong>{label}</strong><div>
+        <button type="button" aria-label="HTML-Hilfe" aria-expanded={helpEditor===key} onClick={()=>setHelpEditor(helpEditor===key?null:key)}><Info size={17} aria-hidden="true"/></button>
+        <button type="button" aria-label={expandedEditor===key?"Vollbild schließen":"Editor vergrößern"} aria-pressed={expandedEditor===key} onClick={()=>setExpandedEditor(expandedEditor===key?null:key)}>{expandedEditor===key?<Minimize2 size={17} aria-hidden="true"/>:<Maximize2 size={17} aria-hidden="true"/>}</button>
+        </div>
       </div>
-      <details className={s.htmlHelp}><summary>HTML richtig aufbauen</summary><p>Nutze h2/h3 für Überschriften, p für Absätze und ul/li für Listen. cp-intro, cp-highlight, cp-note und cp-divider bleiben die vorhandenen Formatvorlagen. Lass Text automatisch umbrechen; vermeide br-Ketten.</p><pre>{'<h2>Überschrift</h2>\n<p>Ein zusammenhängender Absatz.</p>\n<ul><li>Ein Hinweis</li></ul>'}</pre><p>Grenze: {current?.kind==="scene"?"7.000":"10.000"} sichtbare Zeichen je Text. Nicht jeder Bereich muss gefüllt sein.</p></details>
+      {helpEditor===key&&<aside className={s.htmlHelp} aria-label="HTML-Hilfe"><h3>Text und HTML gestalten</h3><p>Schreibe direkt im visuellen Editor oder füge im HTML-Quelltext formatierten Text ein. Vorschau zeigt die spätere Darstellung, ohne etwas zu veröffentlichen.</p><p>Nutze h2/h3 für Überschriften, p für Absätze und ul/li für Listen. Tabellen: table, tr, th und td. Fett: strong, kursiv: em. Lass Text automatisch umbrechen; vermeide br-Ketten und feste Breiten.</p><p>Formatvorlagen: cp-intro für Einleitungen, cp-highlight für Hervorhebungen, cp-note für Hinweise, cp-divider für Trennungen.</p><pre>{'<h2>Überschrift</h2>\n<p class="cp-intro">Ein erster Eindruck.</p>\n<p>Ein zusammenhängender Absatz.</p>\n<ul><li>Ein Hinweis</li></ul>'}</pre><p>Bis 10.000 sichtbare Zeichen. HTML wird sicher aufbereitet; Skripte und externe Einbettungen werden nicht übernommen. Bilder wählst du über die Galerie. Dein Entwurf wird automatisch gespeichert. Weiter speichert zusätzlich vor dem Schrittwechsel; nichts davon veröffentlicht Inhalte.</p></aside>}
       <RichTextEditor value={value} onChange={onChange} label={label}
-        maximumPlainLength={current?.kind==="scene"?7000:10000}
-        placeholder="Deine private Vorbereitung …" advanced htmlSource files={files}/>
+        maximumPlainLength={10000}
+        placeholder="Deine private Vorbereitung …" advanced htmlSource compactTools preparationTools files={files}/>
     </div>
   );
   function zFull(key:string){return s.editorFrame+" "+(expandedEditor===key?s.expandedEditor:"");}
@@ -685,7 +682,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             </select></label>
             <button disabled={busy} onClick={()=>void create("scene")}>Neue Szene im Spielabend</button>
           </div>}
-          {current && session && !sessionEditing ? <SessionOverview session={{id:current.id,version:current.version,updatedAt:"",document:session}} scenes={scenes} references={refs} files={files} busy={busy || dirty} message={message}
+          {current && session && !sessionEditing ? <SessionOverview onFlag={(key)=>void toggleSessionFlag(current.id,key)} session={{id:current.id,version:current.version,updatedAt:"",document:session}} scenes={scenes} references={refs} files={files} busy={busy || dirty} message={message}
             onEdit={()=>{setSessionEditing(true);setGuideStep("basics");window.history.pushState(null,"","/sl/command-center?bereich=sitzung&session="+encodeURIComponent(current.id)+"&edit=1");activeUrl.current=window.location.pathname+window.location.search;}}
             onScene={id=>void open("scene",id,current.id)} onCreate={()=>void create("scene")} onMove={(id,direction)=>void moveScene(id,direction)}/>
           : current && doc ? (
@@ -767,10 +764,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                 <PreparationGuide label="Spielabend planen" steps={sessionGuideSteps} active={guideStep} busy={busy} onStep={step=>void changeGuideStep(step,"session")} onFinish={()=>void finishGuide("session")} finishLabel="Speichern & zur Übersicht">
                   {guideStep==="basics"&&<div className={s.guideFields}>
                     <label>Titel<input value={session.title} maxLength={200} onChange={e=>change({title:e.target.value})}/></label>
-                    <label>Geplanter Termin <small>Optional – kann später ergänzt werden</small><input type="datetime-local" value={session.date} onChange={e=>change({date:e.target.value})}/></label>
                     <label>Kurzüberblick<textarea rows={4} maxLength={2000} value={session.summary} onChange={e=>change({summary:e.target.value})} placeholder="Was möchtest du an diesem Abend spielen?"/></label>
                     <p>Der Kurzüberblick erscheint später in deiner Spielabendübersicht. Schauplätze wählst du bei den einzelnen Szenen.</p>
-                    <details><summary>Organisation</summary><label><input type="checkbox" checked={session.favorite} onChange={e=>change({favorite:e.target.checked})}/>Favorit</label><label><input type="checkbox" checked={session.pinned} onChange={e=>change({pinned:e.target.checked})}/>Anheften</label></details>
                   </div>}
                   {(guideStep==="scenes"||guideStep==="review")&&<SessionOverview compact session={{id:current.id,version:current.version,updatedAt:"",document:session}} scenes={scenes.filter(item=>!unlinkedIds.includes(item.id))} references={refs} files={files} busy={busy||dirty} message={message} onEdit={()=>void changeGuideStep("basics","session")} onScene={id=>void open("scene",id,current.id,"push",false,true)} onCreate={()=>void create("scene")} onMove={(id,direction)=>void moveScene(id,direction)}/>}
                   {guideStep==="scenes"&&<details className={s.sessionLinks}><summary>Vorhandene Storys, Szenen und Schauplätze verknüpfen</summary>
@@ -807,11 +802,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                 </PreparationGuide>
               ) : (
                 <>
-                  {scene?<PreparationGuide label="Szene vorbereiten" steps={sceneGuideSteps} active={section} busy={busy} onStep={step=>void changeGuideStep(step,"scene")} onFinish={()=>void finishGuide("scene")} finishLabel={returnSession?"Speichern & zum Spielabend":"Speichern & zur Übersicht"}>
-                    {section==="narration"&&<label>Zentraler Schauplatz<select value={scene.placeId} onChange={e=>change({placeId:e.target.value})}><option value="">Kein Schauplatz</option>{refs.filter(ref=>ref.type==="PLACE").map(ref=><option key={ref.id} value={ref.id}>{ref.title}</option>)}</select></label>}
+                  {scene?<PreparationGuide label="Szene vorbereiten" sequential steps={sceneGuideSteps} active={section} busy={busy} onStep={step=>void changeGuideStep(step,"scene")} onFinish={()=>void finishGuide("scene")} finishLabel={returnSession?"Speichern & zum Spielabend":"Speichern & zur Übersicht"}>
+                    {section==="narration"&&<label>Zentraler Schauplatz<select value={scene.placeId} onChange={e=>change({placeId:e.target.value})}><option value="">Kein Schauplatz</option>{scene.placeId&&!refs.some(ref=>ref.id===scene.placeId&&isCentralPreparationPlace(ref))&&<option value={scene.placeId} disabled>{refs.find(ref=>ref.id===scene.placeId)?.title||"Bestehender Schauplatz"} · bisherige Zuordnung</option>}{refs.filter(ref=>isCentralPreparationPlace(ref)).map(ref=><option key={ref.id} value={ref.id}>{ref.title}</option>)}</select></label>}
+                    {section==="dialogueNotes"&&<PreparationNPCs references={refs} values={scene.npcIds} onChange={npcIds=>change({npcIds})}/>}
+                    {section==="interactions"&&<><PreparationMaterials elements={scene.elements} onChange={elements=>change({elements})} references={refs} files={files} editor={editor}/>{pick("Vorhandene Hinweis- und Handoutakten dieser Szene",scene.clueIds,refs.filter(ref=>['CLUE','HANDOUT'].includes(ref.type)),clueIds=>change({clueIds}))}</>}
                     {editor(text,value=>change({[section]:value}),sceneGuideSteps.find(step=>step.id===section)?.label||"Erzählung",current.id+":"+section)}
-                    {section==="dialogueNotes"&&pick("NPCs dieser Szene",scene.npcIds,refs.filter(ref=>ref.type==="NPC"),npcIds=>change({npcIds}))}
-                    {section==="interactions"&&pick("Hinweise und Handouts",scene.clueIds,refs.filter(ref=>['CLUE','HANDOUT'].includes(ref.type)),clueIds=>change({clueIds}))}
                     {section==="possibleConsequences"&&<details className={s.sessionLinks}><summary>Optionale Abzweigungen</summary><p>Alternative Verläufe bleiben Möglichkeiten. Ihre Vorbereitung löst nichts aus.</p>{scene.possibilities.map((item,index)=><div className={s.guideFields} key={item.id}><label>Abzweigung Titel<input maxLength={200} value={item.title} onChange={e=>change({possibilities:scene.possibilities.map((value,i)=>i===index?{...value,title:e.target.value}:value)})}/></label><label>Abzweigung Beschreibung<textarea maxLength={3000} value={item.text} onChange={e=>change({possibilities:scene.possibilities.map((value,i)=>i===index?{...value,text:e.target.value}:value)})}/></label><button type="button" onClick={()=>change({possibilities:scene.possibilities.filter(value=>value.id!==item.id)})}>Abzweigung entfernen</button></div>)}<button type="button" disabled={scene.possibilities.length>=50} onClick={()=>change({possibilities:[...scene.possibilities,{id:crypto.randomUUID(),title:"Neue Abzweigung",text:""}]})}>Abzweigung hinzufügen</button></details>}
                   </PreparationGuide>:<>
                   <div className={s.tabs}>
@@ -908,211 +903,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                   )}
                 </>
               )}
-              {scene && (
-                <details className={s.sessionLinks} open={section==="interactions"}><summary>Zusätzliche Szenenelemente und Verknüpfungen</summary>
-                  <div className={s.meta}>
-                    <label>
-                      Handlungsstrang
-                      <select
-                        value={scene.storyId}
-                        disabled={!!scene.parentId}
-                        onChange={(e) => change({ storyId: e.target.value })}
-                      >
-                        <option value="">Freie Szene</option>
-                        {stories.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+              {scene&&section==="narration"&&<details className={s.sessionLinks}><summary>Übergreifende Storyzuordnung</summary><p>Optional: Ordne diese Szene einem Handlungsstrang zu. Räume, Medien und Handouts bereitest du später unter Interaktionen und Spielmaterial vor.</p><label>Handlungsstrang<select value={scene.storyId} disabled={!!scene.parentId} onChange={e=>change({storyId:e.target.value})}><option value="">Freie Szene</option>{stories.map(story=><option key={story.id} value={story.id}>{story.title}</option>)}</select></label><button disabled={busy} onClick={()=>void create("scene",true)}>Unter-Szene anlegen</button></details>}
 
-                    <button
-                      disabled={busy}
-                      onClick={() => void create("scene", true)}
-                    >
-                      + Unter-Szene
-                    </button>
-                  </div>
-                  <div>
-                    <h3>Zugeordnete Sitzungen</h3>
-                    <p>Die Zuordnung wird in der jeweiligen Sitzung bearbeitet.</p>
-                    {sessions.filter((v) => v.document.sceneIds.includes(current.id) || scene.sessionIds.includes(v.id)).map((v) => (
-                      <button key={v.id} onClick={() => void open("session", v.id)}>{v.document.title}</button>
-                    ))}
-                  </div>                  <h2>Szenenelemente</h2>
-                  <p>
-                    Bausteine der Vorbereitung. Audio, Video und Rätsel werden
-                    verknüpft; es entsteht keine neue Engine.
-                  </p>
-                  {scene.elements.map((e, i) => (
-                    <details
-                      id={"story-element-" + e.id}
-                      key={e.id}
-                      className={s.element}
-                      open={elementFocus === e.id}
-                      onToggle={(event) => {
-                        if (event.currentTarget.open) setElementFocus(e.id);
-                      }}
-                    >
-                      <summary>
-                        {elementNames[e.kind]} · {e.title}
-                      </summary>
-                      <div className={s.meta}>
-                        <strong>{elementNames[e.kind]}</strong>
-                        <input
-                          aria-label="Elementtitel"
-                          value={e.title}
-                          onChange={(v) =>
-                            change({
-                              elements: scene.elements.map((x, n) =>
-                                n === i ? { ...x, title: v.target.value } : x,
-                              ),
-                            })
-                          }
-                        />
-                        <button
-                          onClick={() =>
-                            change({
-                              elements: scene.elements.filter(
-                                (x) => x.id !== e.id,
-                              ),
-                            })
-                          }
-                        >
-                          Entfernen
-                        </button>
-                      </div>
-                      {editor(
-                        e.text,
-                        (v) =>
-                          change({
-                            elements: scene.elements.map((x, n) =>
-                              n === i ? { ...x, text: v } : x,
-                            ),
-                          }),
-                        e.title,
-                        current.id + ":" + e.id,
-                      )}
-                      {[
-                        "place",
-                        "person",
-                        "clue",
-                        "handout",
-                        "puzzle",
-                      ].includes(e.kind) && (
-                        <label>
-                          Originalakte / optionaler Platzhalter
-                          <select
-                            value={e.referenceId}
-                            onChange={(v) =>
-                              change({
-                                elements: scene.elements.map((x, n) =>
-                                  n === i
-                                    ? { ...x, referenceId: v.target.value }
-                                    : x,
-                                ),
-                              })
-                            }
-                          >
-                            <option value="">Noch nicht verknüpft</option>
-                            {refs
-                              .filter((r) =>
-                                (
-                                  ({
-                                    place: ["PLACE"],
-                                    person: ["NPC", "CHARACTER"],
-                                    clue: ["CLUE"],
-                                    handout: ["HANDOUT"],
-                                    puzzle: ["RULE", "HANDOUT"],
-                                  })[e.kind as "place"] || []
-                                ).includes(r.type),
-                              )
-                              .map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.title}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                      )}
-                      {["image", "audio", "video", "handout"].includes(
-                        e.kind,
-                      ) && (
-                        <label>
-                          Geschützte Datei
-                          <select
-                            value={e.fileId}
-                            onChange={(v) =>
-                              change({
-                                elements: scene.elements.map((x, n) =>
-                                  n === i
-                                    ? { ...x, fileId: v.target.value }
-                                    : x,
-                                ),
-                              })
-                            }
-                          >
-                            <option value="">Keine Datei</option>
-                            {files
-                              .filter(
-                                (f) =>
-                                  e.kind === "handout" ||
-                                  f.mime.startsWith(
-                                    e.kind === "image"
-                                      ? "image/"
-                                      : e.kind + "/",
-                                  ),
-                              )
-                              .map((f) => (
-                                <option key={f.id} value={f.id}>
-                                  {f.name}
-                                </option>
-                              ))}
-                          </select>
-                        </label>
-                      )}
-                    </details>
-                  ))}
-                  <label>
-                    Element hinzufügen
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const kind = e.target
-                          .value as (typeof sceneElementKinds)[number];
-                        if (kind) {
-                          const elementId = crypto.randomUUID();
-                          setElementFocus(elementId);
-                          change({
-                            elements: [
-                              ...scene.elements,
-                              {
-                                id: elementId,
-                                kind,
-                                title: elementNames[kind],
-                                text: "",
-                                referenceId: "",
-                                fileId: "",
-                              },
-                            ],
-                          });
-                        }
-                      }}
-                    >
-                      <option value="">Baustein wählen …</option>
-                      {sceneElementKinds.map((kind) => (
-                        <option key={kind} value={kind}>
-                          {elementNames[kind]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </details>
-              )}
             </>
           ) : (
-            <SessionList sessions={sessions.filter(v=>matches({...v.document,id:v.id,searchText:v.document.summary}))} scenes={scenes} references={refs} busy={busy} message={message} onOpen={id=>void open("session",id)}/>
+            <SessionList onFlag={(id,key)=>void toggleSessionFlag(id,key)} sessions={sessions.filter(v=>matches({...v.document,id:v.id,searchText:v.document.summary}))} scenes={scenes} references={refs} busy={busy} message={message} onOpen={id=>void open("session",id)}/>
 
           )}
         </main>

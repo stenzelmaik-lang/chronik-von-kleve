@@ -7,9 +7,14 @@ on:
   pull_request:
     paths:
       - "app/spielbereich/modules/story-workspace.*"
-      - "app/spielbereich/modules/preparation-guide.tsx"
+      - "app/spielbereich/modules/preparation-*.tsx"
+      - "app/spielbereich/modules/preparation-catalog.ts"
+      - "app/spielbereich/modules/protected-image-gallery.tsx"
       - "app/spielbereich/modules/session-overview.tsx"
       - "domain/preparation-guide.ts"
+      - "domain/session-overview.ts"
+      - "server/story-scenes.ts"
+      - "server/command-workspace.ts"
       - "app/spielbereich/modules/rich-text.*"
       - "domain/story-*.ts"
       - "tests/story-*.test.mjs"
@@ -38,7 +43,7 @@ jobs:
         run: npm run typecheck
       - name: ESLint (affected Story Editor files)
         # Existing prototype code outside this PR has unresolved global lint errors.
-        run: ./node_modules/.bin/eslint app/spielbereich/modules/story-workspace.tsx app/spielbereich/modules/preparation-guide.tsx app/spielbereich/modules/session-overview.tsx domain/preparation-guide.ts tests/story-preparation.test.mjs tests/preparation-guide-browser.mjs
+        run: ./node_modules/.bin/eslint app/spielbereich/modules/story-workspace.tsx app/spielbereich/modules/preparation-guide.tsx app/spielbereich/modules/preparation-materials.tsx app/spielbereich/modules/preparation-npcs.tsx app/spielbereich/modules/preparation-catalog.ts app/spielbereich/modules/protected-image-gallery.tsx app/spielbereich/modules/rich-text.tsx app/spielbereich/modules/session-overview.tsx domain/preparation-guide.ts tests/story-preparation.test.mjs tests/preparation-guide-browser.mjs
       - name: Unit and regression tests
         run: npm test
       - name: Production build

@@ -139,3 +139,12 @@ test("A free scene stays unassigned and session link defaults are compatible", (
   assert.deepEqual(evening.sceneIds, []);
   assert.equal(evening.status, "draft");
 });
+
+
+test('Central scene selector contains only root places without rewriting legacy references', async () => {
+  const {preparationPlaces,isCentralPreparationPlace}=await import('../app/spielbereich/modules/preparation-catalog.ts');
+  const places=preparationPlaces([{id:'station',title:'Bahnhof',level:'location',parent_id:null},{id:'hall',title:'Empfangshalle',level:'area',parent_id:'station'},{id:'room',title:'Zimmer',level:'room',parent_id:'hall'}]);
+  assert.deepEqual(places.filter(isCentralPreparationPlace).map(place=>place.id),['station']);
+  assert.equal(isCentralPreparationPlace({type:'NPC'}),false);
+  assert.equal(sceneDocumentSchema.parse({...emptyScene(),placeId:'hall'}).placeId,'hall');
+});

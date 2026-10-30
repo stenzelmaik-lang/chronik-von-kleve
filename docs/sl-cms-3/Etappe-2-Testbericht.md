@@ -1,6 +1,8 @@
 # SL-CMS 3.0 – Geführte Spielabend- und Szenenplanung
 
-29.10.2026 · ausschließlich lokal · zur persönlichen UX-Abnahme bereit.
+29.10.2026 · historischer erster Stand, ausschließlich lokal.
+
+Die verbindlichen Korrekturen aus dem persönlichen Durchgang vom 30.10.2026 sind in [Etappe-2-UX-Nachbesserung.md](Etappe-2-UX-Nachbesserung.md) dokumentiert und ersetzen insbesondere die direkte Szenenschrittauswahl und das alte Textlimit.
 
 ## Freigabe und Umfang
 

@@ -53,3 +53,15 @@ test('Existing workspace and moment data remain backward compatible', () => {
   const m = momentSchema.parse({ clientRequestId: randomUUID(), text: 'Tatsächlich geschehen', sessionId: 's', storyId: '', references: [] });
   assert.equal(m.sceneId, ''); assert.equal(m.runId, '');
 });
+
+
+test('Scene texts support 10000 visible characters and keep visions separate from secrets', () => {
+  const old=emptyScene(); delete old.visions;
+  assert.equal(sceneDocumentSchema.parse(old).visions,'');
+  for(const key of ['narration','atmosphere','dialogueNotes','interactions','secrets','visions','possibleConsequences','gmNotes']) {
+    assert.ok(sceneDocumentSchema.safeParse({...emptyScene(),[key]:'x'.repeat(10000)}).success,key);
+    assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),[key]:'x'.repeat(10001)}).success,false,key);
+  }
+  const scene=sceneDocumentSchema.parse({...emptyScene(),secrets:'INTERNAL_BACKGROUND',visions:'PLAYER_INFO_TO_PREPARE'});
+  assert.equal(scene.secrets,'INTERNAL_BACKGROUND');assert.equal(scene.visions,'PLAYER_INFO_TO_PREPARE');
+});

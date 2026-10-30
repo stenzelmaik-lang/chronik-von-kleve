@@ -4,7 +4,7 @@ import { richTextToPlainText, richTextFileIds } from './location-rich-text.ts';
 
 export const preparationSections = {
   narration: 'Erzählung', atmosphere: 'Atmosphäre', dialogueNotes: 'NPCs und Dialoge',
-  interactions: 'Interaktionen', secrets: 'Geheimnisse',
+  interactions: 'Interaktionen', secrets: 'Geheimnisse', visions: 'Visionen',
   possibleConsequences: 'Folgen und Proben', gmNotes: 'SL-Notizen',
 } as const;
 

@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, MapPin, Users, FileText, NotebookPen } from 'lucide-react';
+import { ArrowUp, ArrowDown, MapPin, Users, FileText, NotebookPen, Star, Pin } from 'lucide-react';
 import type { PreparedSession } from '@/domain/story-preparation';
 import type { SceneSummary } from '@/domain/story-scene';
 import type { CommandReference } from '@/domain/command-workspace';
@@ -9,7 +9,12 @@ export const preparationStatusNames: Record<string, string> = {
   draft: 'Entwurf', ready: 'Vorbereitet', active: 'In Arbeit', completed: 'Abgeschlossen', archived: 'Archiviert',
 };
 
-export function SessionList({sessions,scenes,references,busy,message,onOpen}:{sessions:PreparedSession[];scenes:SceneSummary[];references:CommandReference[];busy:boolean;message:string;onOpen:(id:string)=>void}) {
+function EveningFlags({session,busy,onFlag}:{session:PreparedSession;busy:boolean;onFlag?:(key:'favorite'|'pinned')=>void}) {
+  if(!onFlag)return null;
+  return <div className={s.eveningFlags}><button type="button" title="Favorit" aria-label={'Favorit: '+session.document.title} aria-pressed={session.document.favorite} disabled={busy} onClick={()=>onFlag('favorite')}><Star size={18} fill={session.document.favorite?'currentColor':'none'} aria-hidden="true"/></button><button type="button" title="Anheften" aria-label={'Anheften: '+session.document.title} aria-pressed={session.document.pinned} disabled={busy} onClick={()=>onFlag('pinned')}><Pin size={18} fill={session.document.pinned?'currentColor':'none'} aria-hidden="true"/></button></div>;
+}
+
+export function SessionList({sessions,scenes,references,busy,message,onOpen,onFlag}:{onFlag?:(id:string,key:"favorite"|"pinned")=>void;sessions:PreparedSession[];scenes:SceneSummary[];references:CommandReference[];busy:boolean;message:string;onOpen:(id:string)=>void}) {
   const names=new Map(references.map(reference=>[reference.id,reference.title]));
   return <section className={s.sessionIndex} aria-label="Alle Spielabende">
     <header className={s.indexHead}><div><h2>Deine Spielabende</h2><p>Öffne einen Abend, um seine Szenen zu planen. Einen neuen Abend legst du oben über „Spielabend anlegen“ an.</p></div><small>Zuletzt bearbeitet zuerst</small></header>
@@ -19,7 +24,7 @@ export function SessionList({sessions,scenes,references,busy,message,onOpen}:{se
       const linked=orderedSessionScenes(session.id,session.document,scenes);
       const places=[...new Set(linked.map(scene=>scene.placeId).filter(Boolean))];
       return <li key={session.id}>
-        <div className={s.indexEntryHead}><h3>{session.document.title}</h3><span className={s.indexStatus}>{preparationStatusNames[session.document.status]}</span></div>
+        <div className={s.indexEntryHead}><h3>{session.document.title}</h3><span className={s.indexStatus}>{preparationStatusNames[session.document.status]}</span><EveningFlags session={session} busy={busy} onFlag={key=>onFlag?.(session.id,key)}/></div>
         <p className={s.indexMeta}>{session.document.date?`${session.document.date.replace('T',' · ')} · `:''}{linked.length} {linked.length===1?'Szene':'Szenen'}{places.length?` · ${places.map(id=>names.get(id)||'Verknüpfter Schauplatz').join(', ')}`:''}</p>
         <p className={s.indexDescription}>{session.document.summary||(linked[0]?.preparation?.narrationExcerpt ? `Auftakt: ${linked[0].preparation.narrationExcerpt}` : 'Noch kein Kurzüberblick hinterlegt. Du kannst ihn unter „Spielabend bearbeiten“ ergänzen.')}</p>
         <div className={s.indexEntryFoot}><p>{linked.length?linked.slice(0,3).map(scene=>scene.title).join(' → '):'Dieser Abend wartet auf seine erste Szene.'}{linked.length>3?' …':''}</p><button disabled={busy} onClick={()=>onOpen(session.id)} aria-label={`Spielabend öffnen: ${session.document.title}`}>Spielabend öffnen</button></div>
@@ -28,8 +33,8 @@ export function SessionList({sessions,scenes,references,busy,message,onOpen}:{se
   </section>;
 }
 
-export function SessionOverview({ session, scenes, references, files, busy, onEdit, onScene, onCreate, onMove, message, compact=false }:{
-  compact?:boolean; session: PreparedSession; scenes: SceneSummary[]; references: CommandReference[];
+export function SessionOverview({ session, scenes, references, files, busy, onEdit, onScene, onCreate, onMove, message, compact=false, onFlag }:{
+  onFlag?:(key:"favorite"|"pinned")=>void; compact?:boolean; session: PreparedSession; scenes: SceneSummary[]; references: CommandReference[];
   files: {id:string;name:string;mime:string}[]; busy:boolean; message:string;
   onEdit:()=>void; onScene:(id:string)=>void; onCreate:()=>void; onMove:(id:string,direction:number)=>void;
 }) {
@@ -40,7 +45,7 @@ export function SessionOverview({ session, scenes, references, files, busy, onEd
   return <section aria-label="Spielabendübersicht" className={s.overview}>
     {!compact&&<><header className={s.overviewHead}>
       <div><h2>{session.document.title}</h2><p>{preparationStatusNames[session.document.status]}{session.document.date ? ` · ${session.document.date.replace('T', ' · ')}` : ''}</p></div>
-      <button type="button" disabled={busy} onClick={onEdit}>Spielabend bearbeiten</button>
+      <EveningFlags session={session} busy={busy} onFlag={onFlag}/><button type="button" disabled={busy} onClick={onEdit}>Spielabend bearbeiten</button>
     </header>
     <section className={s.eveningPlan}><h3>Für diesen Abend geplant</h3><p className={s.overviewSummary}>{session.document.summary||'Noch kein Kurzüberblick hinterlegt. Ergänze unter „Spielabend bearbeiten“, was du für diesen Abend vorhast.'}</p></section>
     <p role="status" className={s.overviewHint}>{message}</p>
