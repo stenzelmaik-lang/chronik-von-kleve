@@ -59,9 +59,26 @@ export async function seedSpieltischKaserne({db,base,cookie}){
   return (await call('/api/command-center/scenes',{action:'create',clientRequestId:randomUUID(),document:d})).scene.id;
  };
 
+ // A deliberately long, synthetic read-aloud text exercises scrolling, headings, lists and tables of the stage narration.
+ const longNarration='<h3>Der Weg über den Appellplatz</h3>'
+  +'<p>Kies knirscht unter euren Schuhen. Zwischen den Betonplatten des Appellplatzes wächst Moos, und die Fahnenstange in der Mitte trägt nur noch ein ausgefranstes Seil, das im Wind gegen das Metall schlägt – ein hohles, gleichmäßiges Klopfen, als zähle jemand die Sekunden bis zu eurer Ankunft.</p>'
+  +'<p>Links reihen sich die Mannschaftsgebäude, drei Stockwerke hoch, die Fenster mit Spanplatten vernagelt. Auf einer Platte hat jemand mit weißer Farbe eine Zahl gemalt: 47. Die Farbe ist frischer als alles andere hier.</p>'
+  +'<blockquote>„Wer hier Wache schiebt, lernt, dass der Wald zurückschaut.“ – eingeritzt in den Türrahmen der Wachstube</blockquote>'
+  +'<h3>Was ihr wahrnehmt</h3><ul><li>Der Geruch von kaltem Zigarettenrauch, obwohl niemand zu sehen ist.</li><li>Ein Generator brummt irgendwo hinter den Garagen, unregelmäßig, als stottere er.</li><li>Reifenspuren im Schlamm, höchstens zwei Tage alt, die zum Kellerabgang führen.</li><li>Auf dem Dach des Stabsgebäudes sitzen Krähen, ungewöhnlich still.</li></ul>'
+  +'<p>Je näher ihr der Wachstube kommt, desto deutlicher hört ihr ein Radio. Es spielt keine Musik, sondern Rauschen, unterbrochen von Zahlenfolgen, die eine monotone Frauenstimme verliest. Sieben. Vier. Sieben. Pause. Dann wieder Rauschen.</p>'
+  +'<hr><h3>Die Wachstube</h3>'
+  +'<p>Die Tür steht einen Spalt offen. Drinnen brennt eine Schreibtischlampe mit grünem Glasschirm. Auf dem Tisch liegt ein aufgeschlagenes Dienstbuch, daneben ein Becher Kaffee, der noch dampft. Der Stuhl ist zurückgeschoben, als sei jemand gerade erst aufgestanden.</p>'
+  +'<p>An der Wand hängt ein Dienstplan aus dem Jahr 1993. Alle Namen sind mit schwarzem Filzstift durchgestrichen – bis auf einen: Schäfer. Daneben, in einer anderen Handschrift: <em>bleibt</em>.</p>'
+  +'<table><tr><th>Uhrzeit</th><th>Eintrag im Dienstbuch</th><th>Kürzel</th></tr><tr><td>22:00</td><td>Rundgang Nord ohne Befund.</td><td>S.</td></tr><tr><td>23:30</td><td>Licht im Keller. Nicht nachgesehen.</td><td>S.</td></tr><tr><td>01:15</td><td>Er ist wach.</td><td>–</td></tr></table>'
+  +'<p>Der letzte Eintrag ist nicht mit Tinte geschrieben. Die Schrift ist braun, getrocknet und leicht verwischt, als hätte jemand sie mit dem Finger gezogen.</p>'
+  +'<h3>Stimmen aus dem Dunkel</h3>'
+  +'<p>Draußen verstummt das Radio. Für einen Augenblick ist es so still, dass ihr euren eigenen Atem hört – und dann, sehr leise, das Geräusch von Schritten auf der Kellertreppe. Langsam. Gleichmäßig. Sie kommen nicht näher, sie entfernen sich, tiefer hinab, als wolle jemand, dass ihr folgt.</p>'
+  +'<ol><li>Wer folgt den Schritten zuerst?</li><li>Wer bleibt bei der Wachstube und dem Dienstbuch?</li><li>Wer behält den Appellplatz und das Tor im Blick?</li></ol>'
+  +'<p>Hinter euch, am Tor, glimmt eine Zigarette auf. Herr Schäfer steht dort, wo eben noch niemand stand, und hebt grüßend die Hand. „Sie sind spät“, sagt er. „Man hat Sie früher erwartet.“</p>'
+  +'<p class="cp-intro">Ende des synthetischen Vorlesetextes – wenn ihr diese Zeile lest, wurde nichts abgeschnitten.</p>';
  const kaserne=await scene('Szene 01 – Spielort Kaserne (Auftakt)',{
   storyId,placeId:place.id,npcIds:[npc.id],clueIds:[handout.id],backdropFileId:kaserneImage,
-  narration:'<h2>Ankunft am Tor</h2><p>Der Reichswald schluckt das Scheinwerferlicht. Hinter dem rostigen Tor liegt die Kaserne Schwarzholz – still, aber nicht verlassen.</p><p class="cp-intro">Ein einzelnes Fenster der Wachstube ist erleuchtet.</p>',
+  narration:'<h2>Ankunft am Tor</h2><p>Der Reichswald schluckt das Scheinwerferlicht. Hinter dem rostigen Tor liegt die Kaserne Schwarzholz – still, aber nicht verlassen.</p><p class="cp-intro">Ein einzelnes Fenster der Wachstube ist erleuchtet.</p>'+longNarration,
   atmosphere:'<ul><li><strong>Licht:</strong> Natriumdampf, flackernd, ein Mast defekt.</li><li><strong>Geräusche:</strong> Kiefern im Wind, entferntes Hundegebell.</li><li><strong>Geruch:</strong> Diesel, nasses Laub, etwas Metallisches.</li></ul>',
   dialogueNotes:'<h3>Herr Schäfer</h3><p><em>Erster Eindruck:</em> „Hier ist seit 1994 niemand mehr stationiert.“</p><h3>Fragen zu Silas Vance</h3><p>Schäfer weicht aus, schaut zum Kellerabgang. Bei Druck: „Der Amerikaner? Der war nur einmal hier.“</p>',
   interactions:'<p>Das Tor lässt sich mit der Order öffnen. Die Wachstube enthält ein Dienstbuch.</p><table><tr><th>Objekt</th><th>Fundort</th><th>Probe</th></tr><tr><td>Dienstbuch</td><td>Wachstube</td><td>Wahrnehmung + Nachforschung (6)</td></tr><tr><td>Schlüsselbund</td><td>Schäfers Gürtel</td><td>Geschick + Taschendiebstahl (7)</td></tr></table>',
