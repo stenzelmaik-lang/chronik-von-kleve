@@ -49,7 +49,7 @@ export type StoryDocument = z.infer<typeof storyDocumentSchema>;
 export type StoryView = StoryDocument & { id: string; version: number; updatedAt: string };
 export type StoryHistory = { id: string; version: number; createdAt: string; document: StoryDocument };
 export const emptyStory = (): StoryDocument => ({ title: 'Neuer Handlungsstrang', summary:'',status:'draft',favorite:false,pinned:false, sections: { core: '', background: '', secrets: '', clues: '', consequences: '', notes: '' }, references: [], possibilities: [] });
-export type CommandReference = { id: string; title: string; type: string; summary: string };
+export type CommandReference = { id: string; title: string; type: string; summary: string; imagePrimary?: string };
 export type MomentView = { id: string; text: string; sessionId: string; storyId: string; sceneId: string; runId: string; references: string[]; occurredAt: string };
 export const momentSchema = z.object({
   clientRequestId: z.string().uuid(), text: z.string().trim().min(1).max(3000),

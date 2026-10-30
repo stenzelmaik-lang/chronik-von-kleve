@@ -1,3 +1,4 @@
+import { scenePreparation } from '@/domain/session-overview';
 import { validatePreparationMedia } from './preparation-media';
 import { richTextToPlainText } from '@/domain/location-rich-text';
 import type { Actor, Entity } from '@/domain/types';
@@ -24,7 +25,7 @@ export async function readScene(db: D1Database, a: Actor, id: string) {
 }
 export async function listScenes(db: D1Database, a: Actor): Promise<SceneSummary[]> {
   gmOnly(a);
-  return (await sceneRows(db, a.campaignId)).map(row => { const s = decode(row); return { id: s.id, title: s.document.title, archived:s.document.archived, storyId: s.document.storyId, placeId: s.document.placeId, version: s.version, updatedAt: s.updatedAt, runs: s.state.runs,parentId:s.document.parentId,sessionIds:s.document.sessionIds,favorite:s.document.favorite,pinned:s.document.pinned,elements:s.document.elements.map(({id,title,kind})=>({id,title,kind})),searchText:[s.document.narration,...s.document.elements.map(e=>e.title+' '+richTextToPlainText(e.text))].join(' ') }; });
+  return (await sceneRows(db, a.campaignId)).map(row => { const s = decode(row); return { id: s.id, title: s.document.title, archived:s.document.archived, storyId: s.document.storyId, placeId: s.document.placeId, version: s.version, updatedAt: s.updatedAt, runs: s.state.runs,preparation:scenePreparation(s.document),parentId:s.document.parentId,sessionIds:s.document.sessionIds,favorite:s.document.favorite,pinned:s.document.pinned,elements:s.document.elements.map(({id,title,kind})=>({id,title,kind})),searchText:[s.document.narration,...s.document.elements.map(e=>e.title+' '+richTextToPlainText(e.text))].join(' ') }; });
 }
 async function validateDocument(db: D1Database, a: Actor, d: SceneDocument, sceneId:string) {
   if (d.storyId) await readStory(db, a, d.storyId);
@@ -44,7 +45,11 @@ async function validateDocument(db: D1Database, a: Actor, d: SceneDocument, scen
     d.clueIds.some(id => !entities.some(e => e.id === id && ['CLUE', 'HANDOUT'].includes(e.type))))
     throw new HttpError(400, 'Eine Akte passt nicht zu diesem Szenenbereich.');
   for(const e of elementRefs){const target=entities.find(n=>n.id===e.referenceId);const expected=e.kind==='place'?['PLACE']:e.kind==='person'?['NPC','CHARACTER']:e.kind==='clue'?['CLUE']:e.kind==='handout'?['HANDOUT']:e.kind==='puzzle'?['RULE','HANDOUT']:[];if(!expected.includes(target?.type||''))throw new HttpError(400,'Verknüpfung passt nicht zum Elementtyp.');}
-  await validatePreparationMedia(db,a,[d.narration,d.atmosphere,d.gmNotes,d.dialogueNotes,d.interactions,d.secrets,d.possibleConsequences,...d.elements.map(e=>e.text)],d.elements.filter(e=>e.fileId).map(e=>({id:e.fileId,kind:e.kind})));
+  await validatePreparationMedia(db,a,[d.narration,d.atmosphere,d.gmNotes,d.dialogueNotes,d.interactions,d.secrets,d.visions,d.possibleConsequences,...d.elements.map(e=>e.text)],[...d.elements.filter(e=>e.fileId).map(e=>({id:e.fileId,kind:e.kind})),...d.visionFileIds.map(id=>({id,kind:'handout'}))]);
+  if(d.visionRecipientIds.length){
+    const recipients=await db.prepare("SELECT m.id FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role='player' AND m.status='active'").bind(a.campaignId).all<{id:string}>();
+    if(d.visionRecipientIds.some(id=>!recipients.results.some(member=>member.id===id)))throw new HttpError(400,'Wähle aktive Spieler dieser Kampagne für persönliche Botschaften.');
+  }
   if(d.elements.some(e=>e.fileId&&!['image','audio','video','handout'].includes(e.kind)))throw new HttpError(400,'Dieser Elementtyp unterstützt keine Datei.');
 }
 export async function sceneHistory(db: D1Database, a: Actor, id: string): Promise<SceneHistory[]> {

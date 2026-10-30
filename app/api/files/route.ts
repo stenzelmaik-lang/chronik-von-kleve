@@ -1,6 +1,7 @@
 import type { FileRow } from "@/domain/legacy";
 import { env } from "cloudflare:workers";
 import {canReadNPCFile} from '@/server/npc-file-access';
+import {canReadPersonalMessageFile} from '@/server/personal-message-files';
 import {LIVE_MEDIA_TYPES,validMediaBytes} from '@/domain/media-upload';
 import {
   actor,
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
       .prepare("SELECT * FROM files WHERE id=? AND campaign_id=?")
       .bind(id, a.campaignId)
       .first<FileRow>();
-    if (!f || (!canRead(a, f) && !(f.visibility==='sl' && await canReadNPCFile(db,a,id)))) throw new HttpError(404, "Datei nicht gefunden.");
+    if (!f || (!canRead(a, f) && !(f.visibility==='sl' && await canReadNPCFile(db,a,id)) && !(await canReadPersonalMessageFile(db,a,id)))) throw new HttpError(404, "Datei nicht gefunden.");
     if (!env.BUCKET)
       throw new HttpError(503, "Dateispeicher nicht erreichbar.");
     const obj = await env.BUCKET.get(f.key);

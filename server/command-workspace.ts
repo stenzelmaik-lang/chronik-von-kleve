@@ -91,5 +91,5 @@ export async function listMoments(db: D1Database, a: Actor, sessionId?: string):
 export async function commandReferences(db: D1Database, a: Actor): Promise<CommandReference[]> {
   gmOnly(a);
   const rows = await db.prepare("SELECT * FROM entities WHERE campaign_id=? AND type IN ('NPC','FACTION','PLACE','CLUE','HANDOUT','RULE') AND COALESCE(json_extract(content,'$.recoveryOnly'),0)!=1 ORDER BY title,id LIMIT 500").bind(a.campaignId).all<EntityRow>();
-  return rows.results.map(r => { const c = parseObject(r.content); return { id: r.id, title: r.title, type: r.type, summary: richTextToPlainText(String(c.summary || c.text || '')).slice(0, 180) }; });
+  return rows.results.map(r => { const c = parseObject(r.content); const image = r.type==='NPC' && typeof c.image_primary==='string' && /^(?:\/images\/[a-zA-Z0-9._-]+|\/api\/files\?id=[a-zA-Z0-9_-]+)$/.test(c.image_primary) ? c.image_primary : undefined; return { id: r.id, title: r.title, type: r.type, summary: richTextToPlainText(String(c.summary || c.text || '')).slice(0, 180), ...(image?{imagePrimary:image}:{}) }; });
 }

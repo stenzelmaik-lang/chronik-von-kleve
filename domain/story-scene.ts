@@ -3,7 +3,7 @@ import { isRichTextWithinLimit, sanitizeRichTextInput } from './location-rich-te
 
 const id = z.string().min(1).max(100);
 const optionalId = z.string().max(100).default('');
-const text = z.string().max(45000).transform((v,ctx)=>{try{return sanitizeRichTextInput(v);}catch{ctx.addIssue({code:'custom',message:'Ungültiges oder zu komplexes HTML.'});return '';}}).refine(v => isRichTextWithinLimit(v, 7000), 'Dieser Text ist zu lang oder ungültig formatiert.');
+const text = z.string().max(65000).transform((v,ctx)=>{try{return sanitizeRichTextInput(v);}catch{ctx.addIssue({code:'custom',message:'Ungültiges oder zu komplexes HTML.'});return '';}}).refine(v => isRichTextWithinLimit(v, 10000), 'Dieser Text ist zu lang oder ungültig formatiert.');
 const ids = z.array(id).max(30).refine(v => new Set(v).size === v.length, 'Eine Akte darf nur einmal verknüpft werden.');
 export const sceneTabs = { narration: 'Erzählung', persons: 'Personen', interaction: 'Interaktion', secrets: 'Geheimnisse', consequences: 'Konsequenzen' } as const;
 export const sceneStatusNames = { prepared: 'Vorbereitet', active: 'Läuft', paused: 'Pausiert', completed: 'Abgeschlossen' } as const;
@@ -17,13 +17,15 @@ export const sceneDocumentSchema = z.object({
   title: z.string().trim().min(1).max(200), storyId: optionalId, placeId: optionalId,
   parentId: optionalId, sessionIds: ids.default([]), favorite:z.boolean().default(false),pinned:z.boolean().default(false), elements:z.array(sceneElementSchema).max(100).default([]).refine(v=>new Set(v.map(e=>e.id)).size===v.length,'Elemente benötigen eindeutige Identitäten.'),
   narration: text, atmosphere: text, gmNotes: text, dialogueNotes: text,
-  interactions: text, secrets: text, possibleConsequences: text,
+  interactions: text, secrets: text, visions: text.default(''), possibleConsequences: text,
+  visionRecipientIds:z.array(id).max(20).default([]).refine(v=>new Set(v).size===v.length,'Empfänger dürfen nicht doppelt sein.'),
+  visionFileIds:z.array(id).max(20).default([]).refine(v=>new Set(v).size===v.length,'Dateien dürfen nicht doppelt sein.'),
   npcIds: ids, clueIds: ids,
   possibilities: z.array(z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(200), text: z.string().max(3000) }).strict()).max(50)
     .refine(v => new Set(v.map(p => p.id)).size === v.length, 'Möglichkeiten dürfen nicht doppelt sein.'),
 }).strict();
 export type SceneDocument = z.infer<typeof sceneDocumentSchema>;
-export const emptyScene = (storyId = ''): SceneDocument => ({ archived:false,title: 'Neue Szene', storyId, placeId: '',parentId:'',sessionIds:[],favorite:false,pinned:false,elements:[], narration: '', atmosphere: '', gmNotes: '', dialogueNotes: '', interactions: '', secrets: '', possibleConsequences: '', npcIds: [], clueIds: [], possibilities: [] });
+export const emptyScene = (storyId = ''): SceneDocument => ({ archived:false,title: 'Neue Szene', storyId, placeId: '',parentId:'',sessionIds:[],favorite:false,pinned:false,elements:[], narration: '', atmosphere: '', gmNotes: '', dialogueNotes: '', interactions: '', secrets: '', visions: '', visionRecipientIds:[],visionFileIds:[],possibleConsequences: '', npcIds: [], clueIds: [], possibilities: [] });
 export const sceneTargetSchema = z.discriminatedUnion('scope', [
   z.object({ scope: z.literal('group') }).strict(),
   z.object({ scope: z.literal('character'), characterId: id }).strict(),
@@ -54,7 +56,7 @@ export const sceneStateSchema = z.object({
 });
 export type SceneState = z.infer<typeof sceneStateSchema>;
 export type SceneView = { id: string; version: number; updatedAt: string; document: SceneDocument; state: SceneState };
-export type SceneSummary = Pick<SceneView, 'id' | 'version' | 'updatedAt'> & { title: string; archived?:boolean; storyId: string; placeId: string; parentId:string; sessionIds:string[]; favorite:boolean;pinned:boolean;searchText:string;elements:Pick<SceneElement,'id'|'title'|'kind'>[]; runs: SceneRun[] };
+export type SceneSummary = Pick<SceneView, 'id' | 'version' | 'updatedAt'> & { title: string; archived?:boolean; storyId: string; placeId: string; parentId:string; sessionIds:string[]; favorite:boolean;pinned:boolean;searchText:string;elements:Pick<SceneElement,'id'|'title'|'kind'>[]; preparation?: ReturnType<typeof import('./session-overview.ts').scenePreparation>; runs: SceneRun[] };
 export type SceneHistory = { id: string; version: number; action: string; createdAt: string; document: SceneDocument; state: SceneState };
 export type PlayerScene = { id: string; title: string; narration: string; publishedAt: string; place: { id: string; title: string } | null; persons: { id: string; title: string }[]; clues: { id: string; title: string; text: string; state: string }[]; runs: { id: string; sessionId: string; label: string; status: SceneRun['status'] }[] };
 export function targetKey(t: SceneTarget) { return t.scope === 'group' ? '@group' : t.characterId; }

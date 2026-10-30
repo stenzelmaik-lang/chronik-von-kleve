@@ -19,7 +19,7 @@ export async function storySceneIntegration({ req, check, localSql, sqlQuote, se
   const secret=await req('/api/entities','gm','POST',{type:'CLUE',title:'SCENE_SECRET_CLUE_TITLE',text:'SCENE_NEVER_PLAYER',canonStatus:'GM_SECRET'});
   const place=await req('/api/entities','gm','POST',{type:'PLACE',title:'SCENE_UNKNOWN_PLACE',text:'SCENE_SECRET_PLACE',canonStatus:'GM_SECRET'});
   check(story.s===201&&clue.s===201&&secret.s===201&&place.s===201,'SCENE references reuse existing world Entities');
-  const doc={...emptyScene(story.d.story.id),title:'SCENE_PRIVATE_DRAFT',narration:'SCENE_SHARED_NARRATION',gmNotes:'SCENE_PRIVATE_REGIE',secrets:'SCENE_PRIVATE_SECRETS',possibleConsequences:'SCENE_ONLY_PREPARED',placeId:place.d.id,clueIds:[clue.d.id,secret.d.id],possibilities:[{id:randomUUID(),title:'SCENE_PREPARED_ALTERNATIVE',text:'Does not happen on activate'}]};
+  const doc={...emptyScene(story.d.story.id),title:'SCENE_PRIVATE_DRAFT',narration:'SCENE_SHARED_NARRATION',gmNotes:'SCENE_PRIVATE_REGIE',visions:'SCENE_PRIVATE_VISION',secrets:'SCENE_PRIVATE_SECRETS',possibleConsequences:'SCENE_ONLY_PREPARED',placeId:place.d.id,clueIds:[clue.d.id,secret.d.id],possibilities:[{id:randomUUID(),title:'SCENE_PREPARED_ALTERNATIVE',text:'Does not happen on activate'}]};
   const initialMoments=(await req('/api/command-center/moments','gm')).d.moments.length;
   const requestId=randomUUID(), created=await req(path,'gm','POST',{action:'create',clientRequestId:requestId,document:doc});
   check(created.s===201&&created.d.scene.version===1&&created.d.scene.state.runs.length===0&&created.d.scene.state.publications.length===0,'SCENE starts prepared, without run, release or history of actual play');
@@ -52,7 +52,7 @@ export async function storySceneIntegration({ req, check, localSql, sqlQuote, se
   check(personalPreview.d.scenes.some(p=>p.id===id),'SCENE explicit GM character preview uses the same player projection');
   const p=personalA.d.scenes.find(p=>p.id===id);
   check(p.place===null&&p.clues.length===0&&p.runs.length===0,'SCENE unpublished linked places, secret clues and preparation stay hidden');
-  for(const forbidden of ['SCENE_PRIVATE_REGIE','SCENE_PRIVATE_SECRETS','SCENE_ONLY_PREPARED','SCENE_PREPARED_ALTERNATIVE','SCENE_UNKNOWN_PLACE','SCENE_SECRET_CLUE_TITLE','sourceVersion','participants','storyId'])check(!JSON.stringify(personalA.d).includes(forbidden),'SCENE player response excludes '+forbidden);
+  for(const forbidden of ['SCENE_PRIVATE_VISION','SCENE_PRIVATE_REGIE','SCENE_PRIVATE_SECRETS','SCENE_ONLY_PREPARED','SCENE_PREPARED_ALTERNATIVE','SCENE_UNKNOWN_PLACE','SCENE_SECRET_CLUE_TITLE','sourceVersion','participants','storyId'])check(!JSON.stringify(personalA.d).includes(forbidden),'SCENE player response excludes '+forbidden);
   check((await req('/api/knowledge','gm','POST',{entityId:clue.d.id,audience:'character',characterId:a1.d.id,state:'DISCOVERED'})).s===428,'KNOWLEDGE new character grants require expectedVersion');
   check((await req('/api/knowledge','gm','POST',{entityId:secret.d.id,audience:'character',characterId:a1.d.id,state:'DISCOVERED',expectedVersion:0})).s===400,'KNOWLEDGE character grants cannot unlock GM_SECRET');
   check((await req('/api/knowledge','gm','POST',{entityId:clue.d.id,audience:'character',characterId:b1.d.id,playerId:'sprint1-a',state:'DISCOVERED',expectedVersion:0})).s===400,'KNOWLEDGE ambiguous character/account envelope denied');
