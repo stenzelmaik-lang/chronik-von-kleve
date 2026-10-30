@@ -1030,7 +1030,7 @@ check((await req('/api/records','gm','POST',regieUpdate)).s===409,'Stale session
 await weekendIntegration({req,check,localSql,sqlQuote,now});
 await commandWorkspaceIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId});
 await storySceneIntegration({req,check,localSql,sqlQuote,session:regieStored,privateCharacterId:charId,characterBody});
-await storyPreparationIntegration({req,check,localSql,sqlQuote,session:regieStored});
+await storyPreparationIntegration({req,check,localSql,sqlQuote,session:regieStored,base,ids});
 await preparationDeleteIntegration({req,check,localSql,sqlQuote,session:regieStored});
 await workspaceUxIntegration({req,check});
 await appointmentsIntegration({req,check});

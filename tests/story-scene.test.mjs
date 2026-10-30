@@ -65,3 +65,24 @@ test('Scene texts support 10000 visible characters and keep visions separate fro
   const scene=sceneDocumentSchema.parse({...emptyScene(),secrets:'INTERNAL_BACKGROUND',visions:'PLAYER_INFO_TO_PREPARE'});
   assert.equal(scene.secrets,'INTERNAL_BACKGROUND');assert.equal(scene.visions,'PLAYER_INFO_TO_PREPARE');
 });
+
+
+test('Personal message drafts retain old scene fields and reject duplicate recipients or files', () => {
+  const old=emptyScene();delete old.visionRecipientIds;delete old.visionFileIds;
+  assert.deepEqual(sceneDocumentSchema.parse(old).visionRecipientIds,[]);
+  assert.deepEqual(sceneDocumentSchema.parse(old).visionFileIds,[]);
+  assert.equal(sceneDocumentSchema.safeParse({...old,visionRecipientIds:['a','a']}).success,false);
+  assert.equal(sceneDocumentSchema.safeParse({...old,visionFileIds:['a','a']}).success,false);
+});
+
+test('Private message HTML uses the safe existing format while legacy plain text stays compatible', async () => {
+  const {personalMessageSchema}=await import('../domain/personal-message.ts');
+  const base={clientRequestId:randomUUID(),recipients:['a'],title:'Title',text:'Plain'};
+  assert.ok(personalMessageSchema.safeParse(base).success);
+  assert.equal(personalMessageSchema.safeParse({...base,text:'x'.repeat(20001)}).success,false);
+  assert.ok(personalMessageSchema.safeParse({...base,format:'rich',text:'cvk-html-v1:<h2>Vision</h2><p>Safe</p>'}).success);
+  assert.ok(personalMessageSchema.safeParse({...base,format:'rich',text:'',fileIds:['image']}).success);
+  assert.equal(personalMessageSchema.safeParse({...base,format:'rich',text:''}).success,false);
+  assert.equal(personalMessageSchema.safeParse({...base,fileIds:['file']}).success,false);
+  assert.equal(personalMessageSchema.safeParse({...base,format:'rich',text:'x'.repeat(10001)}).success,false);
+});

@@ -32,6 +32,7 @@ import { useCommandConfirmation } from "./command-confirmation";
 import s from "./story-workspace.module.css";
 import { SessionOverview, SessionList } from "./session-overview";
 import { Info, Maximize2, Minimize2 } from "lucide-react";
+import { PreparationWhispers } from "./preparation-whispers";
 import { PreparationNPCs } from "./preparation-npcs";
 import { PreparationMaterials } from "./preparation-materials";
 import { PreparationGuide } from "./preparation-guide";
@@ -65,6 +66,7 @@ type Reply = {
   sessions: PreparedSession[];
   scenes: SceneSummary[];
   references: CommandReference[];
+  recipients?:{id:string;name:string;role:string}[];
   files: { id: string; name: string; mime: string }[];
   story: StoryView;
   scene: SceneView;
@@ -117,6 +119,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     [files, setFiles] = useState<{ id: string; name: string; mime: string }[]>(
       [],
     );
+  const [players,setPlayers]=useState<{id:string;name:string}[]>([]);
   const [sessionEditing,setSessionEditing]=useState(false), [returnSession,setReturnSession]=useState("");
   const [guideStep,setGuideStep]=useState<SessionGuideStep>("basics"), [returnGuide,setReturnGuide]=useState(false);
   const [expandedEditor,setExpandedEditor]=useState<string|null>(null);
@@ -170,10 +173,11 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   }, [recent, recentKey, recentReady]);
   const confirmation = useCommandConfirmation();
   const refresh = useCallback(async () => {
-    const [catalog, prep, media] = await Promise.all([
+    const [catalog, prep, media, people] = await Promise.all([
       request("/api/command-center"),
       request("/api/command-center/preparation"),
       request("/api/files"),
+      request("/api/messages?recipients=1"),
     ]);
     setStories(catalog.stories);
     setScenes(catalog.scenes);
@@ -183,6 +187,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
     ]);
     setSessions(prep.sessions);
     setFiles(media.files || []);
+    setPlayers((people.recipients||[]).filter(person=>person.role==="player"));
   }, []);
   useEffect(() => {
     Promise.resolve()
@@ -637,14 +642,14 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
   return (
     <div className={s.workspace}>
       {confirmation.dialog}
-      <header className={s.top}>
+      {!guided&&<header className={s.top}>
         <div>
           <h1>Spielabend & Story</h1>
           {!guided&&<p>Beginne mit einem Spielabend und bereite dort deine Schauplätze und Szenen vor.</p>}
         </div>
-      </header>
+      </header>}
       <div className={s.columns}>
-        <section className={s.centralControls} aria-label="Vorbereitungsaktionen">
+        {!guided&&<section className={s.centralControls} aria-label="Vorbereitungsaktionen">
           <div className={s.controlBar}>
           {current && <button type="button" disabled={busy} onClick={()=>void showSessionList()}>Zurück zu allen Spielabenden</button>}
           {current && <label>Spielabend auswählen<select aria-label="Spielabend auswählen" value={current.kind === "session" ? current.id : returnSession} onChange={e=>e.target.value ? void open("session",e.target.value) : void showSessionList()}>
@@ -673,9 +678,15 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
           </>}
           </div>
 
-        </section>
+        </section>}
+        {guided&&current&&<header className={s.compactHeader} aria-label="Planungsleiste">
+          <div className={s.compactIdentity}><button type="button" disabled={busy} onClick={()=>scene&&returnSession?void backToSession():session?void open("session",current.id):void showSessionList()}>{scene&&returnSession?"Zurück zum Spielabend":session?"Zur Spielabendübersicht":"Zurück zu allen Spielabenden"}</button><h1>{scene?"Szene vorbereiten":"Spielabend planen"}</h1></div>
+          <div className={s.compactActions}><details className={s.switchMenu}><summary>Wechseln</summary><label>Spielabend auswählen<select aria-label="Spielabend auswählen" value={current.kind==="session"?current.id:returnSession} onChange={e=>e.target.value?void open("session",e.target.value):void showSessionList()}><option value="">Alle Spielabende</option>{sessions.map(item=><option key={item.id} value={item.id}>{item.document.title}</option>)}</select></label>{scene&&returnSession&&<><label>Weitere Szene öffnen<select aria-label="Weitere Szene dieses Spielabends" value={current.id} onChange={e=>void open("scene",e.target.value,returnSession,"push",false,returnGuide)}>{scenes.filter(item=>item.id===current.id||item.sessionIds.includes(returnSession)||sessions.find(value=>value.id===returnSession)?.document.sceneIds.includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label><button disabled={busy} onClick={()=>void create("scene")}>Neue Szene im Spielabend</button></>}<button disabled={busy} onClick={()=>void showSessionList()}>Alle Spielabende</button></details>
+          <details className={s.saveActions}><summary>Aktenaktionen</summary><button disabled={busy} onClick={()=>void toggleArchive()}>{scene?.archived||session?.status==="archived"?"Aus Archiv wiederherstellen":"Archivieren"}</button><button type="button" className={s.deleteAction} disabled={busy} onClick={()=>void deleteCurrent()}>{scene?"Szene":"Spielabend"} löschen</button></details><button disabled={busy||!dirty} onClick={()=>void save()}>Jetzt speichern</button></div>
+          <span role="status" className={s.compactStatus}>{message}</span>{message.startsWith("Konflikt:")&&<button onClick={()=>void open(current.kind,current.id)}>Aktuellen Serverstand laden</button>}
+        </header>}
         <main className={s.main}>
-          {current?.kind === "scene" && returnSession && <div className={s.overviewNavigation}>
+          {!guided && current?.kind === "scene" && returnSession && <div className={s.overviewNavigation}>
             <button disabled={busy} onClick={()=>void backToSession()}>Zurück zum Spielabend</button>
             <label>Weitere Szene öffnen<select aria-label="Weitere Szene dieses Spielabends" value={current.id} onChange={e=>void open("scene",e.target.value,returnSession,"push",false,returnGuide)}>
               {scenes.filter(item=>item.id===current.id || item.sessionIds.includes(returnSession) || sessions.find(value=>value.id===returnSession)?.document.sceneIds.includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.title}</option>)}
@@ -687,7 +698,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
             onScene={id=>void open("scene",id,current.id)} onCreate={()=>void create("scene")} onMove={(id,direction)=>void moveScene(id,direction)}/>
           : current && doc ? (
             <>
-              <div className={s.savebar}>
+              {!guided&&<div className={s.savebar}>
                 {session && <button disabled={busy} onClick={()=>void open("session",current.id)}>Zur Spielabendübersicht</button>}
                 <span role="status">{message}</span>
                 <details className={s.saveActions}><summary>Aktenaktionen</summary>
@@ -702,8 +713,8 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                     Aktuellen Serverstand laden
                   </button>
                 )}
-              </div>
-              {!session&&<>
+              </div>}
+              {story&&<>
               <label className={s.title}>
                 Titel
                 <input
@@ -803,10 +814,10 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
               ) : (
                 <>
                   {scene?<PreparationGuide label="Szene vorbereiten" sequential steps={sceneGuideSteps} active={section} busy={busy} onStep={step=>void changeGuideStep(step,"scene")} onFinish={()=>void finishGuide("scene")} finishLabel={returnSession?"Speichern & zum Spielabend":"Speichern & zur Übersicht"}>
-                    {section==="narration"&&<label>Zentraler Schauplatz<select value={scene.placeId} onChange={e=>change({placeId:e.target.value})}><option value="">Kein Schauplatz</option>{scene.placeId&&!refs.some(ref=>ref.id===scene.placeId&&isCentralPreparationPlace(ref))&&<option value={scene.placeId} disabled>{refs.find(ref=>ref.id===scene.placeId)?.title||"Bestehender Schauplatz"} · bisherige Zuordnung</option>}{refs.filter(ref=>isCentralPreparationPlace(ref)).map(ref=><option key={ref.id} value={ref.id}>{ref.title}</option>)}</select></label>}
+                    {section==="narration"&&<><label>Titel<input value={scene.title} maxLength={200} onChange={e=>change({title:e.target.value})}/></label><label>Zentraler Schauplatz<select value={scene.placeId} onChange={e=>change({placeId:e.target.value})}><option value="">Kein Schauplatz</option>{scene.placeId&&!refs.some(ref=>ref.id===scene.placeId&&isCentralPreparationPlace(ref))&&<option value={scene.placeId} disabled>{refs.find(ref=>ref.id===scene.placeId)?.title||"Bestehender Schauplatz"} · bisherige Zuordnung</option>}{refs.filter(ref=>isCentralPreparationPlace(ref)).map(ref=><option key={ref.id} value={ref.id}>{ref.title}</option>)}</select></label></>}
                     {section==="dialogueNotes"&&<PreparationNPCs references={refs} values={scene.npcIds} onChange={npcIds=>change({npcIds})}/>}
-                    {section==="interactions"&&<><PreparationMaterials elements={scene.elements} onChange={elements=>change({elements})} references={refs} files={files} editor={editor}/>{pick("Vorhandene Hinweis- und Handoutakten dieser Szene",scene.clueIds,refs.filter(ref=>['CLUE','HANDOUT'].includes(ref.type)),clueIds=>change({clueIds}))}</>}
-                    {editor(text,value=>change({[section]:value}),sceneGuideSteps.find(step=>step.id===section)?.label||"Erzählung",current.id+":"+section)}
+                    {section==="interactions"&&<><PreparationMaterials elements={scene.elements} onChange={elements=>change({elements})} references={refs} files={files} editor={editor}/><details className={s.optionalSelection}><summary>Vorhandene Hinweise & Handouts auswählen{scene.clueIds.length?" ("+scene.clueIds.length+")":""}</summary>{pick("Vorhandene Hinweis- und Handoutakten dieser Szene",scene.clueIds,refs.filter(ref=>['CLUE','HANDOUT'].includes(ref.type)),clueIds=>change({clueIds}))}</details></>}
+                    {section==="visions"?<PreparationWhispers scene={scene} players={players} files={files} onChange={change} onSave={save}>{editor(text,value=>change({visions:value}),"Visionen & persönliche Botschaften",current.id+":visions")}</PreparationWhispers>:editor(text,value=>change({[section]:value}),sceneGuideSteps.find(step=>step.id===section)?.label||"Erzählung",current.id+":"+section)}
                     {section==="possibleConsequences"&&<details className={s.sessionLinks}><summary>Optionale Abzweigungen</summary><p>Alternative Verläufe bleiben Möglichkeiten. Ihre Vorbereitung löst nichts aus.</p>{scene.possibilities.map((item,index)=><div className={s.guideFields} key={item.id}><label>Abzweigung Titel<input maxLength={200} value={item.title} onChange={e=>change({possibilities:scene.possibilities.map((value,i)=>i===index?{...value,title:e.target.value}:value)})}/></label><label>Abzweigung Beschreibung<textarea maxLength={3000} value={item.text} onChange={e=>change({possibilities:scene.possibilities.map((value,i)=>i===index?{...value,text:e.target.value}:value)})}/></label><button type="button" onClick={()=>change({possibilities:scene.possibilities.filter(value=>value.id!==item.id)})}>Abzweigung entfernen</button></div>)}<button type="button" disabled={scene.possibilities.length>=50} onClick={()=>change({possibilities:[...scene.possibilities,{id:crypto.randomUUID(),title:"Neue Abzweigung",text:""}]})}>Abzweigung hinzufügen</button></details>}
                   </PreparationGuide>:<>
                   <div className={s.tabs}>

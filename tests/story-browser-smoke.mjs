@@ -47,6 +47,9 @@ async function saveOrAutosave(kind, id, predicate) {
 }
 async function chooseSession() {
   const item = page.getByRole("combobox",{name:"Spielabend auswählen",exact:true});
+  const switchMenu=page.getByText("Wechseln",{exact:true});
+  await item.or(switchMenu).first().waitFor();
+  if(!(await item.isVisible()))await switchMenu.click();
   const create = page.getByRole("button", { name: "+ Szene für diesen Spielabend" });
   for (let attempt = 0; attempt < 3; attempt++) {
     await item.selectOption({label:sessionTitle});
@@ -157,6 +160,7 @@ try {
   await page.getByRole("heading", { name: "Spielabend & Story" }).waitFor();
   const first = await api("/api/command-center/scenes?id=" + encodeURIComponent(kaserneId));
   assert.ok(first.body.scene.document.narration.includes("Versiegelte Order"));
+  await page.getByText("Wechseln",{exact:true}).click();
   await page.getByRole("combobox",{name:"Weitere Szene dieses Spielabends"}).selectOption({label:"Electric Taberna – Besuch"});
   const second = await api("/api/command-center/scenes?id=" + encodeURIComponent(tabernaId));
   assert.ok(second.body.scene.document.narration.includes("Avis Bar"));

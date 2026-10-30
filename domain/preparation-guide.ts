@@ -10,7 +10,7 @@ export const sceneGuideSteps = [
   {id:'dialogueNotes',label:'NPCs und Dialoge',hint:'Wähle vorhandene NPCs und notiere ihre Gesprächsangebote, Ziele und möglichen Antworten. Es entstehen keine Kopien ihrer Akten.'},
   {id:'interactions',label:'Interaktionen und Spielmaterial',hint:'Was können die Spieler untersuchen oder auslösen? Bereite Handouts, Hinweise, Medien und weitere Bausteine vor und bringe sie in deine geplante Reihenfolge.'},
   {id:'secrets',label:'Geheimnisse',hint:'Was bleibt zunächst verborgen? Notiere Hintergründe und Voraussetzungen für eine spätere bewusste Freigabe.'},
-  {id:'visions',label:'Visionen',hint:'Bereite Eindrücke, Träume oder Botschaften für Spieler vor. Hier bleiben sie SL-interne Vorbereitung; Speichern sendet oder veröffentlicht nichts.'},
+  {id:'visions',label:'Visionen & persönliche Botschaften',hint:'Bereite Träume, Visionen oder vertrauliche Informationen für ausgewählte Spieler vor. Erst „Privat zustellen“ sendet die Botschaft in ihre persönlichen Postfächer.'},
   {id:'possibleConsequences',label:'Folgen und Proben',hint:'Bereite mögliche Proben, Abzweigungen und Konsequenzen vor. Sie werden hier nur geplant; keine Regel oder Strafe wird automatisch ausgelöst.'},
   {id:'gmNotes',label:'SL-Notizen',hint:'Halte deine privaten Regiehinweise fest. Danach kannst du zur Spielabendplanung zurückkehren und die nächste Szene vorbereiten.'},
 ] as const;

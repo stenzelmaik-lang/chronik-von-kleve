@@ -1,9 +1,13 @@
 import { z } from "zod";
 import type { LegacyRecordRow } from "@/domain/legacy";
 import { actor, database, HttpError, input, sameOrigin, json, failure, type Actor } from "@/server/access";
+import { personalMessageSchema } from "@/domain/personal-message";
+import { richTextFileIds,sanitizeRichTextInput } from "@/domain/location-rich-text";
+import { validatePreparationMedia } from "@/server/preparation-media";
+import { personalMessageFiles } from "@/server/personal-message-files";
 import { characterBody } from "@/server/character-engine-service";
 export const dynamic = "force-dynamic";
-const sendSchema = z.object({ clientRequestId: z.string().uuid(), recipients: z.array(z.string().min(1).max(100)).min(1).max(20), title: z.string().trim().min(1).max(160), text: z.string().trim().min(1).max(20000) }).strict();
+
 const readSchema = z.object({ id: z.string().min(1).max(100) }).strict();
 function requireSender(a:Actor){if(a.status!=='active'||!['player','campaign_gm','campaign_owner'].includes(a.role))throw new HttpError(403,'Nur aktive Mitglieder der Spielrunde können privat schreiben.');}
 function projection(row: LegacyRecordRow) {
@@ -17,7 +21,7 @@ export async function GET(req: Request) {
     const a = await actor(), db = database(), query = new URL(req.url).searchParams;
     if (query.has("recipients")) {
       requireSender(a);
-      const rows = await db.prepare("SELECT m.id,m.name FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role IN ('player','campaign_owner','campaign_gm') AND m.status='active' ORDER BY m.name,m.id").bind(a.campaignId).all<{id:string;name:string}>();
+      const rows = await db.prepare("SELECT m.id,m.name,c.role FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role IN ('player','campaign_owner','campaign_gm') AND m.status='active' ORDER BY m.name,m.id").bind(a.campaignId).all<{id:string;name:string;role:string}>();
       return json({ recipients: rows.results });
     }
     const sent = query.get("sent") === "1"; if (sent) requireSender(a);
@@ -31,17 +35,23 @@ export async function GET(req: Request) {
       .bind(a.campaignId, a.id, ...(before ? [before[0], before[0], before[1]] : [])).all<LegacyRecordRow>();
     const count = await db.prepare("SELECT count(*) AS n FROM records WHERE campaign_id=? AND owner_id=? AND json_extract(body,'$.context')='sl-message' AND json_extract(body,'$.readAt') IS NULL").bind(a.campaignId,a.id).first<{n:number}>();
     const last = archive.results.at(-1);
-    return json({ messages: archive.results.map(r => { const projected = projection(r); return id ? projected : { ...projected, text: undefined }; }), unread: count?.n || 0, next: !id && archive.results.length === 50 && last ? JSON.stringify([last.created_at, last.id]) : null });
+    return json({ messages: await Promise.all(archive.results.map(async r => { const projected = projection(r); const body=characterBody(r.body); return id ? {...projected,...(body.format==='rich'?{format:'rich',attachments:await personalMessageFiles(db,a.campaignId,body)}:{})} : { ...projected, text: undefined }; })), unread: count?.n || 0, next: !id && archive.results.length === 50 && last ? JSON.stringify([last.created_at, last.id]) : null });
   } catch (e) { return failure(e, req); }
 }
 export async function POST(req: Request) {
   try {
     sameOrigin(req); const a = await actor(); requireSender(a);
-    const parsed = sendSchema.safeParse(await input(req)); if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
-    const d = parsed.data, recipients = [...new Set(d.recipients)], db = database();
+    const parsed = personalMessageSchema.safeParse(await input(req)); if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
+    const d = parsed.data;
+    if(d.format==='rich'&&!a.gm)throw new HttpError(403,"Formatierte Regiebotschaften kann nur die Spielleitung versenden.");
+    const text=d.format==='rich'?sanitizeRichTextInput(d.text):d.text.trim();
+    const attachmentIds=d.format==='rich'?[...new Set([...(d.fileIds||[]),...richTextFileIds(text)])]:[];
+    if(attachmentIds.length>20)throw new HttpError(400,"Höchstens 20 Dateien je Botschaft.");
+    if(d.format==='rich')await validatePreparationMedia(database(),a,[text],attachmentIds.map(id=>({id,kind:"handout"})));
+    const recipients = [...new Set(d.recipients)], db = database();
     const members = await db.prepare(`SELECT m.id FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role IN ('player','campaign_owner','campaign_gm') AND m.status='active' AND m.id IN (${recipients.map(() => "?").join(",")})`).bind(a.campaignId, ...recipients).all<{id:string}>();
     if (members.results.length !== recipients.length) throw new HttpError(403, "Alle Empfänger müssen aktive Mitglieder dieser Kampagne sein.");
-    const hash = await digest(JSON.stringify({ title: d.title, text: d.text, recipients: [...recipients].sort() }));
+    const hash = await digest(JSON.stringify({ title: d.title, text, recipients: [...recipients].sort(),...(d.format==='rich'?{format:'rich',attachmentIds:[...attachmentIds].sort()}:{}) }));
     const now = new Date().toISOString();
     const payloads = await Promise.all(recipients.map(async recipient => ({ id: "message-" + (await digest(a.campaignId + ":" + a.id + ":" + d.clientRequestId + ":" + recipient)).slice(0, 56), recipient })));
     const prior = await db.prepare("SELECT * FROM records WHERE campaign_id=? AND json_extract(body,'$.context')='sl-message' AND json_extract(body,'$.senderId')=? AND json_extract(body,'$.clientRequestId')=?")
@@ -53,7 +63,7 @@ export async function POST(req: Request) {
     // The D1 batch is atomic. A competing send using the same command identity
     // cannot append recipients or content once a different payload has won.
     await db.batch(payloads.map(({id,recipient}) => db.prepare("INSERT OR IGNORE INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,version,created_at,updated_at) SELECT ?,?,?,'notizen','private',?,?,'',1,?,? WHERE NOT EXISTS (SELECT 1 FROM records WHERE campaign_id=? AND json_extract(body,'$.context')='sl-message' AND json_extract(body,'$.senderId')=? AND json_extract(body,'$.clientRequestId')=? AND json_extract(body,'$.hash')<>?)")
-      .bind(id, a.campaignId, recipient, d.title, JSON.stringify({ context: "sl-message", senderId: a.id, senderName: a.name, recipientId: recipient, text: d.text, readAt: null, clientRequestId: d.clientRequestId, hash }), now, now, a.campaignId, a.id, d.clientRequestId, hash)));
+      .bind(id, a.campaignId, recipient, d.title, JSON.stringify({ context: "sl-message", senderId: a.id, senderName: a.name, recipientId: recipient, text, ...(d.format==='rich'?{format:'rich',attachmentIds}:{}), readAt: null, clientRequestId: d.clientRequestId, hash }), now, now, a.campaignId, a.id, d.clientRequestId, hash)));
     const saved = await db.prepare("SELECT * FROM records WHERE campaign_id=? AND json_extract(body,'$.context')='sl-message' AND json_extract(body,'$.senderId')=? AND json_extract(body,'$.clientRequestId')=?")
       .bind(a.campaignId, a.id, d.clientRequestId).all<LegacyRecordRow>();
     if (saved.results.some(r => characterBody(r.body).hash !== hash)) throw new HttpError(409, "Diese Sendung wurde bereits mit anderem Inhalt gespeichert.");

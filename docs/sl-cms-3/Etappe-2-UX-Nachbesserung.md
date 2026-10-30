@@ -1,6 +1,8 @@
 # SL-CMS 3.0 – UX-Nachbesserung der geführten Vorbereitung
 
-30.10.2026 · Branch `codex/sl-cms-3` · ausschließlich lokal.
+30.10.2026 · Branch `codex/sl-cms-3` · historischer erster Nachbesserungsstand, ausschließlich lokal.
+
+Der anschließende persönliche Durchgang ist in [Etappe-2-Kompakt-und-Botschaften.md](Etappe-2-Kompakt-und-Botschaften.md) umgesetzt. Er ersetzt die wiederholten Szenen-Metadaten und ergänzt die ausdrücklich beauftragte private Zustellung von Botschaften.
 
 ## Verbindlicher Durchgang und Umsetzung
 

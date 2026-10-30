@@ -421,3 +421,36 @@
 
 .guideHead h2 { scroll-margin-top: 110px; }
 .materialBody :global([role="textbox"]) { min-height: 180px; }
+
+/* Compact, contextual preparation header; changing scenes stays behind one menu. */
+.compactHeader { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-block: 0 12px; border-bottom: 1px solid #b9985b44; }
+.compactIdentity { display: flex; align-items: center; gap: 14px; flex: 1 1 auto; }
+.compactIdentity h1 { font-size: 20px; margin: 0; font-weight: 500; }
+.compactActions { display: flex; align-items: center; gap: 8px; }
+.compactStatus { flex-basis: 100%; color: #bdcbd2; font-size: 12px; overflow-wrap: anywhere; }
+.switchMenu,.compactHeader .saveActions { position: relative; }
+.switchMenu>summary,.compactHeader .saveActions>summary { cursor: pointer; padding: 10px; min-height: 44px; display: flex; align-items: center; color: #e4c589; }
+.switchMenu[open],.compactHeader .saveActions[open] { padding: 8px; border: 1px solid #b9985b55; border-radius: 8px; background: #101f2d; }
+.switchMenu[open] { flex-basis: 100%; }
+.switchMenu>label { display: block; max-width: 420px; margin-top: 8px; }
+.compactHeader .saveActions button { display: block; margin: 6px 0; }
+.optionalSelection { margin: 18px 0; border-top: 1px solid #7791a455; padding-block: 12px; }
+.optionalSelection>summary { min-height: 44px; cursor: pointer; color: #e4c589; }
+.optionalSelection>summary svg { vertical-align: middle; margin-right: 7px; }
+.optionalSelection[open]>p { max-width: 75ch; line-height: 1.65; color: #bdcbd2; }
+.optionalSelection label { display: block; }
+.npcPicker { margin-block: 12px 22px; }
+.npcPicker ul { max-height: 320px; overflow-y: auto; grid-template-columns: repeat(auto-fill,minmax(190px,1fr)); gap: 8px; }
+.npcPicker li>button { display: flex; gap: 10px; align-items: center; width: 100%; min-height: 72px; text-align: left; }
+.npcPicker li>button span { flex: 1; }
+.npcPicker img { width: 38px; height: 58px; object-fit: contain; }
+.recipientPicker { border: 0; padding: 12px 0; }
+.recipientPicker>label { display: flex; gap: 9px; align-items: center; padding: 8px; }
+.recipientPicker>label:first-of-type { display: block; padding-inline: 0; }
+.attachmentList { list-style: none; padding: 0; }
+.attachmentList li { display: flex; align-items: center; gap: 12px; margin-block: 8px; }
+.whispers>p { max-width: 75ch; color: #bdcbd2; line-height: 1.65; }
+.whispers>button,.whispers .materialActions button { display: inline-flex; align-items: center; gap: 8px; }
+@media(max-width:760px) { .compactHeader { gap: 8px; }.compactIdentity { flex-basis: 100%; flex-wrap: wrap; gap: 8px; }.compactActions { flex-wrap: wrap; }.npcPicker ul { grid-template-columns: minmax(0,1fr); } }
+
+.optionalSelection>summary svg { display: inline-block; }

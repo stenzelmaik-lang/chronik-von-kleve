@@ -7,7 +7,7 @@ export async function storyPreparationIntegration({
   check,
   localSql,
   sqlQuote,
-  session,
+  session,base,ids,
 }) {
   const root = "/api/command-center";
   for (const who of [
@@ -401,6 +401,30 @@ export async function storyPreparationIntegration({
     catalog.d.places.some((p) => p.id === "place.electric-taberna"),
     "P2A central place catalog uses existing stable identity",
   );
+  // Recipient-specific private media stays on the existing message/archive path.
+  const messageDoc={...emptyScene(),title:'SYNTHETIC personal scene',secrets:'NEVER_SEND_SCENE_SECRET',gmNotes:'NEVER_SEND_GM_NOTES',visions:'cvk-html-v1:<h2>PRIVATE_VISION</h2><p>A alone.</p><img src="/api/files?id='+uploaded.d.id+'" alt="Private image">',visionRecipientIds:['sprint1-a'],visionFileIds:[uploaded.d.id]};
+  const draft=await req(root+'/scenes','gm','POST',{action:'create',clientRequestId:randomUUID(),document:messageDoc});
+  check(draft.s===201,'WHISPER private recipients and files persist in the same scene draft');
+  check((await req('/api/files?id='+uploaded.d.id,'a')).s===404&&(await req('/api/files?id='+uploaded.d.id,'b')).s===404,'WHISPER saving preparation grants no file access');
+  const personal={clientRequestId:randomUUID(),recipients:['sprint1-a'],title:'WHISPER_PRIVATE_TITLE',text:messageDoc.visions,format:'rich',fileIds:messageDoc.visionFileIds};
+  check((await req('/api/messages','a','POST',personal)).s===403,'WHISPER player cannot send SL-format messages or forge attachment grants');
+  check((await req('/api/messages','gm','POST',{...personal,clientRequestId:randomUUID(),fileIds:[foreign]})).s===404,'WHISPER cross-campaign attachment denied');
+  check((await req('/api/messages','gm','POST',{...personal,clientRequestId:randomUUID(),recipients:['sprint1-blocked-player']})).s===403,'WHISPER blocked recipient denied at sending time');
+  const delivered=await req('/api/messages','gm','POST',personal);check(delivered.s===200&&delivered.d.sent===1,'WHISPER explicit SL send creates one private message');
+  const messageId=delivered.d.ids[0];
+  check((await req('/api/messages','gm','POST',personal)).d.ids[0]===messageId,'WHISPER retry does not duplicate delivery');
+  check((await req('/api/messages','gm','POST',{...personal,recipients:['sprint1-a','sprint1-b']})).s===409,'WHISPER replay cannot append a new recipient');
+  const letter=await req('/api/messages?id='+messageId,'a');
+  check(letter.s===200&&letter.d.messages[0].format==='rich'&&letter.d.messages[0].text.includes('PRIVATE_VISION')&&letter.d.messages[0].attachments[0].id===uploaded.d.id,'WHISPER chosen player reads formatted message and attachment metadata');
+  check(!JSON.stringify(letter.d).includes('NEVER_SEND_'),'WHISPER only the explicit message snapshot is delivered, never scene secrets or notes');
+  const privateImage=await fetch(base+'/api/files?id='+uploaded.d.id,{headers:ids.a});
+  check(privateImage.status===200&&privateImage.headers.get('cache-control')==='private, no-store'&&(await privateImage.arrayBuffer()).byteLength>0,'WHISPER recipient may read the selected private image with private caching');
+  check((await req('/api/files?id='+uploaded.d.id,'b')).s===404&&(await req('/api/messages?id='+messageId,'b')).s===404,'WHISPER other player cannot read guessed message or file IDs');
+  check((await req('/api/files?id='+uploaded.d.id)).s===401,'WHISPER anonymous file access denied');
+  check(!(await req('/api/files','a')).d.files.some(file=>file.id===uploaded.d.id),'WHISPER sending never makes file globally visible in the player gallery');
+  check((await req('/api/files','gm')).d.files.find(file=>file.id===uploaded.d.id)?.visibility==='sl','WHISPER original file visibility remains SL-only');
+  check((await req('/api/records','a','POST',{id:messageId,kind:'notizen',title:'forged',visibility:'group',body:{context:'sl-message',format:'rich',attachmentIds:[foreign]}})).s===403,'WHISPER recipient cannot forge or republish attachment grants through generic records');
+  check((await req(root+'/scenes','gm','POST',{action:'save',id:draft.d.scene.id,version:draft.d.scene.version,document:{...draft.d.scene.document,visionRecipientIds:['missing-player']}})).s===400,'WHISPER unknown scene recipient denied');
   // Archive is a recoverable preparation change, never a destructive delete.
   for (const [kind, id] of [['story',story.id],['preparation',prepared.id],['scenes',child.id]]) {
     const key=kind==='story'?'story':kind==='scenes'?'scene':'session';
