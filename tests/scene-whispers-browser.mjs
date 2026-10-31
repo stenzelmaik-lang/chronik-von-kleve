@@ -19,6 +19,11 @@ try{
  await settled(a);let visionBounds=await a.locator('dialog[open]').boundingBox();
  assert.ok(visionBounds.x<150&&visionBounds.y<150&&visionBounds.y+visionBounds.height<500,'vision occupies only the upper left area');
  assert.ok((await a.locator('dialog[open]').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('mist-v2.webp'));
+ for(const p of [a,b]){
+  const placement=await p.locator('dialog[open]').evaluate(el=>{const copy=el.querySelector('article>div'),r=copy.getBoundingClientRect(),cloud=el.getBoundingClientRect(),body=el.querySelector('article').getBoundingClientRect();return {copyX:r.x+r.width/2,cloudX:cloud.x+cloud.width/2,copyY:r.y+r.height/2,bodyY:body.y+body.height/2,align:getComputedStyle(copy.querySelector('h2')).textAlign};});
+  assert.ok(Math.abs(placement.copyX-placement.cloudX)<3,'vision text is centered in the asset, with or without an image');assert.equal(placement.align,'center');
+  if(p===b)assert.ok(Math.abs(placement.copyY-placement.bodyY)<5,'short text without an image is vertically centered');
+ }
  assert.equal(await b.getByText('SECRET_A_VISION',{exact:true}).count(),0);assert.equal(await a.getByText('SECRET_B_VISION',{exact:true}).count(),0);
  await a.locator('dialog[open] img').waitFor();await a.locator('dialog[open] img').evaluate(img=>img.decode());
  await a.getByRole('button',{name:'Nächstes Bild',exact:true}).click();assert.ok((await a.locator('dialog[open] img').getAttribute('src')).endsWith('&page=1'));
