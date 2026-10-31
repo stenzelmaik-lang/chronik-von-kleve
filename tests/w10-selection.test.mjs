@@ -194,3 +194,66 @@ test('K4-4: an applied specialty doubles only rolled tens; ones cancel afterward
   const noTen = [1, 6, 2, 3, 4, 5, 2, 3];
   assert.deepEqual([roll(noTen).rawSuccesses, roll(noTen).outcome], [1, 'failure'], 'No ten, no bonus');
 });
+
+// K6: own abilities with a stable ID (owner decision 31.10.2026).
+const { validateCustomAbilityIds, readCustomAbilities, customAbilitiesWithoutId, newCustomAbilityId } = await import('../domain/custom-abilities.ts');
+const own = (patch = {}) => ({ id: 'cab_00000000-aaaa', name: 'Falknerei', value: 3, category: 'Fertigkeit', ...patch });
+const legacyRows = [{ name: 'Talent', category: 'Talent', value: 2 }, { name: 'Alte Notiz', value: 1 }];
+
+test('K6-1: IDs, category and confusion protection apply to entries with an ID only', () => {
+  assert.match(newCustomAbilityId(), /^cab_[0-9a-f-]{36}$/);
+  assert.equal(validateCustomAbilityIds([...legacyRows, own()]), null);
+  assert.equal(validateCustomAbilityIds('Historischer Freitext'), null, 'Free text stays untouched');
+  assert.equal(validateCustomAbilityIds([{ name: 'Doppelt', value: 1 }, { name: 'Doppelt', value: 2 }]), null, 'Legacy duplicates are not judged');
+  for (const [bad, pattern] of [[[own({ id: 'cab_x' })], /eindeutige ID/], [[own(), own()], /eindeutige ID/], [[own({ category: 'talent' })], /Kategorie/],
+    [[own({ category: undefined })], /Kategorie/], [[own({ active: 'nein' })], /Status/], [[own({ extra: 1 })], /Unbekannte/],
+    [[own({ name: ' nahkampf ' })], /V20-Standardfähigkeit/], [[...legacyRows, own({ name: 'alte  notiz' })], /verwechselbar/],
+    [[own(), own({ id: 'cab_11111111-bbbb', name: 'FALKNEREI' })], /verwechselbar/]]) assert.match(validateCustomAbilityIds(bad), pattern, JSON.stringify(bad));
+  assert.equal(validateCustomAbilityIds([own(), own({ id: 'cab_11111111-bbbb', active: false })]), null, 'A deactivated twin may stay for history');
+  assert.match(validateExistingSheet({ ...engineFixture, customAbilities: [own({ name: 'Nahkampf' })] }), /Standardfähigkeit/);
+});
+
+test('K6-2: entries without an ID stay visible, unchanged and not selectable', () => {
+  const body = { ...engineFixture, customAbilities: [...legacyRows, own()] }, before = JSON.stringify(body);
+  assert.deepEqual(readCustomAbilities(body).map(c => c.id), ['cab_00000000-aaaa']);
+  assert.equal(customAbilitiesWithoutId(body), 2);
+  assert.equal(customAbilitiesWithoutId({ customAbilities: 'Freitext' }), 1);
+  assert.equal(preview(body, { attributeId: 'wits' }).customAbilitiesWithoutId, 2);
+  assert.equal(JSON.stringify(body), before);
+  rejects(() => preview(body, { attributeId: 'wits', abilityId: 'custom:Alte Notiz' }), 'UNKNOWN_ABILITY_ID');
+});
+
+test('K6-3: own abilities are selectable by ID and follow the V20 group rules', () => {
+  const body = { ...engineFixture, customAbilities: [own(), own({ id: 'cab_22222222-cccc', name: 'Heraldik', value: 0, category: 'Kenntnis' }),
+    own({ id: 'cab_33333333-dddd', name: 'Gassenwissen', value: 0, category: 'Talent' }), own({ id: 'cab_44444444-eeee', name: 'Kutschenlenken', value: 0, category: 'Fertigkeit' }),
+    own({ id: 'cab_55555555-ffff', name: 'Alt', value: 5, active: false })] };
+  const pick = id => preview(body, { attributeId: 'wits', abilityId: 'custom:' + id });
+  const ready = pick('cab_00000000-aaaa');
+  assert.deepEqual(ready.pool, { base: 5, effective: 5 }, 'Geistesschärfe 2 + Falknerei 3');
+  assert.deepEqual(ready.selection, { attributeId: 'wits', abilityId: 'custom:cab_00000000-aaaa', category: 'skill' });
+  assert.equal(ready.provenance[1].source, 'Charakterbogen · Eigene Fähigkeit (Fertigkeit) · Falknerei');
+  assert.equal(pick('cab_22222222-cccc').code, 'UNTRAINED_KNOWLEDGE');
+  assert.deepEqual(pick('cab_33333333-dddd').difficulty.modifiers, []);
+  assert.equal(pick('cab_44444444-eeee').difficulty.effective, 7);
+  assert.equal(pick('cab_55555555-ffff').code, 'CUSTOM_ABILITY_INACTIVE');
+  assert.equal(pick('cab_99999999-0000').code, 'CUSTOM_ABILITY_NOT_FOUND');
+  rejects(() => preview(body, { attributeId: 'wits', abilityId: 'custom:kaputt' }), 'UNKNOWN_ABILITY_ID');
+  // Renaming keeps the ID and therefore the selection.
+  const renamed = { ...body, customAbilities: body.customAbilities.map(c => c.id === 'cab_00000000-aaaa' ? { ...c, name: 'Beizjagd' } : c) };
+  assert.equal(preview(renamed, { attributeId: 'wits', abilityId: 'custom:cab_00000000-aaaa' }).provenance[1].label, 'Beizjagd');
+  // An invalid list is never guessed: no own ability becomes selectable.
+  assert.equal(preview({ ...body, customAbilities: [own(), own()] }, { attributeId: 'wits', abilityId: 'custom:cab_00000000-aaaa' }).code, 'CUSTOM_ABILITY_NOT_FOUND');
+});
+
+test('K6-4: specialties can target own abilities by ID; dangling references are refused', () => {
+  const ownSpec = spec({ id: 'spec_66666666-aaaa', target: { kind: 'customAbility', id: 'cab_00000000-aaaa' }, name: 'Habichte' });
+  const body = { ...engineFixture, customAbilities: [own({ value: 4 })], specialties: [ownSpec] };
+  assert.equal(validateExistingSheet(body), null);
+  assert.match(validateExistingSheet({ ...body, customAbilities: [] }), /gültige Eigenschaft oder Fähigkeit/, 'Removing the ability needs the specialty handled first');
+  const used = preview(body, { attributeId: 'wits', abilityId: 'custom:cab_00000000-aaaa', specialtyId: 'spec_66666666-aaaa' });
+  assert.equal(used.specialtyApplies, true);
+  assert.match(used.provenance.find(p => p.part === 'specialty').source, /Spezialisierung \(Falknerei\)/);
+  assert.equal(specialtyRatingError({ ...body, customAbilities: [own({ value: 3 })] }, { ...engineFixture, customAbilities: [own({ value: 3 })] }).includes('Falknerei braucht mindestens 4'), true);
+  const inactive = { ...body, customAbilities: [own({ value: 4, active: false })] };
+  assert.equal(preview(inactive, { attributeId: 'wits', abilityId: 'custom:cab_00000000-aaaa', specialtyId: 'spec_66666666-aaaa' }).code, 'CUSTOM_ABILITY_INACTIVE');
+});

@@ -7,6 +7,7 @@ import { abilityGroups, attributeGroups } from './character-engine.ts';
 import { readVitals } from './character-vitals.ts';
 import { W10_ATTRIBUTE_KEYS, W10_ABILITY_KEYS } from './trait-ids.ts';
 import { readSpecialties, SPECIALTY_MINIMUM_RATING, traitRating, type Specialty } from './character-specialties.ts';
+import { CUSTOM_ABILITY_CATEGORIES, CUSTOM_ABILITY_PREFIX, customAbilitiesWithoutId, customAbilityById, isCustomAbilityId } from './custom-abilities.ts';
 import { HYBRID_DRAFT_PROFILE, prepareDraftRoll, W10RuleError } from './w10-hybrid-draft.ts';
 
 export { W10_ATTRIBUTE_KEYS, W10_ABILITY_KEYS } from './trait-ids.ts';
@@ -68,6 +69,8 @@ const BLOCK_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
   DIFFICULTY_ABOVE_10: 'V20 erlaubt nur Schwierigkeiten von 2 bis 10. Mit allen Modifikatoren liegt diese Probe darüber und ist so ungültig. Die SL kann die Probe oder die Umstände ändern; es wird nicht gewürfelt.',
   INCAPACITATED: 'Der Charakter ist außer Gefecht oder nicht handlungsfähig. Es wird nicht gewürfelt.',
   NO_DICE: 'Nach allen Abzügen bleibt kein Würfel übrig. Es wird kein Ersatzwürfel gestellt.',
+  CUSTOM_ABILITY_NOT_FOUND: 'Diese eigene Fähigkeit steht nicht im Bogen dieses Charakters.',
+  CUSTOM_ABILITY_INACTIVE: 'Diese eigene Fähigkeit ist deaktiviert und kann nicht gewürfelt werden.',
   SPECIALTY_NOT_FOUND: 'Diese Spezialisierung steht nicht im Bogen dieses Charakters.',
   SPECIALTY_INACTIVE: 'Diese Spezialisierung ist deaktiviert.',
   SPECIALTY_NOT_FOR_TRAIT: 'Diese Spezialisierung gehört zu keinem der gewählten Werte.',
@@ -83,30 +86,49 @@ function difficultyProvenance(modifier: { source: string; amount: number }): W10
   return Object.freeze({ part: 'difficulty', id: modifier.source, label: known.label, amount: modifier.amount, source: known.source });
 }
 
-/** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
 /** Why a stored specialty would or would not apply to this selection; null means it applies. */
 function specialtyBlock(body: Body, specialty: Specialty, selection: W10Selection): string | null {
   if (specialty.active === false) return 'SPECIALTY_INACTIVE';
-  const chosen = specialty.target.kind === 'attribute' ? selection.attributeId : selection.abilityId;
-  if (specialty.target.id !== chosen) return 'SPECIALTY_NOT_FOR_TRAIT';
+  if (!targetsSelection(specialty, selection)) return 'SPECIALTY_NOT_FOR_TRAIT';
   return (traitRating(body, specialty.target) ?? 0) < SPECIALTY_MINIMUM_RATING ? 'SPECIALTY_TRAIT_BELOW_4' : null;
 }
 
+function targetsSelection(s: Specialty, selection: W10Selection) {
+  if (s.target.kind === 'attribute') return s.target.id === selection.attributeId;
+  if (s.target.kind === 'customAbility') return CUSTOM_ABILITY_PREFIX + s.target.id === selection.abilityId;
+  return s.target.id === selection.abilityId;
+}
+
+/** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
 export type W10PreviewOptions = Readonly<{ claimedBy?: 'player' | 'gm' }>;
 export function deriveW10Preview(body: Body, selection: W10Selection, declared: W10Declared, characterVersion: number, options: W10PreviewOptions = {}) {
   const attrKey = attributeKey(selection.attributeId);
   if (!attrKey) throw new W10RuleError('UNKNOWN_ATTRIBUTE_ID');
-  const ability = selection.abilityId === undefined ? undefined : abilityEntry(selection.abilityId);
-  if (selection.abilityId !== undefined && !ability) throw new W10RuleError('UNKNOWN_ABILITY_ID');
+  // Own abilities are selected as `custom:<stable id>` (K6); everything else must be a V20 standard ID.
+  const customId = selection.abilityId?.startsWith(CUSTOM_ABILITY_PREFIX) ? selection.abilityId.slice(CUSTOM_ABILITY_PREFIX.length) : undefined;
+  if (customId !== undefined && !isCustomAbilityId(customId)) throw new W10RuleError('UNKNOWN_ABILITY_ID');
+  const ability = selection.abilityId === undefined || customId !== undefined ? undefined : abilityEntry(selection.abilityId);
+  if (selection.abilityId !== undefined && customId === undefined && !ability) throw new W10RuleError('UNKNOWN_ABILITY_ID');
   const provenance: W10Provenance[] = [];
+  const withoutId = customAbilitiesWithoutId(body);
   const attributes = record(body.attributes);
   // Missing attributes are not invented as 0 or 1; an incomplete sheet blocks the check.
   if (!Object.hasOwn(attributes, attrKey)) return blocked('ATTRIBUTE_NOT_ON_SHEET', provenance);
   const attrValue = attributes[attrKey];
   if (!Number.isSafeInteger(attrValue) || (attrValue as number) < 0) return blocked('SHEET_VALUE_INVALID', provenance);
   provenance.push(Object.freeze({ part: 'attribute', id: selection.attributeId, label: attrKey, amount: attrValue as number, source: `Charakterbogen · Attribute · ${attrKey}` }));
-  let abilityValue = 0;
-  if (ability) {
+  let abilityValue = 0, training: { category: 'talent' | 'skill' | 'knowledge'; label: string } | undefined;
+  if (customId !== undefined) {
+    const own = customAbilityById(body, customId);
+    if (!own) return blocked('CUSTOM_ABILITY_NOT_FOUND', provenance, { message: BLOCK_MESSAGES.CUSTOM_ABILITY_NOT_FOUND, customAbilitiesWithoutId: withoutId });
+    if (own.active === false) return blocked('CUSTOM_ABILITY_INACTIVE', provenance, { message: BLOCK_MESSAGES.CUSTOM_ABILITY_INACTIVE });
+    if (!Number.isSafeInteger(own.value) || own.value < 0) return blocked('SHEET_VALUE_INVALID', provenance);
+    abilityValue = own.value;
+    training = { category: CUSTOM_ABILITY_CATEGORIES[own.category], label: own.name };
+    provenance.push(Object.freeze({ part: 'ability', id: selection.abilityId!, label: own.name, amount: abilityValue,
+      source: `Charakterbogen · Eigene Fähigkeit (${own.category}) · ${own.name}` }));
+  } else if (ability) {
+    training = { category: ability.category, label: ability.key };
     const skills = record(body.skills);
     // Same convention as the character engine: an ability without an entry has no dots.
     const raw = Object.hasOwn(skills, ability.key) ? skills[ability.key] : 0;
@@ -117,8 +139,7 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
   }
   // Specialties: only stored, active entries of the selected traits with a rating of 4+ (K4).
   const stored = readSpecialties(body);
-  const candidates = Object.freeze(stored.filter(s => (s.target.kind === 'attribute' && s.target.id === selection.attributeId) ||
-    (s.target.kind === 'ability' && s.target.id === selection.abilityId)).map(s => {
+  const candidates = Object.freeze(stored.filter(s => targetsSelection(s, selection)).map(s => {
     const reason = specialtyBlock(body, s, selection);
     return Object.freeze({ id: s.id, name: s.name, ...(s.scope ? { scope: s.scope } : {}), target: s.target.kind, applicable: reason === null, ...(reason ? { reason } : {}) });
   }));
@@ -128,7 +149,7 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
     const code = specialty ? specialtyBlock(body, specialty, selection) : 'SPECIALTY_NOT_FOUND';
     if (code) return blocked(code, provenance, { message: BLOCK_MESSAGES[code], specialties: candidates });
     provenance.push(Object.freeze({ part: 'specialty', id: specialty!.id, label: specialty!.name, amount: 0,
-      source: `Charakterbogen · Spezialisierung (${specialty!.target.kind === 'attribute' ? attrKey : ability!.key}) · jede 10 zählt doppelt · ${options.claimedBy === 'gm' ? 'von der SL gesetzt' : 'vom Spieler beansprucht'}` }));
+      source: `Charakterbogen · Spezialisierung (${specialty!.target.kind === 'attribute' ? attrKey : training!.label}) · jede 10 zählt doppelt · ${options.claimedBy === 'gm' ? 'von der SL gesetzt' : 'vom Spieler beansprucht'}` }));
   }
   // V20 wound penalty from the existing health track, applied once to the pool before any special dice
   // are assigned. Only ordinary checks are derived here, so no wound exception can apply yet.
@@ -144,7 +165,7 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
   try {
     prepared = prepareDraftRoll({ rollId: 'preview', characterVersion, kind: 'ordinary', pool, specialtyApplies: !!specialty,
       difficulty: declared.baseDifficulty, requiredSuccesses: declared.requiredSuccesses,
-      ...(ability ? { training: { category: ability.category, rating: abilityValue } } : {}) });
+      ...(training ? { training: { category: training.category, rating: abilityValue } } : {}) });
   } catch (error) {
     if (error instanceof W10RuleError) {
       if (error.code === 'DIFFICULTY_ABOVE_10') {
@@ -161,13 +182,14 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
     status: 'ready' as const,
     profile: HYBRID_DRAFT_PROFILE,
     characterVersion,
-    selection: Object.freeze({ attributeId: selection.attributeId, ...(ability ? { abilityId: selection.abilityId, category: ability.category } : {}) }),
+    selection: Object.freeze({ attributeId: selection.attributeId, ...(training ? { abilityId: selection.abilityId, category: training.category } : {}) }),
     pool: Object.freeze({ base: pool, effective: prepared.pool.effective }),
     difficulty: prepared.difficulty,
     requiredSuccesses: declared.requiredSuccesses ?? 1,
     specialtyApplies: !!specialty,
     ...(specialty ? { specialty: Object.freeze({ id: specialty.id, name: specialty.name, claimedBy: options.claimedBy ?? 'player' }) } : {}),
     specialties: candidates,
+    customAbilitiesWithoutId: withoutId,
     provenance: Object.freeze(provenance),
     notApplied: NOT_APPLIED,
   });

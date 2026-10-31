@@ -116,4 +116,24 @@ Auf Grundlage der Projektinhaberentscheidungen (Details und Status im [Abgleich]
 | Manuelle Browserprüfung: SL fügt eine Spezialisierung hinzu; Hinweis und Sperre bei 3 Punkten, Speichern bei 4, Anzeige in der Bogenansicht, keine Konsolenfehler | bestanden |
 | Typecheck, ESLint, lokaler Build | bestanden |
 
+## 8. Nachtrag: K6 Eigene Fähigkeiten (31.10.2026)
+
+- **Datenmodell:** Neue Einträge in `customAbilities` erhalten `{ id: "cab_<uuid>", name, value, category, active? }` (`domain/custom-abilities.ts`). Die Kategorie nutzt die Bezeichnungen, die der Bogen schon speichert: `Talent`, `Fertigkeit` oder `Kenntnis`. Sie ist für Einträge mit ID Pflicht und wird nie automatisch gesetzt.
+- **Bestand:** Einträge ohne ID, auch historischer Freitext, bleiben genau so gespeichert, wie sie sind. Sie werden nicht umbenannt, bekommen keine nachträgliche ID und sind nicht würfelbar. Die Vorschau meldet ihre Anzahl (`customAbilitiesWithoutId`), der Editor kennzeichnet sie. Die Übernahme erfolgt erst nach Inventur und Freigabe (M6).
+- **Schutz:** IDs sind eindeutig. Der Name eines aktiven Eintrags mit ID darf weder einer V20-Standardfähigkeit noch einem anderen Eintrag gleichen; Groß-/Kleinschreibung und Leerzeichen werden dabei nicht unterschieden. Ein deaktivierter Zwilling darf für die Historie bleiben. Gibt es Verstöße, ist keine einzige eigene Fähigkeit wählbar; der Server rät nicht. Spezialisierungen dürfen nicht auf entfernte eigene Fähigkeiten zeigen.
+- **Umbenennen und Deaktivieren:** Beim Umbenennen ändert sich nur der Name, Auswahl und Spezialisierungen bleiben über die ID gebunden. `active: false` ersetzt das Löschen: Der Eintrag bleibt gespeichert, ist aber nicht würfelbar (`CUSTOM_ABILITY_INACTIVE`).
+- **Würfeln:** Die Auswahl erfolgt über `abilityId: "custom:cab_…"`. Der gespeicherte Wert wird automatisch genutzt. Es gelten die V20-Gruppenregeln der Kategorie (Talent ohne Malus, Fertigkeit +1 SG, Kenntnis gesperrt) sowie Wundabzug, SG-Grenze und Spezialisierungen (Zieltyp `customAbility`).
+- **Editor:** Neue Zeilen im Bogeneditor und im Bestandsformular bekommen eine ID. Im Bogeneditor gibt es dazu Kategorieauswahl und „Aktiv“; die Spezialisierungsauswahl bietet eigene Fähigkeiten an. Die Bogenansicht zeigt Spezialisierungen eigener Fähigkeiten mit Namen.
+- **Abweichung vom Plan:** XP-Käufe adressieren eigene Fähigkeiten weiter über den Namen. Für Einträge mit ID ist das eindeutig, weil Namen nicht verwechselbar sein dürfen. Eine XP-Zuordnung über die ID braucht eine Schemaänderung der Engine-Route und folgt gesondert.
+- **Grenze:** Der allgemeine Records-Editor (Entwürfe) ruft die Bogenvalidierung nicht auf. Eine dort gespeicherte, fehlerhafte Liste macht keine eigene Fähigkeit wählbar, verliert aber nichts.
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Standardlauf | **279/279 bestanden** |
+| Integration SL/A/B, frische Instanz, jetzt 11 Blöcke einschließlich eigener Fähigkeiten | bestanden |
+| Regression ULTIO-Pager, Zustandswerte | bestanden |
+| Browserregression `character-management-browser.mjs` (1440 und 375 px) | bestanden |
+| Manuelle Browserprüfung des Editors: Kategorie, Aktiv, Sperre ohne Kategorie | bestanden |
+| Typecheck, ESLint, lokaler Build | bestanden |
+
 Der Integrationstest setzt die Auswahl von A und B und den Gesundheitszustand von B vorübergehend, ausschließlich in der lokalen synthetischen Instanz. Danach setzt er die Gesundheit von B wieder auf „Gesund“. Die Auswahl bleibt auf Regiecharakter A bzw. B stehen.

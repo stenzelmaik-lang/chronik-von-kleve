@@ -5,13 +5,14 @@ import {Dialog,DialogContent,DialogDescription,DialogTitle} from '@/components/u
 import {characterSheetFields,validateExistingSheet} from '@/domain/character-management';
 import {newSpecialtyId,specialtyRatingError,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating,type Specialty} from '@/domain/character-specialties';
 import {W10_ABILITY_KEYS,W10_ATTRIBUTE_KEYS} from '@/domain/trait-ids';
+import {CUSTOM_ABILITY_CATEGORIES,newCustomAbilityId,readCustomAbilities} from '@/domain/custom-abilities';
 import {creationDeviation} from '@/domain/character-engine';
 import {clansForCampaign} from '@/domain/clan-config';
 import {attrsGroups,skillGroups} from './character';
 import sheet from './character-sheet.module.css';
 
 type Body=Record<string,unknown>;
-type Row={name:string;value?:number;cost?:number;category?:string;primary?:boolean};
+type Row={id?:string;name:string;value?:number;cost?:number;category?:string;primary?:boolean;active?:boolean};
 const map=(v:unknown):Record<string,number>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,number>:{};
 const rows=(v:unknown):Row[]=>Array.isArray(v)?(v as Row[]).filter(r=>r&&typeof r==='object'):[];
 const str=(v:unknown)=>typeof v==='string'?v:v===undefined||v===null?'':String(v);
@@ -35,7 +36,7 @@ function Stepper({value,onChange,min=0,max,label,fallback=min}:{value:number|nul
 }
 const numberOrNull=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)?v:null;
 
-function RowList({label,value,onChange,metric,suggestions,high,primary=false}:{label:string;value:unknown;onChange:(v:unknown)=>void;metric:'value'|'cost';suggestions?:string[];high:boolean;primary?:boolean}){
+function RowList({label,value,onChange,metric,suggestions,high,primary=false,custom=false}:{label:string;value:unknown;onChange:(v:unknown)=>void;metric:'value'|'cost';suggestions?:string[];high:boolean;primary?:boolean;custom?:boolean}){
   if(typeof value==='string')return <div className={sheet.legacyText}><p>Historischer Freitext – bleibt erhalten, bis du ihn in Einträge umwandelst.</p><textarea aria-label={label} value={value} onChange={e=>onChange(e.target.value)}/><button type="button" className="button" onClick={()=>onChange(value.split(/[\n,;]/).map(s=>s.trim()).filter(Boolean).map(name=>({name,[metric]:0})))}>In Einträge umwandeln</button></div>;
   const list=rows(value),listId=suggestions?'sugg-'+label.replace(/\W/g,''):undefined;
   return <div className={sheet.rowList}>
@@ -43,10 +44,13 @@ function RowList({label,value,onChange,metric,suggestions,high,primary=false}:{l
     {list.map((row,i)=><div className={sheet.rowItem} key={i}>
       <input aria-label={`${label} ${i+1} Name`} list={listId} placeholder="Name" value={row.name??''} maxLength={120} onChange={e=>onChange(list.map((r,j)=>j===i?{...r,name:e.target.value}:r))}/>
       {metric==='value'?<DotInput label={row.name||label} value={Number(row.value??0)} high={high} onChange={n=>onChange(list.map((r,j)=>j===i?{...r,value:n}:r))}/>:<Stepper label={`${row.name||label} Punkte`} value={Number(row.cost??0)} max={99} onChange={n=>onChange(list.map((r,j)=>j===i?{...r,cost:n}:r))}/>}
+      {custom&&row.id&&<select aria-label={`${row.name||label} Kategorie`} value={row.category??''} onChange={e=>onChange(list.map((r,j)=>j===i?{...r,category:e.target.value}:r))}><option value="">Kategorie wählen</option>{Object.keys(CUSTOM_ABILITY_CATEGORIES).map(c=><option key={c} value={c}>{c}</option>)}</select>}
+      {custom&&row.id&&<label className={sheet.primaryToggle}><input type="checkbox" checked={row.active!==false} onChange={e=>onChange(list.map((r,j)=>{if(j!==i)return r;const next={...r};if(e.target.checked)delete next.active;else next.active=false;return next;}))}/>Aktiv</label>}
+      {custom&&!row.id&&<p className={sheet.hint} style={{gridColumn:'1/-1'}}>Bestandseintrag ohne feste ID: bleibt unverändert erhalten, ist aber erst nach der Bestandsprüfung würfelbar.</p>}
       {primary&&<label className={sheet.primaryToggle}><input type="radio" name={'primary-'+label} checked={row.primary===true} onChange={()=>onChange(list.map((r,j)=>({...r,primary:j===i})))}/>Primär</label>}
       <button type="button" className={sheet.iconButton} aria-label={`${row.name||label} entfernen`} onClick={()=>onChange(list.filter((_,j)=>j!==i))}><Trash2 size={15}/></button>
     </div>)}
-    <button type="button" className={sheet.addRow} onClick={()=>onChange([...list,{name:'',[metric]:metric==='value'?1:1}])}><Plus size={14}/>{label} hinzufügen</button>
+    <button type="button" className={sheet.addRow} onClick={()=>onChange([...list,{...(custom?{id:newCustomAbilityId(),category:''}:{}),name:'',[metric]:metric==='value'?1:1}])}><Plus size={14}/>{label} hinzufügen</button>
   </div>;
 }
 
@@ -57,12 +61,13 @@ function SpecialtyList({value,body,onChange}:{value:unknown;body:Body;onChange:(
   const list=specialtyRows(value);
   const update=(i:number,patch:Partial<SpecialtyDraft>)=>onChange(list.map((r,j)=>j===i?{...r,...patch}:r));
   return <div className={sheet.rowList}>
-    {list.map((row,i)=>{const key=specialtyTargetKey(row.target as Specialty['target']),rating=key?traitRating(body,row.target as Specialty['target'])??0:null;
+    {list.map((row,i)=>{const key=specialtyTargetKey(row.target as Specialty['target'],body),rating=key?traitRating(body,row.target as Specialty['target'])??0:null;
       return <div className={sheet.rowItem} key={row.id}>
       <select aria-label={`Spezialisierung ${i+1} gehört zu`} value={row.target.id?row.target.kind+':'+row.target.id:''} onChange={e=>{const [kind,id]=e.target.value.split(':');update(i,{target:{kind:kind as Specialty['target']['kind'],id}});}}>
         <option value="">Eigenschaft oder Fähigkeit wählen</option>
         <optgroup label="Attribute">{Object.entries(W10_ATTRIBUTE_KEYS).map(([id,label])=><option key={id} value={'attribute:'+id}>{label}</option>)}</optgroup>
         <optgroup label="Fähigkeiten">{Object.entries(W10_ABILITY_KEYS).map(([id,label])=><option key={id} value={'ability:'+id}>{label}</option>)}</optgroup>
+        {readCustomAbilities(body).length>0&&<optgroup label="Eigene Fähigkeiten">{readCustomAbilities(body).map(c=><option key={c.id} value={'customAbility:'+c.id}>{c.name}{c.active===false?' (deaktiviert)':''}</option>)}</optgroup>}
       </select>
       <button type="button" className={sheet.iconButton} aria-label={`${row.name||'Spezialisierung'} entfernen`} onClick={()=>onChange(list.filter((_,j)=>j!==i))}><Trash2 size={15}/></button>
       <input aria-label={`Spezialisierung ${i+1} Name`} placeholder="Spezialisierung, z. B. Säbel" value={row.name??''} maxLength={120} onChange={e=>update(i,{name:e.target.value})}/>
@@ -118,7 +123,7 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
       <section id="cvk-sheet-abilities" className={sheet.block}><h3>Fähigkeiten</h3><div className={sheet.columns}>{skillGroups.map(([group,names])=><div key={group}><h4>{group}</h4>{names.map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.skills)[name]??0)} onChange={n=>setIn('skills',name,n)}/></div>)}</div>)}</div>
         {Object.keys(map(body.skills)).filter(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).length>0&&<div className={sheet.subBlock}><h4>Weitere gespeicherte Fähigkeiten</h4>{Object.keys(map(body.skills)).filter(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.skills)[name]??0)} onChange={n=>setIn('skills',name,n)}/></div>)}</div>}
         <div className={sheet.subBlock}><h4>Spezialisierungen</h4><SpecialtyList value={body.specialties??[]} body={body} onChange={v=>set('specialties',v)}/></div>
-        <div className={sheet.subBlock}><h4>Zusätzliche Fähigkeiten (freie Zeilen des Bogens)</h4><RowList label="Fähigkeit" value={body.customAbilities??[]} onChange={v=>set('customAbilities',v)} metric="value" high={high}/></div>
+        <div className={sheet.subBlock}><h4>Zusätzliche Fähigkeiten (freie Zeilen des Bogens)</h4><RowList label="Fähigkeit" value={body.customAbilities??[]} onChange={v=>set('customAbilities',v)} metric="value" high={high} custom/></div>
       </section>
       <section id="cvk-sheet-advantages" className={sheet.block}><h3>Vorteile</h3><div className={sheet.columns}>
         <div><h4>Disziplinen</h4><RowList label="Disziplin" value={body.disciplines??[]} onChange={v=>set('disciplines',v)} metric="value" suggestions={allDisciplines} high={high}/>

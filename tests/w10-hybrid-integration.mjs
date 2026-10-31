@@ -133,6 +133,26 @@ const restored=await editSheet(gm,charB.id,{specialties:[],skills:skillsB});asse
 assert.equal((await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'})).specialties.length,0);
 console.log('PASS specialties: edit with V20 minimum, protected, applied only to the matching trait');
 
-// 10. Existing dice path is untouched: the live table still answers with its own contract.
+// 10. K6: own abilities with a stable ID; entries without ID stay untouched and not selectable.
+const ownB={id:'cab_'+crypto.randomUUID(),name:'Falknerei',value:3,category:'Fertigkeit'},legacyB={name:'Alte Notiz vom Papierbogen',value:2};
+assert.equal((await editSheet(gm,charB.id,{customAbilities:[legacyB,{...ownB,name:'Nahkampf'}]})).status,400,'Name of a V20 standard ability refused');
+assert.equal((await editSheet(gm,charB.id,{customAbilities:[legacyB,{...ownB,category:undefined}]})).status,400,'Category required');
+const savedOwn=await editSheet(gm,charB.id,{customAbilities:[legacyB,ownB]});assert.equal(savedOwn.status,200,'SL saves own ability: '+savedOwn.text);
+const ownPreview=await ok(b,charB.id,{attributeId:'wits',abilityId:'custom:'+ownB.id});
+assert.deepEqual(ownPreview.pool,{base:5,effective:5},'Geistesschärfe 2 + Falknerei 3');
+assert.equal(ownPreview.customAbilitiesWithoutId,1,'The legacy row is counted, not selectable');
+assert.equal(ownPreview.provenance[1].source,'Charakterbogen · Eigene Fähigkeit (Fertigkeit) · Falknerei');
+assert.equal((await ok(a,charA.id,{attributeId:'wits',abilityId:'custom:'+ownB.id})).code,'CUSTOM_ABILITY_NOT_FOUND','Foreign own ability is unknown on another sheet');
+await status(400,b,charB.id,{attributeId:'wits',abilityId:'custom:Alte Notiz vom Papierbogen'});
+assert.equal((await editSheet(gm,charB.id,{customAbilities:[legacyB,{...ownB,name:'Beizjagd'}]})).status,200,'Rename keeps the ID');
+assert.equal((await ok(b,charB.id,{attributeId:'wits',abilityId:'custom:'+ownB.id})).provenance[1].label,'Beizjagd');
+assert.equal((await editSheet(gm,charB.id,{customAbilities:[legacyB,{...ownB,active:false}]})).status,200,'Deactivate instead of delete');
+assert.equal((await ok(b,charB.id,{attributeId:'wits',abilityId:'custom:'+ownB.id})).code,'CUSTOM_ABILITY_INACTIVE');
+const storedB=JSON.parse((await b.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id).body.customAbilities;
+assert.deepEqual(storedB[0],legacyB,'Legacy row stored exactly as written, without an invented ID');
+assert.equal((await editSheet(gm,charB.id,{customAbilities:[]})).status,200,'Reset synthetic sheet');
+console.log('PASS own abilities: stable ID, category rules, rename/deactivate, legacy rows untouched');
+
+// 11. Existing dice path is untouched: the live table still answers with its own contract.
 assert.equal((await gm.get('/api/live-table?view=active')).status,200,'Live table still reachable');
 console.log('PASS W10-Hybrid Phase B integration');
