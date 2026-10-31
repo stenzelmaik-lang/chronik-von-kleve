@@ -68,6 +68,8 @@ Ohne `npm` im PATH Node per PATH-Präfix nutzen (siehe Übergabe Phase A).
 
 ## 5. Offene Entscheidungen des Projektinhabers
 
+> **Nachtrag 31.10.2026:** Der Projektinhaber hat alle sieben Punkte entschieden. Abgleich, Korrekturen K1–K7, Rückfragen und Migrationskonzepte stehen in [PHASE-B-ENTSCHEIDUNGEN-ABGLEICH.md](PHASE-B-ENTSCHEIDUNGEN-ABGLEICH.md). Die folgende Liste gibt den Stand von `d47ec09` wieder.
+
 Keine stillen Migrationen. Bis zur Entscheidung steht jeder Punkt sichtbar in `notApplied`:
 
 1. **Stress 0–10 → 0–300**: Der bestehende persönliche Stress bleibt unberührt und geht nicht in die Vorschau ein.
