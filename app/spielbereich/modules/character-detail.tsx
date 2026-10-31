@@ -44,6 +44,7 @@ import {
 } from "./character";
 import { Choice, visibilityNames } from "./shared";
 import {activeCharacterBody} from "@/domain/character-selection";
+import {hybridPreparationNote,readSpecialties,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating} from "@/domain/character-specialties";
 import {useCommandConfirmation} from "./command-confirmation";
 
 const obj = (v: unknown) =>
@@ -584,6 +585,7 @@ export function CharacterDetail({
                 />
               ))}
               {Object.keys(obj(s.abilities)).some(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Fähigkeiten" value={Object.entries(obj(s.abilities)).filter(([name])=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
+              {readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length > 0 && <section className="rating-section"><h4>Spezialisierungen</h4>{hybridPreparationNote()&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}{readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).map(sp=>{const sheetValues={attributes:s.attributes,skills:s.abilities,customAbilities:s.customAbilities},rating=traitRating(sheetValues,sp.target)??0;return <p className="muted" key={sp.id}><strong>{specialtyTargetKey(sp.target,sheetValues)}: {sp.name}</strong>{sp.scope?" – "+sp.scope:""}{sp.active===false?" (deaktiviert)":rating<SPECIALTY_MINIMUM_RATING?` (wirkt erst ab ${SPECIALTY_MINIMUM_RATING} Punkten)`:""}</p>;})}</section>}
               {((Array.isArray(s.customAbilities) && s.customAbilities.length > 0) || (typeof s.customAbilities === "string" && s.customAbilities.trim())) && <CharacterListReadout label="Freie Fähigkeiten (Legacy)" value={s.customAbilities} />}
             </div>
           </section>
