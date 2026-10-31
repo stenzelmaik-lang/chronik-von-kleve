@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
 // Rule markers are accepted only for the GM-owned campaign character route;
 // POST below rejects marked character payloads before persisting for anyone else.
 const listItem = z.object({ name: z.string().trim().min(1, "Bitte gib für jeden Eintrag einen Namen ein oder lösche die leere Zeile.").max(120, "Der Eintragsname darf höchstens 120 Zeichen enthalten."), value: z.number().int().min(0).max(10).optional(), cost: z.number().int().min(0).max(999).optional(), category: z.enum(["Talent", "Fertigkeit", "Kenntnis"]).optional(), source: z.string().max(40).optional(), slApproved: z.boolean().optional(), approved: z.boolean().optional() });
+const customAbilityItem = listItem.extend({ id: z.string().regex(/^cab_[A-Za-z0-9-]{8,64}$/).optional(), active: z.boolean().optional() });
 const bodySchema = z
   .object({
     text: z.string().max(90000).optional(),
@@ -43,7 +44,9 @@ const bodySchema = z
     goals: z.string().max(15000).optional(),
     attributes: z.record(z.number().int().min(0).max(10)).optional(),
     skills: z.record(z.number().int().min(0).max(10)).optional(),
-    customAbilities: z.array(listItem).max(100).optional(),
+    // Own abilities keep their stable ID, active flag and stored key order (W10 K6): validate only, never rebuild
+    // the row, otherwise IDs are stripped and the order-sensitive confirmed-sheet comparison sees a change.
+    customAbilities: z.array(z.unknown().superRefine((row, ctx) => { const result = customAbilityItem.safeParse(row); if (!result.success) for (const issue of result.error.issues) ctx.addIssue(issue); })).max(100).optional(),
     disciplines: z.union([z.string().max(15000), z.array(listItem).max(50)]).optional(),
     backgrounds: z.union([z.string().max(15000), z.array(listItem).max(50)]).optional(),
     merits: z.union([z.string().max(15000), z.array(listItem).max(100)]).optional(),

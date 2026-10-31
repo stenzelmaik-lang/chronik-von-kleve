@@ -42,7 +42,8 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
   const abilities = body.skills && typeof body.skills === "object" ? body.skills as Record<string, unknown> : {};
   for (const name of new Set([...v20AbilityNames,...Object.keys(abilities)])) add("ability", name, abilities[name] ?? 0);
   const virtues=body.virtues as Record<string,unknown>|undefined; if(virtues)for(const [name,value] of Object.entries(virtues))add("virtue",name,value);
-  if(Array.isArray(body.customAbilities))for(const item of body.customAbilities as Record<string,unknown>[])add("customAbility",String(item.name),item.value);
+  // Deactivated own abilities (W10 K6) stay on the sheet but are not offered for XP.
+  if(Array.isArray(body.customAbilities))for(const item of body.customAbilities as Record<string,unknown>[])if(item?.active!==false)add("customAbility",String(item.name),item.value);
   for (const [key, category] of [["disciplines", "discipline"], ["backgrounds", "background"]] as const) {
     if (Array.isArray(body[key])) for (const item of body[key] as Record<string, unknown>[]) add(category, String(item.name), item.value);
   }

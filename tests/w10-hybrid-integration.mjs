@@ -150,6 +150,13 @@ assert.equal((await editSheet(gm,charB.id,{customAbilities:[legacyB,{...ownB,act
 assert.equal((await ok(b,charB.id,{attributeId:'wits',abilityId:'custom:'+ownB.id})).code,'CUSTOM_ABILITY_INACTIVE');
 const storedB=JSON.parse((await b.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id).body.customAbilities;
 assert.deepEqual(storedB[0],legacyB,'Legacy row stored exactly as written, without an invented ID');
+assert.deepEqual(storedB[1],{...ownB,active:false},'ID and active flag stored');
+assert.ok(!(await engineView(gm,charB.id)).targets.some(t=>t.category==='customAbility'&&t.target==='Falknerei'),'Deactivated own ability is no XP target');
+// Unchanged resave through the generic records editor must neither fail nor strip ID/active (review finding PR #53).
+const recOwn=JSON.parse((await b.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id);
+const resave=await b.post('/api/records',{id:recOwn.id,version:recOwn.version,kind:'charaktere',title:recOwn.title,visibility:recOwn.visibility,body:recOwn.body});
+assert.equal(resave.status,200,'Unchanged generic resave still possible: '+resave.text);
+assert.deepEqual(JSON.parse((await b.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id).body.customAbilities[1],{...ownB,active:false},'ID and active flag survive the generic editor');
 assert.equal((await editSheet(gm,charB.id,{customAbilities:[]})).status,200,'Reset synthetic sheet');
 console.log('PASS own abilities: stable ID, category rules, rename/deactivate, legacy rows untouched');
 
