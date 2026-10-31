@@ -108,6 +108,8 @@ export function projectEntity(
   if (a.status !== "active" || a.campaignId !== e.campaignId) return null;
   // Collaboration internals are authorized only by the dedicated room API.
   if (['live-table','live-table-signal','live-table-event'].includes(String(e.content.context))) return null;
+  // Personal preparation remains owner-only through every generic read path, even for GMs or grants.
+  if(e.content.context === 'table-material')return e.ownerId===a.id?e:null;
   // Recipient privacy is stronger than knowledge grants and generic GM access.
   if (e.content.context === "sl-message") {
     if (e.ownerId !== a.id && e.content.senderId !== a.id) return null;

@@ -1,5 +1,9 @@
-/* eslint-disable @next/next/no-img-element -- Private authenticated R2 URLs and original legacy assets are served directly; no public image optimizer cache. */
 "use client";
+import {MediaLibrary} from "./modules/media-library";
+import {TableMaterialLibrary} from "./modules/table-material-library";
+import {MaterialPreparation} from "./modules/material-preparation";
+/* eslint-disable @next/next/no-img-element -- Private authenticated R2 URLs and original legacy assets are served directly; no public image optimizer cache. */
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +25,6 @@ import {
   Feather,
   Plus,
   RefreshCw,
-  ScrollText,
   Search,
   Shield,
 } from "lucide-react";
@@ -47,7 +50,7 @@ import { MerchantPanel } from "./modules/merchant";
 import { personal, sections } from "./modules/navigation";
 import { RecordEditor } from "./modules/record-editor";
 import { CommandCenter } from "./modules/command-center";
-import { Choice, safeImage, visibilityNames } from "./modules/shared";
+import { safeImage, visibilityNames } from "./modules/shared";
 import { PlayerCharacterManagement } from "./modules/player-character-management";
 import { CharacterDetail } from "./modules/character-detail";
 import { NPCPanel } from "./modules/npc-panel";
@@ -84,11 +87,8 @@ export default function Workspace({
       id: string;
       version?: number;
       file?: boolean;
-    } | null>(null),
-    [upload, setUpload] = useState<File | null>(null),
-    [uploadVisibility, setUploadVisibility] = useState("private");
-  const uploadInput = useRef<HTMLInputElement>(null),
-    active = a.status === "active";
+    } | null>(null);
+  const active = a.status === "active";
   const dataScope = `${a.campaignId}:${a.id}:${a.gm ? "gm" : "player"}:${surface}`;
   const [selection, setSelection] = useState<{ scope: string; id: string | null }>({ scope: dataScope, id: initialCharacterId || null });
   const activeCharacterId = selection.scope === dataScope ? selection.id : null;
@@ -225,24 +225,7 @@ export default function Workspace({
       setSaving(false);
     }
   }
-  async function uploadFile() {
-    if (!upload) return;
-    setSaving(true);
-    try {
-      const form = new FormData();
-      form.set("file", upload);
-      form.set("visibility", uploadVisibility);
-      await api("/api/files", "POST", form);
-      setUpload(null);
-      if (uploadInput.current) uploadInput.current.value = "";
-      toast.success("Datei gespeichert");
-      await reload();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
+
   const list = entries.filter((e) =>
     (e.title + " " + JSON.stringify(e.body))
       .toLowerCase()
@@ -285,7 +268,7 @@ export default function Workspace({
   return (
     <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
       {selectionError&&<p className="error-box" role="alert">Charakterwechsel nicht gespeichert: {selectionError}</p>}
-      {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && <div className="section-title">
+      {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && section !== "galerie" && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -467,85 +450,11 @@ export default function Workspace({
           }}
         />
       ) : section === "galerie" ? (
-        <>
-          <section className="panel upload-panel">
-            <label className="field">
-              <span>Bild oder PDF auswählen · maximal 10 MB</span>
-              <input
-                ref={uploadInput}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => setUpload(e.target.files?.[0] || null)}
-              />
-            </label>
-            <Choice
-              label="Wer darf die Datei sehen?"
-              value={uploadVisibility}
-              onChange={setUploadVisibility}
-              options={Object.entries(visibilityNames)}
-            />
-            <button
-              className="button primary"
-              disabled={!upload || saving}
-              onClick={uploadFile}
-            >
-              {saving ? "Wird gespeichert …" : "Hochladen"}
-            </button>
-          </section>
-          {files.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyTitle>Noch keine Dateien</EmptyTitle>
-                <EmptyDescription>
-                  Lade dein erstes Charakterbild oder Handout hoch.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="entry-grid">
-              {files.map((f) => (
-                <article className="entry-card" key={f.id}>
-                  {f.mime.startsWith("image/") ? (
-                    <img
-                      className="card-image"
-                      src={"/api/files?id=" + f.id}
-                      alt={f.name}
-                    />
-                  ) : (
-                    <div className="file-icon">
-                      <ScrollText size={48} />
-                    </div>
-                  )}
-                  <div className="card-body">
-                    <span className="badge">
-                      {visibilityNames[f.visibility]}
-                    </span>
-                    <h2>{f.name}</h2>
-                    <p className="muted">
-                      {(f.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                    <a
-                      className="button"
-                      href={"/api/files?id=" + f.id}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Öffnen
-                    </a>
-                    {f.owner_id === a.id && (
-                      <button
-                        className="danger-link"
-                        onClick={() => setRemove({ id: f.id, file: true })}
-                      >
-                        Löschen
-                      </button>
-                    )}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </>
+        <MediaLibrary a={a} files={files} onRefresh={reload}/>
+      ) : section === "vorbereitung" ? (
+        <MaterialPreparation key={dataScope} a={a}/>
+      ) : section === "notizen" ? (
+        <><TableMaterialLibrary key={dataScope} a={a}/><section className="panel" style={{marginTop:32}} aria-label="Bestehende persönliche Notizen"><div className="section-title"><h2>Deine Notizen</h2><button className="button" onClick={()=>create()}>Notiz anlegen</button></div>{entries.length?<div className="entry-grid">{entries.map(r=><button className="entry-card text-left" key={r.id} onClick={()=>setEdit(structuredClone(r))}><div className="card-body"><h3>{r.title}</h3><p>{String(r.body.summary||'Persönliche Notiz öffnen')}</p></div></button>)}</div>:<p>Noch keine persönlichen Notizen.</p>}</section></>
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (

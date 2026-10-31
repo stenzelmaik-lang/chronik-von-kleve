@@ -1,3 +1,4 @@
+import {readMaterial} from './table-materials';
 import {database,gmOnly,HttpError,type Actor} from './access';
 import {readLiveRoom,liveMembers,liveFile} from './live-game';
 import {liveEvents} from './live-commands';
@@ -16,7 +17,9 @@ export function storedStage(room:{stage?:unknown}):StageState{
  const parsed=stageSchema.safeParse(room.stage);if(!parsed.success)throw new HttpError(409,'Bühnenstand nicht unterstützt. Vorhandene Daten bleiben erhalten.');return parsed.data;
 }
 export async function stageRoom(a:Actor,sessionId:string){const value=await readLiveRoom(a,sessionId);if(!value.room.started||!value.room.open)throw new HttpError(409,'Spielabend ist nicht aktiv.');return value;}
-export async function stageSource(a:Actor,id:string,kind:'entity'|'file'){
+export async function stageSource(a:Actor,id:string,kind:'entity'|'file'|'record'){
+ if(kind==='record'&&id.startsWith('scene-material:')){gmOnly(a);const split=id.lastIndexOf(':'),scene=await readScene(database(),a,id.slice(15,split)),element=scene.document.elements.find(e=>e.id===id.slice(split+1)&&e.kind==='handout'&&!e.fileId&&!e.referenceId);if(!element)throw new HttpError(404,'Vorbereitetes Handout nicht verfügbar.');return {title:element.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:scene.version,ownerId:a.id,documentContent:element.text};}
+ if(kind==='record'){const m=await readMaterial(a,id);return {title:m.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:m.version,ownerId:m.ownerId,...(m.pages.length?{media:'pages' as const,pages:m.pages,...(m.text?{documentContent:m.text}:{})}:m.fileId?{sourceFileId:m.fileId,media:stageMediaOf((await liveFile(a,m.fileId)).mime),...(m.text?{documentContent:m.text}:{})}:{documentContent:m.text})};}
  gmOnly(a);
  if(kind==='file'){const f=await liveFile(a,id);if(!/^(image\/(jpeg|png|webp|gif)|application\/pdf|audio\/|video\/)/.test(f.mime))throw new HttpError(400,'Nicht unterstütztes Bühnenmedium.');return {title:f.name,kind:'document' as const,sourceId:id,sourceKind:kind,media:stageMediaOf(f.mime)};}
  const e=(await loadEntitiesForIds(database(),a.campaignId,[id])).find(e=>e.id===id);
@@ -38,7 +41,7 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
   place:entity(d.placeId)?{id:d.placeId,title:entity(d.placeId)!.title}:null,
   backdrop:files.results.filter(f=>f.id===d.backdropFileId&&f.mime.startsWith('image/')).map(f=>({fileId:f.id,name:f.name}))[0]||null,
   npcs:npcIds.flatMap(id=>{const e=entity(id);return e&&e.type==='NPC'?[{id,title:e.title,summary:text(e.content.text),gmBody:e.gmBody||'',image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(id),cue:d.elements.filter(x=>x.referenceId===id).map(x=>x.text).join('')}]:[];}),
-  handouts:handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT'}]:[];}),
+  handouts:[...d.elements.filter(e=>e.kind==='handout'&&!e.fileId&&!e.referenceId&&e.text.trim()).map(e=>({id:'scene-material:'+scene.id+':'+e.id,title:e.title,stageable:true,sourceKind:'record' as const})),...handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT',sourceKind:'entity' as const}]:[];})],
   media:d.elements.flatMap(e=>{const f=files.results.find(f=>f.id===e.fileId);return f?[{id:e.id,title:e.title,kind:e.kind,text:e.text,fileId:f.id,name:f.name,mime:f.mime}]:[];}),
   notes:d.elements.filter(e=>!e.fileId&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
   // Prepared pager messages of this scene. Played from the Regie with the element id as message id, so each is sent once.
@@ -105,10 +108,12 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
  let next:StageState;try{next=changeStageObjects(state,a,c,source,backdrop,music);}catch(e){if(e instanceof Error&&'status' in e)throw new HttpError(Number(e.status),e.message);throw new HttpError(400,'Ungültige Bühnenaktion.');}
  // Starting a scene with a prepared playlist starts it for everyone (it loops); without one the current music keeps playing.
  if(c.action==='activateScene'&&scenePlaylist)next=startYoutube(next,scenePlaylist.tracks,{label:scenePlaylist.label,sceneId:c.sceneId});
- const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1").bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId).run();
+ const sourceGuard=source?.sourceKind==='record'&&!source.sourceId.startsWith('scene-material:')?" AND EXISTS (SELECT 1 FROM records prepared WHERE prepared.id=? AND prepared.campaign_id=? AND prepared.owner_id=? AND prepared.version=?)":"";
+ const sourceBindings=sourceGuard&&source?[source.sourceId,a.campaignId,a.id,source.sourceVersion!]:[];
+ const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1"+sourceGuard).bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId,...sourceBindings).run();
  if(!result.meta.changes)throw new HttpError(409,'Spielstand inzwischen geändert. Deine Änderung wurde nicht überschreibend gespeichert.');
 }
-export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalogId?:string):Promise<{fileId?:string;path?:string;text?:string;title:string}>{
+export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalogId?:string,page?:number):Promise<{fileId?:string;path?:string;text?:string;title:string;pages?:{title:string}[]}>{
  const {room}=await stageRoom(a,sessionId);let o:Exclude<StageObject,{kind:'note'}>|undefined;
  if(objectId==='backdrop'&&!catalogId){const b=storedStage(room).backdrop;if(!b)throw new HttpError(404,'Kein Szenenbild aktiv.');return {fileId:b.fileId,title:b.title};}
  // Background music belongs to the whole round, like the backdrop.
@@ -116,6 +121,7 @@ export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalo
  if(catalogId){gmOnly(a);const s=await stageSource(a,catalogId,'entity');o={id:'preview',...s,rect:{x:0,y:0,w:.2,h:.4},visibility:'sl',recipients:null};}
  else {const found=storedStage(room).objects.find(o=>o.id===objectId&&stageVisible(o,a));if(found&&found.kind!=='note')o=found;}
  if(!o)throw new HttpError(404,'Bühnenobjekt nicht verfügbar.');
+ if(o.sourceKind==='record'){if(o.pages?.length){if(page===undefined)return {title:o.title,pages:o.pages.map(p=>({title:p.title})),text:o.documentContent};const p=o.pages[page];if(!p)throw new HttpError(404,'Handoutseite nicht verfügbar.');return {fileId:p.fileId,title:p.title||o.title};}if(page!==undefined)throw new HttpError(404,'Dieses Dokument hat keine Einzelseiten.');if(o.sourceFileId)return {fileId:o.sourceFileId,title:o.title};return {text:o.documentContent||'',title:o.title};}
  if(o.sourceKind==='file')return {fileId:o.sourceId,title:o.title};
  const e=(await loadEntitiesForIds(database(),a.campaignId,[o.sourceId])).find(e=>e.id===o!.sourceId);
  if(!e)throw new HttpError(404,'Originalobjekt nicht verfügbar.');

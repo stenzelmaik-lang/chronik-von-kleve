@@ -22,9 +22,9 @@ export async function campaignExport(db: D1Database, a: Actor) {
       db
         .prepare(
           `SELECT * FROM ${name} WHERE ${name === "campaigns" ? "id" : "campaign_id"}=?` +
-            (name === "records" ? " AND (coalesce(json_extract(body,'$.context'),'')<>'sl-message' OR owner_id=? OR json_extract(body,'$.senderId')=?)" : ""),
+            (name === "records" ? " AND (coalesce(json_extract(body,'$.context'),'')<>'sl-message' OR owner_id=? OR json_extract(body,'$.senderId')=?) AND (coalesce(json_extract(body,'$.context'),'')<>'table-material' OR owner_id=?)" : name === "entities" ? " AND NOT EXISTS (SELECT 1 FROM records r WHERE r.campaign_id=entities.campaign_id AND r.id=entities.legacy_record_id AND json_valid(r.body) AND json_extract(r.body,'$.context')='table-material' AND r.owner_id<>?)" : ""),
         )
-        .bind(a.campaignId, ...(name === "records" ? [a.id, a.id] : [])),
+        .bind(a.campaignId, ...(name === "records" ? [a.id, a.id, a.id] : name === "entities" ? [a.id] : [])),
     ),
   );
   return {
