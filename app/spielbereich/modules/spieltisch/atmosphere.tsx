@@ -46,28 +46,32 @@ export function BackgroundMusic({music,src,actorId}:{music:{title:string;key:str
 function readAcknowledged(key:string):string[]{try{const v=JSON.parse(window.localStorage.getItem(key)||'[]');return Array.isArray(v)?v.filter(x=>typeof x==='string'):[];}catch{return [];}}
 
 /** The pager device itself: artwork plus the message on its display. */
-export function PagerDevice({text,at}:{text:string;at:string}){
+export function PagerDevice({text,at,title,sender,priority}:{text:string;at:string;title?:string;sender?:string;priority?:'normal'|'hoch'}){
  const s=PAGER_ASSET.screen,time=new Date(at);
- return <div className={styles.device} style={{aspectRatio:String(PAGER_ASSET.ratio)}}>
+ return <div className={styles.device} data-priority={priority||'normal'} style={{aspectRatio:String(PAGER_ASSET.ratio)}}>
   <img src={PAGER_ASSET.src} alt="" draggable={false}/>
   <div className={styles.screen} style={{left:s.left+'%',top:s.top+'%',width:s.width+'%',height:s.height+'%'}}>
-   <small>{Number.isNaN(time.getTime())?'':time.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</small>
+   <small>{[Number.isNaN(time.getTime())?'':time.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),priority==='hoch'?'!! DRINGEND':'',sender||''].filter(Boolean).join(' · ')}</small>
+   {title&&<strong>{title}</strong>}
    <p>{text}</p>
   </div>
  </div>;
 }
 
-/** Incoming pager messages for one player. Reading is personal: acknowledged ids stay in this browser only. */
-export function PagerInbox({pagers,runId,actorId}:{pagers:PagerMessage[];runId:string;actorId:string}){
+/**
+ * Incoming pager messages for one player. "Gelesen" hides the message at once in this browser and confirms it
+ * to the GM (server-side acknowledgement); a failed confirmation never brings the message back.
+ */
+export function PagerInbox({pagers,runId,actorId,onAcknowledge}:{pagers:PagerMessage[];runId:string;actorId:string;onAcknowledge:(id:string)=>void}){
  const key='chroniplay:pager:'+runId+':'+actorId;
  const [seen,setSeen]=useState<string[]>(()=>readAcknowledged(key));
  // The newest unread message is on top; older unread ones follow after "Gelesen".
- const open=pagers.filter(p=>!seen.includes(p.id)),current=open.at(-1);
- const acknowledge=(id:string)=>{const next=[...seen,id].slice(-60);setSeen(next);try{window.localStorage.setItem(key,JSON.stringify(next));}catch{/* storage unavailable */}};
+ const open=pagers.filter(p=>!p.acknowledged&&!seen.includes(p.id)),current=open.at(-1);
+ const acknowledge=(id:string)=>{const next=[...seen,id].slice(-60);setSeen(next);try{window.localStorage.setItem(key,JSON.stringify(next));}catch{/* storage unavailable */}onAcknowledge(id);};
  if(!current)return null;
  return <section key={current.id} className={styles.pager} aria-label="Pager-Nachricht" role="alertdialog" aria-describedby={'pager-'+current.id}>
-  <PagerDevice text={current.text} at={current.at}/>
-  <span id={'pager-'+current.id} className={styles.srOnly}>Neue Pager-Nachricht: {current.text}</span>
+  <PagerDevice text={current.text} at={current.at} title={current.title} sender={current.sender} priority={current.priority}/>
+  <span id={'pager-'+current.id} className={styles.srOnly}>Neue Pager-Nachricht{current.sender?' von '+current.sender:''}{current.priority==='hoch'?', dringend':''}: {current.title?current.title+'. ':''}{current.text}</span>
   <footer>{open.length>1&&<small>{open.length-1} weitere</small>}<button type="button" onClick={()=>acknowledge(current.id)}><Check size={15}/> Gelesen</button></footer>
  </section>;
 }

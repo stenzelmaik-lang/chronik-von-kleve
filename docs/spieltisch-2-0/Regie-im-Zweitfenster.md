@@ -33,9 +33,10 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
 |---|---|---|
 | `effects` | `['rain','fog']` | ganze Runde |
 | `music` | `{fileId,title,key}`; ein neuer `key` je Start | ganze Runde; Spieler erhalten nur Titel und Schlüssel, Datei über `asset?objectId=music` |
-| `pagers` | höchstens 30, `{id,text≤280,at,recipients}` | Empfänger (`null` = alle); die SL sieht alles; Spieler erhalten **keine** Empfängerliste |
+| `pagers` | höchstens 30; Vertrag siehe „Anschluss für die Pager-Integration“ | Empfänger (`null` = alle); die SL sieht alles; Spieler erhalten **keine** Empfängerliste und keine fremden Quittungen |
 
 - **Neue Befehle (nur SL):** `effects`, `music` (nur Audiodateien, `null` stoppt), `pager` und `pagerWithdraw`.
+- **Neuer Befehl für Empfänger:** `pagerAck` quittiert eine Pager-Nachricht.
 - **Prüfung der Pager-Empfänger:** Der Server lässt nur Teilnehmende der Runde zu. Eine leere Auswahl wird abgelehnt und gilt nicht als „alle“.
 - **Keine Schemamigration:** Alte Stände ohne die neuen Felder bleiben gültig, der strikte Parser lehnt Unbekanntes weiter ab.
 - **Hinweis zum Rücksprung:** Ein älterer Build würde einen Stand mit den neuen Feldern als „nicht unterstützt“ ablehnen. Vor einem Rücksprung also Musik stoppen und Effekte und Pager leeren, oder den Abend neu starten.
@@ -52,6 +53,45 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
   - Bei `prefers-reduced-motion` oder der ChroniPlay-Einstellung „Bewegung reduzieren“ steht das Bild still.
 - **Musik:** Kleine Leiste oben links mit Pause, Stumm und eigener Lautstärke; die Lautstärke wird gemerkt.
   - Blockiert der Browser den automatischen Start, erscheint „Musik abspielen“. Nichts wird erzwungen.
+
+## Anschluss für die Pager-Integration
+
+Der Pager ist in diesem Umbau bewusst nur als Schnittstelle mit austauschbarem Platzhalter gebaut. Das gelieferte Asset-Paket (ULTIO Pager R-03 v2) und die Vorbereitung im SL-Command-Center folgen in einer eigenen Sitzung und setzen hier an.
+
+**Nachrichtenvertrag** (`domain/live-stage.ts`, Schema `pager` im Bühnenstand):
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `id` | String | Nachrichten-ID. Der Server vergibt sie; eine vorbereitete Nachricht darf eine eigene UUID mitbringen. Dieselbe ID wird nur einmal gesendet (409), das Ausspielen ist also wiederholbar ohne Doppelversand. |
+| `sender` | String ≤ 80, optional | Absender im Spiel (z. B. „Unbekannt“). Fehlt er, zeigt der Pager keinen Absender. |
+| `title` | String ≤ 80, optional | Titel bzw. Betreff |
+| `text` | String 1–280 | Nachricht |
+| `priority` | `'normal'` \| `'hoch'`, optional | `normal` wird nicht gespeichert; `hoch` erscheint als „!! DRINGEND“ und als `data-priority="hoch"` am Gerät |
+| `origin` | `'regie'` \| `'vorbereitet'` | Herkunft: spontan aus der Regie oder vorbereitet (Command Center) |
+| `recipients` | `null` oder 1–30 Mitglieds-IDs | `null` = ganze Runde. Der Server lässt nur Teilnehmende der Runde zu. |
+| `at` | ISO-Zeit | Sendezeitpunkt (Server) |
+| `acks` | `[{id,at}]`, optional | Quittungen je Empfänger, serverseitig |
+
+**Befehle** über `POST /api/live-stage` (`command`):
+- `{action:'pager', id?, text, title?, sender?, priority?, origin?, recipients}`: nur SL. Das ist der Ausspielweg für die Regie und künftig für das Command Center.
+- `{action:'pagerAck', id}`: nur Empfänger, einmalig. Weder die SL noch Nicht-Empfänger können quittieren (404).
+- `{action:'pagerWithdraw', id}`: nur SL, entfernt die Nachricht bei allen.
+
+**Was wer im Stand bekommt** (`stageSnapshot` in `server/live-stage.ts`):
+- Die SL erhält die Nachricht vollständig, mit `recipients`, `origin` und `acks`.
+- Spieler erhalten `{id,text,at,title?,sender?,priority?,acknowledged}`, also nur die eigene Quittung.
+
+**Wo angeschlossen wird:**
+- **Command Center:**
+  - Die vorbereitete Nachricht dort speichern, z. B. am Spielabend oder an der Szene, mit eigener UUID.
+  - Beim Ausspielen genau den Befehl `pager` mit `id` und `origin:'vorbereitet'` senden; im Client am einfachsten über `sendStageCommand` in `app/spielbereich/modules/spieltisch/stage-client.ts` mit `retry:true`.
+  - „Bereits gesendet“ und „gelesen von …“ lassen sich am SL-Stand ablesen (`pagers[].id` und `acks`).
+- **Regie (spontan):** Formular und Sendeprotokoll im Block „Pager“ in `regie-window.tsx`: Absender, Titel, Nachricht, „Dringend“, Empfängerwahl, Zurückziehen, „Gelesen: …“.
+- **Darstellung beim Spieler** (`atmosphere.tsx`):
+  - `PagerDevice` zeichnet Gerät und Display, `PagerInbox` steuert Einflug, Reihenfolge und „Gelesen“.
+  - „Gelesen“ blendet die Nachricht sofort lokal aus und sendet `pagerAck` (über `onAcknowledge` in `stage.tsx`).
+  - Animationen stehen in `atmosphere.module.css` (`pagerIn`, `pagerFloat`).
+  - Das gelieferte Asset gehört an `PAGER_ASSET`, siehe nächster Abschnitt.
 
 ## Pager-Grafik austauschen
 
@@ -77,7 +117,7 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
 
 | Prüfung | Ergebnis |
 |---|---|
-| `pnpm test` (inkl. neuer `tests/regie-zweitfenster.test.mjs`) | 196/196 |
+| `pnpm test` (inkl. neuer `tests/regie-zweitfenster.test.mjs`) | 198/198 |
 | Typecheck | ohne Fehler |
 | Lint | keine Fehler in geänderten Dateien; die 12 Fehler im unveränderten `prototypes/spieltisch-2` bestanden schon vorher |
 | Build | erfolgreich |
@@ -90,6 +130,7 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
 - **Was die Integration abdeckt:**
   - Die Route `/sl/regie` und der Regie-Kontext sind nur für die SL. Spieler erhalten 403 bzw. die Ablehnungsseite, beides ohne SL-Geheimnis.
   - Spieler können weder Pager senden noch Effekte oder Musik setzen (403).
+  - Pager-Vertrag: Eine vorbereitete ID wird nur einmal gesendet (409). Absender, Titel und Priorität kommen beim Empfänger an. Nur Empfänger quittieren, die SL sieht die Quittung, B sieht die Quittung von A nicht.
   - Ein Pager nur für A erscheint bei B nicht und taucht dort nicht einmal im Rohstand auf. Fremde oder leere Empfänger und Texte über 280 Zeichen werden abgelehnt. Zurückziehen wirkt sofort.
   - Effekte gelten für alle und bleiben nach einem Neuladen. Unbekannte Effekte werden abgelehnt.
   - Musik akzeptiert nur Audiodateien. Spieler laden sie nur über den Bühnen-Asset-Weg, das Original bleibt privat (404). Neustart und Stopp funktionieren.
@@ -99,7 +140,7 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
 - **Was der Browsertest abdeckt:**
   - Die Regie öffnet sich per Knopf und der gemerkte Tab wird wiederverwendet.
   - Alle vier Bereiche sind sichtbar. Es gibt kein horizontales Scrollen, und auf großen Bildschirmen scrollt nur innerhalb der Spalten.
-  - Der Pager erreicht nur A; „Gelesen“ bleibt nach einem Neuladen erhalten.
+  - Der Pager erreicht nur A; „Gelesen“ erscheint in der Regie als Quittung und bleibt nach einem Neuladen erhalten.
   - Regen und Nebel erscheinen bei allen; mit reduzierter Bewegung gibt es keine Animation.
   - Die Musiklautstärke ist pro Person getrennt.
   - Die Erzählung lässt sich aus der Textspalte nur für B freigeben und wieder zurückziehen.
@@ -111,5 +152,6 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
 
 - Die Kaserne-Testszene hat kein Video. Der Videoweg nutzt dieselben Befehle wie Audio (Röhrenbildschirm bzw. „Groß einspielen“) und ist daher nur indirekt geprüft.
 - Pager haben keinen Ton und keine Vibration, weil Browser das ohne Interaktion ohnehin oft blockieren.
+- Das gelieferte Pager-Asset-Paket ist absichtlich nicht eingebaut. Die Vorbereitung im Command Center folgt in einer eigenen Sitzung.
 - Effekte und Musik wirken auf die ganze Runde. Zielgruppen gibt es nur für Pager, Material, NPCs und die Erzählung.
 - Die Topbar des Spieltischs ist bei 375 px schon vorher eng; daran wurde nichts geändert.

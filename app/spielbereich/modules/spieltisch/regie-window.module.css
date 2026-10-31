@@ -76,7 +76,10 @@
 .pager{display:grid;gap:6px}
 .pager label{display:grid;gap:4px;font-size:12px;color:#c5bcaa}
 .pager textarea{resize:vertical;min-height:70px;font-family:ui-monospace,Consolas,monospace}
-.pager>small{justify-self:end;font-size:11px;color:#b7bdb6}
+.pagerMeta{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px}
+.pagerMeta input{width:100%;min-height:34px;padding:0 8px;border:1px solid #c5a46a40;border-radius:5px;background:#0c1417;color:#eee8dc;font:inherit}
+.pagerRow{display:flex;align-items:center;justify-content:space-between;gap:8px}.pagerRow small{font-size:11px;color:#b7bdb6}
+.check{display:flex!important;align-items:center;gap:6px;color:#eee8dc!important;font-size:13px!important}
 
 @media(max-width:1599px){
  .grid{grid-template-columns:minmax(250px,1fr) minmax(380px,1.5fr) minmax(280px,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr)}

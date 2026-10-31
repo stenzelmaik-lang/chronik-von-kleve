@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
 import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen} from 'lucide-react';
 import type {Actor} from '@/domain/types';
-import {pagerTextMax,type StageEffect} from '@/domain/live-stage';
+import {pagerTextMax,pagerTitleMax,pagerSenderMax,type StageEffect} from '@/domain/live-stage';
 import {api,ApiError} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
@@ -46,7 +46,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [contexts,setContexts]=useState<Record<string,RegieContext>>({}),[contextError,setContextError]=useState<{id:string;message:string}|null>(null);
  const [chosenScene,setChosenScene]=useState(''),[audiences,setAudiences]=useState<Record<string,Audience>>({});
- const [pagerText,setPagerText]=useState(''),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null),[catalogSearch,setCatalogSearch]=useState('');
+ const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null),[catalogSearch,setCatalogSearch]=useState('');
  const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),previewDialog=useRef<HTMLDialogElement>(null);
  const [peerId]=useState(()=>crypto.randomUUID());
  const regieKey=room?'chroniplay:regie:'+room.runId:'';
@@ -220,13 +220,14 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
       <div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,n.id,'entity',undefined,'npc')}><UserPlus/> {onTable?'Freigabe ändern':'Auftreten lassen'}</button>{placed&&<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,n.title+' tritt ab.')}><UserMinus/> Abtreten</button>}</div>
      </div></article>;}):<p className={regieStyles.empty}>Keine NPCs mit dieser Szene verknüpft.</p>}</Block>
     <Block title="Pager">
-     <form className={styles.pager} onSubmit={e=>{e.preventDefault();const text=pagerText.trim();if(!text)return;void run({action:'pager',text,recipients:pagerTarget},null,'Pager an '+audienceText(pagerTarget,crew)+' gesendet.').then(ok=>{if(ok)setPagerText('');});}}>
+     <form className={styles.pager} onSubmit={e=>{e.preventDefault();const text=pagerText.trim();if(!text)return;void run({action:'pager',text,recipients:pagerTarget,origin:'regie',...(pagerTitle.trim()?{title:pagerTitle.trim()}:{}),...(pagerSender.trim()?{sender:pagerSender.trim()}:{}),...(pagerUrgent?{priority:'hoch'}:{})},null,'Pager an '+audienceText(pagerTarget,crew)+' gesendet.').then(ok=>{if(ok){setPagerText('');setPagerTitle('');setPagerUrgent(false);}});}}>
+      <div className={styles.pagerMeta}><label>Absender (im Spiel)<input aria-label="Pager-Absender" maxLength={pagerSenderMax} value={pagerSender} onChange={e=>setPagerSender(e.target.value)} placeholder="z. B. Unbekannt"/></label><label>Titel<input aria-label="Pager-Titel" maxLength={pagerTitleMax} value={pagerTitle} onChange={e=>setPagerTitle(e.target.value)} placeholder="optional"/></label></div>
       <label>Nachricht<textarea aria-label="Pager-Nachricht" maxLength={pagerTextMax} rows={3} value={pagerText} onChange={e=>setPagerText(e.target.value)} placeholder="z. B. RUF MICH AN · 0281-1922"/></label>
-      <small>{pagerText.length}/{pagerTextMax}</small>
+      <div className={styles.pagerRow}><label className={styles.check}><input type="checkbox" checked={pagerUrgent} onChange={e=>setPagerUrgent(e.target.checked)}/> Dringend</label><small>{pagerText.length}/{pagerTextMax}</small></div>
       <AudiencePicker value={pagerTarget} onChange={setAudience('pager')} crew={crew} label="Pager"/>
       <button type="submit" className={styles.primary} disabled={busy||!pagerText.trim()||invalid(pagerTarget)}><Send/> Pager senden</button>
      </form>
-     {!!snapshot?.pagers?.length&&<ul className={styles.compact} aria-label="Gesendete Pager">{[...snapshot.pagers].reverse().map(p=><li key={p.id}><span>{p.text}<small>an {audienceText(p.recipients??null,crew)} · {new Date(p.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</small></span><button type="button" aria-label="Pager zurückziehen" disabled={busy} onClick={()=>void run({action:'pagerWithdraw',id:p.id},null,'Pager zurückgezogen.')}><Undo2/></button></li>)}</ul>}
+     {!!snapshot?.pagers?.length&&<ul className={styles.compact} aria-label="Gesendete Pager">{[...snapshot.pagers].reverse().map(p=><li key={p.id}><span>{p.priority==='hoch'&&<b>Dringend · </b>}{p.title&&<b>{p.title}: </b>}{p.text}<small>{p.sender?'von '+p.sender+' · ':''}an {audienceText(p.recipients??null,crew)} · {new Date(p.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</small><small data-pager-acks="">{p.acks?.length?'Gelesen: '+p.acks.map(x=>crew.find(m=>m.id===x.id)?.name||'?').join(', '):'Noch nicht quittiert'}</small></span><button type="button" aria-label="Pager zurückziehen" disabled={busy} onClick={()=>void run({action:'pagerWithdraw',id:p.id},null,'Pager zurückgezogen.')}><Undo2/></button></li>)}</ul>}
     </Block>
     <Block title={'Auf dem Tisch ('+objects.length+')'} open={false}>{objects.length?<ul className={styles.compact}>{objects.map(o=><li key={o.id}><span>{o.title}<small>{tableState(o)}</small></span><button type="button" aria-label={o.title+' vom Tisch nehmen'} disabled={busy} onClick={()=>void run({action:'remove',id:o.id})}><EyeOff/></button></li>)}</ul>:<p className={regieStyles.empty}>Der Tisch ist leer.</p>}</Block>
    </Column>

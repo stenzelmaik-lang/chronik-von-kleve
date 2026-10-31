@@ -17,9 +17,15 @@ const backdrop=z.object({fileId:z.string().min(1).max(160),title:z.string().max(
 export const stageEffects=['rain','fog'] as const;
 export type StageEffect=typeof stageEffects[number];
 const music=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),key:z.string().min(1).max(64)}).strict();
-export const pagerTextMax=280,pagerKeep=30;
+export const pagerTextMax=280,pagerTitleMax=80,pagerSenderMax=80,pagerKeep=30;
+/** Pager message contract. Regie sends spontaneously; a prepared message (e.g. from the Command Center) may bring its own id. */
+export const pagerPriorities=['normal','hoch'] as const;
+export const pagerOrigins=['regie','vorbereitet'] as const;
 const recipientList=z.array(z.string().min(1).max(160)).min(1).max(30);
-const pager=z.object({id:z.string().min(1).max(160),text:z.string().min(1).max(pagerTextMax),at:z.string().max(40),recipients:recipientList.nullable()}).strict();
+const pagerAck=z.object({id:z.string().min(1).max(160),at:z.string().max(40)}).strict();
+const pager=z.object({id:z.string().min(1).max(160),text:z.string().min(1).max(pagerTextMax),at:z.string().max(40),recipients:recipientList.nullable(),
+ // Optional since the first version of the field: in-world sender, title, priority, origin and server-side acknowledgements.
+ title:z.string().max(pagerTitleMax).optional(),sender:z.string().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),acks:z.array(pagerAck).max(30).optional()}).strict();
 export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional()}).strict();
 export type StageMusic=z.infer<typeof music>;
 export type StagePager=z.infer<typeof pager>;
@@ -43,7 +49,8 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('remove'),id:z.string(),expectedRevision:z.number().int().positive().optional()}).strict(),
  z.object({action:z.literal('effects'),effects:z.array(z.enum(stageEffects)).max(stageEffects.length)}).strict(),
  z.object({action:z.literal('music'),fileId:z.string().min(1).max(160).nullable()}).strict(),
- z.object({action:z.literal('pager'),text:z.string().trim().min(1).max(pagerTextMax),recipients:recipientList.nullable()}).strict(),
+ z.object({action:z.literal('pager'),id:z.string().uuid().optional(),text:z.string().trim().min(1).max(pagerTextMax),title:z.string().trim().max(pagerTitleMax).optional(),sender:z.string().trim().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),recipients:recipientList.nullable()}).strict(),
+ z.object({action:z.literal('pagerAck'),id:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('pagerWithdraw'),id:z.string().min(1).max(160)}).strict(),
 ]);
 export type StageCommand=z.infer<typeof stageCommandSchema>;
@@ -63,11 +70,20 @@ function placement(media:StageMedia|undefined,count:number){
 }
 export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm'>,c:StageCommand,source?:{title:string;kind:'npc'|'document';sourceId:string;sourceKind:'entity'|'file';sourceVersion?:number;sourceToken?:string;media?:StageMedia},resolvedBackdrop?:StageBackdrop|null,resolvedMusic?:StageMusic|null,now=new Date().toISOString()){
  const next=structuredClone(state);
- if(c.action==='effects'||c.action==='music'||c.action==='pager'||c.action==='pagerWithdraw'){
+ if(c.action==='pagerAck'){
+  // Acknowledgement: only a recipient confirms, once; the GM reads who has confirmed.
+  const p=next.pagers?.find(p=>p.id===c.id);
+  if(!p||a.gm||!pagerVisible(p,a))throw Object.assign(Error('Pager-Nachricht nicht verfügbar.'),{status:404});
+  if(p.acks?.some(x=>x.id===a.id))return state;
+  p.acks=[...p.acks||[],{id:a.id,at:now}];
+ }else if(c.action==='effects'||c.action==='music'||c.action==='pager'||c.action==='pagerWithdraw'){
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung steuert Effekte, Musik und Pager.'),{status:403});
   if(c.action==='effects')next.effects=stageEffects.filter(e=>c.effects.includes(e));
   else if(c.action==='music'){if(c.fileId&&!resolvedMusic)throw Object.assign(Error('Musik nicht verfügbar.'),{status:404});next.music=c.fileId?resolvedMusic:null;}
-  else if(c.action==='pager')next.pagers=[...next.pagers||[],{id:crypto.randomUUID(),text:c.text,at:now,recipients:c.recipients?[...new Set(c.recipients)]:null}].slice(-pagerKeep);
+  else if(c.action==='pager'){
+   if(c.id&&next.pagers?.some(p=>p.id===c.id))throw Object.assign(Error('Diese Pager-Nachricht wurde bereits gesendet.'),{status:409});
+   next.pagers=[...next.pagers||[],{id:c.id||crypto.randomUUID(),text:c.text,at:now,recipients:c.recipients?[...new Set(c.recipients)]:null,...(c.title?{title:c.title}:{}),...(c.sender?{sender:c.sender}:{}),...(c.priority&&c.priority!=='normal'?{priority:c.priority}:{}),origin:c.origin||'regie'}].slice(-pagerKeep);
+  }
   else{if(!next.pagers?.some(p=>p.id===c.id))throw Object.assign(Error('Pager-Nachricht nicht verfügbar.'),{status:404});next.pagers=next.pagers.filter(p=>p.id!==c.id);}
  }else if(c.action==='backdrop'||c.action==='activateScene'){
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung wechselt den Schauplatz.'),{status:403});

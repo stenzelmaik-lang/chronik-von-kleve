@@ -47,7 +47,8 @@ try{
   await pb.waitForTimeout(2000);assert.equal(await pb.getByText(text,{exact:true}).count(),0,'B never sees the pager for A');
   assert.equal(await sl.getByText(text,{exact:true}).count(),0,'The shared SL table never shows a targeted pager');
   await pa.screenshot({path:output+'/'+name+'-spieler-a-pager.png'});
-  await pa.getByRole('button',{name:'Gelesen'}).click();await pa.reload();await pa.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();await pa.waitForTimeout(1500);
+  await pa.getByRole('button',{name:'Gelesen'}).click();
+  await regie.getByRole('list',{name:'Gesendete Pager'}).locator('li',{hasText:text}).getByText('Gelesen: '+nameA).waitFor();await pa.reload();await pa.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();await pa.waitForTimeout(1500);
   assert.equal(await pa.getByText(text,{exact:true}).count(),0,'Read pagers stay read after reload');
   pass(name+': pager reaches A only, animated, read state survives reload');
 

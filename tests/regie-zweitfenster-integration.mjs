@@ -56,6 +56,24 @@ await stage(gm,{action:'pagerWithdraw',id:onlyA.id});
 assert.ok(!(await snap(a)).pagers.some(p=>p.id===onlyA.id),'A withdrawn pager disappears for A');
 console.log('PASS pager: exact audiences, no recipient leak, invalid audiences refused, withdrawal');
 
+// Pager contract for the later Command-Center integration: prepared id, sender, title, priority, acknowledgement.
+const preparedId=crypto.randomUUID();
+await stage(gm,{action:'pager',id:preparedId,text:unique+' vorbereitet',title:'Auftrag',sender:'Unbekannt',priority:'hoch',origin:'vorbereitet',recipients:['command-a']});
+await stage(gm,{action:'pager',id:preparedId,text:unique+' doppelt',recipients:null},409);
+let mine=(await snap(a)).pagers.find(p=>p.id===preparedId);
+assert.deepEqual([mine.title,mine.sender,mine.priority,mine.acknowledged],['Auftrag','Unbekannt','hoch',false]);
+assert.ok(!('origin' in mine)&&!('acks' in mine),'Players get no origin or acknowledgement list');
+await stage(b,{action:'pagerAck',id:preparedId},404);
+await stage(gm,{action:'pagerAck',id:preparedId},404);
+await stage(a,{action:'pagerAck',id:preparedId});
+mine=(await snap(a)).pagers.find(p=>p.id===preparedId);assert.equal(mine.acknowledged,true,'A sees the own confirmation after reload');
+const gmView=(await snap(gm)).pagers.find(p=>p.id===preparedId);
+assert.equal(gmView.acks.length,1);assert.equal(gmView.acks[0].id,'command-a');assert.equal(gmView.origin,'vorbereitet');
+const shared=(await snap(gm)).pagers.find(p=>p.text===unique+' an alle');
+await stage(a,{action:'pagerAck',id:shared.id});
+assert.equal((await snap(b)).pagers.find(p=>p.id===shared.id).acknowledged,false,'B does not see that A confirmed');
+console.log('PASS pager contract: prepared id once, sender/title/priority, server-side acknowledgement per recipient');
+
 // Effects reach the whole round and survive a reload (fresh request).
 await stage(gm,{action:'effects',effects:['fog','rain']});
 for(const p of [a,b,gm])assert.deepEqual((await snap(p)).effects,['rain','fog']);

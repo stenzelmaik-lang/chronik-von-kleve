@@ -71,7 +71,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   // Table-wide atmosphere and pager messages. Players get only their own pagers, without the recipient list.
   effects:stage.effects||[],
   music:stage.music?{title:stage.music.title,key:stage.music.key,...(a.gm?{fileId:stage.music.fileId}:{})}:null,
-  pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at})};
+  // Players learn only whether they themselves acknowledged; GMs get recipients and all acknowledgements.
+  pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at,...(p.title?{title:p.title}:{}),...(p.sender?{sender:p.sender}:{}),...(p.priority?{priority:p.priority}:{}),acknowledged:!!p.acks?.some(x=>x.id===a.id)})};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){
  const {row,room}=await stageRoom(a,sessionId),state=storedStage(room);

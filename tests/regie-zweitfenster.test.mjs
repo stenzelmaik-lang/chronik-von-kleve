@@ -55,3 +55,26 @@ test('music needs a resolved audio file and can be stopped; it survives a scene 
  assert.deepEqual(s.music,music,'Music and weather are explicit GM choices, not table material');assert.deepEqual(s.effects,['rain']);
  s=changeStageObjects(s,gm,{action:'music',fileId:null});assert.equal(s.music,null);
 });
+
+test('pager contract: prepared id, sender, title, priority, origin; a prepared id is sent only once',()=>{
+ const id='6f1c2b9e-1d2a-4c3b-9e8f-0a1b2c3d4e5f';
+ let s=changeStageObjects(emptyStage(),gm,{action:'pager',id,text:'Treffpunkt Tor 3',title:'Auftrag',sender:'Unbekannt',priority:'hoch',origin:'vorbereitet',recipients:['a']});
+ assert.deepEqual({...s.pagers[0],at:undefined},{id,text:'Treffpunkt Tor 3',at:undefined,recipients:['a'],title:'Auftrag',sender:'Unbekannt',priority:'hoch',origin:'vorbereitet'});
+ assert.throws(()=>changeStageObjects(s,gm,{action:'pager',id,text:'nochmal',recipients:null}),e=>e.status===409);
+ s=changeStageObjects(s,gm,{action:'pager',text:'Spontan',recipients:null});
+ assert.equal(s.pagers[1].origin,'regie');assert.equal('priority' in s.pagers[1],false,'Normal priority is not stored');
+ assert.equal(stageCommandSchema.safeParse({action:'pager',id:'not-a-uuid',text:'x',recipients:null}).success,false);
+ assert.equal(stageCommandSchema.safeParse({action:'pager',text:'x',priority:'panik',recipients:null}).success,false);
+ assert.ok(stageSchema.safeParse({format:1,version:1,objects:[],pagers:[{id:'p',text:'alt',at:'2026-10-31T20:00:00.000Z',recipients:null}]}).success,'Pagers without the new fields stay valid');
+});
+
+test('pager acknowledgement: only recipients confirm, once; the GM cannot confirm for them',()=>{
+ let s=changeStageObjects(emptyStage(),gm,{action:'pager',text:'Nur A',recipients:['a']},undefined,undefined,undefined,'t0');
+ const id=s.pagers[0].id;
+ assert.throws(()=>changeStageObjects(s,b,{action:'pagerAck',id}),e=>e.status===404,'B is no recipient');
+ assert.throws(()=>changeStageObjects(s,gm,{action:'pagerAck',id}),e=>e.status===404,'GM does not confirm');
+ s=changeStageObjects(s,a,{action:'pagerAck',id},undefined,undefined,undefined,'t1');
+ assert.deepEqual(s.pagers[0].acks,[{id:'a',at:'t1'}]);
+ const again=changeStageObjects(s,a,{action:'pagerAck',id},undefined,undefined,undefined,'t2');
+ assert.deepEqual(again.pagers[0].acks,[{id:'a',at:'t1'}],'A second confirmation changes nothing');
+});
