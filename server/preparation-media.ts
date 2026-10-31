@@ -2,7 +2,7 @@ import type { Actor } from "@/domain/types";
 import { canRead, HttpError } from "@/server/access";
 import { richTextFileIds, readRichText, encodeRichText, richTextPrefix, type RichTextDocument } from "@/domain/location-rich-text";
 
-const fileKeys = new Set(["fileId", "backdropFileId"]);
+const fileKeys = new Set(["fileId", "backdropFileId", "soundFileId"]);
 const htmlPrefix = "cvk-html-v1:";
 const htmlFileIds = (value: string) => [...value.matchAll(/\/api\/files\?id=([0-9a-zA-Z-]{8,100})/g)].map((m) => m[1]);
 const escape = (id: string) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -5,7 +5,8 @@ export const dynamic='force-dynamic';
 export async function GET(req:Request){try{
  const a=await actor(),q=new URL(req.url).searchParams;
  const rawPage=q.get('page');if(rawPage!==null&&!/^(0|[1-9]\d?)$/.test(rawPage))throw new HttpError(400,'Ungültige Handoutseite.');
- const asset=await stageAsset(a,q.get('sessionId')||'',q.get('objectId')||'',q.get('catalogId')||undefined,rawPage===null?undefined:Number(rawPage));
+ const rawState=q.get('state');if(rawState!==null&&!/^[a-z0-9-]{1,30}$/.test(rawState))throw new HttpError(400,'Ungültiger Darstellungszustand.');
+ const asset=await stageAsset(a,q.get('sessionId')||'',q.get('objectId')||'',q.get('catalogId')||undefined,rawPage===null?undefined:Number(rawPage),{state:rawState??undefined,sound:q.get('sound')==='1'});
  if(asset.pages)return json({title:asset.title,pages:asset.pages,...(asset.text?{caption:asset.text}:{})});
  if(asset.text!==undefined)return json({title:asset.title,content:asset.text});
  if(asset.path){if(!('ASSETS' in env)||!env.ASSETS||typeof env.ASSETS!=='object'||!('fetch' in env.ASSETS)||typeof env.ASSETS.fetch!=='function')throw new HttpError(503,'Bildspeicher nicht erreichbar.');const result:Response=await env.ASSETS.fetch(new Request(new URL(asset.path,req.url)));const mime=result.headers.get('content-type')||'';if(!result.ok||!mime.startsWith('image/'))throw new HttpError(404,'Bild nicht verfügbar.');return new Response(result.body,{status:result.status,headers:{'Content-Type':mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"}});}

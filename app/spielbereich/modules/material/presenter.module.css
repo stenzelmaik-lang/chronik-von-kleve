@@ -1,0 +1,96 @@
+/* Personal material viewer – same look as the table reader (stage.module.css .reader). */
+.presenter{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(1200px,94vw);height:min(940px,92dvh);max-width:94vw;max-height:92dvh;padding:0;border:1px solid #b49c6a;border-radius:10px;background:#10191d;color:#eee8dc;overflow:hidden;--line:#ffffff1f}
+.presenter::backdrop{background:#060b10d9}
+.presenter[open]{display:flex;flex-direction:column}
+.presenter>header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.presenter>header small{display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#b7bdb6;letter-spacing:.1em;text-transform:uppercase}
+.presenter>header h2{font:22px Georgia,serif;margin:4px 0 0;min-width:0;overflow-wrap:anywhere}
+.tools{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.tools button,.pager button{width:42px;height:42px;border:1px solid var(--line);border-radius:5px;background:#182125;color:#e7dac1;display:grid;place-items:center;cursor:pointer}
+.tools button[aria-pressed=false]{color:#8b918a}
+.tools span{min-width:44px;text-align:center;font-size:12px}
+.tools svg,.pager svg{width:18px;height:18px}
+.notice{margin:0;padding:8px 18px;background:#3b2f1c;color:#f2dcae;font-size:13px}
+.stage{position:relative;flex:1;min-height:0;overflow:auto;overflow-x:hidden;perspective:1600px;display:flex;flex-direction:column;align-items:center;padding:26px}
+.coverLayer{position:relative;width:min(520px,80%);aspect-ratio:4/3;margin:auto;transform-style:preserve-3d}
+.closedImage,.openImage{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;backface-visibility:hidden}
+.openImage{opacity:0}
+.openButton{position:absolute;left:50%;bottom:28px;translate:-50% 0;display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border:1px solid #d6b36f;border-radius:999px;background:#1d2a2e;color:#f4e6c6;font:600 15px system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 22px #0008}
+.openButton:focus-visible,.tools button:focus-visible,.pager button:focus-visible{outline:2px solid #d6b36f;outline-offset:3px}
+.content{width:100%;display:flex;flex-direction:column;align-items:center;gap:22px}
+.caption{width:min(680px,100%);padding:2.4em 2.8em;background:#e4ddcc;color:#252923;box-shadow:0 14px 30px #0006;line-height:1.75;font-family:Georgia,serif}
+.book{display:flex;justify-content:center;gap:4px;transform-origin:left center}
+.book figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.book img{display:block;height:auto;box-shadow:0 14px 30px #0007;background:#e4ddcc}
+.book figcaption,.stackCard figcaption,.grid small{font:italic 14px Georgia,serif;color:#cfc6b4;text-align:center}
+.book[data-display=book] figure img{box-shadow:inset 18px 0 24px -18px #0009,0 14px 30px #0007}
+.book[data-display=spread] figure:first-child img{box-shadow:inset -22px 0 26px -20px #0009,0 14px 30px #0007}
+.stack{position:relative;display:grid;place-items:center;min-height:min(70vh,640px);width:100%}
+.stackCard{grid-area:1/1;margin:0;box-sizing:border-box;max-width:calc(100% - 48px);padding:12px 12px 6px;background:#f1ece0;box-shadow:6px 12px 24px #0008;rotate:calc(var(--d) * 3deg - 2deg);translate:calc(var(--d) * 14px) calc(var(--d) * 10px);transition:rotate .35s ease,translate .35s ease}
+.stackCard[data-top=true]{rotate:0deg;translate:0 0;z-index:5}
+.stackCard img{display:block;width:auto;max-width:100%;height:auto}
+.stackCard figcaption{color:#2f2b25;min-height:22px}
+.grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px;width:100%}
+.grid li{display:flex;flex-direction:column;gap:6px}
+.grid button{padding:8px 8px 4px;border:0;background:#f1ece0;box-shadow:4px 8px 18px #0007;cursor:zoom-in;rotate:calc((var(--i) - 2) * .8deg)}
+.grid button[aria-pressed=true]{outline:3px solid #d6b36f}
+.grid img{display:block;width:100%;aspect-ratio:3/4;object-fit:cover}
+.device{width:min(560px,92%);aspect-ratio:16/10;margin:auto}
+.device[data-video]{width:min(860px,96%)}
+.pager{display:flex;align-items:center;justify-content:center;gap:16px;padding:10px;border-top:1px solid var(--line)}
+.pager span{font-size:13px;min-width:120px;text-align:center}
+.pager button:disabled{opacity:.4;cursor:default}
+
+/* Cover (table token, cards, closed state) */
+.cover{position:relative;display:block;width:100%;height:100%;overflow:hidden}
+.cover>img{width:100%;height:100%;object-fit:contain;display:block}
+.photoCover{padding:7% 7% 18%;background:#f1ece0;box-shadow:4px 8px 18px #0007}
+.photoCover>img:first-child{object-fit:cover;filter:sepia(.12) contrast(1.04)}
+.photoCover[data-framed=true]{padding:12%;background:transparent;box-shadow:none}
+.frame{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.fallback{display:grid;place-content:center;justify-items:center;gap:6px;color:#4a3d2b;background:linear-gradient(160deg,#e9dfc6,#cbbd9b);box-shadow:4px 8px 18px #0007;border-radius:3px}
+.fallback small{font:600 11px system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase}
+.fallback[data-type=letter]{background:linear-gradient(160deg,#efe6cf,#d8c8a3);clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}
+.fallback[data-type=letter]::before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom right,transparent 49.5%,#0000001a 50%,transparent 51%),linear-gradient(to bottom left,transparent 49.5%,#0000001a 50%,transparent 51%);background-size:100% 60%;background-repeat:no-repeat}
+.fallback[data-type=dossier]{background:linear-gradient(170deg,#c9a46a,#9d7a45);color:#2d2112}
+.fallback[data-type=audio],.fallback[data-type=video]{background:linear-gradient(160deg,#3a3430,#1f1c1a);color:#eee3cf}
+.count{position:absolute;right:6px;top:6px;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:999px;background:#10191de0;color:#f1e3c4;font:600 11px system-ui,sans-serif}
+
+/* Effects – the duration comes from --dur / --close (speed already applied, 0 with reduced motion). */
+.stage[data-effect=fade] .content,.stage[data-phase=opening] .content{animation:fadeIn var(--dur) ease both}
+.stage[data-phase=opening][data-effect=unfold] .closedImage{animation:flapUp var(--dur) ease-in forwards;transform-origin:50% 0}
+.stage[data-phase=opening][data-effect=unfold] .openImage,.stage[data-phase=opening][data-effect=unseal] .openImage{animation:fadeIn calc(var(--dur) * .5) ease calc(var(--dur) * .35) forwards}
+.stage[data-phase=opening][data-effect=open-book] .closedImage{animation:bookOpen var(--dur) ease-in-out forwards;transform-origin:0 50%}
+.stage[data-phase=opening][data-effect=unseal] .closedImage{animation:sealBreak var(--dur) ease-in forwards}
+.stage[data-phase=opening][data-effect=slide-out] .closedImage{animation:sinkAway var(--dur) ease-in forwards}
+.stage[data-phase=opening][data-effect=slide-out] .content{animation:slideOut var(--dur) cubic-bezier(.2,.8,.3,1) both}
+.stage[data-phase=opening][data-effect=fan] .content{animation:none}
+.stage[data-effect=fan] .stackCard,.stage[data-effect=fan] .grid li,.stage[data-effect=fan] .book figure{animation:fanOut var(--dur) cubic-bezier(.2,.8,.3,1) both;animation-delay:calc(var(--i,0) * 60ms)}
+.stage[data-effect=lay-out] .grid li,.stage[data-effect=lay-out] .stackCard,.stage[data-effect=lay-out] .book figure{animation:layOut var(--dur) cubic-bezier(.2,.8,.3,1) both;animation-delay:calc(var(--i,0) * 110ms)}
+.stage[data-effect=page-turn] .book[data-turn=true],.stage[data-phase=opening][data-effect=page-turn] .book{animation:pageTurn var(--dur) ease-out both}
+.stage[data-phase=opening] .coverLayer{position:absolute;left:50%;top:26px;translate:-50% 0;z-index:2;pointer-events:none}
+.stage[data-phase=closing] .content{animation:fadeOut var(--close) ease forwards}
+.stage[data-phase=closing][data-effect=close-close] .content{animation:shrinkIn var(--close) ease-in forwards}
+.stage[data-phase=closing] .coverLayer{position:absolute;left:50%;top:26px;translate:-50% 0;z-index:2;animation:fadeIn var(--close) ease both}
+.stage[data-phase=closing][data-effect=close-instant] .content,.stage[data-phase=closing][data-effect=close-instant] .coverLayer{animation:none}
+@keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+@keyframes fadeOut{to{opacity:0;transform:scale(.97)}}
+@keyframes shrinkIn{to{opacity:0;transform:scale(.4) translateY(30%)}}
+@keyframes flapUp{0%{transform:rotateX(0)}60%{transform:rotateX(-110deg);opacity:1}100%{transform:rotateX(-180deg);opacity:0}}
+@keyframes bookOpen{0%{transform:rotateY(0)}70%{opacity:1}100%{transform:rotateY(-165deg);opacity:0}}
+@keyframes sealBreak{0%{transform:none}12%{transform:rotate(-2deg) scale(1.02)}24%{transform:rotate(2deg) scale(1.03)}36%{transform:rotate(-1deg) scale(1.04);filter:brightness(1.15)}100%{transform:scale(1.25);opacity:0;filter:blur(3px)}}
+@keyframes sinkAway{0%,40%{transform:none;opacity:1}100%{transform:translateY(40%);opacity:0}}
+@keyframes slideOut{0%{transform:translateY(55%) scale(.85);opacity:0}35%{opacity:1}100%{transform:none;opacity:1}}
+@keyframes fanOut{from{transform:rotate(-14deg) translateY(30px);opacity:0}to{transform:none;opacity:1}}
+@keyframes layOut{from{transform:translate(-30%,-40%) rotate(-12deg) scale(.7);opacity:0}to{transform:none;opacity:1}}
+@keyframes pageTurn{from{transform:rotateY(70deg);opacity:.2}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.stage *,.stackCard{animation:none!important;transition:none!important}}
+@media(max-width:650px){
+ .presenter>header{flex-wrap:wrap;gap:10px;padding:12px}
+ .presenter>header>div:first-child{flex-basis:100%}
+ .tools{margin-left:auto;flex-wrap:wrap}
+ .stage{padding:12px}
+ .caption{padding:1.4em 1.2em}
+ .coverLayer{width:92%}
+ .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+}

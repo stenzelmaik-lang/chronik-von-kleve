@@ -20,14 +20,15 @@ export function Polaroid({id,title,src,onOpen,drag}:{id:string;title:string;src:
 function time(s:number){if(!Number.isFinite(s))return '0:00';const m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}
 
 /** Cassette recorder. Playback, volume and mute stay local to each viewer; nothing autoplays. */
-export function CassettePlayer({title,src,drag}:{title:string;src:string;drag:Drag}){
+export function CassettePlayer({title,src,drag,skin,initialVolume=.8,onVolume}:{title:string;src:string;drag:Drag;skin?:string;initialVolume?:number;onVolume?:(volume:number)=>void}){
  const audio=useRef<HTMLAudioElement>(null);
- const [playing,setPlaying]=useState(false),[progress,setProgress]=useState({at:0,length:0}),[volume,setVolume]=useState(.8),[muted,setMuted]=useState(false),[blocked,setBlocked]=useState('');
+ const [playing,setPlaying]=useState(false),[progress,setProgress]=useState({at:0,length:0}),[volume,setVolume]=useState(initialVolume),[muted,setMuted]=useState(false),[blocked,setBlocked]=useState('');
  useEffect(()=>{const el=audio.current;if(el){el.volume=volume;el.muted=muted;}},[volume,muted]);
  useEffect(()=>{const el=audio.current;return()=>el?.pause();},[]);
  async function play(){const el=audio.current;if(!el)return;try{await el.play();setBlocked('');}catch{setBlocked('Der Browser hat die Wiedergabe blockiert. Bitte erneut auf Abspielen tippen.');}}
  const stop=(e:PE<HTMLElement>)=>e.stopPropagation();
- return <div className={styles.cassette} {...drag}>
+ // An optional device asset (Spielmaterial 3.0) replaces the drawn cassette body; the controls stay the same.
+ return <div className={styles.cassette} data-skin={!!skin} style={skin?{backgroundImage:'url("'+skin+'")'}:undefined} {...drag}>
   <audio ref={audio} src={src} preload="none" onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onEnded={()=>setPlaying(false)} onTimeUpdate={e=>setProgress({at:e.currentTarget.currentTime,length:e.currentTarget.duration})} onLoadedMetadata={e=>setProgress({at:e.currentTarget.currentTime,length:e.currentTarget.duration})}/>
   <div className={styles.tape} data-playing={playing} aria-hidden="true"><span/><span/></div>
   <strong className={styles.label}>{title}</strong>
@@ -37,30 +38,30 @@ export function CassettePlayer({title,src,drag}:{title:string;src:string;drag:Dr
    {playing?<button type="button" aria-label="Pause" onClick={()=>audio.current?.pause()}><Pause/></button>:<button type="button" aria-label="Abspielen" onClick={()=>void play()}><Play/></button>}
    <button type="button" aria-label="Von vorn abspielen" onClick={()=>{if(audio.current){audio.current.currentTime=0;void play();}}}><RotateCcw/></button>
    <button type="button" aria-label={muted?'Ton einschalten':'Stummschalten'} aria-pressed={muted} onClick={()=>setMuted(m=>!m)}>{muted?<VolumeX/>:<Volume2/>}</button>
-   <input type="range" aria-label="Eigene Lautstärke" min={0} max={1} step={.05} value={volume} onChange={e=>setVolume(Number(e.target.value))}/>
+   <input type="range" aria-label="Eigene Lautstärke" min={0} max={1} step={.05} value={volume} onChange={e=>{const v=Number(e.target.value);setVolume(v);onVolume?.(v);}}/>
   </div>
   {blocked&&<p role="status" className={styles.blocked}>{blocked}</p>}
  </div>;
 }
 
-type Layer={id:string;key:string;src:string;title:string;leaving:boolean};
+type Layer={id:string;key:string;src:string;title:string;leaving:boolean;transition?:string};
 /** Scene backdrop with a slow crossfade: the new place fades in over the old one, which then fades out. */
-export function StageBackdrop({image,className}:{image:{key:string;src:string;title:string}|null;className:string}){
+export function StageBackdrop({image,className}:{image:{key:string;src:string;title:string;transition?:string}|null;className:string}){
  const [layers,setLayers]=useState<Layer[]>(()=>image?[{...image,id:crypto.randomUUID(),leaving:false}]:[]);
  const current=image?.key||'';
  useEffect(()=>{queueMicrotask(()=>setLayers(old=>{
   if((old.findLast(l=>!l.leaving)?.key||'')===current)return old;
   return [...old.map(l=>({...l,leaving:true})),...(image?[{...image,id:crypto.randomUUID(),leaving:false}]:[])];
  }));},[current,image]);
- useEffect(()=>{if(!layers.some(l=>l.leaving))return;const t=window.setTimeout(()=>setLayers(old=>old.filter(l=>!l.leaving)),1500);return()=>window.clearTimeout(t);},[layers]);
- return <>{layers.map(l=><img key={l.id} className={className} data-leaving={l.leaving} src={l.src} alt={l.leaving?'':'Schauplatz: '+l.title} decoding="async"/>)}</>;
+ useEffect(()=>{if(!layers.some(l=>l.leaving))return;const slow=layers.some(l=>l.transition==='slow');const t=window.setTimeout(()=>setLayers(old=>old.filter(l=>!l.leaving)),slow?3300:1500);return()=>window.clearTimeout(t);},[layers]);
+ return <>{layers.map(l=><img key={l.id} className={className} data-leaving={l.leaving} data-transition={l.transition||'fade'} src={l.src} alt={l.leaving?'':'Schauplatz: '+l.title} decoding="async"/>)}</>;
 }
 
 /** Old CRT-style screen around the native video player. */
-export function RetroScreen({title,src,onEnlarge,drag}:{title:string;src:string;onEnlarge:()=>void;drag:Drag}){
+export function RetroScreen({title,src,onEnlarge,drag,skin}:{title:string;src:string;onEnlarge:()=>void;drag:Drag;skin?:string}){
  const video=useRef<HTMLVideoElement>(null);
  useEffect(()=>{const el=video.current;return()=>el?.pause();},[]);
- return <div className={styles.screen} {...drag}>
+ return <div className={styles.screen} data-skin={!!skin} style={skin?{backgroundImage:'url("'+skin+'")'}:undefined} {...drag}>
   <div className={styles.glass} onPointerDown={e=>e.stopPropagation()}><video ref={video} src={src} preload="none" controls playsInline aria-label={title}/></div>
   <div className={styles.panel}><strong>{title}</strong><button type="button" aria-label={title+' vergrößern'} onPointerDown={e=>e.stopPropagation()} onClick={()=>{video.current?.pause();onEnlarge();}}><Expand/></button></div>
  </div>;

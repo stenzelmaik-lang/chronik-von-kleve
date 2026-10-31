@@ -1,5 +1,6 @@
 import { scenePreparation } from '@/domain/session-overview';
 import { validatePreparationMedia, withoutDeletedFiles } from './preparation-media';
+import { validateSceneMaterials } from './display-assets';
 import { richTextToPlainText } from '@/domain/location-rich-text';
 import type { Actor, Entity } from '@/domain/types';
 import { sceneDocumentSchema, sceneStateSchema, targetKey, participantMatches, type SceneCommand, type SceneDocument, type SceneView, type SceneState, type SceneSummary, type SceneHistory, type SceneTarget, type PlayerScene } from '@/domain/story-scene';
@@ -54,7 +55,8 @@ async function validateDocument(db: D1Database, a: Actor, d: SceneDocument, scen
     // Prepared pager messages address players of the campaign; the live evening checks again that they take part.
     if(pagerRecipientIds.some(id=>!recipients.results.some(member=>member.id===id)))throw new HttpError(400,'Wähle aktive Spieler dieser Kampagne als Pager-Empfänger.');
   }
-  if(d.elements.some(e=>e.fileId&&!['image','audio','video','handout'].includes(e.kind)))throw new HttpError(400,'Dieser Elementtyp unterstützt keine Datei.');
+  if(d.elements.some(e=>e.fileId&&!['image','audio','video','handout'].includes(e.kind)&&!(e.material&&e.kind==='object')))throw new HttpError(400,'Dieser Elementtyp unterstützt keine Datei.');
+  await validateSceneMaterials(db,a,d.elements);
 }
 export async function sceneHistory(db: D1Database, a: Actor, id: string): Promise<SceneHistory[]> {
   await readScene(db, a, id);
