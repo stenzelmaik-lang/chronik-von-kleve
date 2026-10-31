@@ -2,16 +2,17 @@
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {useEffect,useRef,useState} from 'react';
 import {Eye,EyeOff,UserPlus,FilePlus2,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw} from 'lucide-react';
+import {PreparedWhisperReleases} from './prepared-whisper-releases';
 import {api} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import type {RegieContext,StageObject} from './types';
 import styles from './regie.module.css';
 
-export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],['dialogue','Dialoge'],['interactions','Interaktionen'],['secrets','Geheimnisse'],['consequences','Folgen'],['notes','SL-Notizen'],['material','Material']] as const;
+export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],['dialogue','Dialoge'],['interactions','Interaktionen'],['whispers','Visionen & Briefe'],['secrets','Geheimnisse'],['consequences','Folgen'],['notes','SL-Notizen'],['material','Material']] as const;
 export type RegieTab=typeof regieTabs[number][0];
 
-type Props={sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
+type Props={deliveryBusy:boolean;crew:import('./types').Snapshot['crew'];onCommand:(body:Record<string,unknown>)=>unknown;sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
  onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string,sourceKind?:'entity'|'record')=>void;
  table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};images:{id:string;title:string}[];
  onPlace:(sourceId:string,sourceKind:'entity'|'file'|'record',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
@@ -40,7 +41,7 @@ export function BackdropChoice({current,sceneImages,images,busy,onChoose}:{curre
  </>;
 }
 
-export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,images,onPlace,onRemove,onBackdrop,onActivate}:Props){
+export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,images,onPlace,onRemove,onBackdrop,onActivate}:Props){
  const [preview,setPreview]=useState<Media|null>(null),previewDialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  // Loaded scenes stay cached for the evening: switching back costs no request.
@@ -75,6 +76,7 @@ export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onS
    {tab==='dialogue'&&<>{context.npcs.map(n=><article key={n.id} className={styles.npc}><img src={n.image} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display='none';}}/><div><h3>{n.title}</h3>{n.summary&&<p>{n.summary}</p>}{n.cue&&<Text value={n.cue} empty=""/>}<button disabled={busy} onClick={()=>onStage('npc',n.id)}><UserPlus/> Privat auf Bühne legen</button></div></article>)}
     <Text value={s.dialogueNotes} empty={context.npcs.length?'Keine zusätzlichen Dialoghilfen.':'Keine NPCs oder Dialoge vorbereitet.'}/></>}
    {tab==='interactions'&&<><Text value={s.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={styles.note}><h3>{n.title}</h3><Text value={n.text} empty=""/></article>)}</>}
+   {tab==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s.id} version={s.version} crew={crew} objects={table.objects} busy={deliveryBusy} onCommand={onCommand}/>}
    {tab==='secrets'&&<><Text value={s.secrets} empty="Keine Geheimnisse hinterlegt."/>{s.visions.trim()&&<><h3>Visionen</h3><Text value={s.visions} empty=""/></>}</>}
    {tab==='consequences'&&<><Text value={s.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s.possibilities.map(p=><article key={p.id} className={styles.note}><h3>{p.title}</h3><p>{p.text}</p></article>)}</>}
    {tab==='notes'&&<Text value={s.gmNotes} empty="Keine SL-Notizen."/>}

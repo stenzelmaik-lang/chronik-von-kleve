@@ -46,7 +46,7 @@ function inlineElements(parts: RichTextInline[], keyPrefix: string, flowing = fa
   });
 }
 
-export function RichTextView({ value, className, readable = false, flowing = false }: { value: string; className?: string; readable?: boolean; flowing?: boolean }) {
+export function RichTextView({ value, className, readable = false, flowing = false, fileUrl }: { value: string; fileUrl?:(id:string)=>string; className?: string; readable?: boolean; flowing?: boolean }) {
   const documentModel = readRichText(value);
   let proseFlow = false;
   if (flowing && value.startsWith(richTextPrefix)) {
@@ -55,9 +55,9 @@ export function RichTextView({ value, className, readable = false, flowing = fal
   }
   return <div data-rich-flow={proseFlow ? "prose" : undefined} className={[styles.content, readable ? styles.view : "", className].filter(Boolean).join(" ")}>
     {documentModel.blocks.map((block, index) => {
-      if(block.type==='details')return <details key={index} className={block.className}><summary>{block.summary}</summary><RichTextView value={encodeRichText(block.content)} readable={readable} flowing={flowing}/></details>;
+      if(block.type==='details')return <details key={index} className={block.className}><summary>{block.summary}</summary><RichTextView value={encodeRichText(block.content)} readable={readable} flowing={flowing} fileUrl={fileUrl}/></details>;
       if(block.type==='divider')return <hr key={index} className={block.className}/>;
-      if(block.type==='image')return <img key={index} src={'/api/files?id='+encodeURIComponent(block.fileId)} alt={block.alt} style={{maxWidth:'100%',height:'auto'}}/>;
+      if(block.type==='image')return <img key={index} src={fileUrl?fileUrl(block.fileId):'/api/files?id='+encodeURIComponent(block.fileId)} alt={block.alt} style={{maxWidth:'100%',height:'auto'}}/>;
       if(block.type==='table')return <div key={index} style={{overflowX:'auto'}}><table className={block.className}><tbody>{block.rows.map((r,ri)=><tr key={ri}>{r.map((c,ci)=>block.header&&ri===0?<th key={ci} scope="col">{inlineElements(c,`t${index}-${ri}-${ci}`,proseFlow)}</th>:<td key={ci}>{inlineElements(c,`t${index}-${ri}-${ci}`,proseFlow)}</td>)}</tr>)}</tbody></table></div>;
       if(block.type==='quote')return <blockquote key={index} className={block.className}>{inlineElements(block.children,`q${index}`,proseFlow)}</blockquote>;
       if (block.type === "bulletList" || block.type === "orderedList") {

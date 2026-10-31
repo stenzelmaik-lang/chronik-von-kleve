@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Existing protected character portraits. */
 "use client";
+import {PreparedWhispers} from './prepared-whispers';
 import {useRef,useState,type ReactNode} from 'react';
 import {Send,Eye,Users,Paperclip,X,UserRound,Check} from 'lucide-react';
 import {PreparationPanel} from './preparation-panel';
@@ -12,7 +13,7 @@ import {PersonalMessageBody} from './personal-message-body';
 import {api} from './api-client';
 import s from './story-workspace.module.css';
 
-export function PreparationWhispers({scene,players,files,onChange,onSave,children}:{scene:SceneDocument;players:PreparationRecipient[];files:PreparationFile[];onChange:(patch:Partial<SceneDocument>)=>void;onSave:()=>Promise<boolean>;children:ReactNode}) {
+function LegacyPreparationWhispers({scene,players,files,onChange,onSave,children}:{scene:SceneDocument;players:PreparationRecipient[];files:PreparationFile[];onChange:(patch:Partial<SceneDocument>)=>void;onSave:()=>Promise<boolean>;children:ReactNode}) {
   const [picking,setPicking]=useState(false),[search,setSearch]=useState(''),[review,setReview]=useState(''),[sent,setSent]=useState(''),[busy,setBusy]=useState(false),[notice,setNotice]=useState('');
   const [importRevision,setImportRevision]=useState(0);
   const command=useRef<{signature:string;id:string}|null>(null);
@@ -60,3 +61,5 @@ export function PreparationWhispers({scene,players,files,onChange,onSave,childre
     </>}
   </section>;
 }
+
+export function PreparationWhispers(p:Parameters<typeof LegacyPreparationWhispers>[0]){return <><PreparedWhispers scene={p.scene} players={p.players} files={p.files} onChange={p.onChange}/>{(p.scene.visions||p.scene.visionFileIds.length||p.scene.visionRecipientIds.length)?<details><summary>Bisherige gemeinsame Vorbereitung</summary><LegacyPreparationWhispers {...p}/></details>:null}</>;}
