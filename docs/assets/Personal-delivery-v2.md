@@ -1,12 +1,12 @@
 # Persönliche Inhalte – Grafikassets v2
 
-Stand: 31.10.2026. Lokale Überarbeitung auf `codex/visionen-botschaften`, Grundlage `e9fd1ec7bf0bb42a605c1cd1a7a8c5796f7d3f8a`. Keine Veröffentlichung.
+Stand: 31.10.2026. Überarbeitung auf `codex/visionen-botschaften`, Funktionsgrundlage `e9fd1ec7bf0bb42a605c1cd1a7a8c5796f7d3f8a`. GitHub-Push ist freigegeben; kein Live-Deployment.
 
 ## Ergebnis
 
 - Geschlossener Brief: echtes Bildasset mit Papierstruktur und rotem Wachssiegel. Titel und Bedienhinweis werden als HTML darübergelegt. Die Ankunftsbewegung führt von rechts auf den Tisch.
 - Geöffneter Brief: strukturiertes Briefpapier als Hintergrund; die Lesefassung erscheint rechts statt mittig.
-- Vision: organischer, transparenter Nebel als Bildasset. Die Lesefläche bleibt oben links und auf den oberen Bühnenbereich begrenzt. Auf Desktop stehen Text und Bild nebeneinander; auf kleinen Bildschirmen scrollen sie innerhalb derselben begrenzten Lesefläche.
+- Vision: organischer, transparenter Nebel als Bildasset. Die Lesefläche bleibt oben links und auf den oberen Bühnenbereich begrenzt. Titel und Text sind im Nebel zentriert; ein optionales Bild steht darunter. Kurze Texte ohne Bild werden auch vertikal zentriert. Lange Inhalte scrollen innerhalb derselben begrenzten Lesefläche.
 - Geöffnete Lesefassungen verwenden nichtmodale Dialoge. Der übrige Spieltisch bleibt bedienbar, Escape schließt die fokussierte Lesefassung. Ein geöffneter modaler Medien-/Dokumentdialog behält seine bisherige Tastaturbehandlung.
 - Freigaben, adressierte Inhalte, serverseitiger Dateischutz, persönliche Schließzustände sowie vorhandenes Verschieben und Skalieren der Bühnenobjekte bleiben erhalten.
 - Beim Lesen wird die eigene darunterliegende Kachel nur vorübergehend ausgeblendet. Nach dem Schließen ist sie wieder an ihrer gespeicherten Position sichtbar. Die Druckanzeige macht während der Lesefassung Platz.
@@ -62,9 +62,11 @@ Für die QA: `CVK_TEST_URL=http://127.0.0.1:8891` setzen, dann die vorhandene `s
 | Tatsächlich geladene Assets, Bildwechsel, Tastatur, Reconnect, reduzierte Bewegung | bestanden |
 | Mehrfacher schneller Wechsel zwischen Vision und Brief | bestanden |
 | Vorbereitungseditor: mehrere Einträge, speichern, neuladen, gezielt ausspielen | bestanden |
+| Zentrierung mit und ohne Bild; langer Visionstext scrollbar | bestanden |
+| Vorbereitungseditor: Empfänger, Sortieren und bestätigtes Löschen | bestanden |
 
 Der schnelle Ansichtswechsel hatte zunächst ein Problem durch das verspätete native `close`-Ereignis: Es konnte eine inzwischen neu geöffnete Lesefassung wieder schließen. Dieses redundante Ereignis setzt nun keinen neueren Darstellungszustand mehr zurück; der Browserlauf prüft mehrfaches unmittelbares Schließen und Wiederöffnen.
 
 Aktuelle Screenshots und Prüfprotokolle liegen unter `.local-work/whispers/browser/` bzw. `.local-work/whispers/`, außerhalb der Versionierung. Der bestehende Abnahmeserver **8890** wurde mit demselben Build und seinem erhaltenen Speicher wieder gestartet. Für die neue Darstellung die bereits geöffnete Seite neu laden.
 
-Persönliche UX-Abnahme und eine spätere Live-Freigabe sind nicht Bestandteil dieser Grafiküberarbeitung.
+Der Projektinhaber hat die Grafik positiv bewertet und die abschließende Textzentrierung mit anschließendem GitHub-Push beauftragt. Die Korrektur ist mit aktuellem `main` aus PR #51 (`4f3964ffdee057ce75617990adc4f862c45ade45`) abgeglichen; dessen Dokument- und Pager-Anpassungen bleiben erhalten. Alle oben genannten Prüfungen wurden auf diesem gemeinsamen Stand erfolgreich ausgeführt. Eine Live-Veröffentlichung wurde nicht ausgeführt.

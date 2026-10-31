@@ -55,10 +55,14 @@ try{
 
  await preparation.getByRole('button',{name:'Vision vorbereiten',exact:true}).click();
  await preparation.getByLabel('Titel',{exact:true}).fill('Zweite Vision für Spieler B');
- await preparation.locator('[contenteditable=true]').fill('Eine weitere unabhängig vorbereitete Vision.');
+ const longVision='Eine weitere unabhängig vorbereitete Vision. '.repeat(100);await preparation.locator('[contenteditable=true]').fill(longVision);
  const boxes=preparation.getByRole('checkbox');assert.ok(await boxes.count()>=2);await boxes.nth(1).check();
  await preparation.getByRole('button',{name:'Botschaft vorbereiten',exact:true}).click();
  await preparation.getByLabel('Titel',{exact:true}).fill('Zweiter Brief für Spieler A');await preparation.locator('[contenteditable=true]').fill('Ein zweiter persönlicher Brief.');await preparation.getByRole('checkbox').nth(0).check();
+ await preparation.getByRole('button',{name:'Vision vorbereiten',exact:true}).click();
+ await preparation.getByRole('button',{name:'Eintrag l\u00f6schen',exact:true}).click();
+ await preparation.getByRole('group',{name:'Eintrag l\u00f6schen best\u00e4tigen',exact:true}).getByRole('button',{name:'Eintrag l\u00f6schen',exact:true}).click();
+ await preparation.getByRole('button',{name:'Zweiter Brief f\u00fcr Spieler A nach oben',exact:true}).click();
  assert.equal(await preparation.getByRole('list',{name:'Vorbereitete persönliche Inhalte'}).getByRole('listitem').count(),5);
  await Promise.all([gm.waitForResponse(r=>r.url().includes('/api/command-center/scenes')&&r.request().method()==='POST'&&r.status()===200),gm.getByRole('button',{name:'Jetzt speichern',exact:true}).click()]);
  const saved=await cg.request.get(base+'/api/command-center/scenes?id='+f.sceneId);assert.equal((await saved.json()).scene.document.whispers.length,5);
@@ -73,6 +77,7 @@ try{
  await b.keyboard.press('Escape');
  const preparedVision=releases.getByRole('article').filter({has:gm.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true})});
  await preparedVision.getByRole('button',{name:'Vision ausspielen',exact:true}).click();await b.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true}).waitFor();
+ const longBody=b.locator('dialog[open] article');assert.ok(await longBody.evaluate(el=>el.scrollHeight>el.clientHeight),'long centered visions remain scrollable');await longBody.evaluate(el=>{el.scrollTop=el.scrollHeight;});assert.ok(await longBody.evaluate(el=>el.scrollTop>0));
  assert.equal(await a.getByText('Eine weitere unabhängig vorbereitete Vision.',{exact:true}).count(),0);
  const preparedLetter=releases.getByRole('article').filter({has:gm.getByRole('heading',{name:'Zweiter Brief für Spieler A',exact:true})});
  await preparedLetter.getByRole('button',{name:'Brief zustellen',exact:true}).click();await a.keyboard.press('Escape');

@@ -1,8 +1,17 @@
 # Visionen und persönliche Botschaften – lokale Umsetzung
 
-Stand: 31.10.2026. Zur persönlichen UX-Abnahme; kein Push, Merge oder Deployment.
+Stand: 31.10.2026. Technisch geprüft und zum GitHub-Push freigegeben; kein Merge nach `main` oder Live-Deployment ausgeführt.
 
 **Grafische Weiterentwicklung v2:** Echte Brief-/Nebelassets, Vision oben links, Brief rechts und nichtmodale Leseflächen sind im [Asset- und Prüfbericht](assets/Personal-delivery-v2.md) dokumentiert. Aktueller Standardtest: **230/230 grün**. Die nachstehenden Angaben beschreiben die ursprüngliche Funktionsgrundlage mit ihrem damaligen Teststand.
+
+## Abschlussprüfung für den GitHub-Stand
+
+- Titel und Text sind innerhalb des Nebelassets zentriert, mit und ohne Bild. Bilder erscheinen darunter; lange Visionen bleiben scrollbar.
+- CMS für Schritt 6 geprüft: mehrere unabhängige Visionen und Briefe, unterschiedliche Empfänger, Sortieren, bestätigtes Löschen, Speichern, erneutes Öffnen und gezieltes Ausspielen.
+- Aktuelles `main` aus PR #51 (`4f3964ffdee057ce75617990adc4f862c45ade45`) integriert, einschließlich der vorhandenen Dokument- und Pager-Korrekturen.
+- Erneut bestanden: **230/230 Standardtests**, Typecheck, gezielter ESLint, Produktionsbuild, HTTP-Rollenintegration und vollständiger Browserlauf auf Desktop und Mobilgeräten.
+- Automatische Browserprüfungen sichern zusätzlich die tatsächliche Zentrierung, Bildwechsel, Tastaturbedienung, Reconnect, reduzierte Bewegung und den langen CMS-Text ab.
+- Prüfungen liefen auf Port 8891 mit getrenntem synthetischem Speicher. Der bestehende lokale Teststand für Port 8890 bleibt erhalten. Keine Produktionsdaten oder echten Spielerkonten verwendet.
 
 ## Lokaler Einstieg
 
@@ -98,6 +107,6 @@ node tests/scene-whispers-browser.mjs
 
 Für den Browserlauf muss `CVK_PLAYWRIGHT_MODULE` auf eine vorhandene Playwright-Installation zeigen. Es wurde keine neue Anwendungsabhängigkeit hinzugefügt. Lokale Logs, Screenshots und die synthetischen Fixture-IDs liegen unter `.local-work/whispers/`, außerhalb der Versionierung.
 
-## Persönliche Abnahme offen
+## Abnahme und Veröffentlichungsgrenze
 
-Die technische lokale Prüfung ist abgeschlossen. Die genaue Wirkung von Nebel, Bildübergang und Briefankunft braucht noch die persönliche UX-Abnahme des Projektinhabers. Es wurde keine Produktionsmigration erstellt, kein Live-System verändert und kein echter Spieler-, Charakter- oder Kampagnenbestand übernommen.
+Die technische lokale Prüfung einschließlich der gewünschten Textzentrierung ist abgeschlossen. Der Projektinhaber hat die Grafik positiv bewertet und den GitHub-Push nach Abschluss von Textkorrektur und CMS-Prüfung freigegeben. Es wurde keine Produktionsmigration erstellt, kein Live-System verändert und kein echter Spieler-, Charakter- oder Kampagnenbestand übernommen. Der Branch wird zur überprüfbaren Integration bereitgestellt; eine Live-Veröffentlichung ist ein eigener Schritt.
