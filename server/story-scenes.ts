@@ -1,5 +1,5 @@
 import { scenePreparation } from '@/domain/session-overview';
-import { validatePreparationMedia } from './preparation-media';
+import { validatePreparationMedia, withoutDeletedFiles } from './preparation-media';
 import { richTextToPlainText } from '@/domain/location-rich-text';
 import type { Actor, Entity } from '@/domain/types';
 import { sceneDocumentSchema, sceneStateSchema, targetKey, participantMatches, type SceneCommand, type SceneDocument, type SceneView, type SceneState, type SceneSummary, type SceneHistory, type SceneTarget, type PlayerScene } from '@/domain/story-scene';
@@ -75,7 +75,7 @@ export async function executeScene(db: D1Database, a: Actor, command: SceneComma
   const now = new Date().toISOString();
   let grant: { target: SceneTarget; state: 'DISCOVERED' | 'UNKNOWN' } | undefined;
   if(command.action==='restore'){
-    const historic=(await sceneHistory(db,a,id)).find(h=>h.id===command.historyId);if(!historic)throw new HttpError(404,'Historischer Stand nicht verfügbar.');document=historic.document;
+    const historic=(await sceneHistory(db,a,id)).find(h=>h.id===command.historyId);if(!historic)throw new HttpError(404,'Historischer Stand nicht verfügbar.');document=await withoutDeletedFiles(db,a.campaignId,historic.document);
     // Restore preparation only; do not restore historic runs or audience releases.
   }
   if (create || command.action === 'save' || command.action==='restore') await validateDocument(db, a, document,id);

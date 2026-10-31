@@ -3,6 +3,7 @@ import { actor, database, gmOnly, input, sameOrigin, json, failure, HttpError } 
 import { storyDocumentSchema } from '@/domain/command-workspace';
 import { listStories, readStory, storyHistory, writeStory } from '@/server/command-workspace';
 import { deletePreparation, deletePreparationCommand } from '@/server/preparation-delete';
+import { withoutDeletedFiles } from '@/server/preparation-media';
 export const dynamic = 'force-dynamic';
 const actionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('create'), clientRequestId: z.string().uuid(), document: storyDocumentSchema }).strict(),
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     if (body?.action === 'delete') { const p = deletePreparationCommand.safeParse(body); if (!p.success) throw new HttpError(400, p.error.issues[0].message); return json({ deleted: await deletePreparation(db, a, 'story', p.data.id, p.data.version) }); }
     const p = actionSchema.safeParse(body); if (!p.success) throw new HttpError(400, p.error.issues[0].message); const d = p.data;
     if (d.action === 'create') return json({ story: await writeStory(db, a, { id: 'plot-' + d.clientRequestId, version: 0, document: d.document, create: true }) }, 201);
-    if (d.action === 'restore') { const historic = (await storyHistory(db, a, d.id)).find(h => h.id === d.historyId); if (!historic) throw new HttpError(404, 'Historischer Stand nicht verfügbar.'); return json({ story: await writeStory(db, a, { id: d.id, version: d.version, document: historic.document, restored: true }) }); }
+    if (d.action === 'restore') { const historic = (await storyHistory(db, a, d.id)).find(h => h.id === d.historyId); if (!historic) throw new HttpError(404, 'Historischer Stand nicht verfügbar.'); return json({ story: await writeStory(db, a, { id: d.id, version: d.version, document: await withoutDeletedFiles(db, a.campaignId, historic.document), restored: true }) }); }
     return json({ story: await writeStory(db, a, d) });
   } catch (e) { return failure(e, req); }
 }

@@ -278,7 +278,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
       :<>{missing>0&&<p className={regieStyles.empty} role="note">{missing===1?'Ein vorgesehener Empfänger ist':missing+' vorgesehene Empfänger sind'} nicht in dieser Runde.</p>}
        <AudiencePicker value={target} onChange={setAudience('pager:'+p.id)} crew={crew} label={p.title||'Vorbereiteter Pager'}/>
        <div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||!ready||invalid(target)} onClick={()=>void playPrepared(p)}><Send/> Ausspielen</button></div></>}
-     </li>;})}</ul>:<p className={regieStyles.empty}>Für diese Szene sind keine Pager vorbereitet. Vorbereiten lassen sie sich im Command Center unter „Spielmaterial vorbereiten“ → „Pager-Nachricht“.</p>}
+     </li>;})}</ul>:<p className={regieStyles.empty}>Für diese Szene sind keine Pager vorbereitet. Vorbereiten lassen sie sich im Command Center unter „Material“ → „Szenenbausteine“ → Szene auswählen → „Pager-Nachricht“.</p>}
     </Block>
     <Block title="Pager · spontan">
      <form className={styles.pager} onSubmit={e=>{e.preventDefault();sendSpontaneous();}}>

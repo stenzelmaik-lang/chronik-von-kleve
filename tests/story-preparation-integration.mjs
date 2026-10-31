@@ -358,13 +358,30 @@ export async function storyPreparationIntegration({
     "P2A rich images require an existing authorized file",
   );
   const uploadBody=new FormData();uploadBody.set('visibility','sl');uploadBody.set('file',new File([Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64'))],'P2A-PRIVATE.png',{type:'image/png'}));
-  const uploaded=await req('/api/files','gm','POST',uploadBody);check(uploaded.s===200,'P2A uploads a protected image through existing R2 API');
+  let uploaded=await req('/api/files','gm','POST',uploadBody);check(uploaded.s===200,'P2A uploads a protected image through existing R2 API');
   const imageSave=await req(root+'/story','gm','POST',{action:'save',id:story.id,version:story.version,document:{...document,sections:{...document.sections,background:'cvk-html-v1:<img src="/api/files?id='+uploaded.d.id+'" alt="P2A PRIVATE IMAGE">'}}});
   check(imageSave.s===200&&imageSave.d.story.sections.background.includes(uploaded.d.id),'P2A existing protected image linked without copying file');
   check((await req('/api/files','a','DELETE',{id:uploaded.d.id})).s===404,'P2A another owner cannot delete private preparation media');
   check((await req('/api/files','gm','DELETE',{id:uploaded.d.id})).s===409,'P2A referenced preparation media cannot be deleted');
+  const inUse=await req('/api/files?usage='+uploaded.d.id,'gm');
+  check(inUse.s===200&&inUse.d.usages.length>0&&inUse.d.usages.every(u=>u.label&&'title' in u),'GALLERY usage lists where a file is still used');
+  check((await req('/api/files?usage='+uploaded.d.id,'a')).s===404,'GALLERY players cannot inspect usage of SL files');
+  check((await req('/api/files','a','PATCH',{id:uploaded.d.id,visibility:'group'})).s===404,'GALLERY players cannot change SL file visibility');
+  check((await req('/api/files','gm','PATCH',{id:uploaded.d.id,visibility:'private'})).s===200,'GALLERY owner may make own file private');
+  check((await req('/api/files','gm','PATCH',{id:uploaded.d.id,visibility:'nonsense'})).s===400,'GALLERY invalid visibility rejected');
+  check((await req('/api/files','gm','PATCH',{id:uploaded.d.id,visibility:'sl'})).s===200,'GALLERY GM restores SL visibility');
   const imageRemoved=await req(root+'/story','gm','POST',{action:'save',id:story.id,version:imageSave.d.story.version,document:{...document,sections:{...document.sections,background:'No current image'}}});check(imageRemoved.s===200,'P2A current image association can be edited');
-  check((await req('/api/files','gm','DELETE',{id:uploaded.d.id})).s===409,'P2A image needed by recoverable history remains protected');
+  // Older versions in the log are history, not a current use: the image can be deleted and restoring that version drops it.
+  const historyOnly=await req('/api/files?usage='+uploaded.d.id,'gm');
+  check(historyOnly.s===200&&historyOnly.d.usages.length===0&&historyOnly.d.history>0,'GALLERY usage separates current uses from history');
+  check((await req('/api/files','gm','DELETE',{id:uploaded.d.id})).s===200,'P2A image only referenced by older story versions can be deleted');
+  const storyHistory=(await req(root+'/story?id='+story.id+'&history=1','gm')).d.history;
+  const withImage=storyHistory.find(h=>JSON.stringify(h.document).includes(uploaded.d.id));
+  const restoredStory=await req(root+'/story','gm','POST',{action:'restore',id:story.id,version:imageRemoved.d.story.version,historyId:withImage.id});
+  check(restoredStory.s===200&&!JSON.stringify(restoredStory.d.story).includes(uploaded.d.id)&&restoredStory.d.story.sections.background!=='No current image','P2A restoring an older version drops the deleted image instead of failing');
+  // The following checks need a still existing SL image.
+  const nextBody=new FormData();nextBody.set('visibility','sl');nextBody.set('file',new File([Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64'))],'P2A-PRIVATE-2.png',{type:'image/png'}));
+  uploaded=await req('/api/files','gm','POST',nextBody);check(uploaded.s===200,'P2A uploads a second protected image');
   const foreign = "p2a-foreign-" + randomUUID();
   localSql(
     `INSERT INTO files(id,campaign_id,owner_id,visibility,name,mime,size,key,created_at) VALUES(${sqlQuote(foreign)},'phase-b-other-campaign','nobody','sl','x.png','image/png',8,'never-uploaded','now')`,
