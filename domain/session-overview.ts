@@ -13,13 +13,14 @@ export function scenePreparation(document: SceneDocument) {
   return {
     narrationExcerpt: richTextToPlainText(document.narration).replace(/\s+/g, " ").trim().slice(0, 280),
     sections: Object.entries(preparationSections).filter(([key]) =>
-      richTextToPlainText(document[key as keyof typeof preparationSections]).trim().length > 0,
+      richTextToPlainText(document[key as keyof typeof preparationSections]).trim().length > 0 || key === 'visions' && !!document.whispers?.length,
     ).map(([key]) => key),
     npcIds: [...document.npcIds],
     clueIds: [...document.clueIds],
     embeddedFileIds: [...new Set([
       ...Object.keys(preparationSections).flatMap(key => richTextFileIds(document[key as keyof typeof preparationSections])),
       ...document.elements.flatMap(element => richTextFileIds(element.text)),
+      ...(document.whispers||[]).flatMap(w => [...w.fileIds,...richTextFileIds(w.text)]),
     ])],
     materials: document.elements.filter(e => e.referenceId || e.fileId).map(e => ({
       id: e.id, title: e.title, kind: e.kind, referenceId: e.referenceId, fileId: e.fileId,

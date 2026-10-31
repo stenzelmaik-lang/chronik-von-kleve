@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
+import {PreparedWhisperReleases} from './prepared-whisper-releases';
 import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
 import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen} from 'lucide-react';
 import type {Actor} from '@/domain/types';
@@ -43,7 +44,7 @@ function Block({title,children,open=true,area}:{title:string;children:ReactNode;
  * Every area of a scene, always reachable from one menu. Text areas replace each other in the reading column;
  * the other areas live in their own columns and are scrolled into view (and opened) on choice.
  */
-const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
+const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
  ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
 type RegieArea=typeof regieAreas[number][0];
 const areaKey=(actorId:string)=>'chroniplay:regie-bereich:'+actorId;
@@ -188,7 +189,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
 
  const s=context?.scene,running=!!s&&snapshot?.stageSceneId===s.id,shared=!!s&&snapshot?.sceneInfo?.id===s.id;
  const filled=(v:string|undefined)=>!!v&&!!v.replace(/<[^>]*>/g,'').trim();
- const areaHasText=(id:RegieArea)=>!s||!context?true:id==='narration'?filled(s.narration):id==='atmosphere'?filled(s.atmosphere):id==='dialogue'?filled(s.dialogueNotes)||context.npcs.some(n=>n.cue.trim()):id==='interactions'?filled(s.interactions)||context.notes.length>0:id==='secrets'?filled(s.secrets)||filled(s.visions):id==='consequences'?filled(s.possibleConsequences)||s.possibilities.length>0:id==='notes'?filled(s.gmNotes):true;
+ const areaHasText=(id:RegieArea)=>!s||!context?true:id==='narration'?filled(s.narration):id==='atmosphere'?filled(s.atmosphere):id==='dialogue'?filled(s.dialogueNotes)||context.npcs.some(n=>n.cue.trim()):id==='interactions'?filled(s.interactions)||context.notes.length>0:id==='whispers'?!!context.whispers?.length:id==='secrets'?filled(s.secrets)||filled(s.visions):id==='consequences'?filled(s.possibleConsequences)||s.possibilities.length>0:id==='notes'?filled(s.gmNotes):true;
 
  const allScenes=[...snapshot?.scenes||[],...snapshot?.moreScenes||[]];
  return <div className={styles.app} data-regie-window="true">
@@ -229,6 +230,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      {textArea==='atmosphere'&&<section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section>}
      {textArea==='dialogue'&&<section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section>}
      {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}</section>}
+     {textArea==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s!.id} version={s!.version} crew={crew} objects={objects} busy={busy} onCommand={body=>run(body,null)}/>}
      {textArea==='secrets'&&<section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section>}
      {textArea==='consequences'&&<section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section>}
      {textArea==='notes'&&<section className={styles.textArea} aria-label="SL-Notizen"><h3>SL-Notizen</h3><Text value={s!.gmNotes} empty="Keine SL-Notizen."/></section>}

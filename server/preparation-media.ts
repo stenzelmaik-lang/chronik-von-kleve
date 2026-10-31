@@ -10,7 +10,7 @@ type Walk = (value: unknown, key: string) => unknown;
 function walk(value: unknown, key: string, visit: Walk): unknown {
   const own = visit(value, key);
   if (own !== value) return own;
-  if (Array.isArray(value)) return key === "visionFileIds" ? visit(value, "visionFileIds") : value.map((v) => walk(v, "", visit));
+  if (Array.isArray(value)) return ["visionFileIds", "fileIds"].includes(key) ? visit(value, key) : value.map((v) => walk(v, "", visit));
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v, k, visit)]));
   return value;
 }
@@ -30,7 +30,7 @@ export async function withoutDeletedFiles<T>(db: D1Database, campaignId: string,
   const candidates = new Set<string>();
   walk(document, "", (value, key) => {
     if (typeof value === "string" && fileKeys.has(key) && value) candidates.add(value);
-    else if (key === "visionFileIds" && Array.isArray(value)) value.forEach((v) => typeof v === "string" && candidates.add(v));
+    else if (["visionFileIds", "fileIds"].includes(key) && Array.isArray(value)) value.forEach((v) => typeof v === "string" && candidates.add(v));
     else if (typeof value === "string" && value.startsWith(richTextPrefix)) richTextFileIds(value).forEach((id) => candidates.add(id));
     else if (typeof value === "string" && value.startsWith(htmlPrefix)) htmlFileIds(value).forEach((id) => candidates.add(id));
     return value;
@@ -46,7 +46,7 @@ export async function withoutDeletedFiles<T>(db: D1Database, campaignId: string,
   if (!missing.size) return document;
   return walk(document, "", (value, key) => {
     if (typeof value === "string" && fileKeys.has(key)) return missing.has(value) ? "" : value;
-    if (key === "visionFileIds" && Array.isArray(value)) return value.filter((v) => !missing.has(v));
+    if (["visionFileIds", "fileIds"].includes(key) && Array.isArray(value)) return value.filter((v) => !missing.has(v));
     if (typeof value === "string" && value.startsWith(richTextPrefix) && richTextFileIds(value).some((id) => missing.has(id))) return encodeRichText(withoutImages(readRichText(value), missing));
     if (typeof value === "string" && value.startsWith(htmlPrefix)) return htmlFileIds(value).filter((id) => missing.has(id)).reduce((html, id) => html.replace(new RegExp("<img\\b[^>]*\\/api\\/files\\?id=" + escape(id) + "\\b[^>]*>", "g"), ""), value);
     return value;

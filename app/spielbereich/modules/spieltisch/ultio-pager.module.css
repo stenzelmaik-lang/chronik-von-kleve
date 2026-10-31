@@ -2,7 +2,7 @@
    centres x 265, 477, 702, 924, 1147 at y 805. The cleared LCD measures x 233-1206, y 314-650 in the artwork (the package's
    233-1176 / 314-633 left a strip of the bare LCD visible). The LCD is live HTML, never part of the image. */
 .srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.pager{position:absolute;right:18px;bottom:84px;z-index:25;display:grid;justify-items:end;pointer-events:none}
+.pager{position:absolute;right:18px;bottom:150px;z-index:25;display:grid;justify-items:end;pointer-events:none}
 .pager>*{pointer-events:auto}
 
 /* Folded: a small pager lies on the table, with the unread badge. */
@@ -79,10 +79,12 @@
 @media(max-height:560px){.window{width:min(520px,calc(100vw - 96px),calc((100dvh - 130px)*1.33))}}
 
 /* GM mirror of sent pagers: a compact read-only strip on the GM's own table. */
-.mirror{position:absolute;right:18px;bottom:84px;z-index:25;display:grid;justify-items:end;pointer-events:none;font:12px/1.35 system-ui,Arial,sans-serif;color:#e2ddd2}
+/* Pager and mirror rest above the round's condition overview in the bottom right corner. */
+.mirror{position:absolute;right:18px;bottom:150px;z-index:25;display:grid;justify-items:end;pointer-events:none;font:12px/1.35 system-ui,Arial,sans-serif;color:#e2ddd2}
 .mirror>*{pointer-events:auto}
-.mirrorChip{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 12px 0 6px;touch-action:none;border:1px solid #9fbf8a66;border-radius:999px;background:#0b0f14d9;color:#dfe9cf;font:700 12px/1 system-ui,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0007}
-.mirrorChip small{font-weight:400;color:#b7c4a8}
+/* Folded GM mirror: the same small device lying on the table as at the players; the badge counts sent messages. */
+.mirrorChip{touch-action:none}
+.mirrorChip .badge[data-sent]{background:#3d5a3a}
 .mirrorPanel{display:grid;gap:8px;width:min(380px,calc(100vw - 96px));max-height:min(620px,calc(100dvh - 160px));overflow:auto;padding:10px;border:1px solid #9fbf8a55;border-radius:10px;background:#0b0f14f0;box-shadow:0 10px 30px #000a;animation:mirrorIn .35s ease-out both}
 .mirrorPanel header{display:flex;align-items:center;gap:7px}.mirrorPanel header small{color:#b7bdb6;font-size:11px}
 .mirrorPanel header button{display:grid;place-items:center;width:30px;height:30px;margin-left:auto;border:1px solid #ffffff26;border-radius:50%;background:transparent;color:inherit;cursor:pointer}
@@ -105,6 +107,12 @@
 .key{cursor:pointer}
 .mirrorDevice{width:100%}
 .mirrorDevice .device{cursor:default;touch-action:auto}
-.mirrorChip img{width:34px;height:auto;rotate:-6deg;filter:drop-shadow(0 2px 3px #000c)}
 .mirrorText{margin:0;color:#e6dfd0;overflow-wrap:anywhere}
+/* GM mirror opened: the same freestanding device as at the players, no window around it. */
+.mirrorFree{position:relative;display:grid;justify-items:center;gap:6px;width:min(380px,calc(100vw - 96px));animation:mirrorIn .35s ease-out both}
+.mirrorFree .mirrorDevice{cursor:grab;touch-action:none}
+.mirrorClose{position:absolute;top:-6px;right:-6px;z-index:2;display:grid;place-items:center;width:28px;height:28px;border:1px solid #ffffff33;border-radius:50%;background:#0b0f14b3;color:#e2ddd2;cursor:pointer;backdrop-filter:blur(3px);box-shadow:0 2px 8px #0006}
+.mirrorClose:hover{background:#1b222ecc}.mirrorClose:focus-visible{outline:3px solid #ebcf96;outline-offset:2px}
+.mirrorStatus{display:inline-flex;align-items:center;gap:5px;margin:0;padding:4px 10px;border-radius:999px;background:#0b0f14b3;color:#d6d0c2;font-size:11px;backdrop-filter:blur(3px);max-width:100%;overflow-wrap:anywhere}
+@media(prefers-reduced-motion:reduce){.mirrorFree{animation:none}}
 .pager,.mirror{-webkit-user-select:none;user-select:none}
