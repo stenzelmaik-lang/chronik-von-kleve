@@ -86,7 +86,8 @@ try{
  await page.getByRole('heading',{name:'Einsatzplan der Szene',exact:true}).waitFor();assert.equal(await page.getByRole('region',{name:'Szenenbausteine',exact:true}).count(),0);
  const stored=(await api('/api/command-center/scenes?id='+sceneId)).body.scene;
  const blocks=[{id:crypto.randomUUID(),kind:'handout',title:'Brief an die Gruppe',text:'cvk-html-v1:<h2>Der Brief</h2><p>PRIVATE_PREPARED_HANDOUT</p>',referenceId:'',fileId:''},{id:crypto.randomUUID(),kind:'image',title:'Szenenfoto',text:'',referenceId:'',fileId:imageId}];
- assert.equal((await api('/api/command-center/scenes',{action:'save',id:sceneId,version:stored.version,document:{...stored.document,elements:[...stored.document.elements,...blocks]}})).status,200);
+ // Keep this journey as a legacy-message compatibility check; the dedicated whispers journey covers new entries.
+ assert.equal((await api('/api/command-center/scenes',{action:'save',id:sceneId,version:stored.version,document:{...stored.document,elements:[...stored.document.elements,...blocks],visions:'cvk-html-v1:<p>PRIVATE_VISION_FOR_LATER</p>'}})).status,200);
  await page.reload();await assertStep('interactions','section');await page.getByRole('heading',{name:'Einsatzplan der Szene',exact:true}).waitFor();
  for(const width of [1920,1440]){await page.setViewportSize({width,height:1000});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
  await page.evaluate(()=>document.documentElement.style.zoom='125%');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.evaluate(()=>document.documentElement.style.zoom='');
@@ -95,6 +96,8 @@ try{
  await page.getByRole('button',{name:'Bereich überspringen',exact:true}).click();await assertStep('secrets','section');
  await source('Geheimnisse','<p>PRIVATE_GUIDE_SECRET</p>');
  await footer().click();await assertStep('visions','section');
+ await page.getByRole('button',{name:'Vision vorbereiten',exact:true}).waitFor();
+ await page.getByText('Bisherige gemeinsame Vorbereitung',{exact:true}).click();
  await source('Visionen & persönliche Botschaften','<p>PRIVATE_VISION_FOR_LATER</p>');
  phase='private message preparation and deliberate delivery';
  assert.equal((await api('/api/messages?sent=1')).body.messages.filter(message=>message.title==='Persönliche Botschaft · SYNTHETISCH – Geführte Kaserne').length,0);
