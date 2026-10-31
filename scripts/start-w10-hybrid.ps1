@@ -16,4 +16,5 @@ Write-Host "W10-Hybrid Phase B: $url/anmelden"
 Write-Host '  SL: command-gm@example.invalid  |  Spieler: command-a@ / command-b@example.invalid (Passwort in scripts/test-local.mjs)'
 Write-Host "  Vorschau: POST $url/api/w10-preview  {characterId, selection:{attributeId, abilityId?}, declared:{baseDifficulty}}"
 Write-Host ("  Abnahme:  `$env:CVK_TEST_URL = '$url'; node --experimental-strip-types tests/w10-hybrid-integration.mjs")
+Write-Host '  Lesbare Vorschau: node --experimental-strip-types scripts/w10-preview-demo.mjs  |  Abnahme: docs/w10-hybrid/PHASE-B-ABNAHME.md'
 node --experimental-strip-types scripts/test-local.mjs --w10-hybrid

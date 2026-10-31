@@ -70,6 +70,7 @@ const BLOCK_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
   DIFFICULTY_ABOVE_10: 'V20 erlaubt nur Schwierigkeiten von 2 bis 10. Mit allen Modifikatoren liegt diese Probe darüber und ist so ungültig. Die SL kann die Probe oder die Umstände ändern; es wird nicht gewürfelt.',
   INCAPACITATED: 'Der Charakter ist außer Gefecht oder nicht handlungsfähig. Es wird nicht gewürfelt.',
   NO_DICE: 'Nach allen Abzügen bleibt kein Würfel übrig. Es wird kein Ersatzwürfel gestellt.',
+  UNTRAINED_KNOWLEDGE: 'Kenntnis ohne Wert: Nach V20 ist diese Probe ohne ausdrücklich begründete Ausnahme nicht möglich. Es wird nicht gewürfelt.',
   CUSTOM_ABILITY_NOT_FOUND: 'Diese eigene Fähigkeit steht nicht im Bogen dieses Charakters.',
   CUSTOM_ABILITY_INACTIVE: 'Diese eigene Fähigkeit ist deaktiviert und kann nicht gewürfelt werden.',
   SPECIALTY_NOT_FOUND: 'Diese Spezialisierung steht nicht im Bogen dieses Charakters.',
@@ -174,7 +175,7 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
         return blocked(error.code, [...provenance, ...detail.modifiers.map(difficultyProvenance)], { message: BLOCK_MESSAGES.DIFFICULTY_ABOVE_10,
           difficulty: Object.freeze({ base: detail.base, modifiers: detail.modifiers, sum: detail.sum, allowed: Object.freeze({ min: 2, max: 10 }) }) });
       }
-      return blocked(error.code, provenance);
+      return blocked(error.code, provenance, BLOCK_MESSAGES[error.code] ? { message: BLOCK_MESSAGES[error.code] } : {});
     }
     throw error;
   }

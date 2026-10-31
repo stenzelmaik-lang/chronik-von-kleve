@@ -52,7 +52,7 @@ test('B04: V20 ability groups — talent free, skill +1 SG, knowledge blocked', 
   assert.equal(skill.difficulty.effective, 7);
   assert.deepEqual(skill.provenance.at(-1), { part: 'difficulty', id: 'untrained_skill', label: 'Fertigkeit ohne Wert', amount: 1, source: 'V20-Grundregel: ungelernte Fertigkeit +1 SG' });
   const knowledge = preview(engineFixture, { attributeId: 'intelligence', abilityId: 'medicine' });
-  assert.equal(knowledge.status, 'blocked'); assert.equal(knowledge.code, 'UNTRAINED_KNOWLEDGE');
+  assert.equal(knowledge.status, 'blocked'); assert.equal(knowledge.code, 'UNTRAINED_KNOWLEDGE'); assert.match(knowledge.message, /Kenntnis ohne Wert/);
   assert.equal(knowledge.provenance.length, 3, 'Blocked previews still show where the values came from');
 });
 
