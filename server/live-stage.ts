@@ -94,8 +94,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   // YouTube music runs for the whole round; every viewer loads the embed only after their own consent.
   // Players get only the play state: current track, playlist ids for looping, play/pause and the base volume.
   youtube:stage.youtube?(()=>{const p=youtubePlaylist(stage.youtube);return {videoId:stage.youtube.videoId,title:stage.youtube.title,key:stage.youtube.key,tracks:p.tracks,index:p.index,playing:p.playing,volume:p.volume,label:p.label};})():null,
-  // Players learn only whether they themselves acknowledged; GMs get recipients and all acknowledgements.
-  pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at,...(p.title?{title:p.title}:{}),...(p.sender?{sender:p.sender}:{}),...(p.priority?{priority:p.priority}:{}),acknowledged:!!p.acks?.some(x=>x.id===a.id)})};
+  // Players learn only whether they themselves read and acknowledged; GMs get recipients, all reads and acknowledgements.
+  pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at,...(p.title?{title:p.title}:{}),...(p.sender?{sender:p.sender}:{}),...(p.priority?{priority:p.priority}:{}),read:!!p.reads?.some(x=>x.id===a.id)||!!p.acks?.some(x=>x.id===a.id),acknowledged:!!p.acks?.some(x=>x.id===a.id)})};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){
  const {row,room}=await stageRoom(a,sessionId),state=storedStage(room);

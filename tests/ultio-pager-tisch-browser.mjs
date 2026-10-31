@@ -2,19 +2,26 @@ import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 // ULTIO pager on the table (live findings): the housing image really renders, the pager can be dragged by its housing
 // (keys stay clickable, the personal position survives a reload and stays in view), and the package sounds play:
-// ping for normal, alarm for urgent, nothing when muted, a blocked sound plays at the first interaction.
+// ping for normal, alarm for urgent, nothing when muted; while the browser blocks sound the pager offers "Ton aktivieren"
+// (a blocked ring is not replayed late).
 // The GM's mirror shows the same housing. 1920, 1440, 125 % and 375 px. Run against the --ultio-pager fixture.
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8881';
 assert.equal(new URL(base).hostname,'127.0.0.1');
-assert.ok(['8874','8875','8881'].includes(new URL(base).port),'Use the isolated synthetic pager fixture only');
+assert.ok(['8874','8875','8881','8884'].includes(new URL(base).port),'Use the isolated synthetic pager fixture only');
 const output='.local-work/ux-check/ultio-pager-tisch';mkdirSync(output,{recursive:true});
 const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',viewport:{width:1440,height:900}},{name:'zoom125',viewport:{width:1536,height:864},deviceScaleFactor:1.25},{name:'375',viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true}];
 const browser=await chromium.launch({headless:true,channel:process.env.CVK_PLAYWRIGHT_CHANNEL||undefined});const errors=[];let phase='setup';
 const pass=label=>console.log('PASS '+label);
-// Records every pager sound the page plays. With __soundBlocked, play() is refused until the first tap (autoplay rule).
+// Records every pager sound the page plays through Web Audio (named by the WAV it was decoded from). With __soundBlocked,
+// the audio context stays suspended until the first tap, like the browsers' autoplay rule.
 const probe=blocked=>{window.__pagerSounds=[];window.__soundBlocked=blocked;window.addEventListener('pointerdown',()=>{window.__soundBlocked=false;},true);
- const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){if(/\/spieltisch\/pager\//.test(this.src)){if(window.__soundBlocked)return Promise.reject(new DOMException('blocked','NotAllowedError'));window.__pagerSounds.push(this.src.split('/').pop());}return play.call(this);};};
+ const names=new WeakMap(),load=window.fetch;
+ window.fetch=function(...args){const url=String(args[0]?.url||args[0]);return load.apply(this,args).then(r=>{if(/\/spieltisch\/pager\/.+\.wav/.test(url)){const read=r.arrayBuffer.bind(r);r.arrayBuffer=()=>read().then(b=>{names.set(b,url.split('/').pop());return b;});}return r;});};
+ const AC=window.AudioContext,decode=AC.prototype.decodeAudioData,state=Object.getOwnPropertyDescriptor(BaseAudioContext.prototype,'state');
+ AC.prototype.decodeAudioData=function(b,...rest){const n=names.get(b);return decode.call(this,b,...rest).then(buf=>{if(n)names.set(buf,n);return buf;});};
+ Object.defineProperty(AC.prototype,'state',{configurable:true,get(){return window.__soundBlocked?'suspended':state.get.call(this);}});
+ const start=AudioBufferSourceNode.prototype.start;AudioBufferSourceNode.prototype.start=function(...rest){const n=this.buffer&&names.get(this.buffer);if(n)window.__pagerSounds.push(n);return start.apply(this,rest);};};
 async function account(id,options,blocked=false){const context=await browser.newContext(options);await context.addInitScript(probe,blocked);const login=await context.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(login.status(),200);return context;}
 const watch=(p,label)=>{p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(phase+' '+label+': '+e.message));return p;};
 async function table(context,label){const p=watch(await context.newPage(),label);await p.goto(base+'/spielbereich?bereich=sitzung');await p.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();return p;}
@@ -45,21 +52,23 @@ try{
   const [gm,a,b]=await Promise.all([account('command-gm',options),account('command-a',options),account('command-b',options,true)]);
   const [sl,pa,pb]=await Promise.all([table(gm,'SL'),table(a,'A'),table(b,'B')]);
   await pa.mouse.click(5,5); // A has interacted with the page before the message arrives; B has not.
-  // 1 + 3: a normal message: housing renders, ping plays for A; B's blocked ping plays at the first tap.
+  // 1 + 3: a normal message: housing renders, ping plays for A; B's sound is blocked: "Ton aktivieren" enables it.
   await stage({action:'pager',text:'Ruf mich an · '+name,title:'Wichtig',sender:'Schäfer',recipients:null});
   await device(pa).waitFor();await settle(pa);
   await shellRendered(pa,'section[aria-label="Pager"]',name+' A');
-  await pa.waitForFunction(()=>window.__pagerSounds.includes('ping-normal.wav'));
+  await pa.waitForFunction(()=>window.__pagerSounds.includes('ping-normal.wav'),undefined,{polling:200});
   await device(pb).waitFor();await settle(pb);assert.deepEqual(await sounds(pb),[],'B: blocked, nothing played yet');
-  await pb.mouse.click(5,5);await pb.waitForFunction(()=>window.__pagerSounds.includes('ping-normal.wav'));
+  await pb.getByRole('button',{name:'Ton aktivieren'}).click();await pb.waitForFunction(()=>window.__pagerSounds.includes('ping-normal.wav'),undefined,{polling:200});
+  await pb.waitForTimeout(1200);assert.deepEqual(await sounds(pb),['ping-normal.wav'],'B: one confirmation ping, the blocked ring is not replayed late');
+  assert.equal(await pb.getByRole('button',{name:'Ton aktivieren'}).count(),0,'B: the offer disappears once sound works');
   // The GM's mirror shows the same housing.
   await sl.getByRole('region',{name:'Pager-Spiegel'}).waitFor();await settle(sl);await shellRendered(sl,'section[aria-label="Pager-Spiegel"]',name+' SL mirror');
   assert.equal(await sl.locator('section[aria-label="Pager"]').count(),0,'The GM has no player device');
   await pa.screenshot({path:output+'/'+name+'-spieler-a.png'});await sl.screenshot({path:output+'/'+name+'-sl-spiegel.png'});
-  pass(name+': housing loaded, visible and undistorted for player and GM mirror; ping plays, a blocked ping plays at the first tap');
+  pass(name+': housing loaded, visible and undistorted for player and GM mirror; ping plays, blocked sound is enabled by "Ton aktivieren"');
   // Urgent: alarm. Muted: nothing.
   await stage({action:'pager',text:'Sofort raus · '+name,priority:'hoch',recipients:null});
-  await pa.waitForFunction(()=>window.__pagerSounds.includes('alarm-urgent.wav'));
+  await pa.waitForFunction(()=>window.__pagerSounds.includes('alarm-urgent.wav'),undefined,{polling:200});
   await pa.getByRole('button',{name:'Pager stummschalten'}).click();const before=(await sounds(pa)).length;
   await stage({action:'pager',text:'Leise · '+name,recipients:null});await pa.getByText('Leise · '+name).or(pa.locator('[data-pager-badge]')).first().waitFor({state:'attached'}).catch(()=>{});await pa.waitForTimeout(2500);
   assert.equal((await sounds(pa)).length,before,'Muted: no sound');

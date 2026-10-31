@@ -5,14 +5,20 @@ import {mkdirSync} from 'node:fs';
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8874';
 assert.equal(new URL(base).hostname,'127.0.0.1');
-assert.ok(['8874','8875','8881'].includes(new URL(base).port),'Use the isolated synthetic pager fixture only');
+assert.ok(['8874','8875','8881','8884'].includes(new URL(base).port),'Use the isolated synthetic pager fixture only');
 const output='.local-work/ux-check/ultio-pager';mkdirSync(output,{recursive:true});
 const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',viewport:{width:1440,height:900}},{name:'zoom125',viewport:{width:1536,height:864},deviceScaleFactor:1.25}];
 const mobile={viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true};
 const browser=await chromium.launch({headless:true,channel:process.env.CVK_PLAYWRIGHT_CHANNEL||undefined});const errors=[],pages=[];let phase='setup';
 const pass=label=>console.log('PASS '+label);
-// Records which pager sounds the page tries to play (the browser may still block them; nothing is forced).
-const soundProbe=()=>{window.__pagerSounds=[];const play=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){if(/\/spieltisch\/pager\//.test(this.src))window.__pagerSounds.push(this.src.split('/').pop());return play.call(this);};};
+// Records the pager sounds played through Web Audio (same probe as tests/ultio-pager-fixes-browser.mjs).
+const soundProbe=(blocked=false)=>{window.__pagerSounds=[];window.__soundBlocked=blocked;window.addEventListener('pointerdown',()=>{window.__soundBlocked=false;},true);
+ const names=new WeakMap(),load=window.fetch;
+ window.fetch=function(...args){const url=String(args[0]?.url||args[0]);return load.apply(this,args).then(r=>{if(/\/spieltisch\/pager\/.+\.wav/.test(url)){const read=r.arrayBuffer.bind(r);r.arrayBuffer=()=>read().then(b=>{names.set(b,url.split('/').pop());return b;});}return r;});};
+ const AC=window.AudioContext,decode=AC.prototype.decodeAudioData,state=Object.getOwnPropertyDescriptor(BaseAudioContext.prototype,'state');
+ AC.prototype.decodeAudioData=function(b,...rest){const n=names.get(b);return decode.call(this,b,...rest).then(buf=>{if(n)names.set(buf,n);return buf;});};
+ Object.defineProperty(AC.prototype,'state',{configurable:true,get(){return window.__soundBlocked?'suspended':state.get.call(this);}});
+ const start=AudioBufferSourceNode.prototype.start;AudioBufferSourceNode.prototype.start=function(...rest){const n=this.buffer&&names.get(this.buffer);if(n)window.__pagerSounds.push(n);return start.apply(this,rest);};};
 async function account(id,options){const context=await browser.newContext(options);await context.addInitScript(soundProbe);const login=await context.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(login.status(),200);return context;}
 async function table(context,label){const p=await context.newPage();pages.push([label,p]);p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(label+': '+e.message));await p.goto(base+'/spielbereich?bereich=sitzung');await p.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();return p;}
 async function regieWindow(context,label){const p=await context.newPage();pages.push([label,p]);p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(label+': '+e.message));await p.goto(base+'/sl/regie');await p.getByRole('heading',{name:/Texte zum Vorlesen/}).waitFor();return p;}
@@ -63,6 +69,7 @@ try{
   const suedtor=prepared.locator('li',{hasText:'SÜDTOR'});
   await suedtor.waitFor();
   assert.equal(await suedtor.getByRole('group',{name:/Empfänger/}).getByRole('button',{name:nameA}).getAttribute('aria-pressed'),'true',name+': prepared recipient A is preselected');
+  await pa.mouse.click(5,5);await pb.mouse.click(5,5);// players have interacted with the page, so sound is allowed
   await suedtor.getByRole('button',{name:'Ausspielen'}).click();
   const region=pa.getByRole('region',{name:'Pager'});
   await region.getByText('SÜDTOR').waitFor();
@@ -73,7 +80,7 @@ try{
   assert.equal(await sl.locator('section[aria-label="Pager"] [aria-roledescription="Pager"]').count(),0,name+': no player pager device for the GM (only the read-only mirror)');
   await suedtor.getByText(/Gesendet .* an /).waitFor();
   await deviceGeometry(pa,name+' A',options.viewport);
-  assert.ok((await sounds(pa)).includes('alarm-urgent.wav'),name+': an urgent message tries the alarm sound');
+  await pa.waitForFunction(()=>window.__pagerSounds.includes('alarm-urgent.wav'),undefined,{polling:200});// an urgent message rings the alarm
   await pa.waitForTimeout(800);await pa.screenshot({path:output+'/'+name+'-spieler-a-eingang.png'});
   pass(name+': prepared pager played from the Regie, floats in at A only, device unverzerrt and in view');
 
@@ -108,7 +115,7 @@ try{
   await region.getByText(text,{exact:true}).waitFor();
   assert.equal((await sounds(pa)).length,before,name+': muted pager stays silent');
   await pb.getByRole('region',{name:'Pager'}).getByText(text,{exact:true}).waitFor();
-  assert.ok((await sounds(pb)).includes('ping-normal.wav'),name+': B (not muted) tries the normal ping');
+  await pb.waitForFunction(()=>window.__pagerSounds.includes('ping-normal.wav'),undefined,{polling:200});// B (not muted) rings the normal ping
   const motion=await pb.locator('[aria-roledescription="Pager"]').evaluate(e=>getComputedStyle(e.parentElement).animationName);
   assert.equal(motion,'none',name+': reduced motion: the pager does not fly in');
   await pa.getByRole('button',{name:'Pager zuklappen'}).click();
