@@ -29,4 +29,10 @@
 .backdropLayer.backdropLayer[data-leaving=true]{animation:backdropOut 1.4s ease-in both}
 @keyframes backdropIn{from{opacity:0;transform:scale(1.05);filter:brightness(.6)}to{opacity:1;transform:scale(1);filter:brightness(1)}}
 @keyframes backdropOut{from{opacity:1}to{opacity:0;filter:brightness(.5)}}
+/* Backdrop transition chosen with the material (Spielmaterial 3.0): instant or slow; default stays the crossfade. */
+.backdropLayer.backdropLayer[data-transition=instant]{animation-duration:.01s}
+.backdropLayer.backdropLayer[data-transition=slow]{animation-duration:3s}
+/* Optional device / screen assets drawn behind the existing players. */
+.cassette[data-skin=true],.screen[data-skin=true]{background-size:100% 100%;background-repeat:no-repeat;background-color:transparent;border-color:transparent}
+.cassette[data-skin=true] .tape{opacity:.92}
 @media(prefers-reduced-motion:reduce){.backdropLayer.backdropLayer,.backdropLayer.backdropLayer[data-leaving=true]{animation-duration:.01s}}

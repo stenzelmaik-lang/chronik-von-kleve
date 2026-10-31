@@ -2,6 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {useEffect,useRef,useState} from 'react';
 import {Eye,EyeOff,UserPlus,FilePlus2,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw} from 'lucide-react';
+import {RegieMaterials} from '../material/regie-materials';
 import {PreparedWhisperReleases} from './prepared-whisper-releases';
 import {api} from '../api-client';
 import {RichTextView} from '../rich-text';
@@ -90,7 +91,8 @@ export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,b
      {table.backdropFileId&&<button disabled={busy} onClick={()=>onBackdrop(null)}><RotateCcw/> Standardbühne</button>}
      <small className={styles.empty}>Der Wechsel gilt sofort für die ganze Runde und blendet weich über. Die vorbereitete Szene bleibt unverändert.</small>
     </section>
-    {!context.media.length&&!context.handouts.length&&<p className={styles.empty}>Kein weiteres Material mit dieser Szene verknüpft.</p>}
+    <RegieMaterials materials={context.materials||[]} objects={table.objects} crew={crew} busy={busy} run={body=>onCommand(body)}/>
+    {!context.media.length&&!context.handouts.length&&!context.materials?.length&&<p className={styles.empty}>Kein weiteres Material mit dieser Szene verknüpft.</p>}
     {groups.map(([title,hint,match,GroupIcon])=>{const items=context.media.filter(match);return items.length?<section key={title} className={styles.group} aria-label={title}><h3><GroupIcon size={16}/> {title}</h3><p className={styles.empty}>{hint}</p><div className={styles.gallery}>{items.map(m=>{const placed=table.objects.find(o=>o.kind!=='note'&&o.sourceKind==='file'&&o.sourceId===m.fileId);return <article key={m.id}>
      {m.mime.startsWith('image/')?<img src={'/api/files?id='+encodeURIComponent(m.fileId)} alt="" loading="lazy"/>:<div className={styles.fileIcon}><GroupIcon/><small>{m.name}</small></div>}
      <h3>{m.title}</h3><p className={styles.state} data-placed={!!placed}>{tableState(placed)}</p>

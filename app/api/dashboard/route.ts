@@ -99,7 +99,7 @@ export async function GET(req: Request) {
       inbox: {unread:inbox.unread, latest:latest ? {title:latest.title,senderName:latest.senderName,createdAt:latest.createdAt} : null},
       economy: by("wirtschaft").find(available) || null,
       favors: by("gefallen").find(available) || null,
-      notes: by("notizen").filter(entry => available(entry) && !['sl-message','appointment-vote','live-table','live-table-signal','live-table-event'].includes(String(entry.body.context))).slice(0, 5),
+      notes: by("notizen").filter(entry => available(entry) && !['sl-message','appointment-vote','live-table','live-table-signal','live-table-event','display-asset'].includes(String(entry.body.context))).slice(0, 5),
       message: by("neuigkeiten").find(available) || null,
     });
   } catch (error) {

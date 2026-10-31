@@ -1,0 +1,25 @@
+/* Same visual language as the Regie items (regie-window.module.css .item). */
+.list{display:grid;gap:10px}
+.list>h3{margin:4px 0 0;font:normal 16px Georgia,serif;color:#e8dcc2}
+.item{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;padding:10px;border:1px solid #c5a46a2e;border-radius:7px;background:#131f22;color:#e8e3d6}
+.item[data-placed=true]{border-color:#a9d6b955}
+.thumb{height:110px;padding:6px;border:1px solid #c5a46a33;border-radius:5px;background:#0c1417;cursor:zoom-in}
+.body{display:grid;gap:7px;min-width:0;align-content:start}
+.body h4{margin:0;font:normal 15px/1.3 Georgia,serif;overflow-wrap:anywhere}
+.meta{margin:0;font-size:12px;color:#b9b4a6}
+.state{margin:0;font-size:12px;color:#c8c2b2}
+.state[data-placed=true]{color:#a9d6b9}
+.warn{display:flex;gap:6px;align-items:flex-start;margin:0;padding:6px 8px;border-radius:5px;background:#3b2f1c;color:#f2dcae;font-size:12px}
+.warn svg{flex-shrink:0;margin-top:2px}
+.audience{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.audience button{min-height:30px;padding:0 10px;border:1px solid #c5a46a40;border-radius:15px;background:transparent;color:#d6d2c6;font-size:12px;cursor:pointer}
+.audience button[aria-pressed=true]{background:#2f3d2a;border-color:#a9d6b9;color:#e4f5ea}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.actions button{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #c5a46a40;border-radius:5px;background:#18252a;color:#e8dcc2;font-size:12px;cursor:pointer}
+.actions button svg{width:15px;height:15px;flex-shrink:0}
+.actions button:disabled{opacity:.5;cursor:default}
+.actions .primary{border-color:#d6b36f;background:#d6b36f;color:#141a1b;font-weight:600}
+.actions button:focus-visible,.audience button:focus-visible,.thumb:focus-visible{outline:2px solid #d6b36f;outline-offset:2px}
+.cue{font-size:12px;color:#cfc8b8}
+.cue summary{cursor:pointer;color:#e0cf9f}
+@media(max-width:520px){.item{grid-template-columns:72px minmax(0,1fr)}.thumb{height:84px}}

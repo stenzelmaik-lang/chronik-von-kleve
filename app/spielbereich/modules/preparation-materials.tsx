@@ -31,7 +31,7 @@ export const materialKinds:Record<SceneElement['kind'],{label:string;hint:string
 const referenceTypes:Partial<Record<SceneElement['kind'],string[]>>={place:['PLACE'],person:['NPC','CHARACTER'],clue:['CLUE'],handout:['HANDOUT'],puzzle:['RULE','HANDOUT']};
 
 /** Prepared pager message: sender, text, priority and recipients. Nothing is sent here; the Regie plays it live. */
-function PagerFields({pager,players,onChange}:{pager:ScenePager;players:PreparationRecipient[];onChange:(pager:ScenePager)=>void}){
+export function PagerFields({pager,players,onChange}:{pager:ScenePager;players:PreparationRecipient[];onChange:(pager:ScenePager)=>void}){
   const set=(patch:Partial<ScenePager>)=>onChange({...pager,...patch});
   const unknown=pager.recipientIds.filter(id=>!players.some(player=>player.id===id));
   const toggle=(id:string)=>set({recipientIds:pager.recipientIds.includes(id)?pager.recipientIds.filter(x=>x!==id):[...pager.recipientIds,id]});
@@ -48,18 +48,19 @@ function PagerFields({pager,players,onChange}:{pager:ScenePager;players:Preparat
   </div>;
 }
 
-export function PreparationMaterials({elements,onChange,references,files,editor,onUploaded,players=[]}:{elements:SceneElement[];onChange:(elements:SceneElement[])=>void;references:CommandReference[];files:PreparationFile[];editor:(value:string,onChange:(value:string)=>void,label:string,key:string)=>ReactNode;onUploaded?:(file:PreparationFile)=>void;players?:PreparationRecipient[]}) {
+/**
+ * The building-block editor. With variant "blocks" (Spielmaterial 3.0) it only offers the non-material blocks –
+ * clues, checks, dialogues, notes, references – because images, handouts, audio, video and pager messages are
+ * prepared in the material workbench.
+ */
+export function PreparationMaterials({elements,onChange,references,files,editor,onUploaded,players=[],variant='all'}:{elements:SceneElement[];onChange:(elements:SceneElement[])=>void;references:CommandReference[];files:PreparationFile[];editor:(value:string,onChange:(value:string)=>void,label:string,key:string)=>ReactNode;onUploaded?:(file:PreparationFile)=>void;players?:PreparationRecipient[];variant?:'all'|'blocks'}) {
   const [active,setActive]=useState(''),[adding,setAdding]=useState(false);
-  const groups=[...new Set(Object.values(materialKinds).map(kind=>kind.group))];
+  const blocks=variant==='blocks';
+  const groups=[...new Set(Object.values(materialKinds).map(kind=>kind.group))].filter(group=>!blocks||group!=='Zeigen und übergeben');
   const update=(id:string,patch:Partial<SceneElement>)=>onChange(elements.map(element=>element.id===id?{...element,...patch}:element));
   function add(kind:SceneElement['kind']){const id=crypto.randomUUID();onChange([...elements,{id,kind,title:materialKinds[kind].label,text:'',referenceId:'',fileId:'',...(kind==='pager'?{pager:emptyScenePager()}:{})}]);setActive(id);setAdding(false);}
   function move(index:number,direction:number){const next=[...elements];[next[index],next[index+direction]]=[next[index+direction],next[index]];onChange(next);}
-  return <section className={s.materials} aria-label="Szenenbausteine">
-    <header><h3>Szenenbausteine</h3><p>Baue die konkreten Momente dieser Szene: Was finden die Spieler? Was zeigst oder übergibst du? Jeder Baustein hat einen eigenen Titel, Inhalt und bei Bedarf eine bestehende Akte oder Datei. Die Reihenfolge ist deine Regiehilfe.</p><p>Alles bleibt Vorbereitung für die SL. Hier wird nichts abgespielt, an Spieler gesendet oder freigegeben.</p></header>
-    <div className={s.materialActions}><button type="button" disabled={elements.length>=100} onClick={()=>add('image')}><ImageIcon size={16} aria-hidden="true"/> Foto / Polaroid</button><button type="button" disabled={elements.length>=100} onClick={()=>add('handout')}><FileText size={16} aria-hidden="true"/> Handout vorbereiten</button><button type="button" disabled={elements.length>=100} onClick={()=>add('audio')}><Music size={16} aria-hidden="true"/> Audio</button><button type="button" disabled={elements.length>=100} onClick={()=>add('video')}><Film size={16} aria-hidden="true"/> Video</button><button type="button" disabled={elements.length>=100} onClick={()=>add('pager')}><MessageSquareText size={16} aria-hidden="true"/> Pager-Nachricht</button><button type="button" disabled={elements.length>=100} aria-expanded={adding} onClick={()=>setAdding(!adding)}>Anderes Spielmaterial hinzufügen</button><small>{elements.length}/100 Bausteine</small></div>
-    {adding&&<div className={s.materialCatalog}>{groups.map(group=><section key={group}><h4>{group}</h4><ul>{(Object.entries(materialKinds) as [SceneElement['kind'],typeof materialKinds[SceneElement['kind']]][]).filter(([,item])=>item.group===group).map(([kind,item])=><li key={kind}><button type="button" onClick={()=>add(kind)}><strong>{item.label}</strong><span>{item.hint}</span></button></li>)}</ul></section>)}</div>}
-    {!elements.length&&<p>Noch kein Spielmaterial. Beginne zum Beispiel mit einem Brief als Handout oder einem Hinweis zum Untersuchen.</p>}
-    <ol className={s.materialList}>{elements.map((element,index)=>{const info=materialKinds[element.kind];const allowed=referenceTypes[element.kind];const file=files.find(file=>file.id===element.fileId);return <li key={element.id}>
+  function list(){return <ol className={s.materialList}>{elements.map((element,index)=>{const info=materialKinds[element.kind];const allowed=referenceTypes[element.kind];const file=files.find(file=>file.id===element.fileId);return <li key={element.id}>
       <div className={s.materialHead}>{file?.mime.startsWith('image/')?<img className={s.materialThumb} src={'/api/files?id='+encodeURIComponent(file.id)} alt="" loading="lazy"/>:(()=>{const KindIcon=kindIcon(element.kind);return <span className={s.materialThumb} aria-hidden="true"><KindIcon size={20}/></span>;})()}<button type="button" aria-expanded={active===element.id} onClick={()=>setActive(active===element.id?'':element.id)}>{index+1}. {element.title||info.label}<small>{info.label}{file?' · '+file.name:['image','audio','video'].includes(element.kind)?' · noch keine Datei':''}{element.kind==='pager'?(element.pager?.text.trim()?' · '+(element.pager.recipientIds.length?element.pager.recipientIds.length+' Empfänger':'ganze Runde'):' · noch kein Text'):''} · vorbereitet, nicht veröffentlicht</small></button><div><button type="button" aria-label={element.title+' nach oben'} disabled={index===0} onClick={()=>move(index,-1)}><ArrowUp size={16}/></button><button type="button" aria-label={element.title+' nach unten'} disabled={index===elements.length-1} onClick={()=>move(index,1)}><ArrowDown size={16}/></button><button type="button" aria-label={'Baustein entfernen: '+element.title} onClick={()=>onChange(elements.filter(item=>item.id!==element.id))}><Trash2 size={16}/></button></div></div>
       {active===element.id&&<div className={s.materialBody}><p>{info.hint}</p><label>{element.kind==='pager'?'Titel / Betreff':'Bausteintitel'}<input value={element.title} maxLength={element.kind==='pager'?scenePagerMax.title:200} onChange={e=>update(element.id,{title:e.target.value})}/></label>
         {element.kind==='pager'&&<PagerFields pager={element.pager||emptyScenePager()} players={players} onChange={pager=>update(element.id,{pager})}/>}
@@ -72,6 +73,18 @@ export function PreparationMaterials({elements,onChange,references,files,editor,
         {element.fileId&&<button type="button" onClick={()=>update(element.id,{fileId:''})}>Dateizuordnung entfernen</button>}
         {editor(element.text,text=>update(element.id,{text}),element.kind==='pager'?'Einsatz – wann ausspielen? (nur SL)':info.label+' – Inhalt',element.id)}
       </div>}
-    </li>;})}</ol>
+    </li>;})}</ol>;}
+  if(blocks)return <section className={s.materials} aria-label="Weitere Szenenbausteine">
+    <header><h3>Weitere Szenenbausteine</h3><p>Hinweise, Proben, Rätsel, Dialoge, Notizen und Verweise. Bilder, Handouts, Ton, Video und Pager bereitest du oben als Spielmaterial vor.</p></header>
+    <div className={s.materialActions}><button type="button" disabled={elements.length>=100} aria-expanded={adding} onClick={()=>setAdding(!adding)}>Baustein hinzufügen</button></div>
+    {adding&&<div className={s.materialCatalog}>{groups.map(group=><section key={group}><h4>{group}</h4><ul>{(Object.entries(materialKinds) as [SceneElement['kind'],typeof materialKinds[SceneElement['kind']]][]).filter(([,item])=>item.group===group).map(([kind,item])=><li key={kind}><button type="button" onClick={()=>add(kind)}><strong>{item.label}</strong><span>{item.hint}</span></button></li>)}</ul></section>)}</div>}
+    {list()}
+  </section>;
+  return <section className={s.materials} aria-label="Szenenbausteine">
+    <header><h3>Szenenbausteine</h3><p>Baue die konkreten Momente dieser Szene: Was finden die Spieler? Was zeigst oder übergibst du? Jeder Baustein hat einen eigenen Titel, Inhalt und bei Bedarf eine bestehende Akte oder Datei. Die Reihenfolge ist deine Regiehilfe.</p><p>Alles bleibt Vorbereitung für die SL. Hier wird nichts abgespielt, an Spieler gesendet oder freigegeben.</p></header>
+    <div className={s.materialActions}><button type="button" disabled={elements.length>=100} onClick={()=>add('image')}><ImageIcon size={16} aria-hidden="true"/> Foto / Polaroid</button><button type="button" disabled={elements.length>=100} onClick={()=>add('handout')}><FileText size={16} aria-hidden="true"/> Handout vorbereiten</button><button type="button" disabled={elements.length>=100} onClick={()=>add('audio')}><Music size={16} aria-hidden="true"/> Audio</button><button type="button" disabled={elements.length>=100} onClick={()=>add('video')}><Film size={16} aria-hidden="true"/> Video</button><button type="button" disabled={elements.length>=100} onClick={()=>add('pager')}><MessageSquareText size={16} aria-hidden="true"/> Pager-Nachricht</button><button type="button" disabled={elements.length>=100} aria-expanded={adding} onClick={()=>setAdding(!adding)}>Anderes Spielmaterial hinzufügen</button><small>{elements.length}/100 Bausteine</small></div>
+    {adding&&<div className={s.materialCatalog}>{groups.map(group=><section key={group}><h4>{group}</h4><ul>{(Object.entries(materialKinds) as [SceneElement['kind'],typeof materialKinds[SceneElement['kind']]][]).filter(([,item])=>item.group===group).map(([kind,item])=><li key={kind}><button type="button" onClick={()=>add(kind)}><strong>{item.label}</strong><span>{item.hint}</span></button></li>)}</ul></section>)}</div>}
+    {!elements.length&&<p>Noch kein Spielmaterial. Beginne zum Beispiel mit einem Brief als Handout oder einem Hinweis zum Untersuchen.</p>}
+    {list()}
   </section>;
 }

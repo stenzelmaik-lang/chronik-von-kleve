@@ -13,6 +13,7 @@ import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stag
 import {evaluateNormalV20} from '@/domain/w10';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
+import {materialStageSource,regieMaterials} from './material-stage';
 
 export function storedStage(room:{stage?:unknown}):StageState{
  if(room.stage===undefined)return emptyStage();
@@ -30,7 +31,10 @@ export async function stageSource(a:Actor,id:string,kind:'entity'|'file'|'record
   return {title:w.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:scene.version,ownerId:a.id,documentContent:w.text,presentation:w.kind,recipients:w.recipientIds,
    ...(imageIds.length?{media:'pages' as const,pages:imageIds.map((fileId,i)=>({id:crypto.randomUUID(),fileId,title:'Bild '+(i+1)}))}:{})};
  }
- if(kind==='record'&&id.startsWith('scene-material:')){gmOnly(a);const split=id.lastIndexOf(':'),scene=await readScene(database(),a,id.slice(15,split)),element=scene.document.elements.find(e=>e.id===id.slice(split+1)&&e.kind==='handout'&&!e.fileId&&!e.referenceId);if(!element)throw new HttpError(404,'Vorbereitetes Handout nicht verfügbar.');return {title:element.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:scene.version,ownerId:a.id,documentContent:element.text};}
+ if(kind==='record'&&id.startsWith('scene-material:')){gmOnly(a);const split=id.lastIndexOf(':'),scene=await readScene(database(),a,id.slice(15,split)),material=scene.document.elements.find(e=>e.id===id.slice(split+1)&&e.material);
+  // Spielmaterial 3.0: one table object with all files, the display asset states and the effect.
+  if(material)return materialStageSource(a,scene,material,id);
+  const element=scene.document.elements.find(e=>e.id===id.slice(split+1)&&e.kind==='handout'&&!e.fileId&&!e.referenceId);if(!element)throw new HttpError(404,'Vorbereitetes Handout nicht verfügbar.');return {title:element.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:scene.version,ownerId:a.id,documentContent:element.text};}
  if(kind==='record'){const m=await readMaterial(a,id);return {title:m.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:m.version,ownerId:m.ownerId,...(m.pages.length?{media:'pages' as const,pages:m.pages,...(m.text?{documentContent:m.text}:{})}:m.fileId?{sourceFileId:m.fileId,media:stageMediaOf((await liveFile(a,m.fileId)).mime),...(m.text?{documentContent:m.text}:{})}:{documentContent:m.text})};}
  gmOnly(a);
  if(kind==='file'){const f=await liveFile(a,id);if(!/^(image\/(jpeg|png|webp|gif)|application\/pdf|audio\/|video\/)/.test(f.mime))throw new HttpError(400,'Nicht unterstütztes Bühnenmedium.');return {title:f.name,kind:'document' as const,sourceId:id,sourceKind:kind,media:stageMediaOf(f.mime)};}
@@ -53,14 +57,16 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
   place:entity(d.placeId)?{id:d.placeId,title:entity(d.placeId)!.title}:null,
   backdrop:files.results.filter(f=>f.id===d.backdropFileId&&f.mime.startsWith('image/')).map(f=>({fileId:f.id,name:f.name}))[0]||null,
   npcs:npcIds.flatMap(id=>{const e=entity(id);return e&&e.type==='NPC'?[{id,title:e.title,summary:text(e.content.text),gmBody:e.gmBody||'',image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(id),cue:d.elements.filter(x=>x.referenceId===id).map(x=>x.text).join('')}]:[];}),
-  handouts:[...d.elements.filter(e=>e.kind==='handout'&&!e.fileId&&!e.referenceId&&e.text.trim()).map(e=>({id:'scene-material:'+scene.id+':'+e.id,title:e.title,stageable:true,sourceKind:'record' as const})),...handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT',sourceKind:'entity' as const}]:[];})],
-  media:d.elements.flatMap(e=>{const f=files.results.find(f=>f.id===e.fileId);return f?[{id:e.id,title:e.title,kind:e.kind,text:e.text,fileId:f.id,name:f.name,mime:f.mime}]:[];}),
-  notes:d.elements.filter(e=>!e.fileId&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
+  handouts:[...d.elements.filter(e=>e.kind==='handout'&&!e.material&&!e.fileId&&!e.referenceId&&e.text.trim()).map(e=>({id:'scene-material:'+scene.id+':'+e.id,title:e.title,stageable:true,sourceKind:'record' as const})),...handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT',sourceKind:'entity' as const}]:[];})],
+  media:d.elements.flatMap(e=>{const f=!e.material&&files.results.find(f=>f.id===e.fileId);return f?[{id:e.id,title:e.title,kind:e.kind,text:e.text,fileId:f.id,name:f.name,mime:f.mime}]:[];}),
+  notes:d.elements.filter(e=>!e.fileId&&!e.material&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
   // Prepared pager messages of this scene. Played from the Regie with the element id as message id, so each is sent once.
   pagers:d.elements.flatMap(e=>{if(e.kind!=='pager')return [];const p=e.pager||emptyScenePager();return [{id:e.id,title:e.title,sender:p.sender,text:p.text,priority:p.priority,recipientIds:p.recipientIds,cue:e.text}];}),
   // Prepared YouTube music (title and video id only).
   whispers:d.whispers,
   youtube:d.youtube||[],
+  // Spielmaterial 3.0: every material of the scene as one object with its files, display asset and effect (GM only).
+  materials:await regieMaterials(a,scene),
  };
 }
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){
@@ -82,7 +88,7 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,
   // The backdrop belongs to the whole round; its file is only served through the stage asset route.
   // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
-  backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
+  backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(stage.backdrop.transition?{transition:stage.backdrop.transition}:{}),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,
   crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
@@ -117,7 +123,7 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
   if(sceneDocument?.youtube?.length)scenePlaylist={tracks:sceneDocument.youtube.map(t=>({videoId:t.videoId,title:t.title||'Ambiente'})),label:sceneDocument.title};
   const fileId=c.action==='backdrop'?c.fileId:sceneDocument?.backdropFileId||null;
   const sceneId=c.action==='activateScene'?c.sceneId:state.sceneId||'';
-  if(fileId){const f=await liveFile(a,fileId);if(!f.mime.startsWith('image/'))throw new HttpError(400,'Das Szenenbild muss ein Bild sein.');backdrop={fileId:f.id,title:f.name,sceneId};}
+  if(fileId){const f=await liveFile(a,fileId);if(!f.mime.startsWith('image/'))throw new HttpError(400,'Das Szenenbild muss ein Bild sein.');backdrop={fileId:f.id,title:f.name,sceneId,...(c.action==='backdrop'&&c.transition&&c.transition!=='fade'?{transition:c.transition}:{})};}
  }
  let music:StageMusic|null=null;
  if(c.action==='music'&&c.fileId){
@@ -135,7 +141,7 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
  const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1"+sourceGuard+whisperGuard).bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId,...sourceBindings,...whisperBindings).run();
  if(!result.meta.changes)throw new HttpError(409,'Spielstand inzwischen geändert. Deine Änderung wurde nicht überschreibend gespeichert.');
 }
-export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalogId?:string,page?:number):Promise<{fileId?:string;path?:string;text?:string;title:string;pages?:{title:string}[]}>{
+export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalogId?:string,page?:number,extra:{state?:string;sound?:boolean}={}):Promise<{fileId?:string;path?:string;text?:string;title:string;pages?:{title:string}[]}>{
  const {room}=await stageRoom(a,sessionId);let o:Exclude<StageObject,{kind:'note'}>|undefined;
  if(objectId==='backdrop'&&!catalogId){const b=storedStage(room).backdrop;if(!b)throw new HttpError(404,'Kein Szenenbild aktiv.');return {fileId:b.fileId,title:b.title};}
  // Background music belongs to the whole round, like the backdrop.
@@ -143,6 +149,11 @@ export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalo
  if(catalogId){gmOnly(a);const s=await stageSource(a,catalogId,'entity');o={id:'preview',...s,rect:{x:0,y:0,w:.2,h:.4},visibility:'sl',recipients:null};}
  else {const found=storedStage(room).objects.find(o=>o.id===objectId&&stageVisible(o,a));if(found&&found.kind!=='note')o=found;}
  if(!o)throw new HttpError(404,'Bühnenobjekt nicht verfügbar.');
+ // Display asset states and the effect sound of a material are served through the visible object only.
+ if(extra.state!==undefined||extra.sound){
+  const fileId=extra.sound?o.material?.soundFileId:o.material?.states.find(s=>s.key===extra.state)?.fileId;
+  if(!fileId)throw new HttpError(404,'Darstellung nicht verfügbar.');return {fileId,title:o.title};
+ }
  if(o.sourceKind==='record'){if(o.pages?.length){if(page===undefined)return {title:o.title,pages:o.pages.map(p=>({title:p.title})),text:o.documentContent};const p=o.pages[page];if(!p)throw new HttpError(404,'Handoutseite nicht verfügbar.');return {fileId:p.fileId,title:p.title||o.title};}if(page!==undefined)throw new HttpError(404,'Dieses Dokument hat keine Einzelseiten.');if(o.sourceFileId)return {fileId:o.sourceFileId,title:o.title};return {text:o.documentContent||'',title:o.title};}
  if(o.sourceKind==='file')return {fileId:o.sourceId,title:o.title};
  const e=(await loadEntitiesForIds(database(),a.campaignId,[o.sourceId])).find(e=>e.id===o!.sourceId);

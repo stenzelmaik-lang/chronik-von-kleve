@@ -1,5 +1,6 @@
 import {z} from 'zod';
 import {handoutPageSchema,handoutPagesMax} from './table-material.ts';
+import {materialTypes,materialDisplays,materialEffectIds,materialCloseEffects,materialSpeeds,materialAfterClose} from './material-system.ts';
 import type {Actor,Entity} from './types';
 
 const rectSchema=z.object({x:z.number().min(0).max(1),y:z.number().min(0).max(1),w:z.number().min(.1).max(.65),h:z.number().min(.13).max(.85)}).strict().refine(r=>r.x+r.w<=1.00001&&r.y+r.h<=1.00001,'Objekt muss auf der Bühne bleiben.');
@@ -9,10 +10,22 @@ const note=z.object({...base,kind:z.literal('note'),visibility:z.enum(['private'
 export const stageMediaKinds=['image','audio','video','pdf','pages'] as const;
 export type StageMedia=typeof stageMediaKinds[number];
 export function stageMediaOf(mime:string):StageMedia|undefined{return mime.startsWith('image/')?'image':mime.startsWith('audio/')?'audio':mime.startsWith('video/')?'video':mime==='application/pdf'?'pdf':undefined;}
-const object=z.object({...base,kind:z.enum(['npc','document']),visibility:z.enum(['sl','group']),sourceId:z.string().min(1).max(160),sourceKind:z.enum(['entity','file','record']),presentation:z.enum(['vision','letter']).optional(),sourceVersion:z.number().int().positive().optional(),sourceToken:z.string().regex(/^[a-f0-9]{64}$/).optional(),media:z.enum(stageMediaKinds).optional(),ownerId:z.string().min(1).optional(),documentContent:z.string().max(50000).optional(),documentRevision:z.number().int().positive().optional(),sourceFileId:z.string().max(160).optional(),pages:z.array(handoutPageSchema).min(1).max(handoutPagesMax).optional(),recipients:z.array(z.string()).max(30).nullable()}).strict();
+/**
+ * Spielmaterial 3.0 on the table: how a released material is shown and opens. The state images are copied from the
+ * GM's display asset when the material is laid on the table, so players only reach them through this object.
+ * The effect is already the effective one (a fallback when the asset lacks a state). Opening is personal per viewer.
+ */
+const stageMaterial=z.object({type:z.enum(materialTypes),display:z.enum(materialDisplays),
+ effect:z.object({open:z.enum(materialEffectIds),close:z.enum(materialCloseEffects),speed:z.enum(materialSpeeds),afterClose:z.enum(materialAfterClose),sound:z.boolean()}).strict(),
+ states:z.array(z.object({key:z.string().regex(/^[a-z0-9-]{1,30}$/),fileId:z.string().min(1).max(160)}).strict()).max(8),
+ soundFileId:z.string().min(1).max(160).optional(),requested:z.enum(materialEffectIds).optional()}).strict();
+export type StageMaterial=z.infer<typeof stageMaterial>;
+const object=z.object({...base,kind:z.enum(['npc','document']),visibility:z.enum(['sl','group']),sourceId:z.string().min(1).max(160),sourceKind:z.enum(['entity','file','record']),presentation:z.enum(['vision','letter']).optional(),sourceVersion:z.number().int().positive().optional(),sourceToken:z.string().regex(/^[a-f0-9]{64}$/).optional(),media:z.enum(stageMediaKinds).optional(),ownerId:z.string().min(1).optional(),documentContent:z.string().max(50000).optional(),documentRevision:z.number().int().positive().optional(),sourceFileId:z.string().max(160).optional(),pages:z.array(handoutPageSchema).min(1).max(handoutPagesMax).optional(),material:stageMaterial.optional(),recipients:z.array(z.string()).max(30).nullable()}).strict();
 // The scene backdrop is the shared ground of the table for the whole round. It is
 // separate from released photos and from the narration event.
-const backdrop=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),sceneId:z.string().max(160)}).strict();
+// Optional transition (Spielmaterial 3.0): the same choice as for materials, applied to the backdrop layer only.
+export const backdropTransitions=['fade','instant','slow'] as const;
+const backdrop=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),sceneId:z.string().max(160),transition:z.enum(backdropTransitions).optional()}).strict();
 // Second-screen direction (Regie im Zweitfenster): table-wide effects, background music and pager
 // messages. All optional, so stored stages from before stay valid without a migration.
 // Order is the layering order on the table (later effects lie above earlier ones). New effects are only appended.
@@ -79,7 +92,7 @@ export function fitNoteRect(r:Rect,b:{w:number;h:number}){return constrainRect({
 export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('add'),kind:z.enum(['note','npc','document']),sourceId:z.string().min(1).max(160).optional(),sourceKind:z.enum(['entity','file','record']).optional(),sourceVersion:z.number().int().positive().optional(),title:z.string().trim().min(1).max(200).optional(),visible:z.boolean().optional(),recipients:z.array(z.string()).max(30).nullable().optional()}).strict(),
  z.object({action:z.literal('documentEdit'),id:z.string().min(1).max(160),content:z.string().max(50000),expectedDocumentRevision:z.number().int().positive().optional()}).strict(),
- z.object({action:z.literal('backdrop'),fileId:z.string().min(1).max(160).nullable()}).strict(),
+ z.object({action:z.literal('backdrop'),fileId:z.string().min(1).max(160).nullable(),transition:z.enum(backdropTransitions).optional()}).strict(),
  z.object({action:z.literal('activateScene'),sceneId:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('move'),id:z.string(),rect:rectSchema,expectedRevision:z.number().int().positive().optional()}).strict(),
  z.object({action:z.literal('edit'),id:z.string(),content:z.string().max(3000),expectedRevision:z.number().int().positive()}).strict(),
@@ -111,7 +124,7 @@ function placement(media:StageMedia|undefined,count:number){
  if(media==='video')return {x:.27+shift,y:.08,w:.36,h:.46};
  return {x:.68+shift/2,y:.06+shift,w:.22,h:.6};
 }
-export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm'>,c:StageCommand,source?:{title:string;kind:'npc'|'document';sourceId:string;sourceKind:'entity'|'file'|'record';presentation?:'vision'|'letter';sourceVersion?:number;sourceToken?:string;media?:StageMedia;ownerId?:string;documentContent?:string;sourceFileId?:string;pages?:import('./table-material').TableMaterial['pages']},resolvedBackdrop?:StageBackdrop|null,resolvedMusic?:StageMusic|null,now=new Date().toISOString()){
+export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm'>,c:StageCommand,source?:{title:string;kind:'npc'|'document';sourceId:string;sourceKind:'entity'|'file'|'record';presentation?:'vision'|'letter';sourceVersion?:number;sourceToken?:string;media?:StageMedia;ownerId?:string;documentContent?:string;sourceFileId?:string;pages?:import('./table-material').TableMaterial['pages'];material?:StageMaterial},resolvedBackdrop?:StageBackdrop|null,resolvedMusic?:StageMusic|null,now=new Date().toISOString()){
  const next=structuredClone(state);
  if(c.action==='pagerAck'){
   // Acknowledgement: only a recipient confirms, once; the GM reads who has confirmed.
@@ -169,7 +182,7 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
    // Files may carry the prepared material title; original dossiers keep their own title.
    if(!placed){placed={id:crypto.randomUUID(),...source,...(c.title&&source.sourceKind==='file'?{title:c.title}:{}),visibility:'sl',recipients:null,rect:source.presentation==='vision'?{x:.025,y:.035,w:.38,h:.37}:source.presentation==='letter'?{x:.72,y:.14,w:.22,h:.28}:placement(source.media,next.objects.filter(o=>o.kind!=='note').length)};next.objects.push(placed);}
    // "Auf den Tisch legen" may release in the same step; otherwise it stays SL-only.
-   if(placed.kind!=='note'&&source.sourceKind==='record'){delete placed.media;delete placed.sourceFileId;delete placed.documentContent;delete placed.pages;Object.assign(placed,source);placed.documentRevision=(placed.documentRevision||0)+1;}
+   if(placed.kind!=='note'&&source.sourceKind==='record'){delete placed.media;delete placed.sourceFileId;delete placed.documentContent;delete placed.pages;delete placed.material;Object.assign(placed,source);placed.documentRevision=(placed.documentRevision||0)+1;}
    if(c.visible!==undefined&&placed.kind!=='note'){placed.visibility=c.visible?'group':'sl';placed.recipients=c.recipients??null;}
   }
  }else{

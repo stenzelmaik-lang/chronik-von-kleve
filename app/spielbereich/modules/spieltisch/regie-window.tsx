@@ -14,6 +14,7 @@ import {effectLabels} from './atmosphere';
 import {TableMaterialLibrary} from '../table-material-library';
 import {RegieVitals} from './regie-vitals';
 import {RegieAmbience} from './regie-ambience';
+import {RegieMaterials} from '../material/regie-materials';
 import type {RegieContext,Snapshot,StageObject,PreparedPager} from './types';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
@@ -210,7 +211,9 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
   <main className={styles.grid} data-scene={s!.id}>
    <Column id="col-material" title="Material" icon={<ImageIcon size={17}/>}>
-    <span id="regie-bereich-material" data-area="material" className={styles.anchor} tabIndex={-1}/>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}
+    <span id="regie-bereich-material" data-area="material" className={styles.anchor} tabIndex={-1}/>
+    {!!context.materials?.length&&<Block title="Szenenmaterial"><RegieMaterials heading={false} materials={context.materials} objects={snapshot?.objects||[]} crew={crew} busy={busy} run={(body,done)=>run(body,null,done)}/></Block>}
+    {snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}
     {!!sceneMedia.filter(m=>m.mime.startsWith('image/')).length&&<Block title="Bilder · Polaroids">{sceneMedia.filter(m=>m.mime.startsWith('image/')).map(m=>media(m,ImageIcon,'image'))}</Block>}
     {!!sceneMedia.filter(m=>m.mime==='application/pdf').length&&<Block title="Dokumente · PDF">{sceneMedia.filter(m=>m.mime==='application/pdf').map(m=>media(m,FileText,'pdf'))}</Block>}
     {!!context.handouts.length&&<Block title="Handout-Akten">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,h.sourceKind||'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:h.sourceKind||'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}
