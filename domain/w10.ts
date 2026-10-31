@@ -1,4 +1,5 @@
 /** Normal V20 checks only. No specialties, automatic successes, damage/soak or house rules. */
+import { evaluateV20 } from './w10-core.ts';
 export const W10_ACCEPTED_WORDS=4294967290; // 10 * 429496729, exactly divisible by ten.
 export type V20Outcome='success'|'failure'|'botch';
 export type V20Report=Readonly<{rule:'v20-normal';target:number;dice:readonly number[];rawSuccesses:number;ones:number;cancelled:number;netSuccesses:number;outcome:V20Outcome;cancelledSuccessIndices:readonly number[]}>;
@@ -18,10 +19,10 @@ export function rollD10Pool(pool:number,source:(words:Uint32Array)=>unknown=word
 }
 export function evaluateNormalV20(values:readonly number[],target:number):V20Report{
   if(!Array.isArray(values)||values.length<1||values.length>30||values.some(v=>!Number.isInteger(v)||v<1||v>10)||!Number.isInteger(target)||target<2||target>10)throw Error('V20: ungültige Würfelwerte oder Schwierigkeit.');
-  const successIndices=values.flatMap((v,i)=>v>=target?[i]:[]),rawSuccesses=successIndices.length,ones=values.filter(v=>v===1).length;
-  const cancelled=Math.min(rawSuccesses,ones),netSuccesses=rawSuccesses-cancelled;
+  const result=evaluateV20(values,{difficulty:target});
+  const {rawSuccesses,ones,cancelled,outcome,cancelledSuccessIndices}=result,netSuccesses=result.netRolledSuccesses;
   return Object.freeze({rule:'v20-normal',target,dice:Object.freeze([...values]),rawSuccesses,ones,cancelled,netSuccesses,
-    outcome:netSuccesses>0?'success':rawSuccesses===0&&ones>0?'botch':'failure',cancelledSuccessIndices:Object.freeze(successIndices.slice(0,cancelled))});
+    outcome,cancelledSuccessIndices});
 }
 export function recordNormalV20(values:readonly number[],target:number):W10LogEntry{
   return Object.freeze({id:globalThis.crypto.randomUUID(),at:new Date().toISOString(),report:evaluateNormalV20(values,target)});
