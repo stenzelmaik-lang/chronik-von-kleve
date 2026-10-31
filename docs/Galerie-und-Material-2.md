@@ -67,4 +67,26 @@ Ausgewertet wurde eine Kopie der Produktionssicherung, nur lesend und ohne Namen
 
 - Codex-Vorschlag 3 (private Vorschaustufe für große Bilder) ist nur notiert. Erst Ladezeiten mit echtem Bestand messen.
 - `tests/preparation-guide-browser.mjs` braucht eine eigene Instanz (Port 8820/8824). Angepasst wurde nur die Bereichsbezeichnung, ausgeführt wurde der Test nicht.
-- Live-Release nur nach Freigabe. Rückfall: keine Schemaänderung. Ein älterer Worker würde nach dem Löschen solcher Verlaufsdateien beim Wiederherstellen alter Fassungen wieder am fehlenden Bild scheitern; Fix-forward bevorzugen.
+## Live-Release 31.10.2026
+
+- Veröffentlicht auf Freigabe des Projektinhabers („Ja, live deployen“).
+- **Stand und Version:**
+  - Commit `2f28298`, aufbauend auf `origin/main` `0795040`.
+  - Worker-Version `88d5f0a6-39ab-413c-b34a-a725803acf99`, Tag `galerie-material-2`, 100 % Verkehr.
+  - Bindings und Laufzeit sind identisch mit der Vorversion: D1, R2, `AUTH_ACCESS_ENVIRONMENT=closed-alpha-production`, CPU 5000 ms, Kompatibilitätsdatum 2026-09-21.
+- **Vorversion:** `188bf384-d465-41c7-9978-880daacff1e7` (Codex-Release Galerie/Material). Für ein Zurückschalten gelten Codex' Rückfallgrenzen weiter (siehe `releases/2026-10-31-galerie-material-claude-handover.md`).
+- **Sicherung vorab:**
+  - Export der 32 Tabellen (28.236 Zeilen), `integrity_check ok`.
+  - Time-Travel-Lesezeichen `00000196-00000000-00005115-8ea89080ff8a9ef98e750b55b4591ff9`.
+  - Ablage privat unter `.local-work/release-galerie-2/`.
+- **Datenstand unmittelbar vor dem Deploy** (aus der Sicherung, nur lesend ausgewertet): 74 Dateien, davon waren 8 löschbar. 6 weitere waren nur durch das Protokoll gesperrt und sind jetzt löschbar. Die übrigen bleiben durch echte Verwendung geschützt, überwiegend NSC-Porträts.
+- **Live-Prüfung ohne Anmeldung:**
+  - `/anmelden` liefert 200.
+  - Spielbereich, Galerie und Regie leiten mit 307 weiter.
+  - `/api/files` (auch `?usage=`), `/api/table-materials`, Bühne und Datensätze liefern 401 mit `private, no-store`.
+  - `PATCH /api/files` liefert ohne Anmeldung 401.
+- **Rückfall:** keine Schemaänderung. Ein älterer Worker würde nach dem Löschen solcher Verlaufsdateien beim Wiederherstellen alter Fassungen wieder am fehlenden Bild scheitern; Fix-forward bevorzugen.
+
+Nicht zurückgenommen: Die folgende Notiz zum Rückfall bleibt gültig.
+
+- Rückfall: keine Schemaänderung. Ein älterer Worker würde nach dem Löschen solcher Verlaufsdateien beim Wiederherstellen alter Fassungen wieder am fehlenden Bild scheitern; Fix-forward bevorzugen.
