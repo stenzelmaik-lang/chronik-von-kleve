@@ -120,3 +120,20 @@ Die vorhandene Architektur bleibt: ein Pager, der Bühnenstand als Speicher, `PO
   - Das sollte vor dem nächsten CI-Lauf eigens bereinigt werden.
 - **Nicht nachgespielt:** Ein zurückgezogener und mit derselben ID erneut ausgespielter Pager klingelt kein zweites Mal, weil die ID schon gesehen wurde. Er erscheint aber ungelesen.
 - **Testinstanz:** `$env:CVK_TEST_PORT='8884'; .\scripts\start-ultio-pager.ps1` (Speicher `.local-test/ultio-pager` in diesem Worktree, nur synthetische Konten).
+
+## Live-Release 31.10.2026
+
+- Freigegeben durch den Projektinhaber („Ja, Pager zuerst“, nach Merge von PR #55 als `c2a3b9e`).
+- Worker-Version `5954135a-b260-4471-b41c-d3306388ba45`, Tag `c2a3b9e-Pager-Fixes`, 100 % Verkehr. Bindings unverändert.
+- Rückfallversion: `b0f73b8b-28c9-4ba6-bb11-5395fd8226c4` (W10 Phase B). Kompatibel: Der neue Lesestatus ist ein zusätzliches Feld im Bühnenstand, ältere Builds ignorieren ihn.
+- Prüfung vorab am gemergten Stand: Typecheck, App-Lint, 297 Unit-Tests, Build, Pager- und Lesestatus-Integration, Pager-Browsertest (SL/A/B; 1920, 1440, 125 %, 375 px) grün.
+- Sicherung vorab:
+  - 32 Tabellen, 29.273 Zeilen, `integrity_check ok`.
+  - Lesezeichen `0000019c-0000006e-00005115-08457a365910b4eb175161d20e403aed`.
+  - Ablage: privat unter `.local-work/release-pager-fixes/`.
+- Live-Prüfung ohne Anmeldung:
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich, Command Center und Regie leiten mit 307 weiter.
+  - Bühne, Spieltisch und Dateien antworten mit 401 und `private, no-store`.
+  - Pager-Gehäuse und beide Töne antworten mit 200.
+- Keine Daten- oder Schemaänderung.
