@@ -56,6 +56,8 @@ Stand: 31.10.2026 · Branch `claude/regie-zweitfenster` (Basis `claude/erzaehlun
 
 ## Anschluss für die Pager-Integration
 
+> **Nachtrag:** Umgesetzt in `ULTIO-Pager.md` (Branch `claude/ultio-pager`). `PagerInbox`, `PagerDevice`, `PAGER_ASSET` und der Platzhalter existieren dort nicht mehr; der Vertrag unten gilt unverändert.
+
 Der Pager ist in diesem Umbau bewusst nur als Schnittstelle mit austauschbarem Platzhalter gebaut. Das gelieferte Asset-Paket (ULTIO Pager R-03 v2) und die Vorbereitung im SL-Command-Center folgen in einer eigenen Sitzung und setzen hier an.
 
 **Nachrichtenvertrag** (`domain/live-stage.ts`, Schema `pager` im Bühnenstand):

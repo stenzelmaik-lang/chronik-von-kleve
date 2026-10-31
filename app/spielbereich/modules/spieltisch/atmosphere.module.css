@@ -22,22 +22,3 @@
 .music input{width:84px;accent-color:#d6b36f}
 @media(max-width:600px){.music{top:56px;left:10px;max-width:calc(100% - 20px)}.music input{width:60px}}
 
-/* Pager: floats onto the table from below, then rests with a slight tilt. */
-.pager{position:absolute;right:18px;bottom:84px;z-index:25;display:grid;gap:8px;width:min(340px,calc(100% - 36px));pointer-events:auto;animation:pagerIn 900ms cubic-bezier(.2,.9,.25,1.1) both}
-.pager footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;justify-self:end;padding:6px 6px 6px 12px;border:1px solid #c5a46a40;border-radius:8px;background:#0c1417ee}
-.pager footer small{color:#d9d1c0;font-size:11px}
-.pager footer button{display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid #d6b36f;border-radius:6px;background:#d6b36f;color:#141a1b;font-size:13px}
-.device{position:relative;width:100%;rotate:-3deg;filter:drop-shadow(0 14px 22px #000a);animation:pagerFloat 4.5s 900ms ease-in-out infinite}
-/* Only the device floats; the controls below stay still so they are easy to hit. */
-.pager:hover .device,.pager:focus-within .device{animation-play-state:paused}
-.device img{display:block;width:100%;height:100%;user-select:none}
-.screen{position:absolute;display:flex;flex-direction:column;gap:2px;padding:5px 8px;color:#1d2a18;font:600 14px/1.3 ui-monospace,Consolas,'Courier New',monospace;overflow:hidden}
-.screen small{font-size:10px;opacity:.75}
-.screen strong{font-size:13px;text-transform:uppercase;letter-spacing:.03em}
-.device[data-priority=hoch] .screen small{opacity:1;color:#6b1a10}
-.screen p{margin:0;overflow:auto;overflow-wrap:anywhere;white-space:pre-wrap;scrollbar-width:thin}
-@keyframes pagerIn{0%{opacity:0;transform:translate(40px,120px) rotate(14deg) scale(.8)}60%{opacity:1}100%{opacity:1;transform:none}}
-@keyframes pagerFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@media(prefers-reduced-motion:reduce){.pager,.device{animation:none}}
-:global(.user-reduced-motion) .pager,:global(.user-reduced-motion) .device{animation:none!important}
-@media(max-width:600px){.pager{right:10px;bottom:78px;width:calc(100% - 20px);max-width:340px}}

@@ -8,8 +8,15 @@ const ids = z.array(id).max(30).refine(v => new Set(v).size === v.length, 'Eine 
 export const sceneTabs = { narration: 'Erzählung', persons: 'Personen', interaction: 'Interaktion', secrets: 'Geheimnisse', consequences: 'Konsequenzen' } as const;
 export const sceneStatusNames = { prepared: 'Vorbereitet', active: 'Läuft', paused: 'Pausiert', completed: 'Abgeschlossen' } as const;
 
-export const sceneElementKinds=['text','sl-note','description','object','clue','check','dialogue','encounter','place','person','image','audio','video','handout','puzzle'] as const;
-export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(sceneElementKinds),title:z.string().trim().min(1).max(200),text,referenceId:optionalId,fileId:optionalId}).strict();
+export const sceneElementKinds=['text','sl-note','description','object','clue','check','dialogue','encounter','place','person','image','audio','video','handout','puzzle','pager'] as const;
+/** Prepared pager message (ULTIO pager). The element id becomes the message id when the GM plays it, so it is sent once.
+ * Limits match the live pager contract; an empty recipient list means the whole round. Optional, so older scenes stay valid. */
+export const scenePagerMax={sender:80,title:80,text:280,recipients:30} as const;
+export const scenePagerSchema=z.object({sender:z.string().trim().max(scenePagerMax.sender).default(''),text:z.string().trim().max(scenePagerMax.text).default(''),priority:z.enum(['normal','hoch']).default('normal'),recipientIds:z.array(id).max(scenePagerMax.recipients).default([]).refine(v=>new Set(v).size===v.length,'Empfänger dürfen nicht doppelt sein.')}).strict();
+export type ScenePager=z.infer<typeof scenePagerSchema>;
+export const emptyScenePager=():ScenePager=>({sender:'',text:'',priority:'normal',recipientIds:[]});
+export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(sceneElementKinds),title:z.string().trim().min(1).max(200),text,referenceId:optionalId,fileId:optionalId,pager:scenePagerSchema.optional()}).strict()
+  .refine(e=>e.kind==='pager'?e.title.length<=scenePagerMax.title&&!e.referenceId&&!e.fileId:!e.pager,'Pager-Bausteine haben einen Titel bis 80 Zeichen und keine Datei; andere Bausteine tragen keine Pager-Daten.');
 export type SceneElement=z.infer<typeof sceneElementSchema>;
 // Preparation has no execution flags. Only an explicit SL command creates a run.
 export const sceneDocumentSchema = z.object({

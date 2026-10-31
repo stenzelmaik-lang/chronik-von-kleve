@@ -4,7 +4,7 @@ import {liveEvents} from './live-commands';
 import {loadEntities,loadEntitiesForIds} from './entities';
 import {listScenes,readScene} from './story-scenes';
 import {preparedSession} from './story-preparation';
-import type {SceneSummary} from '@/domain/story-scene';
+import {emptyScenePager,type SceneSummary} from '@/domain/story-scene';
 import {liveSceneChoice} from '@/domain/session-overview';
 import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stageSourceToken,stageMediaOf,type StageCommand,type StageState,type StageObject,type StageBackdrop,type StageMusic} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
@@ -40,7 +40,9 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
   npcs:npcIds.flatMap(id=>{const e=entity(id);return e&&e.type==='NPC'?[{id,title:e.title,summary:text(e.content.text),gmBody:e.gmBody||'',image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(id),cue:d.elements.filter(x=>x.referenceId===id).map(x=>x.text).join('')}]:[];}),
   handouts:handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT'}]:[];}),
   media:d.elements.flatMap(e=>{const f=files.results.find(f=>f.id===e.fileId);return f?[{id:e.id,title:e.title,kind:e.kind,text:e.text,fileId:f.id,name:f.name,mime:f.mime}]:[];}),
-  notes:d.elements.filter(e=>!e.fileId&&!['person','handout'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
+  notes:d.elements.filter(e=>!e.fileId&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
+  // Prepared pager messages of this scene. Played from the Regie with the element id as message id, so each is sent once.
+  pagers:d.elements.flatMap(e=>{if(e.kind!=='pager')return [];const p=e.pager||emptyScenePager();return [{id:e.id,title:e.title,sender:p.sender,text:p.text,priority:p.priority,recipientIds:p.recipientIds,cue:e.text}];}),
  };
 }
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){

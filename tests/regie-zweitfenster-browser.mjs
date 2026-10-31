@@ -5,7 +5,7 @@ import {mkdirSync} from 'node:fs';
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8870';
 assert.equal(new URL(base).hostname,'127.0.0.1');
-assert.ok(['8870','8871'].includes(new URL(base).port),'Use the isolated synthetic Regie fixture only');
+assert.ok(['8870','8871','8874'].includes(new URL(base).port),'Use the isolated synthetic Regie fixture only');
 const output='.local-work/ux-check/regie';mkdirSync(output,{recursive:true});
 const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',viewport:{width:1440,height:900}},{name:'zoom125',viewport:{width:1536,height:864},deviceScaleFactor:1.25}];
 const mobile={viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true};
@@ -43,13 +43,13 @@ try{
   const pager=regie.getByRole('group',{name:'Empfänger: Pager'});
   await pager.getByRole('button',{name:nameA}).click();
   await regie.getByLabel('Pager-Nachricht').fill(text);await regie.getByRole('button',{name:'Pager senden'}).click();
-  await pa.getByRole('alertdialog',{name:'Pager-Nachricht'}).getByText(text,{exact:true}).waitFor();
+  await pa.getByRole('region',{name:'Pager'}).getByText(text,{exact:true}).waitFor();
   await pb.waitForTimeout(2000);assert.equal(await pb.getByText(text,{exact:true}).count(),0,'B never sees the pager for A');
   assert.equal(await sl.getByText(text,{exact:true}).count(),0,'The shared SL table never shows a targeted pager');
   await pa.screenshot({path:output+'/'+name+'-spieler-a-pager.png'});
-  await pa.getByRole('button',{name:'Gelesen'}).click();
+  for(let i=0;i<2;i++)await pa.getByRole('button',{name:'OK: öffnen oder quittieren'}).click();
   await regie.getByRole('list',{name:'Gesendete Pager'}).locator('li',{hasText:text}).getByText('Gelesen: '+nameA).waitFor();await pa.reload();await pa.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();await pa.waitForTimeout(1500);
-  assert.equal(await pa.getByText(text,{exact:true}).count(),0,'Read pagers stay read after reload');
+  assert.equal(await pa.getByText(text,{exact:true}).count(),0,'Read pagers stay folded after reload');
   pass(name+': pager reaches A only, animated, read state survives reload');
 
   // Weather for the whole round; reduced motion keeps it still.
@@ -104,10 +104,10 @@ try{
  await regie.getByRole('group',{name:'Empfänger: Pager'}).getByRole('button',{name:nameA}).click();
  await regie.getByLabel('Pager-Nachricht').fill(text);await regie.getByRole('button',{name:'Pager senden'}).click();
  await regie.locator('li',{hasText:'Regennacht'}).getByRole('button').click();
- const box=await pa.getByRole('alertdialog',{name:'Pager-Nachricht'}).boundingBox();
+ const box=null;
  await pa.getByText(text,{exact:true}).waitFor();await pa.getByRole('group',{name:'Hintergrundmusik'}).waitFor();
  await pa.waitForTimeout(1200);// the pager has floated in
- const settled=await pa.getByRole('alertdialog',{name:'Pager-Nachricht'}).boundingBox();
+ const settled=await pa.getByRole('region',{name:'Pager'}).boundingBox();
  assert.ok(settled,'Pager visible');console.log('375 pager box '+JSON.stringify(settled));
  assert.ok(settled.x>=0&&settled.x+settled.width<=375+1,'Pager fits the phone width');void box;
  const music=await pa.getByRole('group',{name:'Hintergrundmusik'}).boundingBox();assert.ok(music.x+music.width<=375+1,'Music controls fit');

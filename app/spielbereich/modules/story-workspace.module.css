@@ -480,3 +480,11 @@
 .materialThumb{flex:0 0 auto;display:grid;place-items:center;width:56px;height:56px;object-fit:cover;border-radius:5px;border:1px solid #b9985b44;background:#0b1620;color:#d6b36f}
 .materialActions>button{display:inline-flex;align-items:center;gap:7px}
 audio.materialPreview{width:100%;max-width:420px}
+/* Prepared pager message (ULTIO) inside the scene material. */
+.pagerFields{display:grid;gap:12px;margin:12px 0}
+.pagerFields label{display:grid;gap:6px}
+.pagerFields textarea{min-height:84px;font-family:'Courier New',Consolas,monospace}
+.pagerFields fieldset{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0;padding:10px 12px;border:1px solid #7791a455;border-radius:6px}
+.pagerFields fieldset label{display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.pagerFields fieldset small,.pagerFields fieldset p{flex-basis:100%;margin:0;color:#bdcbd2}
+.pagerFields small{color:#bdcbd2}

@@ -46,9 +46,12 @@ async function validateDocument(db: D1Database, a: Actor, d: SceneDocument, scen
     throw new HttpError(400, 'Eine Akte passt nicht zu diesem Szenenbereich.');
   for(const e of elementRefs){const target=entities.find(n=>n.id===e.referenceId);const expected=e.kind==='place'?['PLACE']:e.kind==='person'?['NPC','CHARACTER']:e.kind==='clue'?['CLUE']:e.kind==='handout'?['HANDOUT']:e.kind==='puzzle'?['RULE','HANDOUT']:[];if(!expected.includes(target?.type||''))throw new HttpError(400,'Verknüpfung passt nicht zum Elementtyp.');}
   await validatePreparationMedia(db,a,[d.narration,d.atmosphere,d.gmNotes,d.dialogueNotes,d.interactions,d.secrets,d.visions,d.possibleConsequences,...d.elements.map(e=>e.text)],[...d.elements.filter(e=>e.fileId).map(e=>({id:e.fileId,kind:e.kind})),...d.visionFileIds.map(id=>({id,kind:'handout'})),...(d.backdropFileId?[{id:d.backdropFileId,kind:'image'}]:[])]);
-  if(d.visionRecipientIds.length){
+  const pagerRecipientIds=d.elements.flatMap(e=>e.pager?.recipientIds||[]);
+  if(d.visionRecipientIds.length||pagerRecipientIds.length){
     const recipients=await db.prepare("SELECT m.id FROM members m JOIN campaign_memberships c ON c.user_id=m.id WHERE c.campaign_id=? AND c.status='active' AND c.role='player' AND m.status='active'").bind(a.campaignId).all<{id:string}>();
     if(d.visionRecipientIds.some(id=>!recipients.results.some(member=>member.id===id)))throw new HttpError(400,'Wähle aktive Spieler dieser Kampagne für persönliche Botschaften.');
+    // Prepared pager messages address players of the campaign; the live evening checks again that they take part.
+    if(pagerRecipientIds.some(id=>!recipients.results.some(member=>member.id===id)))throw new HttpError(400,'Wähle aktive Spieler dieser Kampagne als Pager-Empfänger.');
   }
   if(d.elements.some(e=>e.fileId&&!['image','audio','video','handout'].includes(e.kind)))throw new HttpError(400,'Dieser Elementtyp unterstützt keine Datei.');
 }

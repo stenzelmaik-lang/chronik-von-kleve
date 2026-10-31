@@ -81,6 +81,8 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
   if(c.action==='effects')next.effects=stageEffects.filter(e=>c.effects.includes(e));
   else if(c.action==='music'){if(c.fileId&&!resolvedMusic)throw Object.assign(Error('Musik nicht verfügbar.'),{status:404});next.music=c.fileId?resolvedMusic:null;}
   else if(c.action==='pager'){
+   // A prepared message is played with its own (element) id, so the same message is never sent twice.
+   if(c.origin==='vorbereitet'&&!c.id)throw Object.assign(Error('Vorbereitete Pager-Nachrichten brauchen ihre ID.'),{status:400});
    if(c.id&&next.pagers?.some(p=>p.id===c.id))throw Object.assign(Error('Diese Pager-Nachricht wurde bereits gesendet.'),{status:409});
    next.pagers=[...next.pagers||[],{id:c.id||crypto.randomUUID(),text:c.text,at:now,recipients:c.recipients?[...new Set(c.recipients)]:null,...(c.title?{title:c.title}:{}),...(c.sender?{sender:c.sender}:{}),...(c.priority&&c.priority!=='normal'?{priority:c.priority}:{}),origin:c.origin||'regie'}].slice(-pagerKeep);
   }
