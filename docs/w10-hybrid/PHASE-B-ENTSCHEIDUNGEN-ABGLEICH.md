@@ -9,7 +9,7 @@ Stand: 31.10.2026. Branch `claude/w10-hybrid-phase-b` (lokal, `d47ec09`). Grundl
 | K3 SG über 10 | **umgesetzt** (lokal): Ablehnung `DIFFICULTY_ABOVE_10` mit Grund-SG, Modifikatoren, Summe und Hinweistext. `cap_at_10` ist aus dem Phase-A-Kern entfernt; ein mitgesendetes Policy-Feld führt im Kern zu `INVALID_DIFFICULTY_POLICY` und an der Route zu 400. |
 | K7 Charakterbindung | **umgesetzt** (lokal): `sessionId` ist Pflicht, der Spielabend muss laufen. Spieler würfeln nur mit der im Profil gewählten, spielbereiten Figur. Ohne Auswahl, mit einer anderen Auswahl, mit einem Entwurf oder einem Bogen in Prüfung gibt es 409; fremd oder unbekannt 404. Die SL ist auf Spielercharaktere des Abends beschränkt. Offen: NSC-Weg, Wechselprüfung beim verbindlichen Wurf (Phase D). |
 | K5 Wundabzüge | **umgesetzt** für gewöhnliche Proben: Der Abzug aus der bestehenden Gesundheitsleiste (`readVitals`) wird einmal vom Pool abgezogen, bevor Sonderwürfel verteilt werden. Außer Gefecht, Torpor und endgültiger Tod führen zu `INCAPACITATED`. Ist der Pool leer, gilt `NO_DICE` ohne Ersatzwürfel. Die Ausnahmen (Absorption, Schaden, Körperkraft-Schaden, Aufheben von Abzügen) bleiben bis zur Quellprüfung offen und stehen sichtbar in `notApplied`. |
-| K4 Spezialisierungen | **umgesetzt** (lokal): Feld `specialties` im Bogen, Editor und Bogenansicht; serverseitige Anwendung in der Vorschau. Details unten. Offen: R4 (Bestätigung der Situation), Erschaffungseditor für Engine-Entwürfe, Primärquellenprüfung zur Anzahl je Eigenschaft. |
+| K4 Spezialisierungen | **umgesetzt** (lokal): Feld `specialties` im Bogen, Editor und Bogenansicht; serverseitige Anwendung in der Vorschau. Details unten. R4 ist entschieden (siehe unten). Offen: Erschaffungseditor für Engine-Entwürfe, Primärquellenprüfung zur Anzahl je Eigenschaft. |
 | K6, K1 | offen |
 
 **Ursprünglich war dieses Dokument nur ein Plan.** Gegenüber `d47ec09` ändert es weder Code noch Daten. Es beginnt nicht mit Phase C oder D und nimmt keine Migration vor.
@@ -46,7 +46,7 @@ Vorschlag für ein additives Bogenfeld `specialties`. Bestehende Bögen ohne das
 - Fällt der Wert später unter 4, bleibt die Spezialisierung gespeichert, wirkt aber nicht. Sie wird nicht gelöscht.
 - Bearbeitung über die vorhandenen Wege `edit_sheet`/`sl_adjustment` und den Editor. `specialties` kommt in `characterSheetFields` und in den Bestandsschutz der Records-Route.
 - Probe: Die Anfrage darf `specialtyId` nennen. Der Server prüft Besitz, Ziel (Attribut oder gewählte Fähigkeit) und Aktivität. Je Probe gilt höchstens eine Doppelwertung. Danach greifen die Einserabzüge nach V20, wie in `evaluateV20` bereits umgesetzt.
-- **Rückfrage R4:** Wer bestätigt, dass die Spezialisierung „zur konkreten Probe passt“? Vorschlag: Bei einer SL-Probenaufforderung entscheidet die SL. Bei einem freien Spielerwurf beansprucht der Spieler sie, und das Ereignis zeigt das für die SL sichtbar als „beansprucht“ an.
+- **R4 – entschieden am 31.10.2026 durch den Projektinhaber:** (1) Bei einer **SL-Probenaufforderung** legt die SL fest, ob und welche Spezialisierung gilt. (2) Bei einem **freien Spielerwurf** beansprucht der Spieler sie selbst; der Wurf zeigt den Anspruch für die SL sichtbar markiert. (3) Hält die SL eine beanspruchte Spezialisierung **nach dem Wurf** für unpassend, werden **dieselben Würfel** ohne Doppelwertung neu ausgewertet. Es wird nicht neu gewürfelt. Das korrigierte Ergebnis wird als SL-Korrektur protokolliert, nicht als natürlicher Wurf; das ursprüngliche Ergebnis bleibt im Ereignis erhalten.
 
 ### K5 – Wundabzüge
 - Quelle: `readVitals(body).health` (bestehende Leiste und Stufe). `penalty: null` (Außer Gefecht) sowie `status: torpor/final-death` → `blocked: INCAPACITATED`.
@@ -82,7 +82,7 @@ Vorschlag für ein additives Bogenfeld `specialties`. Bestehende Bögen ohne das
 | --- | --- | --- |
 | R1 | Was geschieht mit dem bestehenden manuellen persönlichen Stress `personal[characterId]` 0–10 neben `personalStressUnits`? | Unverändert lassen und als „Altwert (manuell)“ anzeigen. Kein Würfeleinfluss, keine Umrechnung. Abschaffung nur durch eine gesonderte Entscheidung. |
 | R1b | Startwert von `personalStressUnits` für bestehende Figuren? | Fehlendes Feld = „noch nicht erfasst“, rechnerisch 0, sichtbar gekennzeichnet. Keine geschriebene Initialisierung. |
-| R4 | Wer bestätigt die Anwendbarkeit einer Spezialisierung? | Siehe K4. |
+| R4 | Wer bestätigt die Anwendbarkeit einer Spezialisierung? | **Entschieden:** nach Probenart (SL-Aufforderung: SL; freier Wurf: Spieler beansprucht). Einspruch der SL: Neuauswertung derselben Würfel als protokollierte Korrektur. |
 | R7 | Automatische Auswahl, wenn ein Spieler genau eine spielbare Figur hat? | Nein. Einmalige ausdrückliche Auswahl. |
 | R5 | Wundabzug-Ausnahmen | Erst nach Quellprüfung durch Claude/Codex mit Seitenangaben implementieren. Bis dahin blockiert der Pfad. |
 
@@ -110,7 +110,7 @@ Vorschlag für ein additives Bogenfeld `specialties`. Bestehende Bögen ohne das
 
 - **Gemeinsames Stressdokument:** Persönlicher Altwert und Gruppenstress teilen heute ein Settings-JSON mit gemeinsamer Version. Der neue Speicher darf dieses Dokument nicht erweitern, sonst entstehen Versionskonflikte zwischen SL-Aktionen und Würfen.
 - **Name als Schlüssel bei eigenen Fähigkeiten:** XP-Ledger und Anträge verweisen per Name. Eine Umbenennung ohne ID-Pfad könnte Bezüge brechen. Deshalb wird der Bestand vor M6 nicht umbenannt.
-- **Spezialisierungsbestätigung:** Ohne Entscheidung R4 kann ein Spieler die Doppelwertung beanspruchen. Bis dahin muss das Ereignis den Anspruch sichtbar markieren.
+- **Spezialisierungsbestätigung (R4 entschieden):** Phase B setzt den freien Anspruch mit Markierung bereits um („vom Spieler beansprucht“ bzw. „von der SL gesetzt“). Die SL-Probenaufforderung mit festgelegter Spezialisierung und die nachträgliche Neuauswertung brauchen gespeicherte, unveränderliche Wurfereignisse. Sie folgen deshalb mit **Phase D**; dort sind Pflichttests: gleiche Würfel, keine neue Zufallsziehung, Originalergebnis erhalten, Korrektur als SL-Aktion protokolliert und kein Doppelverbrauch von Ressourcen.
 - **Wund-Ausnahmen:** Fehlinterpretationen ohne Quellprüfung würden Kampfergebnisse verfälschen. Deshalb blockiert der Pfad, statt zu raten.
 - **Bogenschutz geprüft:** Ein Spieler kann die mechanischen Werte eines nicht übernommenen Altbogens nicht über `/api/records` ändern. Der Versuch lieferte lokal 403, die Vorschau blieb bei Geschick 3. Engine-**Entwürfe** sind dagegen frei editierbar und werden deshalb in K7 für Würfe ausgeschlossen.
 - **Phase-A-Core:** Das Entfernen von `cap_at_10` ändert Draft-Tests. Produktiver Code ist nicht betroffen, weil der Draft in keine freigegebene Route eingebunden ist.

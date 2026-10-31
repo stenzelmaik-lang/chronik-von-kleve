@@ -49,7 +49,7 @@ export type W10Provenance = Readonly<{
 export type W10NotApplied = Readonly<{ id: string; label: string; reason: string }>;
 
 const NOT_APPLIED: readonly W10NotApplied[] = Object.freeze([
-  { id: 'specialty_fit', label: 'Passt die Spezialisierung zur Situation?', reason: 'Der Server prüft Besitz, Zuordnung und Mindestwert, nicht die erzählerische Situation. Ein Anspruch wird als „beansprucht“ markiert (Rückfrage R4).' },
+  { id: 'specialty_fit', label: 'Passt die Spezialisierung zur Situation?', reason: 'Entscheidung R4: Bei einer SL-Probenaufforderung legt die SL die Spezialisierung fest, bei einem freien Wurf beansprucht sie der Spieler sichtbar markiert. Hält die SL sie danach für unpassend, werden dieselben Würfel ohne Doppelwertung neu ausgewertet und als SL-Korrektur protokolliert (Probenaufforderung und Korrektur folgen mit Phase D).' },
   { id: 'wound_exceptions', label: 'Ausnahmen vom Wundabzug', reason: 'Absorption, Schaden, Körperkraft-Schadenswürfe und das Aufheben von Wundabzügen werden erst nach Prüfung der V20-Primärquelle umgesetzt. Phase B leitet nur gewöhnliche Proben ab, bei denen der Wundabzug immer gilt.' },
   { id: 'hunger', label: 'Hungerwürfel', reason: 'Offene Entscheidung Blut → Hunger. Bestehende Blutpunkte werden nicht umgedeutet.' },
   { id: 'personal_stress', label: 'Persönlicher Stress', reason: 'Offene Entscheidung Stress 0–10 → 0–300. Bestehender Stress wird nicht umgedeutet.' },
