@@ -287,3 +287,13 @@ test('K1-3: the new field is server-owned: not a sheet field and protected in th
   const route = readFileSync(new URL('../app/api/records/route.ts', import.meta.url), 'utf8');
   assert.match(route, /protectedKeys = \[[^\]]*"personalStressUnits"\]/);
 });
+
+test('Release decision: specialties and own-ability fields are marked as preparation while the profile is unreleased', async () => {
+  const { hybridPreparationNote } = await import('../domain/character-specialties.ts');
+  assert.equal(HYBRID_DRAFT_PROFILE.productionEnabled, false);
+  assert.match(hybridPreparationNote(), /Vorbereitung .* noch keine Würfelwirkung/);
+  const editor = readFileSync(new URL('../app/spielbereich/modules/character-sheet-editor.tsx', import.meta.url), 'utf8');
+  const detail = readFileSync(new URL('../app/spielbereich/modules/character-detail.tsx', import.meta.url), 'utf8');
+  assert.equal((editor.match(/data-hybrid-preparation/g) || []).length, 2, 'Specialties and own-ability block in the editor');
+  assert.equal((detail.match(/data-hybrid-preparation/g) || []).length, 1, 'Specialties in the sheet view');
+});

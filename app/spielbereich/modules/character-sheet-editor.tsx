@@ -3,7 +3,7 @@ import {useMemo,useState} from 'react';
 import {Minus,Plus,Trash2,X} from 'lucide-react';
 import {Dialog,DialogContent,DialogDescription,DialogTitle} from '@/components/ui/dialog';
 import {characterSheetFields,validateExistingSheet} from '@/domain/character-management';
-import {newSpecialtyId,specialtyRatingError,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating,type Specialty} from '@/domain/character-specialties';
+import {hybridPreparationNote,newSpecialtyId,specialtyRatingError,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating,type Specialty} from '@/domain/character-specialties';
 import {W10_ABILITY_KEYS,W10_ATTRIBUTE_KEYS} from '@/domain/trait-ids';
 import {CUSTOM_ABILITY_CATEGORIES,newCustomAbilityId,readCustomAbilities} from '@/domain/custom-abilities';
 import {creationDeviation} from '@/domain/character-engine';
@@ -122,8 +122,8 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
       <section id="cvk-sheet-attributes" className={sheet.block}><h3>Attribute</h3><div className={sheet.columns}>{attrsGroups.map(([group,names])=><div key={group}><h4>{group==='Sozial'?'Gesellschaftlich':group==='Mental'?'Geistig':group}</h4>{names.map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.attributes)[name]??(name==='Erscheinungsbild'&&str(body.clan).toLowerCase()==='nosferatu'?0:1))} onChange={n=>setIn('attributes',name,n)}/></div>)}</div>)}</div></section>
       <section id="cvk-sheet-abilities" className={sheet.block}><h3>Fähigkeiten</h3><div className={sheet.columns}>{skillGroups.map(([group,names])=><div key={group}><h4>{group}</h4>{names.map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.skills)[name]??0)} onChange={n=>setIn('skills',name,n)}/></div>)}</div>)}</div>
         {Object.keys(map(body.skills)).filter(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).length>0&&<div className={sheet.subBlock}><h4>Weitere gespeicherte Fähigkeiten</h4>{Object.keys(map(body.skills)).filter(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.skills)[name]??0)} onChange={n=>setIn('skills',name,n)}/></div>)}</div>}
-        <div className={sheet.subBlock}><h4>Spezialisierungen</h4><SpecialtyList value={body.specialties??[]} body={body} onChange={v=>set('specialties',v)}/></div>
-        <div className={sheet.subBlock}><h4>Zusätzliche Fähigkeiten (freie Zeilen des Bogens)</h4><RowList label="Fähigkeit" value={body.customAbilities??[]} onChange={v=>set('customAbilities',v)} metric="value" high={high} custom/></div>
+        <div className={sheet.subBlock}><h4>Spezialisierungen</h4>{hybridPreparationNote()&&<p className={sheet.hint} data-hybrid-preparation>{hybridPreparationNote()}</p>}<SpecialtyList value={body.specialties??[]} body={body} onChange={v=>set('specialties',v)}/></div>
+        <div className={sheet.subBlock}><h4>Zusätzliche Fähigkeiten (freie Zeilen des Bogens)</h4>{hybridPreparationNote()&&<p className={sheet.hint} data-hybrid-preparation>Kategorie und „Aktiv“: {hybridPreparationNote()}</p>}<RowList label="Fähigkeit" value={body.customAbilities??[]} onChange={v=>set('customAbilities',v)} metric="value" high={high} custom/></div>
       </section>
       <section id="cvk-sheet-advantages" className={sheet.block}><h3>Vorteile</h3><div className={sheet.columns}>
         <div><h4>Disziplinen</h4><RowList label="Disziplin" value={body.disciplines??[]} onChange={v=>set('disciplines',v)} metric="value" suggestions={allDisciplines} high={high}/>

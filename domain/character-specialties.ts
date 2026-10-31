@@ -4,6 +4,13 @@
  * Technologie) is free text elsewhere and never grants the mechanical double-ten rule. */
 import { W10_ABILITY_KEYS, W10_ATTRIBUTE_KEYS } from './trait-ids.ts';
 import { customAbilityById, isCustomAbilityId } from './custom-abilities.ts';
+import { HYBRID_DRAFT_PROFILE } from './w10-hybrid-draft.ts';
+
+/** Owner decision 31.10.2026: specialties and the new own-ability fields may be visible before release,
+ * but must be marked as preparation without any active hybrid dice effect. Empty once the profile is released. */
+export function hybridPreparationNote(): string {
+  return HYBRID_DRAFT_PROFILE.productionEnabled ? '' : 'Vorbereitung für das Hybrid-Würfelsystem: wird gespeichert und angezeigt, hat aber noch keine Würfelwirkung.';
+}
 
 export type SpecialtyTargetKind = 'attribute' | 'ability' | 'customAbility';
 export type Specialty = { id: string; target: { kind: SpecialtyTargetKind; id: string }; name: string; scope?: string; active?: boolean };
