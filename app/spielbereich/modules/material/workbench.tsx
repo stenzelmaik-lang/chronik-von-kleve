@@ -25,8 +25,10 @@ function status(e:SceneElement,files:PickerFile[],assets:DisplayAsset[],loadedAs
  const missing=m.files.filter(f=>!f.fileId||!files.some(x=>x.id===f.fileId)).length;
  if(missing)problems.push(missing===1?'Eine Datei fehlt':missing+' Dateien fehlen');
  if(!m.files.length&&!(textTypes.includes(m.type)&&plain(e.text)))problems.push('Noch kein Inhalt');
+ // Asset checks wait for the asset list; before that nothing is claimed about the display or the effect.
+ if(!loadedAssets)return problems;
  const asset=assets.find(a=>a.id===m.assetId);
- if(m.assetId&&loadedAssets&&!asset)problems.push('Darstellung fehlt');
+ if(m.assetId&&!asset)problems.push('Darstellung fehlt');
  const p=effectProblem(m.effect.open,{states:asset?.states.map(s=>s.key)||[],files:m.files.filter(f=>f.fileId).length});
  if(p)problems.push('Effekt-Ersatz aktiv');
  return problems;

@@ -1,5 +1,5 @@
 /* Personal material viewer – same look as the table reader (stage.module.css .reader). */
-.presenter{width:min(1200px,94vw);height:min(940px,92dvh);max-width:94vw;max-height:92dvh;padding:0;border:1px solid #b49c6a;border-radius:10px;background:#10191d;color:#eee8dc;overflow:hidden;--line:#ffffff1f}
+.presenter{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(1200px,94vw);height:min(940px,92dvh);max-width:94vw;max-height:92dvh;padding:0;border:1px solid #b49c6a;border-radius:10px;background:#10191d;color:#eee8dc;overflow:hidden;--line:#ffffff1f}
 .presenter::backdrop{background:#060b10d9}
 .presenter[open]{display:flex;flex-direction:column}
 .presenter>header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;border-bottom:1px solid var(--line)}
@@ -11,7 +11,7 @@
 .tools span{min-width:44px;text-align:center;font-size:12px}
 .tools svg,.pager svg{width:18px;height:18px}
 .notice{margin:0;padding:8px 18px;background:#3b2f1c;color:#f2dcae;font-size:13px}
-.stage{position:relative;flex:1;min-height:0;overflow:auto;perspective:1600px;display:flex;flex-direction:column;align-items:center;padding:26px}
+.stage{position:relative;flex:1;min-height:0;overflow:auto;overflow-x:hidden;perspective:1600px;display:flex;flex-direction:column;align-items:center;padding:26px}
 .coverLayer{position:relative;width:min(520px,80%);aspect-ratio:4/3;margin:auto;transform-style:preserve-3d}
 .closedImage,.openImage{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;backface-visibility:hidden}
 .openImage{opacity:0}
@@ -26,9 +26,9 @@
 .book[data-display=book] figure img{box-shadow:inset 18px 0 24px -18px #0009,0 14px 30px #0007}
 .book[data-display=spread] figure:first-child img{box-shadow:inset -22px 0 26px -20px #0009,0 14px 30px #0007}
 .stack{position:relative;display:grid;place-items:center;min-height:min(70vh,640px);width:100%}
-.stackCard{grid-area:1/1;margin:0;padding:12px 12px 6px;background:#f1ece0;box-shadow:6px 12px 24px #0008;rotate:calc(var(--d) * 3deg - 2deg);translate:calc(var(--d) * 14px) calc(var(--d) * 10px);transition:rotate .35s ease,translate .35s ease}
+.stackCard{grid-area:1/1;margin:0;box-sizing:border-box;max-width:calc(100% - 48px);padding:12px 12px 6px;background:#f1ece0;box-shadow:6px 12px 24px #0008;rotate:calc(var(--d) * 3deg - 2deg);translate:calc(var(--d) * 14px) calc(var(--d) * 10px);transition:rotate .35s ease,translate .35s ease}
 .stackCard[data-top=true]{rotate:0deg;translate:0 0;z-index:5}
-.stackCard img{display:block;max-height:62vh;width:auto;max-width:100%}
+.stackCard img{display:block;width:auto;max-width:100%;height:auto}
 .stackCard figcaption{color:#2f2b25;min-height:22px}
 .grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px;width:100%}
 .grid li{display:flex;flex-direction:column;gap:6px}

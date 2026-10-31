@@ -135,8 +135,9 @@ export function effectProblem(effect:MaterialEffectId,context:{states:string[];f
  return (s.missing.length?'„'+materialEffects[effect].label+'“ braucht eine Darstellung mit dem Zustand '+names+'.':'„'+materialEffects[effect].label+'“ braucht mindestens '+materialEffects[effect].minFiles+' Inhalte.')+' Stattdessen läuft „'+materialEffects[effectiveEffect(effect,context)].label+'“.';
 }
 
+const textOnly=(t:MaterialType)=>t==='letter'||t==='dossier'||t==='other';
 /** Plain summary for cards and the Regie; never contains ids. */
 export function materialSummary(m:Pick<SceneMaterial,'type'|'display'|'effect'>,files:number){
  const info=materialTypeInfo[m.type];
- return [info.label,files===1?'1 Datei':files+' Dateien',m.type==='pager'?'':materialDisplayLabels[m.display],m.type==='pager'?'':materialEffects[m.effect.open].label].filter(Boolean).join(' · ');
+ return [info.label,files===1?'1 Datei':files?files+' Dateien':textOnly(m.type)?'nur Text':'noch keine Datei',m.type==='pager'?'':materialDisplayLabels[m.display],m.type==='pager'?'':materialEffects[m.effect.open].label].filter(Boolean).join(' · ');
 }
