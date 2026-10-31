@@ -4,6 +4,7 @@
  * no values are written, no dice are rolled, no resources are spent.
  */
 import { abilityGroups, attributeGroups } from './character-engine.ts';
+import { readVitals } from './character-vitals.ts';
 import { HYBRID_DRAFT_PROFILE, prepareDraftRoll, W10RuleError } from './w10-hybrid-draft.ts';
 
 /** Spec 3.2 IDs. Values are the keys the current sheet stores in `attributes`. */
@@ -55,9 +56,9 @@ export function adapterCoverage() {
 }
 
 export type W10Selection = Readonly<{ attributeId: string; abilityId?: string }>;
-export type W10Declared = Readonly<{ baseDifficulty: number; requiredSuccesses?: number; difficultyOverflow?: 'reject' | 'cap_at_10' }>;
+export type W10Declared = Readonly<{ baseDifficulty: number; requiredSuccesses?: number }>;
 export type W10Provenance = Readonly<{
-  part: 'attribute' | 'ability' | 'difficulty';
+  part: 'attribute' | 'ability' | 'wounds' | 'difficulty';
   id: string; label: string; amount: number; source: string;
 }>;
 /** Rules deliberately not evaluated in Phase B; listed so a preview never hides them. */
@@ -65,7 +66,7 @@ export type W10NotApplied = Readonly<{ id: string; label: string; reason: string
 
 const NOT_APPLIED: readonly W10NotApplied[] = Object.freeze([
   { id: 'specialty', label: 'Spezialisierung', reason: 'Der Charakterbogen erfasst keine Spezialisierungen. Erst nach Entscheidung über Speicherort und Anwendungsprüfung (Phase F).' },
-  { id: 'wounds', label: 'Wundabzüge', reason: 'Offene Entscheidung (Spezifikation 19.1 Nr. 8): Wunden werden nicht vom Pool abgezogen.' },
+  { id: 'wound_exceptions', label: 'Ausnahmen vom Wundabzug', reason: 'Absorption, Schaden, Körperkraft-Schadenswürfe und das Aufheben von Wundabzügen werden erst nach Prüfung der V20-Primärquelle umgesetzt. Phase B leitet nur gewöhnliche Proben ab, bei denen der Wundabzug immer gilt.' },
   { id: 'hunger', label: 'Hungerwürfel', reason: 'Offene Entscheidung Blut → Hunger. Bestehende Blutpunkte werden nicht umgedeutet.' },
   { id: 'personal_stress', label: 'Persönlicher Stress', reason: 'Offene Entscheidung Stress 0–10 → 0–300. Bestehender Stress wird nicht umgedeutet.' },
   { id: 'group_stress', label: 'Gruppenstress', reason: 'Bleibt eine ausdrückliche SL-Aktion; kein Würfelmodifikator in Phase B.' },
@@ -76,8 +77,22 @@ type Body = Record<string, unknown>;
 function record(value: unknown): Body {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Body : {};
 }
-function blocked(code: string, provenance: W10Provenance[]) {
-  return Object.freeze({ status: 'blocked' as const, code, provenance: Object.freeze(provenance), notApplied: NOT_APPLIED });
+function blocked(code: string, provenance: W10Provenance[], extra: Record<string, unknown> = {}) {
+  return Object.freeze({ status: 'blocked' as const, code, ...extra, provenance: Object.freeze(provenance), notApplied: NOT_APPLIED });
+}
+const BLOCK_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
+  DIFFICULTY_ABOVE_10: 'V20 erlaubt nur Schwierigkeiten von 2 bis 10. Mit allen Modifikatoren liegt diese Probe darüber und ist so ungültig. Die SL kann die Probe oder die Umstände ändern; es wird nicht gewürfelt.',
+  INCAPACITATED: 'Der Charakter ist außer Gefecht oder nicht handlungsfähig. Es wird nicht gewürfelt.',
+  NO_DICE: 'Nach allen Abzügen bleibt kein Würfel übrig. Es wird kein Ersatzwürfel gestellt.',
+});
+
+const DIFFICULTY_SOURCES: Readonly<Record<string, { label: string; source: string }>> = Object.freeze({
+  untrained_skill: { label: 'Fertigkeit ohne Wert', source: 'V20-Grundregel: ungelernte Fertigkeit +1 SG' },
+  personal_stress: { label: 'Persönlicher Stress', source: 'ChroniPlay-Hausregelentwurf (nicht aktiv in Phase B)' },
+});
+function difficultyProvenance(modifier: { source: string; amount: number }): W10Provenance {
+  const known = DIFFICULTY_SOURCES[modifier.source] ?? { label: modifier.source, source: 'Regelkern' };
+  return Object.freeze({ part: 'difficulty', id: modifier.source, label: known.label, amount: modifier.amount, source: known.source });
 }
 
 /** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
@@ -103,22 +118,33 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
     provenance.push(Object.freeze({ part: 'ability', id: selection.abilityId!, label: ability.key, amount: abilityValue,
       source: `Charakterbogen · Fähigkeiten · ${ability.key}${Object.hasOwn(skills, ability.key) ? '' : ' (kein Eintrag = 0)'}` }));
   }
-  const pool = (attrValue as number) + abilityValue;
-  if (pool < 1) return blocked('NO_DICE', provenance);
+  // V20 wound penalty from the existing health track, applied once to the pool before any special dice
+  // are assigned. Only ordinary checks are derived here, so no wound exception can apply yet.
+  const health = readVitals(body).health;
+  if (health.status !== 'active' || health.penalty === null) {
+    return blocked('INCAPACITATED', provenance, { message: BLOCK_MESSAGES.INCAPACITATED, health: Object.freeze({ level: health.level, status: health.status }) });
+  }
+  provenance.push(Object.freeze({ part: 'wounds', id: 'wound_penalty', label: health.level, amount: health.penalty,
+    source: `Gesundheitsleiste · ${health.level} (V20-Wundabzug)` }));
+  const pool = (attrValue as number) + abilityValue + health.penalty;
+  if (pool < 1) return blocked('NO_DICE', provenance, { message: BLOCK_MESSAGES.NO_DICE });
   let prepared;
   try {
     prepared = prepareDraftRoll({ rollId: 'preview', characterVersion, kind: 'ordinary', pool,
       difficulty: declared.baseDifficulty, requiredSuccesses: declared.requiredSuccesses,
-      difficultyOverflow: declared.difficultyOverflow,
       ...(ability ? { training: { category: ability.category, rating: abilityValue } } : {}) });
   } catch (error) {
-    if (error instanceof W10RuleError) return blocked(error.code, provenance);
+    if (error instanceof W10RuleError) {
+      if (error.code === 'DIFFICULTY_ABOVE_10') {
+        const detail = error.detail as { base: number; modifiers: readonly { source: string; amount: number }[]; sum: number };
+        return blocked(error.code, [...provenance, ...detail.modifiers.map(difficultyProvenance)], { message: BLOCK_MESSAGES.DIFFICULTY_ABOVE_10,
+          difficulty: Object.freeze({ base: detail.base, modifiers: detail.modifiers, sum: detail.sum, allowed: Object.freeze({ min: 2, max: 10 }) }) });
+      }
+      return blocked(error.code, provenance);
+    }
     throw error;
   }
-  for (const modifier of prepared.difficulty.modifiers) {
-    provenance.push(Object.freeze({ part: 'difficulty', id: modifier.source, label: 'Fertigkeit ohne Wert', amount: modifier.amount,
-      source: 'V20-Grundregel: ungelernte Fertigkeit +1 SG' }));
-  }
+  provenance.push(...prepared.difficulty.modifiers.map(difficultyProvenance));
   return Object.freeze({
     status: 'ready' as const,
     profile: HYBRID_DRAFT_PROFILE,

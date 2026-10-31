@@ -81,3 +81,21 @@ Keine stillen Migrationen. Bis zur Entscheidung steht jeder Punkt sichtbar in `n
 7. **„Aktiver Charakter“** ist als eigener, nicht archivierter und nicht geheimer Charakter umgesetzt (`ownedActiveCharacter`). Ob nur der im Profil ausgewählte Charakter zählen soll, ist zu bestätigen.
 
 Phase C/D wurde nicht begonnen.
+
+## 6. Nachtrag: Korrekturen K3, K7 und K5 (31.10.2026)
+
+Auf Grundlage der Projektinhaberentscheidungen (Details und Status im [Abgleich](PHASE-B-ENTSCHEIDUNGEN-ABGLEICH.md)):
+
+- **K3:** Eine Schwierigkeit über 10 wird vor dem Würfeln abgelehnt und erklärt. Es gibt keine Kappung mehr, auch nicht im Phase-A-Kern. Die Phase-A-Tests D10/D11 sind entsprechend angepasst; Ziffer 4 der Codex-Übergabe zu `cap_at_10` ist damit überholt.
+- **K7:** Die Route verlangt `sessionId`. Spieler sind an die ausgewählte, spielbereite Figur am laufenden Abend gebunden; die SL an die Spielercharaktere des Abends.
+- **K5:** Der V20-Wundabzug aus der bestehenden Gesundheitsleiste gilt für gewöhnliche Proben und erscheint in der Herkunft. Ausnahmen bleiben bis zur Quellprüfung offen.
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Standardlauf | **271/271 bestanden** |
+| `test:w10-hybrid` | **70/70 bestanden** |
+| Integration SL/A/B (9 Blöcke: Bindung, Pool, SG, Wunden, Rechte, SL, Manipulation, nur lesend, Live-Tisch) | **bestanden**, frische Instanz |
+| Regression ULTIO-Pager und Zustandswerte auf derselben Instanz | bestanden |
+| Typecheck, ESLint, lokaler Build | bestanden |
+
+Der Integrationstest setzt die Auswahl von A und B und den Gesundheitszustand von B vorübergehend, ausschließlich in der lokalen synthetischen Instanz. Danach setzt er Gesundheit und Auswahl wieder auf den Ausgangszustand.

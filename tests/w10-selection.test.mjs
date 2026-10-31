@@ -30,8 +30,8 @@ test('B02: attribute + ability pool with provenance from the stored sheet', () =
   assert.equal(result.status, 'ready');
   assert.deepEqual(result.pool, { base: 6, effective: 6 });
   assert.equal(result.characterVersion, 9);
-  assert.deepEqual(result.provenance.map(p => [p.part, p.label, p.amount]), [['attribute', 'Geschick', 3], ['ability', 'Schusswaffen', 3]]);
-  assert.deepEqual(result.difficulty, { base: 6, modifiers: [], effective: 6, uncapped: 6, capped: false });
+  assert.deepEqual(result.provenance.map(p => [p.part, p.label, p.amount]), [['attribute', 'Geschick', 3], ['ability', 'Schusswaffen', 3], ['wounds', 'Gesund', 0]]);
+  assert.deepEqual(result.difficulty, { base: 6, modifiers: [], effective: 6 });
   assert.equal(result.specialtyApplies, false);
   assert.equal(result.profile, HYBRID_DRAFT_PROFILE);
   assert.equal(result.profile.productionEnabled, false);
@@ -40,7 +40,7 @@ test('B02: attribute + ability pool with provenance from the stored sheet', () =
 test('B03: pure attribute check is allowed and has no training modifier', () => {
   const result = preview(engineFixture, { attributeId: 'strength' });
   assert.deepEqual(result.pool, { base: 4, effective: 4 });
-  assert.deepEqual(result.provenance.map(p => p.part), ['attribute']);
+  assert.deepEqual(result.provenance.map(p => p.part), ['attribute', 'wounds']);
 });
 
 test('B04: V20 ability groups — talent free, skill +1 SG, knowledge blocked', () => {
@@ -53,14 +53,43 @@ test('B04: V20 ability groups — talent free, skill +1 SG, knowledge blocked', 
   assert.deepEqual(skill.provenance.at(-1), { part: 'difficulty', id: 'untrained_skill', label: 'Fertigkeit ohne Wert', amount: 1, source: 'V20-Grundregel: ungelernte Fertigkeit +1 SG' });
   const knowledge = preview(engineFixture, { attributeId: 'intelligence', abilityId: 'medicine' });
   assert.equal(knowledge.status, 'blocked'); assert.equal(knowledge.code, 'UNTRAINED_KNOWLEDGE');
-  assert.equal(knowledge.provenance.length, 2, 'Blocked previews still show where the values came from');
+  assert.equal(knowledge.provenance.length, 3, 'Blocked previews still show where the values came from');
 });
 
-test('B05: SG overflow needs an explicit policy and stays visible when capped', () => {
+test('B05/K3: SG above 10 is rejected before rolling, never capped, with full explanation', () => {
   const sel = { attributeId: 'dexterity', abilityId: 'melee' };
-  assert.equal(preview(engineFixture, sel, declared({ baseDifficulty: 10 })).code, 'DIFFICULTY_OVERFLOW_REQUIRES_POLICY');
-  const capped = preview(engineFixture, sel, declared({ baseDifficulty: 10, difficultyOverflow: 'cap_at_10' }));
-  assert.deepEqual({ ...capped.difficulty, modifiers: undefined }, { base: 10, effective: 10, uncapped: 11, capped: true, modifiers: undefined });
+  const result = preview(engineFixture, sel, declared({ baseDifficulty: 10 }));
+  assert.equal(result.status, 'blocked'); assert.equal(result.code, 'DIFFICULTY_ABOVE_10');
+  assert.equal(result.pool, undefined, 'No pool, no dice, no costs for an invalid check');
+  assert.deepEqual(result.difficulty, { base: 10, modifiers: [{ source: 'untrained_skill', amount: 1 }], sum: 11, allowed: { min: 2, max: 10 } });
+  assert.match(result.message, /2 bis 10/); assert.match(result.message, /SL kann/);
+  assert.deepEqual(result.provenance.at(-1), { part: 'difficulty', id: 'untrained_skill', label: 'Fertigkeit ohne Wert', amount: 1, source: 'V20-Grundregel: ungelernte Fertigkeit +1 SG' });
+  // Exactly 10 stays valid.
+  assert.equal(preview(engineFixture, sel, declared({ baseDifficulty: 9 })).difficulty.effective, 10);
+  // A cap policy smuggled into the declaration does not reach the core as a cap.
+  assert.equal(preview(engineFixture, sel, declared({ baseDifficulty: 10, difficultyOverflow: 'cap_at_10' })).code, 'DIFFICULTY_ABOVE_10');
+});
+
+test('K5: V20 wound penalties from the health track reduce the pool once, before special dice', () => {
+  const sel = { attributeId: 'dexterity', abilityId: 'firearms' }; // 3 + 3 = 6
+  const at = (levels, extra = {}) => preview({ ...engineFixture, health: { track: Array(levels).fill('lethal'), ...extra } }, sel);
+  for (const [levels, label, penalty] of [[0, 'Gesund', 0], [1, 'Blaue Flecken', 0], [2, 'Verletzt', -1], [3, 'Schwer verletzt', -1],
+    [4, 'Verwundet', -2], [5, 'Schwer verwundet', -2], [6, 'Verkrüppelt', -5]]) {
+    const result = at(levels);
+    assert.equal(result.status, 'ready', label);
+    assert.deepEqual(result.pool, { base: 6 + penalty, effective: 6 + penalty }, label);
+    assert.deepEqual(result.provenance.filter(p => p.part === 'wounds'), [{ part: 'wounds', id: 'wound_penalty', label, amount: penalty, source: `Gesundheitsleiste · ${label} (V20-Wundabzug)` }], 'Applied exactly once: ' + label);
+  }
+  assert.equal(at(7).code, 'INCAPACITATED');
+  assert.equal(at(0, { status: 'torpor' }).code, 'INCAPACITATED');
+  assert.equal(at(0, { status: 'final-death' }).code, 'INCAPACITATED');
+  // Legacy sheets that only store the level name.
+  assert.deepEqual(preview({ ...engineFixture, health: { current: 'Verwundet' } }, sel).pool, { base: 4, effective: 4 });
+  // Penalty can empty the pool: blocked, no substitute die.
+  const small = preview({ attributes: { Geschick: 2 }, health: { track: Array(6).fill('bashing') } }, { attributeId: 'dexterity' });
+  assert.equal(small.code, 'NO_DICE'); assert.match(small.message, /kein Ersatzwürfel/);
+  // Exceptions are not guessed: they are listed as not applied.
+  assert.ok(at(2).notApplied.some(n => n.id === 'wound_exceptions'));
 });
 
 test('B06: incomplete or invalid sheets block instead of inventing values', () => {
@@ -85,9 +114,9 @@ test('B08: preview never mutates the sheet and lists every rule it did not apply
   const result = preview(body, { attributeId: 'dexterity', abilityId: 'stealth' });
   assert.equal(JSON.stringify(body), before);
   assert.ok(Object.isFrozen(result) && Object.isFrozen(result.provenance) && Object.isFrozen(result.notApplied));
-  assert.deepEqual(result.notApplied.map(n => n.id), ['specialty', 'wounds', 'hunger', 'personal_stress', 'group_stress', 'willpower']);
-  // Existing runtime values (blood, willpower, health) are on the sheet but never enter the Phase-B pool.
-  assert.equal(preview({ ...body, blood: 0, willpowerTemporary: 0, health: { current: 'Verkrüppelt' } }, { attributeId: 'dexterity', abilityId: 'stealth' }).pool.base, 6);
+  assert.deepEqual(result.notApplied.map(n => n.id), ['specialty', 'wound_exceptions', 'hunger', 'personal_stress', 'group_stress', 'willpower']);
+  // Blood and willpower are on the sheet but never enter the Phase-B pool.
+  assert.equal(preview({ ...body, blood: 0, willpowerTemporary: 0 }, { attributeId: 'dexterity', abilityId: 'stealth' }).pool.base, 6);
 });
 
 test('B09: the draft route stays behind an explicit local binding; production config does not set it', () => {

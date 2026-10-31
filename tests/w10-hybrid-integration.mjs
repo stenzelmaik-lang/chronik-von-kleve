@@ -1,6 +1,7 @@
 // W10-Hybrid Phase B against a running isolated instance (scripts/start-w10-hybrid.ps1).
 // Three synthetic sessions (SL, Spieler A, Spieler B): server-side pool derivation from the stored sheet,
-// own-character rights, foreign characters 404, manipulated client values rejected, no writes.
+// binding to the running evening and the explicitly selected character (K7), V20 wound penalties (K5),
+// SG above 10 rejected (K3), foreign characters 404, manipulated client values rejected, no writes.
 // Run: node --experimental-strip-types tests/w10-hybrid-integration.mjs
 import assert from 'node:assert/strict';
 
@@ -9,21 +10,37 @@ assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/,'Only local isolated
 async function login(id){const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'})});assert.equal(r.status,200,'login '+id);return r.headers.get('set-cookie').split(';')[0];}
 const client=cookie=>({
  get:async path=>{const r=await fetch(base+path,{headers:{Cookie:cookie}});return {status:r.status,text:await r.text()};},
- post:async(path,body,headers={})=>{const r=await fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie,...headers},body:JSON.stringify(body)});return {status:r.status,text:await r.text()};},
+ send:async(method,path,body,headers={})=>{const r=await fetch(base+path,{method,headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie,...headers},body:JSON.stringify(body)});return {status:r.status,text:await r.text()};},
+ post(path,body,headers){return this.send('POST',path,body,headers);},
 });
 const gm=client(await login('command-gm')),a=client(await login('command-a')),b=client(await login('command-b'));
 const own=async c=>JSON.parse((await c.get('/api/records?kind=charaktere')).text).records;
 const byTitle=(rows,title)=>{const row=rows.find(r=>r.title===title);assert.ok(row,'Synthetic character missing: '+title);return row;};
-const charA=byTitle(await own(a),'SYNTHETISCH – Regiecharakter A'),charB=byTitle(await own(b),'SYNTHETISCH – Regiecharakter B');
-const preview=(c,characterId,selection,declared={baseDifficulty:6},extra={})=>c.post('/api/w10-preview',{characterId,selection,declared,...extra});
+const rowsA=await own(a);
+const charA=byTitle(rowsA,'SYNTHETISCH – Regiecharakter A'),draftA=byTitle(rowsA,'SYNTHETISCH – Character Engine A'),charB=byTitle(await own(b),'SYNTHETISCH – Regiecharakter B');
+const active=JSON.parse((await gm.get('/api/live-table?view=active')).text);
+const sessionId=active.room?.sessionId;assert.ok(sessionId&&active.room.started,'Start the synthetic evening first.');
+const select=async(c,characterId)=>{const r=await c.send('PATCH','/api/character-selection',{characterId});assert.equal(r.status,200,'select: '+r.text);};
+const preview=(c,characterId,selection,declared={baseDifficulty:6},extra={})=>c.post('/api/w10-preview',{sessionId,characterId,selection,declared,...extra});
 const ok=async(c,...args)=>{const r=await preview(c,...args);assert.equal(r.status,200,r.text);return JSON.parse(r.text);};
+const status=async(expected,c,...args)=>{const r=await preview(c,...args);assert.equal(r.status,expected,r.text);return r;};
 const version=async(c,id)=>JSON.parse((await c.get('/api/character-engine?id='+encodeURIComponent(id))).text).version;
 
-// 1. Players: own active character, pool from the stored sheet with provenance.
+// 1. K7: players roll only with the explicitly selected, playable character at the running evening.
+await select(a,null);
+assert.match((await status(409,a,charA.id,{attributeId:'dexterity'})).text,/aktiven Charakter auswählen/,'No selection, no automatic owner fallback');
+await select(a,draftA.id);
+assert.match((await status(409,a,charA.id,{attributeId:'dexterity'})).text,/ausgewählten aktiven Charakter/,'Own but not selected');
+assert.match((await status(409,a,draftA.id,{attributeId:'dexterity'})).text,/nicht spielbereit/,'Selected engine sheet under review cannot roll');
+await select(a,charA.id);await select(b,charB.id);
+assert.equal((await preview(a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6},{sessionId:'session-unbekannt'})).status,404,'Unknown evening');
+console.log('PASS binding: explicit selection, no fallback, drafts excluded, evening required');
+
+// 2. Pool and provenance from the stored sheet.
 const pa=await ok(a,charA.id,{attributeId:'dexterity'});
-assert.equal(pa.status,'ready');assert.equal(pa.characterId,charA.id);
+assert.equal(pa.status,'ready');assert.equal(pa.characterId,charA.id);assert.equal(pa.sessionId,sessionId);
 assert.deepEqual(pa.pool,{base:3,effective:3},'Geschick 3 from the stored sheet of A');
-assert.deepEqual(pa.provenance,[{part:'attribute',id:'dexterity',label:'Geschick',amount:3,source:'Charakterbogen · Attribute · Geschick'}]);
+assert.deepEqual(pa.provenance[0],{part:'attribute',id:'dexterity',label:'Geschick',amount:3,source:'Charakterbogen · Attribute · Geschick'});
 assert.equal(pa.profile.rulesVersion,'1.0.0-draft');assert.equal(pa.profile.productionEnabled,false);
 assert.ok(Number.isInteger(pa.characterVersion)&&pa.characterVersion>0,'Server sets the record version');
 const pb=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'});
@@ -32,44 +49,64 @@ const skill=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'melee'});
 assert.equal(skill.difficulty.effective,7);assert.equal(skill.provenance.at(-1).id,'untrained_skill');
 const knowledge=await ok(b,charB.id,{attributeId:'intelligence',abilityId:'medicine'});
 assert.equal(knowledge.status,'blocked');assert.equal(knowledge.code,'UNTRAINED_KNOWLEDGE');
-assert.deepEqual(pb.notApplied.map(n=>n.id),['specialty','wounds','hunger','personal_stress','group_stress','willpower']);
 for(const p of [pa,pb])assert.doesNotMatch(JSON.stringify(p),/PRIVATE_QA|gmBody|gm_body|gmNotes/,'No SL data in a preview');
-console.log('PASS players: own character, pool and provenance from the stored sheet');
+console.log('PASS players: own selected character, pool and provenance from the stored sheet');
 
-// 2. Foreign characters are indistinguishable from missing ones.
-assert.equal((await preview(a,charB.id,{attributeId:'dexterity'})).status,404,'A cannot preview B');
-assert.equal((await preview(b,charA.id,{attributeId:'dexterity'})).status,404,'B cannot preview A');
-assert.equal((await preview(a,'unbekannt',{attributeId:'dexterity'})).status,404,'Unknown id');
+// 3. K3: SG above 10 is rejected before rolling with an explanation; no cap policy is accepted.
+const over=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'melee'},{baseDifficulty:10});
+assert.equal(over.code,'DIFFICULTY_ABOVE_10');assert.equal(over.pool,undefined);assert.equal(over.difficulty.sum,11);assert.match(over.message,/2 bis 10/);
+await status(400,b,charB.id,{attributeId:'dexterity',abilityId:'melee'},{baseDifficulty:10,difficultyOverflow:'cap_at_10'});
+console.log('PASS SG: above 10 rejected and explained, cap policy refused');
+
+// 4. K5: wound penalty from the existing health track (synthetic local change, reset afterwards).
+const health=async value=>{const v=await version(gm,charB.id);const r=await gm.send('PATCH','/api/character-runtime',{id:charB.id,version:v,field:'health',value});assert.equal(r.status,200,'health: '+r.text);};
+await health('Verwundet');
+const wounded=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'});
+assert.deepEqual(wounded.pool,{base:4,effective:4},'6 − 2 for Verwundet');
+assert.deepEqual(wounded.provenance.filter(p=>p.part==='wounds').map(p=>[p.label,p.amount]),[['Verwundet',-2]]);
+await health('Außer Gefecht');
+assert.equal((await ok(b,charB.id,{attributeId:'dexterity'})).code,'INCAPACITATED');
+await health('Gesund');
+assert.deepEqual((await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'})).pool,{base:6,effective:6});
+console.log('PASS wounds: V20 penalty applied once and explained, incapacitated blocked');
+
+// 5. Foreign characters are indistinguishable from missing ones.
+await status(404,a,charB.id,{attributeId:'dexterity'});
+await status(404,b,charA.id,{attributeId:'dexterity'});
+await status(404,a,'unbekannt',{attributeId:'dexterity'});
 console.log('PASS rights: foreign character 404 for players');
 
-// 3. The SL may preview every campaign character.
+// 6. The SL previews player characters of this evening; unplayable sheets are refused.
 const ga=await ok(gm,charA.id,{attributeId:'dexterity'}),gb=await ok(gm,charB.id,{attributeId:'dexterity',abilityId:'firearms'});
 assert.deepEqual([ga.pool,gb.pool],[pa.pool,pb.pool],'Same sheet, same result for SL');
-console.log('PASS rights: SL previews all characters');
+await status(409,gm,draftA.id,{attributeId:'dexterity'});
+await status(404,gm,'unbekannt',{attributeId:'dexterity'});
+console.log('PASS rights: SL previews the evening\'s player characters');
 
-// 4. Manipulated client values are rejected, never merged.
-for(const extra of [{pool:99},{faces:[10,10,10]},{diceFaces:[10]},{stressUnits:0},{hunger:0},{characterVersion:1},{allowed:true},{specialtyApplies:true},{willpower:{requested:true}}]){
+// 7. Manipulated client values are rejected, never merged.
+for(const extra of [{pool:99},{faces:[10,10,10]},{diceFaces:[10]},{stressUnits:0},{hunger:0},{characterVersion:1},{allowed:true},{specialtyApplies:true},{willpower:{requested:true}},{woundPenalty:0}]){
  const r=await preview(a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6},extra);
  assert.equal(r.status,400,'Rejected top-level '+Object.keys(extra)[0]+': '+r.text);
 }
-assert.equal((await preview(a,charA.id,{attributeId:'dexterity',pool:99})).status,400,'selection.pool');
-assert.equal((await preview(a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6,pool:99})).status,400,'declared.pool');
-assert.equal((await preview(a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6,specialtyApplies:true})).status,400,'declared.specialtyApplies');
-for(const d of [1,11,6.5,'6'])assert.equal((await preview(a,charA.id,{attributeId:'dexterity'},{baseDifficulty:d})).status,400,'baseDifficulty '+d);
-for(const s of [{attributeId:'Geschick'},{attributeId:'dexterity',abilityId:'security'},{attributeId:'__proto__'}])assert.equal((await preview(a,charA.id,s)).status,400,'Unknown ID '+JSON.stringify(s));
-assert.equal((await preview(a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6})).status,200,'Clean request still accepted');
-const foreignOrigin=await a.post('/api/w10-preview',{characterId:charA.id,selection:{attributeId:'dexterity'},declared:{baseDifficulty:6}},{Origin:'http://evil.invalid'});
+await status(400,a,charA.id,{attributeId:'dexterity',pool:99});
+await status(400,a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6,pool:99});
+await status(400,a,charA.id,{attributeId:'dexterity'},{baseDifficulty:6,specialtyApplies:true});
+for(const d of [1,11,6.5,'6'])await status(400,a,charA.id,{attributeId:'dexterity'},{baseDifficulty:d});
+for(const s of [{attributeId:'Geschick'},{attributeId:'dexterity',abilityId:'security'},{attributeId:'__proto__'}])await status(400,a,charA.id,s);
+assert.equal((await a.post('/api/w10-preview',{characterId:charA.id,selection:{attributeId:'dexterity'},declared:{baseDifficulty:6}})).status,400,'sessionId is required');
+await status(200,a,charA.id,{attributeId:'dexterity'});
+const foreignOrigin=await a.post('/api/w10-preview',{sessionId,characterId:charA.id,selection:{attributeId:'dexterity'},declared:{baseDifficulty:6}},{Origin:'http://evil.invalid'});
 assert.equal(foreignOrigin.status,403,'Cross-origin refused: '+foreignOrigin.text);
-const anonymous=await client('').post('/api/w10-preview',{characterId:charA.id,selection:{attributeId:'dexterity'},declared:{baseDifficulty:6}});
+const anonymous=await client('').post('/api/w10-preview',{sessionId,characterId:charA.id,selection:{attributeId:'dexterity'},declared:{baseDifficulty:6}});
 assert.equal(anonymous.status,401,'Login required');
-console.log('PASS manipulation: free pool/faces/resources/version/specialty rejected');
+console.log('PASS manipulation: free pool/faces/resources/version/specialty/cap rejected');
 
-// 5. Preview is read-only.
+// 8. Preview is read-only.
 const before=await version(gm,charB.id);
 for(let i=0;i<3;i++)await ok(b,charB.id,{attributeId:'wits',abilityId:'alertness'});
 assert.equal(await version(gm,charB.id),before,'Record version unchanged by previews');
 console.log('PASS read-only: no record writes');
 
-// 6. Existing dice path is untouched: the live table still answers with its own contract.
-const live=await gm.get('/api/live-table?view=active');assert.equal(live.status,200,'Live table still reachable');
+// 9. Existing dice path is untouched: the live table still answers with its own contract.
+assert.equal((await gm.get('/api/live-table?view=active')).status,200,'Live table still reachable');
 console.log('PASS W10-Hybrid Phase B integration');

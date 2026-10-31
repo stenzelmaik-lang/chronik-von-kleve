@@ -23,7 +23,6 @@ export type DraftRollRequest = Readonly<{
   requiredSuccesses?: number;
   specialtyApplies?: boolean;
   cancelledBeforeRoll?: boolean;
-  difficultyOverflow?: 'reject' | 'cap_at_10';
   training?: Readonly<{ category: 'talent' | 'skill' | 'knowledge'; rating: number; knowledgeException?: boolean }>;
   willpower?: Readonly<{ requested: boolean; allowed: boolean; temporary: number; spentThisRound: boolean; timing: 'before' | 'after' }>;
   automatic?: Readonly<{ requested: boolean; allowed: boolean; withoutTension: boolean }>;
@@ -32,9 +31,10 @@ export type DraftRollRequest = Readonly<{
 export type DraftModifier = Readonly<{ source: 'untrained_skill' | 'personal_stress'; amount: number }>;
 export class W10RuleError extends Error {
   readonly code: string;
-  constructor(code: string) { super(code); this.name = 'W10RuleError'; this.code = code; }
+  readonly detail?: Readonly<Record<string, unknown>>;
+  constructor(code: string, detail?: Record<string, unknown>) { super(code); this.name = 'W10RuleError'; this.code = code; if (detail) this.detail = Object.freeze(detail); }
 }
-function block(code: string): never { throw new W10RuleError(code); }
+function block(code: string, detail?: Record<string, unknown>): never { throw new W10RuleError(code, detail); }
 function integer(value: number, min: number, max: number, code = 'INVALID_INPUT') {
   if (!Number.isSafeInteger(value) || value < min || value > max) block(code);
 }
@@ -71,7 +71,8 @@ export function prepareDraftRoll(input: DraftRollRequest) {
   boolean(r.specialtyApplies ?? false);
   boolean(r.cancelledBeforeRoll ?? false);
   if (r.cancelledBeforeRoll) block('CANCELLED_BEFORE_ROLL');
-  if (r.difficultyOverflow !== undefined && !['reject', 'cap_at_10'].includes(r.difficultyOverflow)) block('INVALID_DIFFICULTY_POLICY');
+  // Owner decision 31.10.2026: no capping of any kind. A legacy policy field is a request error, not ignored.
+  if (Object.hasOwn(r, 'difficultyOverflow')) block('INVALID_DIFFICULTY_POLICY');
   const modifiers: DraftModifier[] = [];
   if (r.training) {
     const t = r.training;
@@ -93,9 +94,9 @@ export function prepareDraftRoll(input: DraftRollRequest) {
   if (stressEligible && points >= 1 && (hybrid!.pressure || points === 3)) {
     modifiers.push(Object.freeze({ source: 'personal_stress', amount: 1 }));
   }
-  const uncappedDifficulty = r.difficulty + modifiers.reduce((sum, m) => sum + m.amount, 0);
-  if (uncappedDifficulty > 10 && r.difficultyOverflow !== 'cap_at_10') block('DIFFICULTY_OVERFLOW_REQUIRES_POLICY');
-  const difficulty = Math.min(10, uncappedDifficulty);
+  // V20 allows target numbers 2–10 only; a higher sum makes the check invalid before any die is rolled.
+  const difficulty = r.difficulty + modifiers.reduce((sum, m) => sum + m.amount, 0);
+  if (difficulty > 10) block('DIFFICULTY_ABOVE_10', { base: r.difficulty, modifiers: Object.freeze(modifiers), sum: difficulty });
   let guaranteedSuccesses = 0;
   if (r.willpower) {
     const w = r.willpower;
@@ -121,8 +122,7 @@ export function prepareDraftRoll(input: DraftRollRequest) {
   const hungerDice = !automatic && r.kind === 'ordinary' ? Math.min(r.pool, hybrid?.hunger ?? 0) : 0;
   const stressDice = !automatic && stressEligible && points >= 2 && r.pool > hungerDice ? 1 : 0;
   return Object.freeze({ request: r, profile: HYBRID_DRAFT_PROFILE, automatic, guaranteedSuccesses,
-    difficulty: Object.freeze({ base: r.difficulty, modifiers: Object.freeze(modifiers), effective: difficulty,
-      uncapped: uncappedDifficulty, capped: uncappedDifficulty > 10 }),
+    difficulty: Object.freeze({ base: r.difficulty, modifiers: Object.freeze(modifiers), effective: difficulty }),
     pool: Object.freeze({ base: r.pool, effective: automatic ? 0 : r.pool, hungerDice, stressDice, normalDice: automatic ? 0 : r.pool - hungerDice - stressDice }),
     stressEligible: !automatic && stressEligible,
   });

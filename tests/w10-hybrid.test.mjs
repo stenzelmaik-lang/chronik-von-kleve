@@ -25,15 +25,15 @@ for (const [id, faces, specialty, guaranteed, outcome, successes] of [
   assert.deepEqual(result.dice.map(d => d.face), faces);
 });
 
-test('D10/D11: empty pool and invalid base difficulties fail before RNG, caps require explicit policy', () => {
+test('D10/D11: empty pool and invalid difficulties fail before RNG; SG above 10 is never capped', () => {
   let draws = 0; const source = () => { draws++; };
   rejects(() => sampleDraftRoll(request({ pool: 0 }), source), 'EMPTY_OR_INVALID_POOL');
   for (const difficulty of [1, 11, NaN, Infinity, 6.5]) rejects(() => sampleDraftRoll(request({ difficulty }), source), 'INVALID_DIFFICULTY');
   const r = request({ difficulty: 10, training: { category: 'skill', rating: 0 } });
-  rejects(() => sampleDraftRoll(r, source), 'DIFFICULTY_OVERFLOW_REQUIRES_POLICY');
-  const plan = prepareDraftRoll({ ...r, difficultyOverflow: 'cap_at_10' });
-  assert.deepEqual(plan.difficulty, { base: 10, effective: 10, uncapped: 11, capped: true,
-    modifiers: [{ source: 'untrained_skill', amount: 1 }] });
+  rejects(() => sampleDraftRoll(r, source), 'DIFFICULTY_ABOVE_10');
+  for (const difficultyOverflow of ['cap_at_10', 'reject', undefined]) rejects(() => prepareDraftRoll({ ...r, difficultyOverflow }), 'INVALID_DIFFICULTY_POLICY');
+  const plan = prepareDraftRoll({ ...r, difficulty: 9 });
+  assert.deepEqual(plan.difficulty, { base: 9, effective: 10, modifiers: [{ source: 'untrained_skill', amount: 1 }] });
   assert.equal(draws, 0);
 });
 test('D12/D13: training categories retain their distinct rules', () => {
