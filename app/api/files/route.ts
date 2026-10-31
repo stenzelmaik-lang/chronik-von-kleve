@@ -125,15 +125,16 @@ export async function DELETE(req: Request) {
     if (!env.BUCKET)
       throw new HttpError(503, "Dateispeicher nicht erreichbar.");
     const db=database();
-    const removed=await db.prepare(`DELETE FROM files WHERE id=? AND campaign_id=? AND owner_id=?
+    const removed=await db.prepare(`DELETE FROM files WHERE id=? AND campaign_id=? AND (owner_id=? OR (?=1 AND visibility IN ('sl','group')))
+      AND NOT EXISTS (SELECT 1 FROM auth_profiles p WHERE p.avatar_file_id=files.id)
       AND NOT EXISTS (SELECT 1 FROM entity_revision_media m WHERE m.campaign_id=files.campaign_id AND m.file_id=files.id)
       AND NOT EXISTS (SELECT 1 FROM records i WHERE i.campaign_id=files.campaign_id AND i.kind='inventar' AND json_valid(i.body) AND json_extract(i.body,'$.imageFileId')=files.id)
       AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.campaign_id=files.campaign_id AND (instr(e.content,files.id)>0 OR instr(e.gm_body,files.id)>0))
       AND NOT EXISTS (SELECT 1 FROM records r WHERE r.campaign_id=files.campaign_id AND instr(r.body,files.id)>0)
       AND NOT EXISTS (SELECT 1 FROM world_events w WHERE w.campaign_id=files.campaign_id AND instr(w.payload,files.id)>0)
-      RETURNING key`).bind(String(d.id),a.campaignId,a.id).first<{key:string}>();
+      RETURNING key`).bind(String(d.id),a.campaignId,a.id,a.gm?1:0).first<{key:string}>();
     if(!removed){
-      const existing=await db.prepare("SELECT id FROM files WHERE id=? AND campaign_id=? AND owner_id=?").bind(String(d.id),a.campaignId,a.id).first();
+      const existing=await db.prepare("SELECT id FROM files WHERE id=? AND campaign_id=? AND (owner_id=? OR (?=1 AND visibility IN ('sl','group')))").bind(String(d.id),a.campaignId,a.id,a.gm?1:0).first();
       if(!existing)throw new HttpError(404,"Eigene Datei nicht gefunden.");
       throw new HttpError(409,"Diese Datei wird in gespeicherten Inhalten oder deren Verlauf verwendet. Sie bleibt für diese Verknüpfungen geschützt.");
     }

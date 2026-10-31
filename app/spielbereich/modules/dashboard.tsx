@@ -188,7 +188,7 @@ export function DashboardPanel({
           <button type="button" onClick={()=>onNavigate('charaktere')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/08-icon-charakter.svg" alt="" aria-hidden="true"/><strong>Charakter</strong><span>{char ? 'Bogen & Entwicklung' : 'Auswählen oder erstellen'}</span></button>
           <button type="button" onClick={()=>onNavigate('inventar')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/09-icon-inventar.svg" alt="" aria-hidden="true"/><strong>Inventar</strong><span>Ausrüstung & Besitz</span></button>
           <button type="button" onClick={openInbox}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/10-icon-postfach.svg" alt="" aria-hidden="true"/><strong>Postfach</strong><span>Persönliche Nachrichten</span></button>
-          <button type="button" onClick={()=>onNavigate('notizen')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/11-icon-archiv.svg" alt="" aria-hidden="true"/><strong>Persönliches Archiv</strong><span>Eigene Notizen</span></button>
+          <button type="button" onClick={()=>onNavigate('notizen')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/11-icon-archiv.svg" alt="" aria-hidden="true"/><strong>Archiv & Vorbereitung</strong><span>Notizen und Spielmaterial</span></button>
         </div>
       </section>
     </div>

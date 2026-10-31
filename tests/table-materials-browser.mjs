@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import {mkdirSync,writeFileSync} from 'node:fs';
+const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
+const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8882';
+assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/,'Only isolated local browser tests');
+const output='.local-work/material/browser';mkdirSync(output,{recursive:true});
+const browser=await chromium.launch({headless:true,channel:process.env.CVK_PLAYWRIGHT_CHANNEL||undefined}),errors=[],checks=[];
+const pass=label=>{checks.push(label);console.log('PASS '+label);};
+let phase='setup',sl;
+const contexts=[];
+const title='SYNTHETISCH – Arbeitsblatt '+Date.now();
+try{
+ const ids=['command-gm','command-a','command-b'];
+ for(const id of ids){const c=await browser.newContext({viewport:{width:1440,height:900}});contexts.push(c);const r=await c.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(r.status(),200);}
+ const [gm,a,b]=contexts;const guard=await (await gm.request.get(base+'/api/live-table?view=active')).json();assert.ok(guard.room?.started&&guard.room.title.startsWith('SYNTHETISCH'),'Only explicitly synthetic fixture evenings');
+ const pages=await Promise.all(contexts.map(async c=>{const p=await c.newPage();p.setDefaultTimeout(12000);p.on('pageerror',e=>errors.push(e.message));return p;}));
+ [sl]=pages;const [,pa,pb]=pages;
+ const fit=async p=>assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No horizontal page overflow');
+ const go=async(p,path)=>{await p.goto(base+path);if(!path.includes('bereich=sitzung')&&!path.startsWith('/sl/regie'))await p.waitForLoadState('networkidle');};
+ phase='gallery';await go(sl,'/sl/command-center?bereich=galerie');await sl.getByRole('heading',{name:'Galerie',exact:true}).waitFor();
+ await sl.getByLabel(/^Sortieren/).selectOption('name');
+ const names=await sl.locator('section[aria-label="Galerieverwaltung"] li strong').allTextContents();assert.deepEqual(names,[...names].sort((x,y)=>x.localeCompare(y,'de',{numeric:true})));pass('Galerie eigener Menüpunkt und alphabetische Sortierung');
+ await sl.getByRole('textbox',{name:'Galerie durchsuchen'}).fill('Fundfoto');assert.equal(await sl.locator('section[aria-label="Galerieverwaltung"] li').count(),1);
+ await sl.getByRole('button',{name:/^Vorschau:/}).click();await sl.getByRole('dialog',{name:'Galerievorschau'}).waitFor();await sl.keyboard.press('Escape');assert.equal(await sl.getByRole('dialog',{name:'Galerievorschau'}).isVisible(),false);pass('Galeriesuche, Bildvorschau und Escape');
+ await sl.getByRole('textbox',{name:'Galerie durchsuchen'}).fill('keine-datei-dieses-namens');await sl.getByRole('heading',{name:'Keine passenden Dateien'}).waitFor();await sl.getByRole('textbox',{name:'Galerie durchsuchen'}).fill('');
+ for(const [name,viewport] of [['1920',{width:1920,height:1080}],['1440',{width:1440,height:900}],['390',{width:390,height:844}]]){await sl.setViewportSize(viewport);await fit(sl);await sl.waitForFunction(()=>[...document.querySelectorAll('section[aria-label="Galerieverwaltung"] img')].every(i=>i.complete&&i.naturalWidth>0));await sl.screenshot({path:`${output}/gallery-${name}.png`,fullPage:true});}pass('Galerie Desktop und Mobil ohne Seitenüberlauf');
+ await sl.setViewportSize({width:1440,height:900});
+ phase='preparation';await sl.getByRole('button',{name:'Material Dokumente und Unterlagen zum Ausspielen vorbereiten',exact:true}).click();await sl.getByRole('heading',{name:'Materialvorbereitung',exact:true}).waitFor();
+ await sl.getByRole('button',{name:'Material vorbereiten',exact:true}).click();const editor=sl.getByRole('region',{name:'Vorbereitete Unterlagen'}).locator('[aria-label="Materialentwurf"]');
+ await editor.getByLabel('Titel',{exact:true}).fill(title+' SL');await editor.getByRole('textbox',{name:'Vorbereiteter Inhalt'}).fill('SL-Vorlage: Name und Befund');await editor.getByRole('button',{name:'Vorbereitung speichern',exact:true}).click();await sl.getByRole('heading',{name:title+' SL',exact:true}).waitFor();pass('SL-Dokument über eigene Materialvorbereitung anlegen');
+ phase='player-library';await go(pa,'/spielbereich?bereich=notizen');await pa.getByRole('heading',{name:'Persönliches Archiv & Vorbereitung',exact:true}).waitFor();
+ await pa.getByRole('button',{name:'Material vorbereiten',exact:true}).click();let playerEditor=pa.locator('[aria-label="Materialentwurf"]');await playerEditor.getByLabel('Titel',{exact:true}).fill('Wird verworfen');await playerEditor.getByRole('button',{name:'Abbrechen',exact:true}).click();await pa.getByRole('dialog',{name:'Änderungen verwerfen?'}).getByRole('button',{name:'Änderungen verwerfen',exact:true}).click();assert.equal(await pa.locator('[aria-label="Materialentwurf"]').count(),0);pass('Abbrechen verwirft nur ungespeicherten Materialentwurf');
+ await pa.getByRole('button',{name:'Material vorbereiten',exact:true}).click();playerEditor=pa.locator('[aria-label="Materialentwurf"]');await playerEditor.getByLabel('Titel',{exact:true}).fill(title);await playerEditor.getByRole('textbox',{name:'Vorbereiteter Inhalt'}).fill('Name: offen\nBefund: offen');await playerEditor.getByRole('button',{name:'Vorbereitung speichern',exact:true}).click();await pa.getByRole('heading',{name:title,exact:true}).waitFor();
+ await pa.reload();await pa.getByRole('heading',{name:title,exact:true}).waitFor();await go(pb,'/spielbereich?bereich=notizen');assert.equal(await pb.getByRole('heading',{name:title,exact:true}).count(),0);pass('Spielerentwurf bleibt privat und übersteht erneutes Öffnen');
+ await pa.locator('section[aria-label="Persönliche Vorbereitung"] li').filter({has:pa.getByRole('heading',{name:title,exact:true})}).getByRole('button',{name:'Als Nachricht senden',exact:true}).click();await pa.getByRole('textbox',{name:'Nachrichtentitel',exact:true}).waitFor();assert.equal(await pa.getByRole('textbox',{name:'Nachrichtentitel'}).inputValue(),title);assert.ok((await pa.getByRole('textbox',{name:'Nachrichtentext'}).inputValue()).includes('Befund'));await pa.keyboard.press('Escape');await pa.locator('[data-slot="dialog-overlay"]').waitFor({state:'detached'});pass('Vorbereitung öffnet bestehenden privaten Nachrichtenentwurf ohne automatisch zu senden');
+ for(const [name,viewport] of [['1440',{width:1440,height:900}],['390',{width:390,height:844}]]){await pa.setViewportSize(viewport);await fit(pa);await pa.screenshot({path:`${output}/preparation-${name}.png`,fullPage:true});}await pa.setViewportSize({width:1440,height:900});
+ phase='table';await Promise.all([go(pa,'/spielbereich?bereich=sitzung'),go(pb,'/spielbereich?bereich=sitzung')]);
+ await pa.getByRole('button',{name:'Dokumente',exact:true}).waitFor();await pb.getByRole('button',{name:'Dokumente',exact:true}).waitFor();await pa.getByRole('button',{name:'Dokumente',exact:true}).click();await pa.getByRole('heading',{name:title,exact:true}).waitFor();
+ await pa.getByLabel('Einzelne Teilnehmer',{exact:true}).check();await pa.getByLabel('Demo Spieler B',{exact:true}).check();
+ const card=pa.locator('section[aria-label="Persönliche Vorbereitung"] li').filter({has:pa.getByRole('heading',{name:title,exact:true})});await card.getByRole('button',{name:'Auf den Tisch',exact:true}).click();
+ const active=await (await a.request.get(base+'/api/live-table?view=active')).json(),sessionId=active.room.sessionId,q='/api/live-stage?sessionId='+encodeURIComponent(sessionId);
+ let state=await (await a.request.get(base+q)).json(),object=state.objects.find(o=>o.sourceKind==='record'&&o.title===title);assert.ok(object);
+ const working=pa.locator(`[data-object="${object.id}"]`);await pb.locator(`[data-object="${object.id}"]`).waitFor();pass('Gezielte Spielerfreigabe legt dasselbe Dokument auf beide Tische');
+ await pa.getByRole('button',{name:'Werkzeug schließen',exact:true}).click().catch(async()=>{await pa.keyboard.press('Escape');});
+ await working.getByRole('button',{name:title+' verschieben',exact:true}).focus();await pa.keyboard.press('ArrowRight');
+ await working.getByRole('button',{name:'Lesen',exact:true}).click();const reader=pa.getByRole('dialog',{name:'Persönliche Dokumentansicht'});await reader.getByRole('button',{name:'Dokument ausfüllen',exact:true}).click();await reader.getByRole('textbox',{name:'Arbeitsfassung ausfüllen'}).fill('Name: Spieler A\nBefund: erfolgreich ausgefüllt');await reader.getByRole('button',{name:'Arbeitsfassung speichern',exact:true}).click();await reader.getByText('Befund: erfolgreich ausgefüllt',{exact:false}).waitFor();
+ state=await (await b.request.get(base+q)).json();assert.ok(state.objects.find(o=>o.id===object.id).documentContent.includes('erfolgreich'));pass('Dokument ausfüllen und Tastaturposition auf gemeinsamer Bühne speichern');
+ await pa.screenshot({path:`${output}/working-document.png`,fullPage:true});await pa.keyboard.press('Escape');
+ await go(sl,'/sl/regie');await sl.getByRole('heading',{name:title+' SL',exact:true}).waitFor();assert.equal(await sl.getByRole('heading',{name:title,exact:true}).count(),0);pass('Regie enthält nur SL-eigene vorbereitete Unterlagen; Spielerbibliothek bleibt privat');
+ await sl.screenshot({path:`${output}/regie-material-1440.png`,fullPage:true});
+ await pa.getByRole('button',{name:'Dokumente',exact:true}).click();const stagedCard=pa.locator('section[aria-label="Persönliche Vorbereitung"] li').filter({has:pa.getByRole('heading',{name:title,exact:true})});await stagedCard.getByRole('button',{name:'Vom Tisch',exact:true}).click();await pb.locator(`[data-object="${object.id}"]`).waitFor({state:'detached'});pass('Zurückziehen entfernt das Dokument automatisch aus der Empfängeransicht');
+ assert.deepEqual(errors,[],'No JavaScript page errors');pass('Keine Browser-JavaScriptfehler');
+ writeFileSync(output+'/result.json',JSON.stringify({checks,errors},null,2));
+ console.log(`ALL PASS: ${checks.length} material browser workflows`);
+}catch(e){if(sl)await sl.screenshot({path:output+'/failure.png',fullPage:true});console.error('FAILED PHASE '+phase);throw e;}
+finally{await browser.close();}

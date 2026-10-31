@@ -33,6 +33,7 @@ type Section = {
 };
 
 export const sections: Section[] = [
+  {id:"vorbereitung",name:"Materialvorbereitung",icon:Library,desc:"Eigene Dokumente und Material für den Tisch vorbereiten.",gmOnly:true},
   {id:"rueckblick",name:"Spielabend-Rückblick",icon:BookOpen,desc:"Freigegebene Zusammenfassung eines vergangenen Spielabends.",mainNav:false},
   {
     id: "dashboard",
@@ -138,9 +139,9 @@ export const sections: Section[] = [
   },
   {
     id: "notizen",
-    name: "Meine Notizen",
+    name: "Archiv & Vorbereitung",
     icon: NotebookPen,
-    desc: "Was du weißt. Was du vermutest. Was bleibt.",
+    desc: "Eigene Notizen und vorbereitetes Spielmaterial.",
     group: "DEINE SPUREN",
   },
   {

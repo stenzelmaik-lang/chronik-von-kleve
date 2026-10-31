@@ -10,6 +10,7 @@ import {LivePdf} from '../live-pdf';
 import {BackdropChoice,tableState} from './regie';
 import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
+import {TableMaterialLibrary} from '../table-material-library';
 import {RegieVitals} from './regie-vitals';
 import {RegieAmbience} from './regie-ambience';
 import type {RegieContext,Snapshot,StageObject,PreparedPager} from './types';
@@ -60,7 +61,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [contexts,setContexts]=useState<Record<string,RegieContext>>({}),[contextError,setContextError]=useState<{id:string;message:string}|null>(null);
  const [chosenScene,setChosenScene]=useState(''),[audiences,setAudiences]=useState<Record<string,Audience>>({});
  const [area,setArea]=useState<RegieArea>('narration'),[textArea,setTextArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
- const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null),[catalogSearch,setCatalogSearch]=useState('');
+ const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null);
  const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),previewDialog=useRef<HTMLDialogElement>(null);
  // One id per spontaneous pager draft: a repeated click or a retry after a lost answer never sends it twice.
  const pagerDraftId=useRef('');
@@ -144,7 +145,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   if(current?.sceneInfo&&current.sceneInfo.id!==id&&current.sceneEventId)await run({action:'hideScene',eventId:current.sceneEventId});
  }
  async function release(id:string){const target=audienceOf('narration:'+id);if(latest.current?.stageSceneId!==id)await activate(id);await run({action:'scene',id},target,'Erzählung freigegeben für '+audienceText(target,crew)+'.');}
- const place=(key:string,sourceId:string,sourceKind:'entity'|'file',title?:string,kind:'document'|'npc'='document')=>{const target=audienceOf(key);return run({action:'add',kind,sourceId,sourceKind,...(title?{title}:{}),visible:true,recipients:target},null,'Ausgespielt für '+audienceText(target,crew)+'.');};
+ const place=(key:string,sourceId:string,sourceKind:'entity'|'file'|'record',title?:string,kind:'document'|'npc'='document')=>{const target=audienceOf(key);return run({action:'add',kind,sourceId,sourceKind,...(title?{title}:{}),visible:true,recipients:target},null,'Ausgespielt für '+audienceText(target,crew)+'.');};
 
  const crew=(snapshot?.crew||[]).filter(m=>m.id!==a.id);
  const objects=(snapshot?.objects||[]).filter((o):o is Exclude<StageObject,{kind:'note'}>=>o.kind!=='note');
@@ -205,18 +206,15 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
   <nav className={styles.areas} aria-label="Bereiche der Szene">{regieAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id);return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} aria-current={(kind==='text'?textArea===id&&area===id:area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{label}</button>;})}</nav>
-  {!context?<main className={styles.loading}>{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
+  {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
   <main className={styles.grid} data-scene={s!.id}>
    <Column id="col-material" title="Material" icon={<ImageIcon size={17}/>}>
-    <span id="regie-bereich-material" data-area="material" className={styles.anchor} tabIndex={-1}/>
+    <span id="regie-bereich-material" data-area="material" className={styles.anchor} tabIndex={-1}/>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}
     {!!sceneMedia.filter(m=>m.mime.startsWith('image/')).length&&<Block title="Bilder · Polaroids">{sceneMedia.filter(m=>m.mime.startsWith('image/')).map(m=>media(m,ImageIcon,'image'))}</Block>}
     {!!sceneMedia.filter(m=>m.mime==='application/pdf').length&&<Block title="Dokumente · PDF">{sceneMedia.filter(m=>m.mime==='application/pdf').map(m=>media(m,FileText,'pdf'))}</Block>}
-    {!!context.handouts.length&&<Block title="Handout-Akten">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind==='entity'&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}
+    {!!context.handouts.length&&<Block title="Handout-Akten">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,h.sourceKind||'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:h.sourceKind||'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}
     {!sceneMedia.some(m=>m.mime.startsWith('image/')||m.mime==='application/pdf')&&!context.handouts.length&&<p className={regieStyles.empty}>Kein Bild- oder Dokumentmaterial mit dieser Szene verknüpft.</p>}
-    <Block title={'Weiteres Material der Kampagne ('+(snapshot?.catalog.filter(o=>o.sourceKind==='file').length||0)+')'} open={false}>
-     <input className={styles.search} aria-label="Kampagnenmaterial durchsuchen" placeholder="Material suchen …" value={catalogSearch} onChange={e=>setCatalogSearch(e.target.value)}/>
-     <ul className={styles.compact}>{(snapshot?.catalog||[]).filter(o=>o.sourceKind==='file'&&o.title.toLocaleLowerCase('de').includes(catalogSearch.toLocaleLowerCase('de'))).slice(0,40).map(o=>{const placed=placedFile(o.id);return <li key={o.id}><span>{o.title}<small>{tableState(placed)}</small></span><button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:o.id,sourceKind:'file',visible:true,recipients:null},null,'Für alle auf den Tisch gelegt.')}><Eye/> Für alle</button>{placed&&<button type="button" aria-label={o.title+' vom Tisch nehmen'} disabled={busy} onClick={()=>void run({action:'remove',id:placed.id})}><EyeOff/></button>}</li>;})}</ul>
-    </Block>
+
    </Column>
 
    <Column id="col-text" title="Texte zum Vorlesen" icon={<BookOpen size={17}/>}>

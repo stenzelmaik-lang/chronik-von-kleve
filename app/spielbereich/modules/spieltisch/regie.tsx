@@ -12,9 +12,9 @@ export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],
 export type RegieTab=typeof regieTabs[number][0];
 
 type Props={sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
- onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string)=>void;
+ onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string,sourceKind?:'entity'|'record')=>void;
  table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};images:{id:string;title:string}[];
- onPlace:(sourceId:string,sourceKind:'entity'|'file',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
+ onPlace:(sourceId:string,sourceKind:'entity'|'file'|'record',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
 type Media=RegieContext['media'][number];
 const groups:[string,string,(m:Media)=>boolean,typeof ImageIcon][]=[
  ['Bilder · Polaroids','Fotos, die du als Bildkarte auf den Tisch legst.',m=>m.mime.startsWith('image/'),ImageIcon],
@@ -97,7 +97,7 @@ export function Regie({sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onS
      {placed&&<button disabled={busy} onClick={()=>onRemove(placed.id)}><EyeOff/> Vom Tisch nehmen</button>}
      {m.mime.startsWith('image/')&&<button disabled={busy} onClick={()=>onShowMedia(m.fileId)}><Eye/> Groß zeigen · {audience}</button>}
     </article>;})}</div></section>:null;})}
-    {!!context.handouts.length&&<section className={styles.group} aria-label="Handout-Akten"><h3><FileText size={16}/> Handout-Akten</h3>{context.handouts.map(h=>{const placed=table.objects.find(o=>o.kind==='document'&&o.sourceKind==='entity'&&o.sourceId===h.id);return <article key={h.id} className={styles.note}><h3>{h.title}</h3>{h.stageable?<><p className={styles.state} data-placed={!!placed}>{tableState(placed)}</p><button disabled={busy} onClick={()=>onPlace(h.id,'entity')}><FilePlus2/> {placed?'Freigabe ändern':'Auf den Tisch'} · {audience}</button>{placed?<button disabled={busy} onClick={()=>onRemove(placed.id)}><EyeOff/> Vom Tisch nehmen</button>:<button disabled={busy} onClick={()=>onStage('document',h.id)}><Lock/> Nur für SL auflegen</button>}</>:<p className={styles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</article>;})}</section>}
+    {!!context.handouts.length&&<section className={styles.group} aria-label="Handout-Akten"><h3><FileText size={16}/> Handout-Akten</h3>{context.handouts.map(h=>{const placed=table.objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id);return <article key={h.id} className={styles.note}><h3>{h.title}</h3>{h.stageable?<><p className={styles.state} data-placed={!!placed}>{tableState(placed)}</p><button disabled={busy} onClick={()=>onPlace(h.id,h.sourceKind||'entity')}><FilePlus2/> {placed?'Freigabe ändern':'Auf den Tisch'} · {audience}</button>{placed?<button disabled={busy} onClick={()=>onRemove(placed.id)}><EyeOff/> Vom Tisch nehmen</button>:<button disabled={busy} onClick={()=>onStage('document',h.id,h.sourceKind||'entity')}><Lock/> Nur für SL auflegen</button>}</>:<p className={styles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</article>;})}</section>}
    </>}
   </section>
   <dialog ref={previewDialog} className={styles.preview} aria-label="Private Vorschau" onClose={()=>setPreview(null)}>{preview&&<><header><div><small>PRIVATE VORSCHAU · NUR SL</small><h2>{preview.title}</h2></div><button aria-label="Vorschau schließen" onClick={()=>previewDialog.current?.close()}><X/></button></header>

@@ -4,7 +4,9 @@ import {stageAsset} from '@/server/live-stage';
 export const dynamic='force-dynamic';
 export async function GET(req:Request){try{
  const a=await actor(),q=new URL(req.url).searchParams;
- const asset=await stageAsset(a,q.get('sessionId')||'',q.get('objectId')||'',q.get('catalogId')||undefined);
+ const rawPage=q.get('page');if(rawPage!==null&&!/^(0|[1-9]\d?)$/.test(rawPage))throw new HttpError(400,'Ungültige Handoutseite.');
+ const asset=await stageAsset(a,q.get('sessionId')||'',q.get('objectId')||'',q.get('catalogId')||undefined,rawPage===null?undefined:Number(rawPage));
+ if(asset.pages)return json({title:asset.title,pages:asset.pages,...(asset.text?{caption:asset.text}:{})});
  if(asset.text!==undefined)return json({title:asset.title,content:asset.text});
  if(asset.path){if(!('ASSETS' in env)||!env.ASSETS||typeof env.ASSETS!=='object'||!('fetch' in env.ASSETS)||typeof env.ASSETS.fetch!=='function')throw new HttpError(503,'Bildspeicher nicht erreichbar.');const result:Response=await env.ASSETS.fetch(new Request(new URL(asset.path,req.url)));const mime=result.headers.get('content-type')||'';if(!result.ok||!mime.startsWith('image/'))throw new HttpError(404,'Bild nicht verfügbar.');return new Response(result.body,{status:result.status,headers:{'Content-Type':mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"}});}
  const f=await database().prepare('SELECT key,mime,name,size FROM files WHERE campaign_id=? AND id=?').bind(a.campaignId,asset.fileId).first<{key:string;mime:string;name:string;size:number}>();

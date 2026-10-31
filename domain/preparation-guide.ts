@@ -8,7 +8,7 @@ export const sceneGuideSteps = [
   {id:'narration',label:'Erzählung',hint:'Wie beginnt die Szene? Formuliere den Einstieg und die Informationen, die du später erzählen oder vorlesen möchtest.'},
   {id:'atmosphere',label:'Atmosphäre',hint:'Beschreibe Stimmung, Licht, Geräusche und andere Sinneseindrücke. Hinterlege nur, was du für diese Szene brauchst.'},
   {id:'dialogueNotes',label:'NPCs und Dialoge',hint:'Wähle vorhandene NPCs und notiere ihre Gesprächsangebote, Ziele und möglichen Antworten. Es entstehen keine Kopien ihrer Akten.'},
-  {id:'interactions',label:'Interaktionen und Spielmaterial',hint:'Was können die Spieler untersuchen oder auslösen? Bereite Handouts, Hinweise, Medien und weitere Bausteine vor und bringe sie in deine geplante Reihenfolge.'},
+  {id:'interactions',label:'Interaktion & Einsatzplan',hint:'Halte fest, was du vorgeplant hast, warum es wichtig ist und wann oder wo du es einsetzen möchtest. Die eigentlichen Bausteine und Handouts verwaltest du separat unter Material.'},
   {id:'secrets',label:'Geheimnisse',hint:'Was bleibt zunächst verborgen? Notiere Hintergründe und Voraussetzungen für eine spätere bewusste Freigabe.'},
   {id:'visions',label:'Visionen & persönliche Botschaften',hint:'Bereite Träume, Visionen oder vertrauliche Informationen für ausgewählte Spieler vor. Erst „Privat zustellen“ sendet die Botschaft in ihre persönlichen Postfächer.'},
   {id:'possibleConsequences',label:'Folgen und Proben',hint:'Bereite mögliche Proben, Abzweigungen und Konsequenzen vor. Sie werden hier nur geplant; keine Regel oder Strafe wird automatisch ausgelöst.'},
