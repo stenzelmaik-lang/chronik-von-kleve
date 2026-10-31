@@ -48,6 +48,75 @@ Drei Mängel aus der Live-Abnahme. Die Ursachen wurden vor jeder Änderung an ei
 - **Größe:** Die Klickflächen waren 13,2 % × 14,6 % groß. Sie reichten in die Fugen zwischen den Tasten; Klicks dort lösten benachbarte Aktionen aus.
 - **Skalierung:** Die Flächen sind prozentual, laufen beim Skalieren also nicht auseinander. Der Fehler steckt allein in den Ausgangswerten.
 
-## Behebung
+## Umsetzung
 
-Wird nach der Umsetzung ergänzt (Abschnitt „Umsetzung“ unten).
+Die vorhandene Architektur bleibt: ein Pager, der Bühnenstand als Speicher, `POST /api/live-stage` als Weg. Es gibt keinen neuen Dienst und keine Datenbankmigration.
+
+### 1. Ton (`app/spielbereich/modules/spieltisch/pager-sound.ts`)
+- **Lautstärke:** Die Paket-Sounds laufen über Web Audio mit fester Verstärkung ×4 (+12 dB). Die Spitze liegt bei etwa −9 dBFS: deutlich hörbar, ohne Übersteuerung.
+- **Freischalten:**
+  - Der erste Tipp, Klick oder Tastendruck auf der Seite schaltet den Ton frei; auf iOS mit einem stillen Puffer.
+  - Hat die Seite schon vor dem ersten Pager eine Interaktion erlebt (`navigator.userActivation.hasBeenActive`), wird beim Eintreffen direkt freigeschaltet.
+- **Ton aktivieren:** Blockiert der Browser trotzdem, zeigt der Pager den Knopf **„Ton aktivieren“**. Er schaltet frei und bestätigt mit einem Ping. Ein blockierter Ton wird nicht später überraschend nachgespielt.
+- **Wann es klingelt** (`pagerRing` in `domain/ultio-pager.ts`):
+  - Nur für IDs, die diese Person noch nicht gesehen hat. Die Liste wird pro Abend gespeichert und wächst nur.
+  - Kein Ton beim Neuladen, bei doppelten Ereignissen oder bei einem kurz veralteten Stand.
+  - Mehrere neue Nachrichten in einer Synchronisierung ergeben einen Ton; ist eine dringende dabei, wird es der Alarm.
+- **Keine Überlagerung** (`pagerRingSlot`): Ein Ping während eines laufenden Tons entfällt, ein Alarm folgt direkt danach. Der Rückstau beträgt höchstens 1 s.
+- **Stumm:** Stumm bleibt pro Person gespeichert und hat Vorrang. Beim Einschalten wird zugleich freigeschaltet.
+
+### 2. Lesestatus (Server)
+- **Bühnenstand:** neues optionales Feld `pagers[].reads` = `[{id, at}]` und neuer Befehl `{action:'pagerRead', id}`.
+  - Nur der eingeloggte Empfänger, nur für eine echte ID, sonst 404. Die SL kann nicht stellvertretend lesen.
+  - Monoton: Wiederholte oder verspätete Befehle ändern nichts. Eine Quittierung zählt immer auch als gelesen.
+- **Stand für Spieler:** `read` (eigene Lesebestätigung oder Quittierung). Die SL erhält `reads` und `acks`.
+- **Client:**
+  - Öffnen und Anzeigen der Meldung zählt sofort lokal als gelesen; Zähler und Badge aktualisieren sich ohne Wartezeit.
+  - Danach geht `pagerRead` an den Server.
+  - Fehlt dem Server eine Bestätigung (verlorene Anfrage, anderer Tab), sendet der Pager sie mit dem nächsten Stand erneut.
+  - Lokaler Lesestatus und Serverstatus werden vereinigt; nichts wird zurückgesetzt.
+- **Regie:** zeigt „Gelesen: … · Quittiert: …“. Der Pager-Spiegel zeigt „Gelesen n/m: … · quittiert k“.
+
+### 3. Tasten (`ultio-pager.module.css`)
+- **Neue Mitten:** 18,23 / 33,70 / 49,72 / 65,75 / 81,22 % in der Breite und 75,23 % in der Höhe.
+- **Größe:** 12,2 % × 12,4 %, etwas innerhalb der Kappen. Die Fugen zwischen den Tasten, die Einfassung und das LCD lösen nichts aus.
+- **Unverändert:** Der Fokusrahmen sitzt auf der Klickfläche, also jetzt genau auf der Kappe. Die Tastatur (Tab auf Tasten, ↑ ↓ Enter Esc M am Gerät) funktioniert wie bisher.
+
+## Daten und Schema
+
+- Keine D1-Migration.
+- **Bühnenstand:** nur das optionale Feld `pagers[].reads`. Alte Stände bleiben gültig.
+- **Rücksprung-Hinweis:** Ein älterer Build lehnt einen Stand mit `reads` als „nicht unterstützt“ ab. Vor einem Rücksprung die Pager zurückziehen oder den Abend neu starten. Das ist derselbe Hinweis wie bei früheren optionalen Feldern.
+- **Neuer lokaler Schlüssel:** `chroniplay:pager-gehoert:<runId>:<id>` (bereits angezeigte IDs, nur für den Ton).
+
+## Tests (31.10.2026, Edge headless über Playwright, isolierte Instanz Port 8884)
+
+| Prüfung | Ergebnis |
+|---|---|
+| Unit gesamt (`package.json` test, inkl. neuer `tests/ultio-pager-fixes.test.mjs`) | 297/297 |
+| Typecheck · Build | ohne Fehler |
+| Lint | geänderte Dateien ohne Befund; die 12 Fehler in `prototypes/spieltisch-2` sind älter und unverändert |
+| `tests/ultio-pager-fixes-integration.mjs` (SL, A, B: nur Empfänger, echte ID, 404, fremde nicht mitmarkiert, idempotent, verspätet, neue Sitzung) | bestanden |
+| Pager-, Regie-, Regie-Nachbesserung-, Ambiente-, Spieltisch-Regie-, Medien-, Zustandswerte-, Zustandswerte-Runde-, Szenen-Whisper- und Material-Integration | alle bestanden |
+| `tests/ultio-pager-fixes-browser.mjs` (Regie-Fenster + A + B; 1920, 1440, 125 %, 375 px mit Touch) | bestanden: Ton, Alarm, keine Wiederholung, stumm, gelesen sofort/dauerhaft/nur A, Tasten auf den Kappen, Fugen tot, Klick/Tipp, Tastatur, Fokusrahmen |
+| `tests/ultio-pager-tisch-browser.mjs`, `ultio-pager-browser.mjs`, `regie-nachbesserung-browser.mjs`, `regie-zweitfenster-browser.mjs` | bestanden |
+
+**Anpassungen an bestehenden Tests:**
+- Die Ton-Sonde ist auf Web Audio umgestellt.
+- „Blockierter Ton wird beim ersten Tipp nachgeholt“ ist ersetzt durch „Ton aktivieren“.
+- `waitForFunction` fragt im Intervall ab statt per Animationsframe; Hintergrundseiten drosseln diesen.
+- `regie-nachbesserung-browser`: Nach dem Öffnen durch A und B zeigt der Spiegel jetzt korrekt „Gelesen 2/2“, A's zweites OK „quittiert 1“.
+- Die Portlisten erlauben zusätzlich 8884.
+
+**Regressionsnachweis Tasten:** Mit den alten Koordinaten scheitert die neue Prüfung. Die Fugenpunkte zwischen ▼/OK (x 843) und OK/↩ (x 1065) lagen in den alten OK- bzw. Zurück-Flächen.
+
+**Screenshots:** `.local-work/ux-check/ultio-pager-fixes/` (Desktop und 375 px, Spieler A mit Fokusrahmen, Regie).
+
+## Hinweise
+
+- **Lockfile:** `origin/main` hat ein Lockfile, das nicht zu `package.json` passt (z. B. `next` 16.3.4 im Lockfile, 16.3.6 im Manifest). Das bestand schon in `4f3964f`.
+  - `pnpm install --frozen-lockfile` scheitert deshalb.
+  - Lokal wurde ohne gefrorenes Lockfile installiert. Lockfile und `pnpm-workspace.yaml` wurden nicht verändert committet.
+  - Das sollte vor dem nächsten CI-Lauf eigens bereinigt werden.
+- **Nicht nachgespielt:** Ein zurückgezogener und mit derselben ID erneut ausgespielter Pager klingelt kein zweites Mal, weil die ID schon gesehen wurde. Er erscheint aber ungelesen.
+- **Testinstanz:** `$env:CVK_TEST_PORT='8884'; .\scripts\start-ultio-pager.ps1` (Speicher `.local-test/ultio-pager` in diesem Worktree, nur synthetische Konten).

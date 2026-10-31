@@ -7,7 +7,7 @@ export type PagerKey=typeof pagerKeys[number];
 /** Built-in LCD views. Further views can be registered by the client; MENU cycles through the menu views. */
 export const pagerBaseMenu=['home','inbox','status'];
 export type PagerDeviceView=string;
-export type PagerSource={id:string;text:string;at:string;title?:string;sender?:string;priority?:'normal'|'hoch';acknowledged?:boolean};
+export type PagerSource={id:string;text:string;at:string;title?:string;sender?:string;priority?:'normal'|'hoch';read?:boolean;acknowledged?:boolean};
 export type PagerDeviceMessage={id:string;text:string;at:string;title:string;sender:string;urgent:boolean;acknowledged:boolean;opened:boolean};
 export type PagerDeviceState={view:PagerDeviceView;inboxIndex:number;selectedId:string|null};
 export type PagerEffect={type:'opened';id:string}|{type:'acknowledge';id:string}|{type:'scroll';step:-1|1}|{type:'collapse'};
@@ -20,7 +20,7 @@ export const initialPagerDevice=():PagerDeviceState=>({view:'home',inboxIndex:0,
 export function pagerDeviceMessages(pagers:readonly PagerSource[],opened:readonly string[]=[],acknowledged:readonly string[]=[]):PagerDeviceMessage[]{
  const byId=new Map<string,PagerSource>();
  for(const p of pagers)if(p&&typeof p.id==='string'&&p.id&&!byId.has(p.id))byId.set(p.id,p);
- return [...byId.values()].map(p=>{const acked=!!p.acknowledged||acknowledged.includes(p.id);return {id:p.id,text:p.text,at:p.at,title:p.title||'',sender:p.sender||'',urgent:p.priority==='hoch',acknowledged:acked,opened:acked||opened.includes(p.id)};})
+ return [...byId.values()].map(p=>{const acked=!!p.acknowledged||acknowledged.includes(p.id);return {id:p.id,text:p.text,at:p.at,title:p.title||'',sender:p.sender||'',urgent:p.priority==='hoch',acknowledged:acked,opened:acked||!!p.read||opened.includes(p.id)};})
   .sort((x,y)=>y.at.localeCompare(x.at)||y.id.localeCompare(x.id));
 }
 /** Unopened messages: the badge on the folded pager. */
@@ -51,6 +51,19 @@ export function pressPagerKey(state:PagerDeviceState,key:PagerKey,messages:reado
 }
 /** New ids since the last look: these float the pager in and may ring. Withdrawn ids simply vanish. */
 export function pagerArrivals(previous:readonly string[]|null,messages:readonly PagerDeviceMessage[]){return previous===null?[]:messages.filter(m=>!previous.includes(m.id));}
+/**
+ * Which messages ring and float the pager in. heard holds every id this viewer has already been shown; it only grows,
+ * so a reload (heard seeded with the current ids), a repeated event or a late, older snapshot never rings twice.
+ * Several new ids in one sync are one ring; an urgent one makes it the alarm.
+ */
+export function pagerRing(heard:ReadonlySet<string>,messages:readonly PagerDeviceMessage[]){
+ const fresh=messages.filter(m=>!heard.has(m.id));
+ return {fresh,kind:fresh.length?(fresh.some(m=>m.urgent)?'alarm' as const:'ping' as const):null,heard:new Set([...heard,...messages.map(m=>m.id)])};
+}
+/** Messages opened here whose read receipt the server does not have yet (lost request, other tab, older snapshot). */
+export function pagerReadsToSync(pagers:readonly PagerSource[],opened:readonly string[],pending:ReadonlySet<string>){
+ return pagers.filter(p=>!p.read&&!p.acknowledged&&opened.includes(p.id)&&!pending.has(p.id)).map(p=>p.id);
+}
 /** Keeps the selection on a real message; a withdrawn message sends the device back to the inbox. */
 export function settlePagerDevice(state:PagerDeviceState,messages:readonly PagerDeviceMessage[]):PagerDeviceState{
  const inboxIndex=Math.max(0,Math.min(Math.max(0,messages.length-1),state.inboxIndex));
