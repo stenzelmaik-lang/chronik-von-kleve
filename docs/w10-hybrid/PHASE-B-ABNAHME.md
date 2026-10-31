@@ -82,7 +82,7 @@ Ohne `node` im PATH das Präfix aus der Phase-A-Übergabe verwenden. Anmeldung i
 
 ## 6. Abnahmeerklärung
 
-- [ ] Phase B ist im beschriebenen Umfang abgenommen.
-- [ ] Freigabe für einen Push des Branches und einen Pull Request (kein Merge und kein Deployment ohne weitere Freigabe).
+- [x] Phase B ist im beschriebenen Umfang abgenommen.
+- [x] Freigabe für einen Push des Branches und einen Pull Request (kein Merge und kein Deployment ohne weitere Freigabe).
 
-Datum / Projektinhaber: ____________________
+Datum / Projektinhaber: 31.10.2026, Projektinhaber (Abnahme im Chat mit Claude Code: „Abnehmen, PR anlegen“). Merge und Deployment sind damit **nicht** freigegeben.
