@@ -12,7 +12,19 @@ const object=z.object({...base,kind:z.enum(['npc','document']),visibility:z.enum
 // The scene backdrop is the shared ground of the table for the whole round. It is
 // separate from released photos and from the narration event.
 const backdrop=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),sceneId:z.string().max(160)}).strict();
-export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional()}).strict();
+// Second-screen direction (Regie im Zweitfenster): table-wide effects, background music and pager
+// messages. All optional, so stored stages from before stay valid without a migration.
+export const stageEffects=['rain','fog'] as const;
+export type StageEffect=typeof stageEffects[number];
+const music=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),key:z.string().min(1).max(64)}).strict();
+export const pagerTextMax=280,pagerKeep=30;
+const recipientList=z.array(z.string().min(1).max(160)).min(1).max(30);
+const pager=z.object({id:z.string().min(1).max(160),text:z.string().min(1).max(pagerTextMax),at:z.string().max(40),recipients:recipientList.nullable()}).strict();
+export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional()}).strict();
+export type StageMusic=z.infer<typeof music>;
+export type StagePager=z.infer<typeof pager>;
+/** A pager message reaches the whole round (null) or exactly the listed players; the GM sees every message. */
+export function pagerVisible(p:StagePager,a:Pick<Actor,'id'|'gm'>){return a.gm||p.recipients===null||p.recipients.includes(a.id);}
 export type StageBackdrop=z.infer<typeof backdrop>;
 export type StageState=z.infer<typeof stageSchema>;
 export type StageObject=StageState['objects'][number];
@@ -29,6 +41,10 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('edit'),id:z.string(),content:z.string().max(3000),expectedRevision:z.number().int().positive()}).strict(),
  z.object({action:z.literal('visibility'),id:z.string(),visibility:z.enum(['private','group']).optional(),visible:z.boolean().optional(),expectedRevision:z.number().int().positive().optional(),recipients:z.array(z.string()).max(30).nullable().optional()}).strict(),
  z.object({action:z.literal('remove'),id:z.string(),expectedRevision:z.number().int().positive().optional()}).strict(),
+ z.object({action:z.literal('effects'),effects:z.array(z.enum(stageEffects)).max(stageEffects.length)}).strict(),
+ z.object({action:z.literal('music'),fileId:z.string().min(1).max(160).nullable()}).strict(),
+ z.object({action:z.literal('pager'),text:z.string().trim().min(1).max(pagerTextMax),recipients:recipientList.nullable()}).strict(),
+ z.object({action:z.literal('pagerWithdraw'),id:z.string().min(1).max(160)}).strict(),
 ]);
 export type StageCommand=z.infer<typeof stageCommandSchema>;
 export async function stageSourceToken(e:Pick<Entity,'type'|'title'|'content'>){
@@ -45,9 +61,15 @@ function placement(media:StageMedia|undefined,count:number){
  if(media==='video')return {x:.27+shift,y:.08,w:.36,h:.46};
  return {x:.68+shift/2,y:.06+shift,w:.22,h:.6};
 }
-export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm'>,c:StageCommand,source?:{title:string;kind:'npc'|'document';sourceId:string;sourceKind:'entity'|'file';sourceVersion?:number;sourceToken?:string;media?:StageMedia},resolvedBackdrop?:StageBackdrop|null){
+export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm'>,c:StageCommand,source?:{title:string;kind:'npc'|'document';sourceId:string;sourceKind:'entity'|'file';sourceVersion?:number;sourceToken?:string;media?:StageMedia},resolvedBackdrop?:StageBackdrop|null,resolvedMusic?:StageMusic|null,now=new Date().toISOString()){
  const next=structuredClone(state);
- if(c.action==='backdrop'||c.action==='activateScene'){
+ if(c.action==='effects'||c.action==='music'||c.action==='pager'||c.action==='pagerWithdraw'){
+  if(!a.gm)throw Object.assign(Error('Nur die Spielleitung steuert Effekte, Musik und Pager.'),{status:403});
+  if(c.action==='effects')next.effects=stageEffects.filter(e=>c.effects.includes(e));
+  else if(c.action==='music'){if(c.fileId&&!resolvedMusic)throw Object.assign(Error('Musik nicht verfügbar.'),{status:404});next.music=c.fileId?resolvedMusic:null;}
+  else if(c.action==='pager')next.pagers=[...next.pagers||[],{id:crypto.randomUUID(),text:c.text,at:now,recipients:c.recipients?[...new Set(c.recipients)]:null}].slice(-pagerKeep);
+  else{if(!next.pagers?.some(p=>p.id===c.id))throw Object.assign(Error('Pager-Nachricht nicht verfügbar.'),{status:404});next.pagers=next.pagers.filter(p=>p.id!==c.id);}
+ }else if(c.action==='backdrop'||c.action==='activateScene'){
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung wechselt den Schauplatz.'),{status:403});
   next.backdrop=resolvedBackdrop??null;
   if(c.action==='activateScene'){

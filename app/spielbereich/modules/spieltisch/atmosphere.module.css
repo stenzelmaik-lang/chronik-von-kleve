@@ -1,0 +1,41 @@
+.srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Weather layer: over the backdrop, under table objects and narration. */
+.effects{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.rain,.fog{position:absolute;inset:0}
+.rain span{position:absolute;inset:-20% -10%;background-image:repeating-linear-gradient(104deg,transparent 0 22px,#c9d8e633 22px 23px,transparent 23px 47px),repeating-linear-gradient(98deg,transparent 0 37px,#dfe9f226 37px 38px,transparent 38px 71px);background-size:180px 260px,260px 340px;animation:rain .55s linear infinite}
+.rain span+span{opacity:.6;background-size:120px 190px,210px 280px;animation-duration:.8s}
+.rain::after{content:'';position:absolute;inset:0;background:linear-gradient(#0d1a2433,#0d1a2455)}
+.fog span{position:absolute;inset:-10% -40%;background:radial-gradient(ellipse 40% 30% at 30% 60%,#d8dde0aa,transparent 70%),radial-gradient(ellipse 35% 25% at 70% 45%,#c9d0d488,transparent 70%),radial-gradient(ellipse 50% 22% at 50% 85%,#e0e4e6aa,transparent 70%);filter:blur(18px);opacity:.75;animation:fog 38s ease-in-out infinite alternate}
+.fog span+span{opacity:.5;animation-duration:54s;animation-direction:alternate-reverse}
+@keyframes rain{from{background-position:0 0,0 0}to{background-position:-40px 260px,-30px 340px}}
+@keyframes fog{from{transform:translateX(-8%)}to{transform:translateX(8%)}}
+@media(prefers-reduced-motion:reduce){.rain span,.fog span{animation:none}}
+:global(.user-reduced-motion) .rain span,:global(.user-reduced-motion) .fog span{animation:none!important}
+
+/* Background music: personal controls in the stage corner. */
+.music{position:absolute;left:18px;top:60px;z-index:6;display:flex;align-items:center;gap:7px;max-width:min(420px,calc(100% - 36px));padding:5px 8px;border:1px solid #c5a46a40;border-radius:6px;background:#0c1417d9;color:#e7dac1;font-size:12px;pointer-events:auto}
+.musicTitle{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.music button{display:flex;align-items:center;justify-content:center;gap:6px;min-width:34px;min-height:34px;border:1px solid #c5a46a40;border-radius:5px;background:#182125;color:#eee8dc;font-size:12px}
+.music button[aria-pressed=true]{background:#5a3b31}
+.music .musicStart{background:#d6b36f;border-color:#d6b36f;color:#141a1b;padding:0 10px;white-space:nowrap}
+.music input{width:84px;accent-color:#d6b36f}
+@media(max-width:600px){.music{top:56px;left:10px;max-width:calc(100% - 20px)}.music input{width:60px}}
+
+/* Pager: floats onto the table from below, then rests with a slight tilt. */
+.pager{position:absolute;right:18px;bottom:84px;z-index:25;display:grid;gap:8px;width:min(340px,calc(100% - 36px));pointer-events:auto;animation:pagerIn 900ms cubic-bezier(.2,.9,.25,1.1) both}
+.pager footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;justify-self:end;padding:6px 6px 6px 12px;border:1px solid #c5a46a40;border-radius:8px;background:#0c1417ee}
+.pager footer small{color:#d9d1c0;font-size:11px}
+.pager footer button{display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid #d6b36f;border-radius:6px;background:#d6b36f;color:#141a1b;font-size:13px}
+.device{position:relative;width:100%;rotate:-3deg;filter:drop-shadow(0 14px 22px #000a);animation:pagerFloat 4.5s 900ms ease-in-out infinite}
+/* Only the device floats; the controls below stay still so they are easy to hit. */
+.pager:hover .device,.pager:focus-within .device{animation-play-state:paused}
+.device img{display:block;width:100%;height:100%;user-select:none}
+.screen{position:absolute;display:flex;flex-direction:column;gap:2px;padding:5px 8px;color:#1d2a18;font:600 14px/1.3 ui-monospace,Consolas,'Courier New',monospace;overflow:hidden}
+.screen small{font-size:10px;opacity:.75}
+.screen p{margin:0;overflow:auto;overflow-wrap:anywhere;white-space:pre-wrap;scrollbar-width:thin}
+@keyframes pagerIn{0%{opacity:0;transform:translate(40px,120px) rotate(14deg) scale(.8)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes pagerFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media(prefers-reduced-motion:reduce){.pager,.device{animation:none}}
+:global(.user-reduced-motion) .pager,:global(.user-reduced-motion) .device{animation:none!important}
+@media(max-width:600px){.pager{right:10px;bottom:78px;width:calc(100% - 20px);max-width:340px}}

@@ -6,7 +6,7 @@ import {listScenes,readScene} from './story-scenes';
 import {preparedSession} from './story-preparation';
 import type {SceneSummary} from '@/domain/story-scene';
 import {liveSceneChoice} from '@/domain/session-overview';
-import {stageSchema,emptyStage,stageVisible,changeStageObjects,stageSourceToken,stageMediaOf,type StageCommand,type StageState,type StageObject,type StageBackdrop} from '@/domain/live-stage';
+import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stageSourceToken,stageMediaOf,type StageCommand,type StageState,type StageObject,type StageBackdrop,type StageMusic} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
@@ -67,12 +67,16 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
   // Character condition values: own and explicitly released characters only; GM sees the whole table.
-  vitals};
+  vitals,
+  // Table-wide atmosphere and pager messages. Players get only their own pagers, without the recipient list.
+  effects:stage.effects||[],
+  music:stage.music?{title:stage.music.title,key:stage.music.key,...(a.gm?{fileId:stage.music.fileId}:{})}:null,
+  pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at})};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){
  const {row,room}=await stageRoom(a,sessionId),state=storedStage(room);
  if(runId!==room.runId||state.version!==expectedVersion)throw new HttpError(409,'Die Bühne wurde inzwischen geändert. Bitte aktualisieren.');
- if((c.action==='visibility'||c.action==='add')&&c.recipients?.length){const eligible=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id));if(c.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Zielperson ist nicht in dieser Runde.');}
+ if((c.action==='visibility'||c.action==='add'||c.action==='pager')&&c.recipients?.length){const eligible=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id));if(c.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Zielperson ist nicht in dieser Runde.');}
  const source=c.action==='add'&&c.kind!=='note'?await stageSource(a,c.sourceId||'',c.sourceKind||'entity'):undefined;
  if(c.action==='add'&&source&&source.kind!==c.kind)throw new HttpError(400,'Objekttyp passt nicht zur Quelle.');
  let backdrop:StageBackdrop|null=null;
@@ -82,13 +86,21 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
   const sceneId=c.action==='activateScene'?c.sceneId:state.sceneId||'';
   if(fileId){const f=await liveFile(a,fileId);if(!f.mime.startsWith('image/'))throw new HttpError(400,'Das Szenenbild muss ein Bild sein.');backdrop={fileId:f.id,title:f.name,sceneId};}
  }
- let next:StageState;try{next=changeStageObjects(state,a,c,source,backdrop);}catch(e){if(e instanceof Error&&'status' in e)throw new HttpError(Number(e.status),e.message);throw new HttpError(400,'Ungültige Bühnenaktion.');}
+ let music:StageMusic|null=null;
+ if(c.action==='music'&&c.fileId){
+  gmOnly(a);const f=await liveFile(a,c.fileId);if(!f.mime.startsWith('audio/'))throw new HttpError(400,'Hintergrundmusik muss eine Audiodatei sein.');
+  // A fresh key per start lets every player restart the track, even when the same file is chosen again.
+  music={fileId:f.id,title:f.name,key:crypto.randomUUID().replaceAll('-','').slice(0,16)};
+ }
+ let next:StageState;try{next=changeStageObjects(state,a,c,source,backdrop,music);}catch(e){if(e instanceof Error&&'status' in e)throw new HttpError(Number(e.status),e.message);throw new HttpError(400,'Ungültige Bühnenaktion.');}
  const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1").bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId).run();
  if(!result.meta.changes)throw new HttpError(409,'Spielstand inzwischen geändert. Deine Änderung wurde nicht überschreibend gespeichert.');
 }
 export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalogId?:string):Promise<{fileId?:string;path?:string;text?:string;title:string}>{
  const {room}=await stageRoom(a,sessionId);let o:Exclude<StageObject,{kind:'note'}>|undefined;
  if(objectId==='backdrop'&&!catalogId){const b=storedStage(room).backdrop;if(!b)throw new HttpError(404,'Kein Szenenbild aktiv.');return {fileId:b.fileId,title:b.title};}
+ // Background music belongs to the whole round, like the backdrop.
+ if(objectId==='music'&&!catalogId){const m=storedStage(room).music;if(!m)throw new HttpError(404,'Keine Hintergrundmusik aktiv.');return {fileId:m.fileId,title:m.title};}
  if(catalogId){gmOnly(a);const s=await stageSource(a,catalogId,'entity');o={id:'preview',...s,rect:{x:0,y:0,w:.2,h:.4},visibility:'sl',recipients:null};}
  else {const found=storedStage(room).objects.find(o=>o.id===objectId&&stageVisible(o,a));if(found&&found.kind!=='note')o=found;}
  if(!o)throw new HttpError(404,'Bühnenobjekt nicht verfügbar.');
