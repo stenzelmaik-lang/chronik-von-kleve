@@ -24,13 +24,13 @@ const groups:[string,string,(m:Media)=>boolean,typeof ImageIcon][]=[
 ];
 
 /** Where an item currently is: prepared only, SL-only on the table, or released to whom. */
-function tableState(o:StageObject|undefined){if(!o||o.kind==='note')return 'Vorbereitet · nicht auf dem Tisch';if(o.visibility==='sl')return 'Auf dem Tisch · nur SL';return o.recipients===null?'Auf dem Tisch · ganze Runde':'Auf dem Tisch · '+o.recipients.length+' Spieler';}
+export function tableState(o:StageObject|undefined){if(!o||o.kind==='note')return 'Vorbereitet · nicht auf dem Tisch';if(o.visibility==='sl')return 'Auf dem Tisch · nur SL';return o.recipients===null?'Auf dem Tisch · ganze Runde':'Auf dem Tisch · '+o.recipients.length+' Spieler';}
 
 function Text({value,empty}:{value:string;empty:string}){return value.trim()?<RichTextView value={value} readable flowing className={styles.prose}/>:<p className={styles.empty}>{empty}</p>;}
 
 /** Private direction drawer. Reading never publishes; every release is a separate, labelled action. */
 /** Live backdrop choice: scene images first, every campaign image on demand. Choosing never touches the prepared scene. */
-function BackdropChoice({current,sceneImages,images,busy,onChoose}:{current:string;sceneImages:{id:string;title:string}[];images:{id:string;title:string}[];busy:boolean;onChoose:(fileId:string)=>void}){
+export function BackdropChoice({current,sceneImages,images,busy,onChoose}:{current:string;sceneImages:{id:string;title:string}[];images:{id:string;title:string}[];busy:boolean;onChoose:(fileId:string)=>void}){
  const [search,setSearch]=useState('');
  const tile=(img:{id:string;title:string})=><li key={img.id}><button type="button" disabled={busy||current===img.id} aria-pressed={current===img.id} aria-label={'Als Hintergrund: '+img.title} onClick={()=>onChoose(img.id)}><img src={'/api/files?id='+encodeURIComponent(img.id)} alt="" loading="lazy"/><span>{current===img.id?'Aktiv · ':''}{img.title}</span></button></li>;
  const others=images.filter(i=>!sceneImages.some(s=>s.id===i.id)&&i.title.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de')));

@@ -16,3 +16,13 @@
 @media(prefers-reduced-motion:reduce){.drawer,.drawer[data-closing=true]{animation:none}.drawer[data-closing=true]{opacity:0}.tip>span[role=tooltip]{transition:none}}
 
 .drawer>header .tip>span[role=tooltip]{left:auto;right:0;transform:none}
+/* Own values in the header menu: a single choice plus a confirm button. */
+.ownValues{display:flex;align-items:center;gap:4px;margin-left:6px;padding-left:8px;border-left:1px solid #ac925b55}
+.ownValues select{max-width:min(240px,52vw);min-height:38px;padding:0 8px;border:1px solid #ac925b66;border-radius:5px;background:#182125;color:#eee8dc;font:inherit;font-size:13px}
+.ownValues button{display:grid;place-items:center;min-width:38px;min-height:38px;border:1px solid #d6b36f;border-radius:5px;background:#d6b36f;color:#141a1b}
+.ownValues button:disabled{opacity:.5;background:#182125;color:#eee8dc;border-color:#ac925b66}
+.ownValues small{color:#b7bdb6;font-size:12px}
+.ownDone{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media(max-width:600px){.actions{flex-wrap:wrap;max-width:calc(100vw - 16px);justify-content:center}.ownValues{flex-basis:100%;margin:4px 0 0;padding:4px 0 0;border-left:0;border-top:1px solid #ac925b55;justify-content:center}}
+/* Phone: only avatars in the header, so every participant stays reachable (names stay in the accessible label). */
+@media(max-width:600px){.crew{gap:2px;justify-content:center}.participant{flex:none}.member{padding:4px 3px;gap:0}.playerName{display:none}}

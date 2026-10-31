@@ -1,0 +1,110 @@
+/* ULTIO pager R-03. Coordinates are percent of the 1448 x 1086 housing. Keys as in the delivered pager.css ([data-shell="ultio"]):
+   centres x 265, 477, 702, 924, 1147 at y 805. The cleared LCD measures x 233-1206, y 314-650 in the artwork (the package's
+   233-1176 / 314-633 left a strip of the bare LCD visible). The LCD is live HTML, never part of the image. */
+.srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pager{position:absolute;right:18px;bottom:84px;z-index:25;display:grid;justify-items:end;pointer-events:none}
+.pager>*{pointer-events:auto}
+
+/* Folded: a small pager lies on the table, with the unread badge. */
+.launcher{position:relative;display:block;width:104px;padding:0;border:0;background:none;cursor:pointer;filter:drop-shadow(0 2px 2px #000d) drop-shadow(4px 10px 10px #0009);rotate:-6deg;animation:pagerDrop .6s cubic-bezier(.2,.9,.25,1.1) both}
+.launcher img{display:block;width:100%;height:auto;user-select:none}
+.launcher:hover{filter:drop-shadow(0 2px 2px #000d) drop-shadow(4px 10px 10px #0009) brightness(1.15)}
+.launcher:focus-visible{outline:3px solid #ebcf96;outline-offset:4px;border-radius:8px}
+.badge{position:absolute;top:-6px;right:-6px;min-width:24px;padding:4px 6px;border-radius:30px;background:#b63245;color:#fff;font:800 12px/1 system-ui,Arial,sans-serif;box-shadow:0 0 0 3px #0d121c;rotate:6deg}
+.pager[data-alert=true] .launcher{animation:pagerDrop .6s cubic-bezier(.2,.9,.25,1.1) both,pagerBuzz 2.4s 1s ease-in-out infinite}
+
+/* Opened: a free-standing device lies on the table. No panel, frame or backdrop behind it: only the housing with its
+   own cast shadow. Sound and fold are two small chips that float above the device. */
+.window{position:relative;display:grid;justify-items:end;gap:6px;width:min(520px,calc(100vw - 96px));animation:pagerIn .7s cubic-bezier(.2,.9,.25,1.1) both}
+.toolbar{display:flex;gap:6px}
+.toolbar button{display:inline-flex;align-items:center;gap:5px;min-height:32px;padding:0 10px;border:1px solid #ffffff26;border-radius:999px;background:#0b0f14b3;color:#e2ddd2;font:700 11px/1 system-ui,Arial,sans-serif;letter-spacing:.3px;cursor:pointer;backdrop-filter:blur(3px);box-shadow:0 2px 8px #0006}
+.toolbar button:hover{background:#1b222ecc}
+.toolbar button[aria-pressed=true]{background:#5a3b31d9;border-color:#8a5a49}
+.toolbar button:focus-visible{outline:3px solid #ebcf96;outline-offset:2px}
+
+/* Resting on the table: a slight turn, a tight contact shadow and a soft cast shadow. Focus glows along the housing. */
+.device{position:relative;width:100%;aspect-ratio:1448/1086;container-type:inline-size;isolation:isolate;rotate:-2deg;filter:drop-shadow(0 2px 2px #000d) drop-shadow(6px 18px 16px #0009);outline:0}
+.device:focus-visible{filter:drop-shadow(0 2px 2px #000d) drop-shadow(6px 18px 16px #0009) drop-shadow(0 0 3px #ebcf96) drop-shadow(0 0 2px #ebcf96)}
+.shell{position:absolute;inset:0;display:block;width:100%;height:100%;user-select:none;pointer-events:none}
+.device{--lcd:#b4d09d;--lcd-light:#d1deb2;--ink:#2a4430}
+.device[data-theme=amber]{--lcd:#deb97a;--lcd-light:#f0d99e;--ink:#533b22}
+.device[data-theme=ice]{--lcd:#b6d4da;--lcd-light:#dcebf0;--ink:#244653}
+.device[data-theme=red]{--lcd:#c98388;--lcd-light:#e2a5a8;--ink:#541d28}
+.screen{position:absolute;top:28.91%;left:16.09%;width:67.2%;height:30.94%;overflow:hidden;border-radius:2.6%/7.2%;color:var(--ink);background:linear-gradient(166deg,var(--lcd-light),var(--lcd) 58%,var(--lcd));box-shadow:inset 0 2px 8px #0004;transition:background .25s}
+/* Scanlines and pixel grid as CSS texture over the LCD. */
+.screen::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;opacity:.5;background:repeating-linear-gradient(0deg,#00000012 0 1px,transparent 1px 4px),repeating-linear-gradient(90deg,#0000000a 0 1px,transparent 1px 6px)}
+.screen::after{content:"";position:absolute;inset:0;z-index:3;pointer-events:none;background:linear-gradient(130deg,#ffffff1f 0%,transparent 34%,#0000000b 98%)}
+
+.lcd{position:relative;z-index:1;display:flex;flex-direction:column;width:100%;height:100%;font-family:"Courier New",Consolas,ui-monospace,monospace;font-weight:700;font-size:clamp(7px,2.3cqw,16px);line-height:1.15;text-transform:uppercase;text-shadow:0 .25px currentColor;overflow:hidden}
+.lcdHeader,.lcdFooter{flex:none;display:flex;justify-content:space-between;align-items:center;gap:4px;min-height:18%;padding:1% 3%;background:color-mix(in srgb,var(--ink) 12%,transparent);font-size:clamp(6px,1.75cqw,12px);letter-spacing:.03em}
+.lcdHeader{border-bottom:1px solid color-mix(in srgb,var(--ink) 32%,transparent)}
+.lcdFooter{margin-top:auto;border-top:1px solid color-mix(in srgb,var(--ink) 32%,transparent)}
+.ellipsis{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4}
+.home{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2%;padding:1% 4%;text-align:center}
+.home small{max-width:100%;font-size:clamp(6px,1.6cqw,11px);letter-spacing:.08em}
+.home strong{font-size:clamp(11px,3.4cqw,24px);letter-spacing:-.04em;white-space:nowrap}
+.count{display:flex;justify-content:center;align-items:baseline;gap:8px;padding:0 0 2%}
+.count b{font-size:clamp(12px,3.8cqw,24px);line-height:1}
+.count span{font-size:clamp(6px,1.7cqw,12px)}
+.list{flex:1;min-height:0;display:flex;flex-direction:column;gap:1%;margin:0;padding:1% 2%;list-style:none}
+.list li{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;align-content:center;gap:0 6px;flex:0 1 32%;min-height:0;padding:.4% 2%;border:1px solid transparent;overflow:hidden;line-height:1.25}
+.list li .ellipsis{line-height:1.3}
+.list li>span:nth-child(2){grid-column:1;font-weight:400;font-size:clamp(6px,1.6cqw,12px)}
+.list li time{grid-column:2;grid-row:1/span 2;align-self:center;font-size:clamp(6px,1.5cqw,11px)}
+.list li[data-selected=true]{border-color:var(--ink);background:color-mix(in srgb,var(--ink) 19%,transparent)}
+.empty{margin:auto;padding:4%;text-align:center}
+.list .empty{display:block;height:auto;border:0}
+.meta{flex:none;display:flex;justify-content:space-between;gap:6px;padding:1.2% 3%;border-bottom:1px dashed color-mix(in srgb,var(--ink) 30%,transparent)}
+.body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--ink) transparent;padding:1.5% 3%;text-transform:none}
+.body strong{display:block;margin-bottom:1.5%;font-size:clamp(9px,2.6cqw,18px);text-transform:uppercase}
+.body p{margin:0;font-size:clamp(8px,2.45cqw,16px);line-height:1.3;white-space:pre-wrap;overflow-wrap:anywhere}
+.status{flex:1;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-content:center;gap:2% 8%;margin:0;padding:2% 4%;font-size:clamp(7px,1.8cqw,12px)}
+.status dd{margin:0;text-align:right}
+
+/* Five transparent hit areas exactly over the keys of the artwork. Only these react to clicks and touch. */
+.keys{position:absolute;inset:0;pointer-events:none}
+.key{position:absolute;top:74.1%;width:13.2%;height:14.6%;padding:0;transform:translate(-50%,-50%);border:0;border-radius:23%;background:transparent;pointer-events:auto;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.key[data-key=menu]{left:18.3%}.key[data-key=up]{left:33%}.key[data-key=down]{left:48.5%}.key[data-key=ok]{left:63.8%}.key[data-key=back]{left:79.2%}
+.key:hover,.key:focus-visible{background:#d9e3da1a;box-shadow:0 0 0 2px #e8f1d3a6;outline:0}
+.key:active{background:#03080a57}
+
+@keyframes pagerIn{0%{opacity:0;transform:translate(40px,140px) rotate(10deg) scale(.85)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes pagerDrop{0%{opacity:0;transform:translateY(60px) rotate(12deg)}100%{opacity:1;transform:none}}
+@keyframes pagerBuzz{0%,86%,100%{transform:none}88%{transform:translateX(-2px) rotate(-1deg)}90%{transform:translateX(2px) rotate(1deg)}92%{transform:translateX(-2px)}94%{transform:none}}
+@media(prefers-reduced-motion:reduce){.window,.launcher,.pager[data-alert=true] .launcher{animation:none}.screen{transition:none}}
+:global(.user-reduced-motion) .window,:global(.user-reduced-motion) .launcher{animation:none!important}
+/* Phone: the whole device stays visible on the table, right of the tool rail (56 px). */
+/* Above the condition dock, which spans most of the width on a phone. */
+@media(max-width:600px){.pager{right:8px;bottom:236px}.window{width:calc(100vw - 76px);max-width:520px}.launcher{width:84px;margin-right:6px}}
+@media(max-height:560px){.window{width:min(520px,calc(100vw - 96px),calc((100dvh - 130px)*1.33))}}
+
+/* GM mirror of sent pagers: a compact read-only strip on the GM's own table. */
+.mirror{position:absolute;right:18px;bottom:84px;z-index:25;display:grid;justify-items:end;pointer-events:none;font:12px/1.35 system-ui,Arial,sans-serif;color:#e2ddd2}
+.mirror>*{pointer-events:auto}
+.mirrorChip{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:0 12px 0 6px;touch-action:none;border:1px solid #9fbf8a66;border-radius:999px;background:#0b0f14d9;color:#dfe9cf;font:700 12px/1 system-ui,Arial,sans-serif;cursor:pointer;box-shadow:0 4px 14px #0007}
+.mirrorChip small{font-weight:400;color:#b7c4a8}
+.mirrorPanel{display:grid;gap:8px;width:min(380px,calc(100vw - 96px));max-height:min(620px,calc(100dvh - 160px));overflow:auto;padding:10px;border:1px solid #9fbf8a55;border-radius:10px;background:#0b0f14f0;box-shadow:0 10px 30px #000a;animation:mirrorIn .35s ease-out both}
+.mirrorPanel header{display:flex;align-items:center;gap:7px}.mirrorPanel header small{color:#b7bdb6;font-size:11px}
+.mirrorPanel header button{display:grid;place-items:center;width:30px;height:30px;margin-left:auto;border:1px solid #ffffff26;border-radius:50%;background:transparent;color:inherit;cursor:pointer}
+.mirrorPanel ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.mirrorPanel li{display:grid;gap:5px;padding:7px;border:1px solid #ffffff1a;border-radius:7px}
+.mirrorPanel li[data-urgent=true]{border-color:#e0887066}
+.mirrorMeta{display:flex;justify-content:space-between;gap:8px;color:#c8c3b6;font-size:11px}
+.mirrorLcd{display:grid;gap:2px;padding:6px 8px;border-radius:4px;background:linear-gradient(166deg,#d1deb2,#b4d09d 58%);color:#2a4430;font:700 12px/1.3 'Courier New',Consolas,monospace}
+.mirrorLcd small{font-size:10px;text-transform:uppercase}.mirrorLcd strong{text-transform:uppercase}.mirrorLcd p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.mirrorHidden{margin:0;color:#c8c3b6;font-style:italic}
+.mirrorAcks{color:#a9d6b9}
+@keyframes mirrorIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.mirrorPanel{animation:none}}
+:global(.user-reduced-motion) .mirrorPanel{animation:none!important}
+@media(max-width:600px){.mirror{right:8px;bottom:236px}}
+
+/* Draggable pager (personal position): the housing and the folded pager are handles, the keys are not. */
+.device,.launcher{touch-action:none;cursor:grab}
+.pager[data-dragging=true] .device,.pager[data-dragging=true] .launcher,.mirror[data-dragging=true] .mirrorChip{cursor:grabbing}
+.key{cursor:pointer}
+.mirrorDevice{width:100%}
+.mirrorDevice .device{cursor:default;touch-action:auto}
+.mirrorChip img{width:34px;height:auto;rotate:-6deg;filter:drop-shadow(0 2px 3px #000c)}
+.mirrorText{margin:0;color:#e6dfd0;overflow-wrap:anywhere}
+.pager,.mirror{-webkit-user-select:none;user-select:none}

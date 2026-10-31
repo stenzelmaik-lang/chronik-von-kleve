@@ -110,7 +110,7 @@ test("All requested scene element kinds are supported without implied publicatio
     referenceId: "",
     fileId: "",
   }));
-  assert.equal(sceneDocumentSchema.parse(doc).elements.length, 15);
+  assert.equal(sceneDocumentSchema.parse(doc).elements.length, 16);
   assert.equal(
     sceneDocumentSchema.safeParse({
       ...doc,

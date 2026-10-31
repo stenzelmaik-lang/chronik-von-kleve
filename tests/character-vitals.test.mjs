@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readVitals,applyVitals,mayOperate,allowedOperations,generationLimits,applyTableVitals,emptyTableVitals,tableVitalsSchema,vitalsCommandSchema,stressBand,VitalsError} from '../domain/character-vitals.ts';
+import {readVitals,applyVitals,mayOperate,allowedOperations,generationLimits,applyTableVitals,emptyTableVitals,tableVitalsSchema,vitalsCommandSchema,stressBand,masqueradeRisk,masqueradeView,VitalsError} from '../domain/character-vitals.ts';
 const gm={gm:true,id:'sl'},player={gm:false,id:'a'};
 const sheet=(extra={})=>({generation:12,willpower:5,willpowerTemporary:5,blood:11,...extra});
 const fails=(fn,status)=>assert.throws(fn,e=>e instanceof VitalsError&&(!status||e.status===status));
@@ -83,4 +83,16 @@ test('group stress follows the player handout bands; masquerade stays secret unl
  s=applyTableVitals(s,{op:'settings',share:{characterId:'c1',shared:true}},'SL','t5','5');assert.deepEqual(s.shared,['c1']);
  assert.equal(s.version,4);assert.ok(tableVitalsSchema.safeParse(s).success);
  assert.ok(!tableVitalsSchema.safeParse({...s,extra:1}).success,'Strict schema');
+});
+test('personal stress per character and the masquerade risk players see',()=>{
+ let s=emptyTableVitals();assert.equal(masqueradeView(s),'risk','New tables show players the risk');
+ s=applyTableVitals(s,{op:'personalStress',characterId:'c1',delta:5},'SL','t1','1','Anna');assert.equal(s.personal.c1,5);assert.match(s.log[0].text,/Anna 0 → 5 \(Angespannte Nerven\)/);
+ assert.throws(()=>applyTableVitals(s,{op:'personalStress',characterId:'c1',value:5},'SL','t2','2'),VitalsError);
+ s=applyTableVitals(s,{op:'personalStress',characterId:'c1',value:0},'SL','t3','3');assert.equal(s.personal.c1,undefined,'Zero is not stored');
+ s=applyTableVitals(s,{op:'masquerade',value:2},'SL','t4','4');assert.equal(s.log[0].secret,true,'Exact level stays SL-only in risk view');
+ s=applyTableVitals(s,{op:'settings',masqueradeView:'exact'},'SL','t5','5');assert.equal(s.masquerade.visible,true);
+ s=applyTableVitals(s,{op:'settings',masqueradeVisible:false},'SL','t6','6');assert.equal(masqueradeView(s),'hidden');
+ assert.equal(masqueradeView({...s,masquerade:{value:0,max:5,visible:true}}),'exact','Older states without view keep their meaning');
+ assert.deepEqual([0,1,2,3,4,5].map(v=>masqueradeRisk(v,5).label),['Gewahrt','Aufmerksamkeit','Aufmerksamkeit','In Gefahr','In Gefahr','Bruch droht']);
+ assert.ok(tableVitalsSchema.safeParse(s).success);
 });

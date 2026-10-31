@@ -19,6 +19,10 @@ const vitals=(c,body)=>c.post('/api/live-vitals',{sessionId,runId,...body});
 async function op(c,characterId,command,expected=200){const r=await vitals(c,{characterId,command});assert.equal(r.status,expected,JSON.stringify(command)+': '+r.text);return r.status===200?JSON.parse(r.text):null;}
 async function table(c,command,expected=200){const v=await snap(gm);const r=await vitals(c,{expectedVersion:v.version,table:command});assert.equal(r.status,expected,JSON.stringify(command)+': '+r.text);}
 
+// Since the Regie-Nachbesserung a round defaults to „für alle sichtbar“ and players entering their own damage.
+// This suite checks the restrictive round settings; tests/zustandswerte-runde-integration.mjs checks the defaults.
+await table(gm,{op:'settings',roundView:'shared',damageBy:'sl'});
+
 // Visibility: everybody sees exactly their own character; the SL sees the whole table.
 const [gv,av,bv]=[await snap(gm),await snap(a),await snap(b)];
 assert.ok(av.characters.length>=1&&av.characters.every(c=>c.own),'A sees only own characters');
@@ -49,6 +53,7 @@ assert.equal(reloaded.vitals.blood.current,blood-1,'Reload keeps the value');
 console.log('PASS live update for SL and persistence across a new login');
 
 // SL damage, healing and reset with V20 ordering.
+if((await snap(gm)).characters.find(c=>c.id===ca.id).vitals.health.track.length)await op(gm,ca.id,{op:'reset',target:'health'});
 await op(gm,ca.id,{op:'damage',type:'bashing',levels:1});await op(gm,ca.id,{op:'damage',type:'lethal',levels:2});
 let seen=(await snap(a)).characters.find(c=>c.id===ca.id).vitals.health;
 assert.deepEqual(seen.track,['lethal','lethal','bashing']);assert.equal(seen.level,'Schwer verletzt');assert.equal(seen.penalty,-1);
@@ -70,14 +75,28 @@ const masq=(await snap(gm)).masquerade.value;await table(gm,{op:'masquerade',val
 for(const c of [a,b]){assert.equal((await snap(c)).masquerade,undefined);assert.ok(!(await raw(c)).includes('Maskerade-Stufe'),'No masquerade text reaches players');}
 await table(gm,{op:'settings',masqueradeVisible:true});assert.equal((await snap(a)).masquerade.value,masq===0?1:0,'Released masquerade reaches players');
 await table(gm,{op:'settings',masqueradeVisible:false});await table(gm,{op:'masquerade',value:masq});assert.equal((await snap(b)).masquerade,undefined);
+await table(gm,{op:'settings',masqueradeView:'risk'});
+for(const c of [a,b]){const v=await snap(c);assert.equal(v.masquerade,undefined,'Risk view: no exact level');assert.ok(v.masqueradeRisk?.label,'Risk view: players see the situation');}
+await table(gm,{op:'settings',masqueradeView:'hidden'});assert.equal((await snap(a)).masqueradeRisk,undefined,'Hidden view: nothing');
 const stale=(await snap(gm)).version-1;assert.equal((await vitals(gm,{expectedVersion:stale,table:{op:'stress',delta:1}})).status,409,'Stale group version refused');
 assert.equal((await gm.post('/api/live-vitals',{sessionId,runId:crypto.randomUUID(),characterId:ca.id,command:{op:'blood.spend',amount:1}})).status,409,'Old run refused');
 console.log('PASS group stress for all, masquerade SL-only until released, optimistic locking');
 
+// Personal stress: set by the SL per character, seen by its owner only.
+await table(gm,{op:'personalStress',characterId:ca.id,value:4});
+assert.equal((await snap(a)).characters.find(c=>c.id===ca.id).stress.value,4,'A sees own personal stress');
+assert.equal((await snap(a)).characters.find(c=>c.id===ca.id).stress.label,'Angespannte Nerven');
+assert.ok(!(await raw(b)).includes(ca.id),'B gets nothing of A');
+await table(a,{op:'personalStress',characterId:ca.id,delta:-1},403);
+assert.equal((await vitals(gm,{expectedVersion:(await snap(gm)).version,table:{op:'personalStress',characterId:'unbekannt',delta:1}})).status,404,'Only characters at the table');
+await table(gm,{op:'personalStress',characterId:ca.id,value:0});
+console.log('PASS personal stress per character, SL-controlled, owner-visible');
+
 // Explicit release of one character to the round.
 await table(gm,{op:'settings',share:{characterId:ca.id,shared:true}});
 const shared=(await snap(b)).characters.find(c=>c.id===ca.id);assert.ok(shared&&!shared.own&&shared.shared,'B sees released A');
-await op(b,ca.id,{op:'blood.spend',amount:1},404);
+// Visible but foreign: refused with 403 (since the Regie-Nachbesserung; invisible characters still answer 404).
+await op(b,ca.id,{op:'blood.spend',amount:1},403);
 await table(gm,{op:'settings',share:{characterId:ca.id,shared:false}});assert.ok(!(await snap(b)).characters.some(c=>c.id===ca.id),'Withdrawn again');
 console.log('PASS explicit release: B reads A read-only, withdrawal removes it');
 
@@ -93,4 +112,5 @@ console.log('PASS new night for the table and character history with before/afte
 // Restore the fixture for the next manual run.
 await op(gm,ca.id,{op:'reset',target:'blood'});await op(gm,ca.id,{op:'reset',target:'willpower'});
 for(const c of (await snap(gm)).characters){const v=c.vitals;if(v.blood.current!==null&&v.blood.max!==null&&v.blood.current<v.blood.max)await op(gm,c.id,{op:'reset',target:'blood'});}
+await table(gm,{op:'settings',roundView:'all',damageBy:'player'});
 console.log('PASS zustandswerte integration complete');

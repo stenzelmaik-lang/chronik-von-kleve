@@ -37,6 +37,26 @@ export const stressBands=[
  {from:10,to:10,label:'Bruchpunkt',effect:'Alle Charaktere verlieren 1 Willenskraft und würfeln Selbstbeherrschung SG 7 (Patzer: Raserei/Flucht).'},
 ] as const;
 export function stressBand(value:number){return stressBands.find(b=>value>=b.from&&value<=b.to)??stressBands[0];}
+/** Persönlicher Stress je Figur: gleiche Leiste und Stufennamen wie der Gruppenstress, ohne Regelautomatik (Wirkung legt die SL fest). */
+export const personalStressEffect='Persönliche Belastung. Die Wirkung legt die SL fest; es wird nichts automatisch gewürfelt.';
+
+/**
+ * Maskerade-Risiko für Spieler: grobe Lage statt der genauen SL-Stufe. Reine Darstellung, keine Regel.
+ * hidden = nur SL, risk = Spieler sehen die Lage, exact = Spieler sehen die Stufe.
+ */
+export const masqueradeViews=['hidden','risk','exact'] as const;
+export type MasqueradeView=typeof masqueradeViews[number];
+export const masqueradeViewLabels:Record<MasqueradeView,string>={hidden:'Nur SL',risk:'Spieler sehen die Lage',exact:'Spieler sehen die Stufe'};
+const masqueradeRisks=[
+ {level:0,label:'Gewahrt',hint:'Keine Aufmerksamkeit erkennbar.'},
+ {level:1,label:'Aufmerksamkeit',hint:'Es wird geredet. Vorsicht ist angebracht.'},
+ {level:2,label:'In Gefahr',hint:'Die Maskerade wackelt. Jeder Fehler kann sie brechen.'},
+ {level:3,label:'Bruch droht',hint:'Die Maskerade steht kurz vor dem Bruch.'},
+] as const;
+export function masqueradeRisk(value:number,max:number){
+ const ratio=max>0?value/max:0;
+ return masqueradeRisks[value<=0?0:ratio>=1?3:ratio>.4?2:1];
+}
 
 /** Wer was buchen darf. Die SL darf immer alles, auch korrigieren. */
 export const playerOperations=['blood.spend','willpower.spend','blood.gain','heal.blood'] as const;
@@ -93,12 +113,14 @@ export const vitalsCommandSchema=z.discriminatedUnion('op',[
 export type VitalsCommand=z.infer<typeof vitalsCommandSchema>;
 export class VitalsError extends Error{status:number;constructor(status:number,message:string){super(message);this.status=status;}}
 
-export function mayOperate(profile:ControlProfile,principal:{gm:boolean;id:string},ownerId:string,op:VitalsCommand['op']){
+/** playerDamage: the round lets players enter damage to their own character themselves (setting „Schaden trägt ein“). */
+export function mayOperate(profile:ControlProfile,principal:{gm:boolean;id:string},ownerId:string,op:VitalsCommand['op'],playerDamage=false){
  if(principal.gm)return true;
- return ownerId===principal.id&&(controlProfiles[profile].player as readonly string[]).includes(op);
+ if(ownerId!==principal.id)return false;
+ return (controlProfiles[profile].player as readonly string[]).includes(op)||(op==='damage'&&playerDamage);
 }
 /** Die für Besitzer in diesem Profil erlaubten Vorgänge; die SL erhält alle. */
-export function allowedOperations(profile:ControlProfile,gm:boolean):VitalsCommand['op'][]{return gm?['blood.spend','blood.gain','willpower.spend','willpower.regain','damage','heal.blood','heal','reset','set']:[...controlProfiles[profile].player];}
+export function allowedOperations(profile:ControlProfile,gm:boolean,playerDamage=false):VitalsCommand['op'][]{return gm?['blood.spend','blood.gain','willpower.spend','willpower.regain','damage','heal.blood','heal','reset','set']:[...controlProfiles[profile].player,...(playerDamage?['damage' as const]:[])];}
 
 function addDamage(track:DamageType[],type:DamageType,levels:number,blood:number|null,status:HealthStatus){
  let next=sortTrack([...track,...Array.from({length:levels},()=>type)]),nextStatus=status;
@@ -183,20 +205,35 @@ export function applyVitals(body:Record<string,unknown>,c:VitalsCommand,principa
 export const tableVitalsSchema=z.object({
  format:z.literal(1),version:z.number().int().nonnegative(),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]),
  stress:z.number().int().min(0).max(stressMaximum),
- masquerade:z.object({value:z.number().int().min(0).max(10),max:z.number().int().min(1).max(10),visible:z.boolean()}).strict(),
+ masquerade:z.object({value:z.number().int().min(0).max(10),max:z.number().int().min(1).max(10),visible:z.boolean(),view:z.enum(masqueradeViews).optional()}).strict(),
  nightlyWillpower:z.boolean(),shared:z.array(z.string().min(1).max(160)).max(60),
+ personal:z.record(z.string().min(1).max(160),z.number().int().min(0).max(stressMaximum)).refine(r=>Object.keys(r).length<=60).optional(),
  log:z.array(z.object({id:z.string(),at:z.string(),actor:z.string().max(200),text:z.string().max(300),secret:z.boolean()}).strict()).max(40),
+ // Round settings, optional so older table states stay valid: who sees blood, willpower and damage of the whole
+ // round (default: everyone) and who enters damage (default: the player for the own character; the SL always may).
+ roundView:z.enum(['all','shared']).optional(),damageBy:z.enum(['player','sl']).optional(),
 }).strict();
+export const roundViews=['all','shared'] as const;
+export type RoundView=typeof roundViews[number];
+export const roundViewLabels:Record<RoundView,string>={all:'Für alle sichtbar',shared:'Nur eigene und freigegebene Figuren'};
+export const damageModes=['player','sl'] as const;
+export type DamageMode=typeof damageModes[number];
+export const damageModeLabels:Record<DamageMode,string>={player:'Spieler trägt eigenen Schaden selbst ein',sl:'Nur die SL trägt Schaden ein'};
+export const roundViewOf=(state:Pick<TableVitals,'roundView'>):RoundView=>state.roundView??'all';
+export const damageByOf=(state:Pick<TableVitals,'damageBy'>):DamageMode=>state.damageBy??'player';
 export type TableVitals=z.infer<typeof tableVitalsSchema>;
+/** Ältere Stände kennen nur „visible“; daraus folgt „exact“ oder „hidden“. */
+export function masqueradeView(state:TableVitals):MasqueradeView{return state.masquerade.view??(state.masquerade.visible?'exact':'hidden');}
 // Maskerade-Stufen 0–5 entsprechen den meisten vorhandenen Eskalationsmatrizen der Kampagne (offen, einstellbar).
-export const emptyTableVitals=():TableVitals=>({format:1,version:0,profile:'empfohlen',stress:0,masquerade:{value:0,max:5,visible:false},nightlyWillpower:false,shared:[],log:[]});
+export const emptyTableVitals=():TableVitals=>({format:1,version:0,profile:'empfohlen',stress:0,masquerade:{value:0,max:5,visible:false,view:'risk'},nightlyWillpower:false,shared:[],personal:{},log:[]});
 export const tableCommandSchema=z.discriminatedUnion('op',[
  z.object({op:z.literal('stress'),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(stressMaximum).optional(),note:z.string().trim().max(200).optional()}).strict(),
  z.object({op:z.literal('masquerade'),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(10).optional(),note:z.string().trim().max(200).optional()}).strict(),
- z.object({op:z.literal('settings'),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]).optional(),masqueradeMax:z.number().int().min(1).max(10).optional(),masqueradeVisible:z.boolean().optional(),nightlyWillpower:z.boolean().optional(),share:z.object({characterId:z.string().min(1).max(160),shared:z.boolean()}).strict().optional()}).strict(),
+ z.object({op:z.literal('personalStress'),characterId:z.string().min(1).max(160),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(stressMaximum).optional(),note:z.string().trim().max(200).optional()}).strict(),
+ z.object({op:z.literal('settings'),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]).optional(),masqueradeMax:z.number().int().min(1).max(10).optional(),masqueradeVisible:z.boolean().optional(),masqueradeView:z.enum(masqueradeViews).optional(),nightlyWillpower:z.boolean().optional(),share:z.object({characterId:z.string().min(1).max(160),shared:z.boolean()}).strict().optional(),roundView:z.enum(roundViews).optional(),damageBy:z.enum(damageModes).optional()}).strict(),
 ]);
 export type TableCommand=z.infer<typeof tableCommandSchema>;
-export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,at:string,id:string):TableVitals{
+export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,at:string,id:string,characterTitle=''):TableVitals{
  const next=structuredClone(state);let text='',secret=false;
  if(c.op==='stress'){
   const value=c.value??clamp(state.stress+(c.delta??0),0,stressMaximum);if(value===state.stress)throw new VitalsError(409,'Stress unverändert.');
@@ -205,12 +242,20 @@ export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,a
   const value=c.value??clamp(state.masquerade.value+(c.delta??0),0,state.masquerade.max);
   if(value>state.masquerade.max)throw new VitalsError(400,'Maskerade-Stufe über dem eingestellten Maximum.');
   if(value===state.masquerade.value)throw new VitalsError(409,'Maskerade-Stufe unverändert.');
-  next.masquerade.value=value;text=`Maskerade-Stufe ${state.masquerade.value} → ${value}`;secret=!state.masquerade.visible;
+  next.masquerade.value=value;text=`Maskerade-Stufe ${state.masquerade.value} → ${value}`;secret=masqueradeView(state)!=='exact';
+ }else if(c.op==='personalStress'){
+  const before=state.personal?.[c.characterId]??0,value=c.value??clamp(before+(c.delta??0),0,stressMaximum);
+  if(value===before)throw new VitalsError(409,'Persönlicher Stress unverändert.');
+  next.personal={...(state.personal??{}),[c.characterId]:value};if(!value)delete next.personal[c.characterId];
+  text=`Persönlicher Stress${characterTitle?' '+characterTitle:''} ${before} → ${value} (${stressBand(value).label})`;
  }else{
   if(c.profile)next.profile=c.profile;
   if(c.masqueradeMax!==undefined){next.masquerade.max=c.masqueradeMax;next.masquerade.value=Math.min(next.masquerade.value,c.masqueradeMax);}
-  if(c.masqueradeVisible!==undefined)next.masquerade.visible=c.masqueradeVisible;
+  if(c.masqueradeVisible!==undefined){next.masquerade.visible=c.masqueradeVisible;next.masquerade.view=c.masqueradeVisible?'exact':'hidden';}
+  if(c.masqueradeView){next.masquerade.view=c.masqueradeView;next.masquerade.visible=c.masqueradeView==='exact';}
   if(c.nightlyWillpower!==undefined)next.nightlyWillpower=c.nightlyWillpower;
+  if(c.roundView)next.roundView=c.roundView;
+  if(c.damageBy)next.damageBy=c.damageBy;
   if(c.share)next.shared=c.share.shared?[...new Set([...next.shared,c.share.characterId])]:next.shared.filter(id=>id!==c.share!.characterId);
   text='Einstellungen der Zustandswerte geändert';secret=true;
  }
