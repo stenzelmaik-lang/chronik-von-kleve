@@ -12,6 +12,6 @@ if ($Build -or -not (Test-Path 'dist/server/wrangler.json')) { node scripts/run-
 if (-not $env:CVK_TEST_PORT) { $env:CVK_TEST_PORT = '8870' }
 $url = "http://127.0.0.1:$($env:CVK_TEST_PORT)"
 Write-Host "Live-Regie: $url/anmelden"
-Write-Host '  SL: command-gm@example.invalid  ·  Spieler: command-a@ / command-b@example.invalid (Passwort in scripts/test-local.mjs)'
-Write-Host "  Spieltisch: $url/spielbereich?bereich=sitzung  ·  Regie: Button 'Regie im zweiten Fenster' oder $url/sl/regie"
+Write-Host '  SL: command-gm@example.invalid  |  Spieler: command-a@ / command-b@example.invalid (Passwort in scripts/test-local.mjs)'
+Write-Host "  Spieltisch: $url/spielbereich?bereich=sitzung  |  Regie: Button 'Regie im zweiten Fenster' oder $url/sl/regie"
 node --experimental-strip-types scripts/test-local.mjs --regie
