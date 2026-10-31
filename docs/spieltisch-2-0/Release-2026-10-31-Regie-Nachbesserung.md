@@ -47,3 +47,27 @@ Keine Schemaänderung. Neue Felder (Effekte, YouTube, Rundeneinstellungen) sind 
 - Materialien der Kampagne in der Regie aufräumen (vom Projektinhaber für später vorgesehen).
 - Weitere Feinarbeit am Spieler-Dropdown und an der Schadensdarstellung, sobald der Projektinhaber über das Schadensrecht entschieden hat.
 - Merges nach `main`.
+
+## Folge-Release „Ambiente-Player & Pager-Fix“ (31.10.2026)
+
+- Veröffentlicht auf Anweisung des Projektinhabers („dann live push und merge“).
+- Stand `77a8e18`:
+  - `0fda835` Ambiente-Player als Schuber mit drehender Schallplatte, Hintergrundlautstärke, Playlists pro Szene mit automatischem Start, Regie-Steuerung. Keine Einwilligungsabfrage mehr, auf Wunsch des Projektinhabers (eigene KI-Musik). Beim Einbetten werden trotzdem Daten an YouTube/Google übertragen; ob die Datenschutzerklärung das abdeckt, entscheidet der Projektinhaber.
+  - `77a8e18` Pager mit echtem Gehäuse im SL-Spiegel, frei verschiebbar, Töne ab der ersten Interaktion.
+- Worker-Version `bbc9f701-7c9d-4e51-8880-9144da81e6ab`, Tag `ambiente-pager-fix`, 100 % Verkehr. Rückfallversion `dbe65764-e093-4ad6-88cf-cbab17e440e3`.
+- Prüfungen:
+  - Typecheck, ESLint und Build fehlerfrei.
+  - `pnpm test` 215/215, Zusatz-Unit-Tests 39/39.
+  - Regression: 1.968 PASS, 0 FAIL.
+  - Integrationstests grün: Ambiente, Regie-Nachbesserung, Zustände, Pager, Regie, Spieltisch, Medien.
+  - Browsertests grün: Pager am Tisch (Gehäuse, Verschieben, Töne), Ambiente-Player, Regie-Nachbesserung, Pager, Zustände der Runde.
+  - Alle 3 Live-Charaktere aus der Sicherung lesbar.
+- Sicherung:
+  - 32 Tabellen, 27.367 → 27.946 Zeilen, `integrity_check ok`.
+  - Lesezeichen `00000193-0001b787-00005115-1d564c4e0d1f4cbeb7297e41d0d86f87`.
+  - Ablage: privat unter `.local-work/release-ambiente/`.
+- Live-Prüfung:
+  - `/anmelden` 200.
+  - Spielbereich, SL und Regie 307.
+  - APIs 401.
+  - Pager-Gehäuse und beide Töne 200.
