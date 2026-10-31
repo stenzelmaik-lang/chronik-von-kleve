@@ -211,3 +211,25 @@ Screenshots liegen lokal in `.local-work/ux-check/material-3/` (nicht versionier
    - Spieler sehen fremde private Dateien weiterhin nicht (`/api/files` filtert serverseitig).
 10. **„Duplizieren“ dupliziert innerhalb der Szene.** Kopieren in eine andere Szene ist nicht umgesetzt.
 11. **Kein Live-Deployment, kein Push, kein PR.** Merge-Konfliktpotenzial: `stage.tsx`, `regie-window.tsx`, `regie.tsx`, `media-objects.tsx`, `domain/live-stage.ts`, `domain/story-scene.ts`, `server/live-stage.ts`, `server/story-scenes.ts`, `preparation-materials.tsx`, `material-preparation.tsx`, `scripts/test-local.mjs`, `package.json`.
+
+## Live-Release 31.10.2026
+
+- Freigegeben durch den Projektinhaber („Ja, mergen und live“). PR #56 ist als `3fa5e6e` gemergt und enthält den Pager-Fix aus PR #55.
+- Worker-Version `9f9dbbcc-2cfb-4616-86df-f978723a46fd`, Tag `3fa5e6e-Spielmaterial-3`, 100 % Verkehr. Bindings unverändert.
+- Rückfallversion: `5954135a-b260-4471-b41c-d3306388ba45` (Pager-Fix).
+  - **Einschränkung:** Sobald eine Szene einen `material`-Block nutzt, lehnt der ältere Build sie ab (siehe „Rückwärtskompatibilität und Rollback“). Vor einem Rückfall die Materialien dieser Szenen entfernen.
+  - Darstellungs-Assets stören den älteren Build nicht.
+- CI auf PR #56 grün: Typecheck, Lint, Tests, Build und SL-Browserdurchlauf.
+- Lokal am identischen Stand `fd68afb` geprüft:
+  - Typecheck, App-Lint, 304 Unit-Tests und Build grün.
+  - Material-3-Integration und Material-3-Browsertest (Desktop und 375 px) grün.
+- Sicherung vorab:
+  - 32 Tabellen, 29.354 Zeilen, `integrity_check ok`.
+  - Lesezeichen `0000019c-000013e5-00005115-2d5164fc99dda21d2da9112a978b9780`.
+  - Ablage: privat unter `.local-work/release-material-3/`.
+- Live-Prüfung ohne Anmeldung:
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich, Command Center und Regie leiten mit 307 weiter.
+  - Bühne, Bühnen-Asset, Dateien, Darstellungs-Assets und Spieltisch antworten mit 401 und `private, no-store`.
+  - Die Pager-Dateien antworten mit 200.
+- Keine Schemaänderung, keine Datenmigration.
