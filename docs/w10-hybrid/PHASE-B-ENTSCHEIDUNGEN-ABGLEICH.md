@@ -11,7 +11,7 @@ Stand: 31.10.2026. Branch `claude/w10-hybrid-phase-b` (lokal, `d47ec09`). Grundl
 | K5 Wundabzüge | **umgesetzt** für gewöhnliche Proben: Der Abzug aus der bestehenden Gesundheitsleiste (`readVitals`) wird einmal vom Pool abgezogen, bevor Sonderwürfel verteilt werden. Außer Gefecht, Torpor und endgültiger Tod führen zu `INCAPACITATED`. Ist der Pool leer, gilt `NO_DICE` ohne Ersatzwürfel. Die Ausnahmen (Absorption, Schaden, Körperkraft-Schaden, Aufheben von Abzügen) bleiben bis zur Quellprüfung offen und stehen sichtbar in `notApplied`. |
 | K4 Spezialisierungen | **umgesetzt** (lokal): Feld `specialties` im Bogen, Editor und Bogenansicht; serverseitige Anwendung in der Vorschau. Details unten. R4 ist entschieden (siehe unten). Offen: Erschaffungseditor für Engine-Entwürfe, Primärquellenprüfung zur Anzahl je Eigenschaft. |
 | K6 Eigene Fähigkeiten | **umgesetzt für neue Einträge** (lokal): stabile ID `cab_<uuid>`, Kategorie, Aktiv-Status, Schutz vor Verwechslung, Auswahl `custom:<id>`, Spezialisierungen auf eigene Fähigkeiten. Bestand ohne ID bleibt unverändert und nicht würfelbar (M6). Details im Bericht §8. |
-| K1 | offen |
+| K1 Stress (Phase-B-Anteil) | **umgesetzt** (lokal) nach R1/R1b: Der neue Wert `personalStressUnits` (0–300) wird nur gelesen und in der Vorschau angezeigt. Ohne gespeicherten Wert gilt 0 mit der Kennzeichnung „nicht erfasst“, geschrieben wird nichts. Der Altwert (0–10) erscheint ohne Würfelwirkung, der Gruppenstress bleibt unberührt, und das neue Feld ist gegen Schreiben über den allgemeinen Editor geschützt. Schreiben, Würfelwirkung und automatische Änderungen folgen in Phase C/D. |
 
 **Ursprünglich war dieses Dokument nur ein Plan.** Gegenüber `d47ec09` ändert es weder Code noch Daten. Es beginnt nicht mit Phase C oder D und nimmt keine Migration vor.
 
@@ -81,8 +81,8 @@ Vorschlag für ein additives Bogenfeld `specialties`. Bestehende Bögen ohne das
 
 | Nr. | Frage | Vorschlag |
 | --- | --- | --- |
-| R1 | Was geschieht mit dem bestehenden manuellen persönlichen Stress `personal[characterId]` 0–10 neben `personalStressUnits`? | Unverändert lassen und als „Altwert (manuell)“ anzeigen. Kein Würfeleinfluss, keine Umrechnung. Abschaffung nur durch eine gesonderte Entscheidung. |
-| R1b | Startwert von `personalStressUnits` für bestehende Figuren? | Fehlendes Feld = „noch nicht erfasst“, rechnerisch 0, sichtbar gekennzeichnet. Keine geschriebene Initialisierung. |
+| R1 | Bestehender manueller persönlicher Stress 0–10? | **Entschieden 31.10.2026: Behalten als Altwert.** Er bleibt unverändert als historischer Wert gespeichert, ohne Umrechnung oder Migration. Nach Aktivierung des neuen Systems verursacht er keine Würfelmodifikatoren. Der neue persönliche Stress ist ein eigenständiger Wert, den ausschließlich die neue Mechanik verändert. Der Gruppenstress bleibt unabhängig und ausschließlich in SL-Hand. Bereinigt wird später nur nach gesonderter Freigabe. |
+| R1b | Startwert von `personalStressUnits`? | **Entschieden 31.10.2026: 0, sichtbar als „nicht erfasst“.** Es wird nichts geschrieben. Ein anderer Anfangswert gilt nur, wenn er für einzelne Figuren ausdrücklich freigegeben ist. |
 | R4 | Wer bestätigt die Anwendbarkeit einer Spezialisierung? | **Entschieden:** nach Probenart (SL-Aufforderung: SL; freier Wurf: Spieler beansprucht). Einspruch der SL: Neuauswertung derselben Würfel als protokollierte Korrektur. |
 | R7 | Automatische Auswahl, wenn ein Spieler genau eine spielbare Figur hat? | Nein. Einmalige ausdrückliche Auswahl. |
 | R5 | Wundabzug-Ausnahmen | Erst nach Quellprüfung durch Claude/Codex mit Seitenangaben implementieren. Bis dahin blockiert der Pfad. |

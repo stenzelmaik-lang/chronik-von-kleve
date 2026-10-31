@@ -153,6 +153,27 @@ assert.deepEqual(storedB[0],legacyB,'Legacy row stored exactly as written, witho
 assert.equal((await editSheet(gm,charB.id,{customAbilities:[]})).status,200,'Reset synthetic sheet');
 console.log('PASS own abilities: stable ID, category rules, rename/deactivate, legacy rows untouched');
 
-// 11. Existing dice path is untouched: the live table still answers with its own contract.
+// 11. K1 with R1/R1b: new personal stress read-only; legacy manual value shown without effect; group stress untouched.
+const stageQ='/api/live-stage?sessionId='+encodeURIComponent(sessionId),tableState=async()=>JSON.parse((await gm.get(stageQ)).text).vitals;
+const tableOp=async command=>{const v=await tableState();const r=await gm.post('/api/live-vitals',{sessionId,runId:active.room.runId,expectedVersion:v.version,table:command});assert.equal(r.status,200,JSON.stringify(command)+': '+r.text);};
+const fresh=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'});
+assert.deepEqual(fresh.stress,{personal:{units:0,points:0,progress:0,maximum:300,recorded:false},legacyManual:null,appliedToRoll:false},'Not recorded = 0, nothing written');
+await tableOp({op:'personalStress',characterId:charB.id,value:7});
+const groupBefore=(await tableState()).stress;
+const withLegacy=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'});
+assert.deepEqual(withLegacy.stress.legacyManual,{value:7,maximum:10,effect:'none'});
+assert.deepEqual([withLegacy.pool,withLegacy.difficulty],[fresh.pool,fresh.difficulty],'Legacy value is no modifier');
+assert.equal((await ok(a,charA.id,{attributeId:'dexterity'})).stress.legacyManual,null,'Only the value of the own character');
+assert.deepEqual((await tableState()).stress,groupBefore,'Previews never touch group stress');
+const recB2=JSON.parse((await b.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id);
+const forge=await b.post('/api/records',{id:recB2.id,version:recB2.version,kind:'charaktere',title:recB2.title,visibility:recB2.visibility,body:{...recB2.body,personalStressUnits:0}});
+assert.equal(forge.status,403,'Players cannot write the new stress field: '+forge.text);
+const forgeGm=await gm.post('/api/records',{id:recB2.id,version:recB2.version,kind:'charaktere',title:recB2.title,visibility:recB2.visibility,body:{...recB2.body,personalStressUnits:300}});
+assert.equal(forgeGm.status,403,'Not even the SL through the generic editor: '+forgeGm.text);
+await status(400,b,charB.id,{attributeId:'dexterity'},{baseDifficulty:6},{personalStressUnits:0});
+await tableOp({op:'personalStress',characterId:charB.id,value:0});
+console.log('PASS stress: new value read-only and visible, legacy value without effect, group stress untouched, field protected');
+
+// 12. Existing dice path is untouched: the live table still answers with its own contract.
 assert.equal((await gm.get('/api/live-table?view=active')).status,200,'Live table still reachable');
 console.log('PASS W10-Hybrid Phase B integration');

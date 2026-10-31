@@ -7,6 +7,7 @@ import { abilityGroups, attributeGroups } from './character-engine.ts';
 import { readVitals } from './character-vitals.ts';
 import { W10_ATTRIBUTE_KEYS, W10_ABILITY_KEYS } from './trait-ids.ts';
 import { readSpecialties, SPECIALTY_MINIMUM_RATING, traitRating, type Specialty } from './character-specialties.ts';
+import { legacyManualStress, readPersonalStress } from './personal-stress.ts';
 import { CUSTOM_ABILITY_CATEGORIES, CUSTOM_ABILITY_PREFIX, customAbilitiesWithoutId, customAbilityById, isCustomAbilityId } from './custom-abilities.ts';
 import { HYBRID_DRAFT_PROFILE, prepareDraftRoll, W10RuleError } from './w10-hybrid-draft.ts';
 
@@ -53,7 +54,7 @@ const NOT_APPLIED: readonly W10NotApplied[] = Object.freeze([
   { id: 'specialty_fit', label: 'Passt die Spezialisierung zur Situation?', reason: 'Entscheidung R4: Bei einer SL-Probenaufforderung legt die SL die Spezialisierung fest, bei einem freien Wurf beansprucht sie der Spieler sichtbar markiert. Hält die SL sie danach für unpassend, werden dieselben Würfel ohne Doppelwertung neu ausgewertet und als SL-Korrektur protokolliert (Probenaufforderung und Korrektur folgen mit Phase D).' },
   { id: 'wound_exceptions', label: 'Ausnahmen vom Wundabzug', reason: 'Absorption, Schaden, Körperkraft-Schadenswürfe und das Aufheben von Wundabzügen werden erst nach Prüfung der V20-Primärquelle umgesetzt. Phase B leitet nur gewöhnliche Proben ab, bei denen der Wundabzug immer gilt.' },
   { id: 'hunger', label: 'Hungerwürfel', reason: 'Offene Entscheidung Blut → Hunger. Bestehende Blutpunkte werden nicht umgedeutet.' },
-  { id: 'personal_stress', label: 'Persönlicher Stress', reason: 'Offene Entscheidung Stress 0–10 → 0–300. Bestehender Stress wird nicht umgedeutet.' },
+  { id: 'personal_stress', label: 'Persönlicher Stress', reason: 'Der Wert (0–300) wird angezeigt, verändert die Probe in Phase B aber nicht. Würfelwirkung und automatische Änderungen folgen mit Phase C/D nach dem Balancing; der alte manuelle Wert (0–10) wirkt nie auf Würfe (Entscheidung R1).' },
   { id: 'group_stress', label: 'Gruppenstress', reason: 'Bleibt eine ausdrückliche SL-Aktion; kein Würfelmodifikator in Phase B.' },
   { id: 'willpower', label: 'Willenskraft', reason: 'Vorabansage, Rundensperre und Buchung erst mit Phase D.' },
 ].map(entry => Object.freeze(entry)));
@@ -100,7 +101,7 @@ function targetsSelection(s: Specialty, selection: W10Selection) {
 }
 
 /** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
-export type W10PreviewOptions = Readonly<{ claimedBy?: 'player' | 'gm' }>;
+export type W10PreviewOptions = Readonly<{ claimedBy?: 'player' | 'gm'; legacyManualStress?: unknown }>;
 export function deriveW10Preview(body: Body, selection: W10Selection, declared: W10Declared, characterVersion: number, options: W10PreviewOptions = {}) {
   const attrKey = attributeKey(selection.attributeId);
   if (!attrKey) throw new W10RuleError('UNKNOWN_ATTRIBUTE_ID');
@@ -190,6 +191,7 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
     ...(specialty ? { specialty: Object.freeze({ id: specialty.id, name: specialty.name, claimedBy: options.claimedBy ?? 'player' }) } : {}),
     specialties: candidates,
     customAbilitiesWithoutId: withoutId,
+    stress: Object.freeze({ personal: readPersonalStress(body), legacyManual: legacyManualStress(options.legacyManualStress), appliedToRoll: false }),
     provenance: Object.freeze(provenance),
     notApplied: NOT_APPLIED,
   });

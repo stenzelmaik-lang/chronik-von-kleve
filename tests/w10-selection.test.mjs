@@ -257,3 +257,33 @@ test('K6-4: specialties can target own abilities by ID; dangling references are 
   const inactive = { ...body, customAbilities: [own({ value: 4, active: false })] };
   assert.equal(preview(inactive, { attributeId: 'wits', abilityId: 'custom:cab_00000000-aaaa', specialtyId: 'spec_66666666-aaaa' }).code, 'CUSTOM_ABILITY_INACTIVE');
 });
+
+// K1 (Phase-B part) with R1/R1b: new personal stress is read-only and visible; the legacy value has no effect.
+const { readPersonalStress, legacyManualStress } = await import('../domain/personal-stress.ts');
+
+test('K1-1: new personal stress 0–300 starts at 0 as "not recorded" and is never written', () => {
+  const body = structuredClone(engineFixture), before = JSON.stringify(body);
+  assert.deepEqual(readPersonalStress(body), { units: 0, points: 0, progress: 0, maximum: 300, recorded: false });
+  assert.equal(JSON.stringify(body), before, 'Nothing initialised on the sheet');
+  assert.deepEqual(readPersonalStress({ personalStressUnits: 150 }), { units: 150, points: 1, progress: 50, maximum: 300, recorded: true });
+  assert.deepEqual(readPersonalStress({ personalStressUnits: 300 }), { units: 300, points: 3, progress: 0, maximum: 300, recorded: true });
+  for (const bad of [-1, 301, 2.5, '100']) assert.deepEqual(readPersonalStress({ personalStressUnits: bad }), { units: 0, points: 0, progress: 0, maximum: 300, recorded: false, invalid: true });
+});
+
+test('K1-2: neither the new value nor the legacy manual value changes pool or difficulty in Phase B', () => {
+  const sel = { attributeId: 'dexterity', abilityId: 'firearms' };
+  const calm = deriveW10Preview(engineFixture, sel, declared(), 9);
+  const stressed = deriveW10Preview({ ...engineFixture, personalStressUnits: 300 }, sel, declared(), 9, { legacyManualStress: 10 });
+  assert.deepEqual([stressed.pool, stressed.difficulty], [calm.pool, calm.difficulty]);
+  assert.equal(stressed.provenance.some(p => p.id === 'personal_stress'), false);
+  assert.deepEqual(stressed.stress, { personal: { units: 300, points: 3, progress: 0, maximum: 300, recorded: true }, legacyManual: { value: 10, maximum: 10, effect: 'none' }, appliedToRoll: false });
+  assert.equal(calm.stress.legacyManual, null);
+  assert.equal(legacyManualStress('7'), null);
+  assert.match(calm.notApplied.find(n => n.id === 'personal_stress').reason, /alte manuelle Wert \(0–10\) wirkt nie/);
+});
+
+test('K1-3: the new field is server-owned: not a sheet field and protected in the generic editor', () => {
+  assert.equal(characterSheetFields.includes('personalStressUnits'), false, 'edit_sheet cannot patch it');
+  const route = readFileSync(new URL('../app/api/records/route.ts', import.meta.url), 'utf8');
+  assert.match(route, /protectedKeys = \[[^\]]*"personalStressUnits"\]/);
+});

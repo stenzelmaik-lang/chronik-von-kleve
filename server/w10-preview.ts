@@ -9,6 +9,7 @@ import { characterBody, editableCharacter } from "./character-engine-service";
 import { ownedActiveCharacter, selectedCharacter } from "./character-selection";
 import { liveMembers } from "./live-game";
 import { stageRoom } from "./live-stage";
+import { readTableVitals } from "./live-vitals";
 
 /** The draft profile is not released. Only an isolated local instance with an explicit
  * binding may reach the preview; every other environment answers 404. */
@@ -50,7 +51,9 @@ async function previewCharacter(a: Actor, userId: string, sessionId: string, id:
 export async function w10Preview(a: Actor, userId: string, sessionId: string, characterId: string, selection: W10Selection, declared: W10Declared) {
   const { row, body } = await previewCharacter(a, userId, sessionId, characterId);
   try {
-    return { sessionId, characterId: row.id, ...deriveW10Preview(body, selection, declared, row.version, { claimedBy: a.gm ? "gm" : "player" }) };
+    // Historical manual table value (R1): shown to owner and SL only, never a modifier. Unreadable state is simply omitted.
+    const legacy = await readTableVitals(a.campaignId).then(state => state.personal?.[row.id] ?? null, () => null);
+    return { sessionId, characterId: row.id, ...deriveW10Preview(body, selection, declared, row.version, { claimedBy: a.gm ? "gm" : "player", legacyManualStress: legacy }) };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) throw new HttpError(400, "Ungültige Auswahl: " + String((error as { code: string }).code));
     throw error;

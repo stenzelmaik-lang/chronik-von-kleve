@@ -136,4 +136,21 @@ Auf Grundlage der Projektinhaberentscheidungen (Details und Status im [Abgleich]
 | Manuelle Browserprüfung des Editors: Kategorie, Aktiv, Sperre ohne Kategorie | bestanden |
 | Typecheck, ESLint, lokaler Build | bestanden |
 
+## 9. Nachtrag: K1 persönlicher Stress, Phase-B-Anteil (31.10.2026)
+
+Grundlage sind die Entscheidungen R1 und R1b (siehe Abgleich).
+
+- **Speicherort:** `personalStressUnits` (0–300) ist ein eigenes, serverseitig geführtes Feld im Charakterdatensatz (`domain/personal-stress.ts`). Es ist kein Bogenfeld, `edit_sheet` kann es also nicht ändern. Die Records-Route schützt es (`protectedKeys`), auch gegen die SL: Ändern darf es nur die künftige Mechanik in Phase C/D. Es liegt nicht im Settings-Dokument von Gruppenstress und Altwert; die Versionskonflikte aus der Risikoliste entstehen damit nicht.
+- **Vorschau:** Unter `stress.personal` stehen Einheiten, volle Stresspunkte (bis 3), Fortschritt in Prozent und `recorded`. Ohne gespeicherten Wert gilt 0, `recorded: false`; geschrieben wird nichts. Ein ungültiger gespeicherter Wert wird mit `invalid` gemeldet, nicht repariert. `stress.legacyManual` zeigt den alten Tischwert (0–10) mit `effect: 'none'`, sichtbar nur für Besitzer und SL. `appliedToRoll: false`: Weder der neue Wert noch der Altwert verändern Pool oder SG.
+- **Gruppenstress:** wird nicht gelesen oder geschrieben. Der Integrationstest prüft, dass Vorschauen ihn nicht ändern.
+- **Nicht in Phase B:** automatische Änderungen durch Würfe, Minispiele und Rollenspielerfolge; Stressmodifikatoren und Stresswürfel (die Hausregelwerte bleiben bis zum Balancing vorläufig); der Schreibweg für ausdrücklich freigegebene Anfangswerte einzelner Figuren.
+- **Folgepunkt bei Aktivierung:** Die SL kann den Altwert am Spieltisch heute noch manuell ändern. Mit der Aktivierung des Hybridsystems sollte diese Bedienung nur noch lesend als „Altwert“ erscheinen. Das betrifft die Spieltisch-Oberfläche und ist noch nicht umgesetzt.
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Standardlauf | **282/282 bestanden** |
+| Integration SL/A/B, frische Instanz, jetzt 12 Blöcke einschließlich Stress | bestanden |
+| Regression ULTIO-Pager, Zustandswerte | bestanden |
+| Typecheck, ESLint, lokaler Build | bestanden |
+
 Der Integrationstest setzt die Auswahl von A und B und den Gesundheitszustand von B vorübergehend, ausschließlich in der lokalen synthetischen Instanz. Danach setzt er die Gesundheit von B wieder auf „Gesund“. Die Auswahl bleibt auf Regiecharakter A bzw. B stehen.
