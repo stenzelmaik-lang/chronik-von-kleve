@@ -113,12 +113,14 @@ export const vitalsCommandSchema=z.discriminatedUnion('op',[
 export type VitalsCommand=z.infer<typeof vitalsCommandSchema>;
 export class VitalsError extends Error{status:number;constructor(status:number,message:string){super(message);this.status=status;}}
 
-export function mayOperate(profile:ControlProfile,principal:{gm:boolean;id:string},ownerId:string,op:VitalsCommand['op']){
+/** playerDamage: the round lets players enter damage to their own character themselves (setting „Schaden trägt ein“). */
+export function mayOperate(profile:ControlProfile,principal:{gm:boolean;id:string},ownerId:string,op:VitalsCommand['op'],playerDamage=false){
  if(principal.gm)return true;
- return ownerId===principal.id&&(controlProfiles[profile].player as readonly string[]).includes(op);
+ if(ownerId!==principal.id)return false;
+ return (controlProfiles[profile].player as readonly string[]).includes(op)||(op==='damage'&&playerDamage);
 }
 /** Die für Besitzer in diesem Profil erlaubten Vorgänge; die SL erhält alle. */
-export function allowedOperations(profile:ControlProfile,gm:boolean):VitalsCommand['op'][]{return gm?['blood.spend','blood.gain','willpower.spend','willpower.regain','damage','heal.blood','heal','reset','set']:[...controlProfiles[profile].player];}
+export function allowedOperations(profile:ControlProfile,gm:boolean,playerDamage=false):VitalsCommand['op'][]{return gm?['blood.spend','blood.gain','willpower.spend','willpower.regain','damage','heal.blood','heal','reset','set']:[...controlProfiles[profile].player,...(playerDamage?['damage' as const]:[])];}
 
 function addDamage(track:DamageType[],type:DamageType,levels:number,blood:number|null,status:HealthStatus){
  let next=sortTrack([...track,...Array.from({length:levels},()=>type)]),nextStatus=status;
@@ -207,7 +209,18 @@ export const tableVitalsSchema=z.object({
  nightlyWillpower:z.boolean(),shared:z.array(z.string().min(1).max(160)).max(60),
  personal:z.record(z.string().min(1).max(160),z.number().int().min(0).max(stressMaximum)).refine(r=>Object.keys(r).length<=60).optional(),
  log:z.array(z.object({id:z.string(),at:z.string(),actor:z.string().max(200),text:z.string().max(300),secret:z.boolean()}).strict()).max(40),
+ // Round settings, optional so older table states stay valid: who sees blood, willpower and damage of the whole
+ // round (default: everyone) and who enters damage (default: the player for the own character; the SL always may).
+ roundView:z.enum(['all','shared']).optional(),damageBy:z.enum(['player','sl']).optional(),
 }).strict();
+export const roundViews=['all','shared'] as const;
+export type RoundView=typeof roundViews[number];
+export const roundViewLabels:Record<RoundView,string>={all:'Für alle sichtbar',shared:'Nur eigene und freigegebene Figuren'};
+export const damageModes=['player','sl'] as const;
+export type DamageMode=typeof damageModes[number];
+export const damageModeLabels:Record<DamageMode,string>={player:'Spieler trägt eigenen Schaden selbst ein',sl:'Nur die SL trägt Schaden ein'};
+export const roundViewOf=(state:Pick<TableVitals,'roundView'>):RoundView=>state.roundView??'all';
+export const damageByOf=(state:Pick<TableVitals,'damageBy'>):DamageMode=>state.damageBy??'player';
 export type TableVitals=z.infer<typeof tableVitalsSchema>;
 /** Ältere Stände kennen nur „visible“; daraus folgt „exact“ oder „hidden“. */
 export function masqueradeView(state:TableVitals):MasqueradeView{return state.masquerade.view??(state.masquerade.visible?'exact':'hidden');}
@@ -217,7 +230,7 @@ export const tableCommandSchema=z.discriminatedUnion('op',[
  z.object({op:z.literal('stress'),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(stressMaximum).optional(),note:z.string().trim().max(200).optional()}).strict(),
  z.object({op:z.literal('masquerade'),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(10).optional(),note:z.string().trim().max(200).optional()}).strict(),
  z.object({op:z.literal('personalStress'),characterId:z.string().min(1).max(160),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(stressMaximum).optional(),note:z.string().trim().max(200).optional()}).strict(),
- z.object({op:z.literal('settings'),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]).optional(),masqueradeMax:z.number().int().min(1).max(10).optional(),masqueradeVisible:z.boolean().optional(),masqueradeView:z.enum(masqueradeViews).optional(),nightlyWillpower:z.boolean().optional(),share:z.object({characterId:z.string().min(1).max(160),shared:z.boolean()}).strict().optional()}).strict(),
+ z.object({op:z.literal('settings'),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]).optional(),masqueradeMax:z.number().int().min(1).max(10).optional(),masqueradeVisible:z.boolean().optional(),masqueradeView:z.enum(masqueradeViews).optional(),nightlyWillpower:z.boolean().optional(),share:z.object({characterId:z.string().min(1).max(160),shared:z.boolean()}).strict().optional(),roundView:z.enum(roundViews).optional(),damageBy:z.enum(damageModes).optional()}).strict(),
 ]);
 export type TableCommand=z.infer<typeof tableCommandSchema>;
 export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,at:string,id:string,characterTitle=''):TableVitals{
@@ -241,6 +254,8 @@ export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,a
   if(c.masqueradeVisible!==undefined){next.masquerade.visible=c.masqueradeVisible;next.masquerade.view=c.masqueradeVisible?'exact':'hidden';}
   if(c.masqueradeView){next.masquerade.view=c.masqueradeView;next.masquerade.visible=c.masqueradeView==='exact';}
   if(c.nightlyWillpower!==undefined)next.nightlyWillpower=c.nightlyWillpower;
+  if(c.roundView)next.roundView=c.roundView;
+  if(c.damageBy)next.damageBy=c.damageBy;
   if(c.share)next.shared=c.share.shared?[...new Set([...next.shared,c.share.characterId])]:next.shared.filter(id=>id!==c.share!.characterId);
   text='Einstellungen der Zustandswerte geändert';secret=true;
  }

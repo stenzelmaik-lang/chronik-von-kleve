@@ -19,6 +19,10 @@ const vitals=(c,body)=>c.post('/api/live-vitals',{sessionId,runId,...body});
 async function op(c,characterId,command,expected=200){const r=await vitals(c,{characterId,command});assert.equal(r.status,expected,JSON.stringify(command)+': '+r.text);return r.status===200?JSON.parse(r.text):null;}
 async function table(c,command,expected=200){const v=await snap(gm);const r=await vitals(c,{expectedVersion:v.version,table:command});assert.equal(r.status,expected,JSON.stringify(command)+': '+r.text);}
 
+// Since the Regie-Nachbesserung a round defaults to „für alle sichtbar“ and players entering their own damage.
+// This suite checks the restrictive round settings; tests/zustandswerte-runde-integration.mjs checks the defaults.
+await table(gm,{op:'settings',roundView:'shared',damageBy:'sl'});
+
 // Visibility: everybody sees exactly their own character; the SL sees the whole table.
 const [gv,av,bv]=[await snap(gm),await snap(a),await snap(b)];
 assert.ok(av.characters.length>=1&&av.characters.every(c=>c.own),'A sees only own characters');
@@ -91,7 +95,8 @@ console.log('PASS personal stress per character, SL-controlled, owner-visible');
 // Explicit release of one character to the round.
 await table(gm,{op:'settings',share:{characterId:ca.id,shared:true}});
 const shared=(await snap(b)).characters.find(c=>c.id===ca.id);assert.ok(shared&&!shared.own&&shared.shared,'B sees released A');
-await op(b,ca.id,{op:'blood.spend',amount:1},404);
+// Visible but foreign: refused with 403 (since the Regie-Nachbesserung; invisible characters still answer 404).
+await op(b,ca.id,{op:'blood.spend',amount:1},403);
 await table(gm,{op:'settings',share:{characterId:ca.id,shared:false}});assert.ok(!(await snap(b)).characters.some(c=>c.id===ca.id),'Withdrawn again');
 console.log('PASS explicit release: B reads A read-only, withdrawal removes it');
 
@@ -107,4 +112,5 @@ console.log('PASS new night for the table and character history with before/afte
 // Restore the fixture for the next manual run.
 await op(gm,ca.id,{op:'reset',target:'blood'});await op(gm,ca.id,{op:'reset',target:'willpower'});
 for(const c of (await snap(gm)).characters){const v=c.vitals;if(v.blood.current!==null&&v.blood.max!==null&&v.blood.current<v.blood.max)await op(gm,c.id,{op:'reset',target:'blood'});}
+await table(gm,{op:'settings',roundView:'all',damageBy:'player'});
 console.log('PASS zustandswerte integration complete');

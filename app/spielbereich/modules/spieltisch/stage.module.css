@@ -95,3 +95,5 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .sceneChoice[data-running=true]{border-left:3px solid #8fc3a0;padding-left:11px}/* Second-screen Regie: opened from the topbar, the drawer stays as the single-screen fallback. */
 .regieWindow{display:flex;align-items:center;gap:7px;min-height:34px;padding:0 11px;border:1px solid #d6b36f99!important;border-radius:5px;background:#2a2417!important;color:#f0dcae!important;font-size:12px;white-space:nowrap}
 @media(max-width:900px){.regieWindow{font-size:0;gap:0}.regieWindow svg{width:16px;height:16px}}
+/* Phone header: logo, avatars and exit must fit side by side; the evening title is in the overview anyway. */
+@media(max-width:600px){.topbar{gap:6px;padding:0 10px}.brand{font-size:18px;gap:0}.brand>span,.simulation>span{display:none}.simulation{gap:6px}}

@@ -107,3 +107,18 @@
  .pressureRow{grid-template-columns:minmax(0,1fr);padding:4px 5px}.chip{justify-self:start}.roundRow{grid-template-columns:minmax(0,1fr) 60px}.roundRow small{display:none}
 }
 @media(max-width:380px){.condition small{display:none}}
+
+/* Live overview of the round (Regie-Nachbesserung): presence, damage boxes, blood and willpower per character. */
+.roundRow{grid-template-columns:minmax(0,1fr) 70px auto auto;border-radius:0 5px 5px 0}
+.roundLevel{grid-column:1/-1;margin-top:-4px;color:#b7bdb6!important;font-size:10px!important}
+.roundName{display:flex;align-items:center;gap:5px;min-width:0}
+.presenceDot{flex:none;width:7px;height:7px;border-radius:50%;background:#6b716a}
+.presenceDot[data-state=online]{background:#7fcf97}.presenceDot[data-state=away],.presenceDot[data-state=afk]{background:#d6b36f}
+.roundBlock{display:grid;gap:5px;padding-top:6px;border-top:1px solid #c5a46a33}
+.roundCaption{display:flex;align-items:center;gap:4px;color:#b7bdb6;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.hitLabel{margin-left:auto;padding:0 5px;border-radius:3px;background:#a3312a;color:#fff;font-size:10px}
+.roundRow[data-hit]{animation:roundHit 1.1s ease-out 2}
+@keyframes roundHit{0%{background:#a3312a99;transform:translateX(0)}15%{transform:translateX(-3px)}30%{transform:translateX(3px)}45%{transform:translateX(-2px)}60%{transform:none}100%{background:transparent}}
+@media(prefers-reduced-motion:reduce){.roundRow[data-hit]{animation:none;background:#a3312a66}}
+:global(.user-reduced-motion) .roundRow[data-hit]{animation:none!important;background:#a3312a66}
+@media(max-width:700px){.roundRow{grid-template-columns:minmax(0,1fr) auto auto}.roundRow small{display:inline-flex}.roundRow>[role=img]{display:none}.roundLevel{display:block!important}}

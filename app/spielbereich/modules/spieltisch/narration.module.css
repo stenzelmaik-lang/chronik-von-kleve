@@ -1,7 +1,7 @@
 /* Released narration on the shared stage. Only the scroll body scrolls, so the header never covers text.
    Top clears the stage status label; bottom clears the vitals and dice docks of the HUD.
    Reading mode hides the personal vitals dock, so it only clears the dice dock. */
-.narration{--narration-scale:1;position:absolute;left:28px;top:60px;z-index:1;display:flex;flex-direction:column;width:min(780px,calc(100% - 56px));max-height:max(240px,calc(100% - 230px));min-height:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,#0d1619f2,#10191def);box-shadow:0 18px 44px #0007;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);color:#eee8dc;overflow:hidden}
+.narration{--narration-scale:1;position:absolute;left:28px;top:60px;z-index:1;display:flex;flex-direction:column;width:min(780px,calc(100% - 56px));max-height:max(240px,calc(100% - max(230px,var(--vitals-reserve,0px))));min-height:0;border:1px solid var(--line);border-radius:8px;background:linear-gradient(180deg,#0d1619f2,#10191def);box-shadow:0 18px 44px #0007;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);color:#eee8dc;overflow:hidden}
 .narration[data-expanded=true]{z-index:3;left:max(16px,calc(50% - 560px));right:max(16px,calc(50% - 560px));width:auto;top:60px;bottom:88px;max-height:none}
 .header{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;padding:12px 16px 0 22px}
 .header small{font:10px Arial,sans-serif;letter-spacing:.12em;color:#c5a46a}
@@ -34,7 +34,7 @@
 
 @media(max-width:700px){
  .narration,.narration[data-expanded=true]{left:8px;right:8px;width:auto;top:66px}
- .narration{max-height:max(220px,calc(100% - 296px))}
+ .narration{max-height:max(220px,calc(100% - max(296px,var(--vitals-reserve-mobile,0px))))}
  .narration[data-expanded=true]{bottom:88px}
  .header{padding:10px 10px 0 14px}
  .header>small{flex-basis:100%}

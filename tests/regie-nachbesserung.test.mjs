@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyStage,changeStageObjects,stageSchema,stageCommandSchema,stageEffects,youtubeVideoId} from '../domain/live-stage.ts';
 import {sceneDocumentSchema,emptyScene} from '../domain/story-scene.ts';
+import {mayOperate,allowedOperations,applyTableVitals,emptyTableVitals,tableVitalsSchema,tableCommandSchema,roundViewOf,damageByOf} from '../domain/character-vitals.ts';
 // Regie-Nachbesserung: more atmosphere effects, YouTube music as an optional stage field, YouTube tracks in scenes.
 const a={id:'a',name:'Player A',gm:false},gm={id:'sl',name:'SL',gm:true};
 
@@ -44,4 +45,27 @@ test('stored stages and scenes from before stay valid; strict parsers still refu
  const withMusic=sceneDocumentSchema.parse({...emptyScene(),youtube:[{id:'6f1c2b9e-1d2a-4c3b-9e8f-0a1b2c3d4e5f',title:'Kaserne',videoId:'dQw4w9WgXcQ'}]});
  assert.equal(withMusic.youtube[0].videoId,'dQw4w9WgXcQ');
  assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),youtube:[{id:'6f1c2b9e-1d2a-4c3b-9e8f-0a1b2c3d4e5f',title:'x',videoId:'https://youtu.be/dQw4w9WgXcQ'}]}).success,false,'Only the reduced id is stored');
+});
+
+// Zustandswerte für die Runde: Sichtbarkeit und Schadensrecht als optionale Rundeneinstellungen.
+test('round defaults: everyone sees the round, players enter their own damage; older table states stay valid',()=>{
+ const old={format:1,version:4,profile:'empfohlen',stress:2,masquerade:{value:1,max:5,visible:false},nightlyWillpower:false,shared:[],log:[]};
+ const parsed=tableVitalsSchema.parse(old);assert.equal('roundView' in parsed,false);
+ assert.equal(roundViewOf(parsed),'all');assert.equal(damageByOf(parsed),'player');
+ assert.equal(tableVitalsSchema.safeParse({...old,roundView:'everyone'}).success,false,'Strict values');
+});
+test('players damage only their own character, and only while the round allows it; the SL always may',()=>{
+ const player={gm:false,id:'a'},gm={gm:true,id:'sl'};
+ assert.ok(mayOperate('empfohlen',player,'a','damage',true));
+ assert.ok(!mayOperate('empfohlen',player,'a','damage',false));
+ assert.ok(!mayOperate('empfohlen',player,'b','damage',true),'Never someone else\'s character');
+ assert.ok(!mayOperate('empfohlen',player,'a','heal',true),'Healing stays with the SL');
+ assert.ok(mayOperate('sl',gm,'a','damage',false));
+ assert.ok(allowedOperations('empfohlen',false,true).includes('damage'));assert.ok(!allowedOperations('empfohlen',false,false).includes('damage'));
+});
+test('only settings change round view and damage mode; unknown values are refused',()=>{
+ let s=applyTableVitals(emptyTableVitals(),{op:'settings',roundView:'shared',damageBy:'sl'},'SL','t','1');
+ assert.equal(s.roundView,'shared');assert.equal(s.damageBy,'sl');assert.ok(s.log[0].secret);
+ s=applyTableVitals(s,{op:'settings',roundView:'all'},'SL','t','2');assert.equal(s.roundView,'all');assert.equal(s.damageBy,'sl');
+ assert.equal(tableCommandSchema.safeParse({op:'settings',damageBy:'alle'}).success,false);
 });

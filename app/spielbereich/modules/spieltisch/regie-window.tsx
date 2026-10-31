@@ -10,6 +10,7 @@ import {LivePdf} from '../live-pdf';
 import {BackdropChoice,tableState} from './regie';
 import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
+import {RegieVitals} from './regie-vitals';
 import type {RegieContext,Snapshot,StageObject,PreparedPager} from './types';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
@@ -41,7 +42,7 @@ function Block({title,children,open=true,area}:{title:string;children:ReactNode;
  * the other areas live in their own columns and are scrolled into view (and opened) on choice.
  */
 const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
- ['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
+ ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
 type RegieArea=typeof regieAreas[number][0];
 const areaKey=(actorId:string)=>'chroniplay:regie-bereich:'+actorId;
 const effectIcons:Record<StageEffect,typeof CloudRain>={rain:CloudRain,fog:CloudFog,storm:CloudLightning,snow:Snowflake,embers:Flame,darkness:Moon,flicker:Lightbulb};
@@ -258,6 +259,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
    </Column>
 
    <Column id="col-play" title="Spielfeld & Effekte" icon={<Clapperboard size={17}/>}>
+    <Block title="Zustände der Runde" area="vitals">{snapshot?.vitals?<RegieVitals vitals={snapshot.vitals} crew={snapshot.crew} busy={busy} run={(body,done)=>run(body,null,done||'')}/>:<p className={regieStyles.empty}>Zustandswerte werden geladen …</p>}</Block>
     <Block title="Atmosphäre auf dem Tisch" area="effects">
      <div className={styles.effects}>{stageEffects.map(e=>{const Icon=effectIcons[e];return <button type="button" key={e} aria-pressed={effects.includes(e)} disabled={busy} onClick={()=>void toggleEffect(e)}><Icon/> {effectLabels[e]}</button>;})}</div>
      <div className={styles.effectRow}><label className={styles.check}><input type="checkbox" checked={crossfade} onChange={e=>setCrossfade(e.target.checked)}/> Überblenden: Wahl ersetzt laufende Effekte</label>{!!effects.length&&<button type="button" disabled={busy} onClick={()=>void run({action:'effects',effects:[]},null,'Alle Effekte blenden aus.')}><Square/> Alle beenden</button>}</div>

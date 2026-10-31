@@ -1,8 +1,8 @@
 'use client';
-import {useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {Droplets,Flame,Heart,Activity,EyeOff,Eye,Moon,RotateCcw,Minus,Plus,ChevronRight,ShieldAlert,User,Users} from 'lucide-react';
-import {vitalHealthLevels,damageLabels,damageMarks,controlProfiles,stressBands,stressMaximum,personalStressEffect,masqueradeViews,masqueradeViewLabels,type DamageType,type ControlProfile,type MasqueradeView} from '@/domain/character-vitals';
-import type {VitalsSnapshot,TableCharacter} from './types';
+import {vitalHealthLevels,damageLabels,damageMarks,controlProfiles,stressBands,stressMaximum,personalStressEffect,masqueradeViews,masqueradeViewLabels,roundViews,roundViewLabels,damageModes,damageModeLabels,type DamageType,type ControlProfile,type MasqueradeView} from '@/domain/character-vitals';
+import type {VitalsSnapshot,TableCharacter,Snapshot} from './types';
 import styles from './vitals.module.css';
 
 /** Payload for POST /api/live-vitals without session and run, which the stage adds. */
@@ -81,26 +81,64 @@ function WoundVignette({c}:{c:TableCharacter}){
  return <div className={styles.vignette} data-tone={tone} data-aggravated={c.vitals.health.track.includes('aggravated')} data-hungry={hungry} aria-hidden="true"/>;
 }
 
-/** Part 1 on the table: body, blood and willpower of the own character (players) or the whole round (SL). */
-function BodyHud({vitals,gm,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
+type RoundEntry=VitalsSnapshot['round'][number];
+type Crew=Snapshot['crew'];
+/** Ids whose damage grew since the last snapshot: they flash briefly for everyone at the table. */
+function useHits(round:RoundEntry[]){
+ const previous=useRef<Map<string,number>|null>(null),[hits,setHits]=useState<string[]>([]);
+ const key=round.map(r=>r.id+':'+r.health.track.length+':'+r.health.status).join('|');
+ useEffect(()=>{
+  const now=new Map(round.map(r=>[r.id,r.health.track.length+(r.health.status==='active'?0:10)]));
+  const before=previous.current;previous.current=now;if(!before)return;
+  const hit=[...now].filter(([id,n])=>n>(before.get(id)??n)).map(([id])=>id);if(!hit.length)return;
+  queueMicrotask(()=>setHits(old=>[...new Set([...old,...hit])]));
+  const t=window.setTimeout(()=>setHits(old=>old.filter(id=>!hit.includes(id))),2200);return()=>window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to damage changes only
+ },[key]);
+ return hits;
+}
+/** Live overview of the round: who is at the table, blood, willpower and damage. Values only; changes run elsewhere. */
+function RoundRows({round,crew,hits,limit}:{round:RoundEntry[];crew:Crew;hits:string[];limit:number}){
+ return <>{round.slice(0,limit).map(r=>{const presence=crew.find(m=>m.id===r.ownerId)?.presence||'offline',hit=hits.includes(r.id);return <span key={r.id} className={styles.roundRow} data-round-character={r.id} data-tone={healthTone({...r.health,penalty:r.health.penalty})} data-hit={hit||undefined}>
+  <span className={styles.roundName}><span className={styles.presenceDot} data-state={presence} title={presence}/>{r.title}{hit&&<b className={styles.hitLabel} role="status">Schaden!</b>}</span>
+  <HealthBar h={{...r.health,penalty:r.health.penalty}} size="small"/>
+  <small aria-label={`Blut ${r.blood.current??'–'} von ${r.blood.max??'–'}`}><Droplets size={11}/>{r.blood.current??'–'}/{r.blood.max??'–'}</small>
+  <small aria-label={`Willenskraft ${r.willpower.temporary??'–'} von ${r.willpower.permanent??'–'}`}><Flame size={11}/>{r.willpower.temporary??'–'}/{r.willpower.permanent??'–'}</small>
+  {(r.health.track.length>0||r.health.status!=='active')&&<small className={styles.roundLevel}>{conditionLabel({...r.health,penalty:r.health.penalty})}</small>}
+ </span>;})}{round.length>limit&&<small className={styles.more}>+{round.length-limit} weitere</small>}</>;
+}
+
+/** Part 1 on the table: body, blood and willpower of the own character plus the live round (players) or the whole round (SL). */
+/**
+ * The live overview makes the body box taller. The released narration keeps its bottom edge above it: the box
+ * publishes its height as --vitals-reserve on the stage host (distance from the narration's top edge included).
+ */
+function useReserve(){
+ const ref=useRef<HTMLButtonElement>(null);
+ useEffect(()=>{const el=ref.current,host=el?.closest<HTMLElement>('[data-chroniplay-stage]');if(!el||!host)return;
+  const set=()=>{const h=el.offsetHeight;host.style.setProperty('--vitals-reserve',(h+96)+'px');host.style.setProperty('--vitals-reserve-mobile',(h+164)+'px');};
+  set();const o=new ResizeObserver(set);o.observe(el);return()=>{o.disconnect();host.style.removeProperty('--vitals-reserve');host.style.removeProperty('--vitals-reserve-mobile');};});
+ return ref;
+}
+function BodyHud({vitals,gm,crew,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;crew:Crew;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
+ const round=vitals.round||[],hits=useHits(round),reserve=useReserve();
  if(gm){
-  const list=vitals.characters;
-  return <button type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen">
-   <span className={styles.hudTitle}><Heart size={14}/><span className={styles.hudName}>Runde · {list.length} Figur{list.length===1?'':'en'}</span><ChevronRight size={14}/></span>
-   {list.slice(0,6).map(c=>{const h=c.vitals.health,b=c.vitals.blood;return <span key={c.id} className={styles.roundRow} data-tone={healthTone(h)}>
-    <span className={styles.roundName}>{c.title}</span><HealthBar h={h} size="small"/><small><Droplets size={11}/>{b.current??'–'}/{b.max??'–'}</small></span>;})}
-   {list.length>6&&<small className={styles.more}>+{list.length-6} weitere</small>}
-   {!list.length&&<small className={styles.more}>Noch keine spielbereite Figur</small>}
+  return <button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen">
+   <span className={styles.hudTitle}><Heart size={14}/><span className={styles.hudName}>Runde · {round.length} Figur{round.length===1?'':'en'}</span><ChevronRight size={14}/></span>
+   <RoundRows round={round} crew={crew} hits={hits} limit={6}/>
+   {!round.length&&<small className={styles.more}>Noch keine spielbereite Figur</small>}
   </button>;
  }
- const c=vitals.characters.find(x=>x.own);if(!c)return null;
+ const c=vitals.characters.find(x=>x.own),others=round.filter(r=>!r.own);
+ if(!c)return others.length?<button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen"><span className={styles.hudTitle}><Users size={14}/><span className={styles.hudName}>Am Tisch</span><ChevronRight size={14}/></span><RoundRows round={others} crew={crew} hits={hits} limit={5}/></button>:null;
  const b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,tone=healthTone(h);
- return <button type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} data-tone={tone} onClick={onOpen} aria-label={`Zustand von ${c.title}: ${conditionLabel(h)}. Öffnen`}>
+ return <button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} data-tone={tone} onClick={onOpen} aria-label={`Zustand von ${c.title}: ${conditionLabel(h)}. Öffnen`}>
   <span className={styles.hudTitle}><Heart size={15} className={styles.heart}/><span className={styles.hudName}>{c.title}</span><ChevronRight size={14}/></span>
   <span className={styles.condition} data-tone={tone}><b>{conditionLabel(h)}</b>{h.status==='active'&&<small>{penaltyText(h.penalty)}</small>}</span>
   <HealthBar h={h}/>
   <span className={styles.bodyRow}><Droplets size={14}/><BloodBar b={b}/><small>{b.current??'–'}/{b.max??'–'}</small></span>
   <span className={styles.bodyRow}><Flame size={14}/><WillDots w={w}/><small>{w.temporary??'–'}/{w.permanent??'–'}</small></span>
+  {!!others.length&&<span className={styles.roundBlock} role="group" aria-label="Am Tisch"><RoundRows round={others} crew={crew} hits={hits} limit={5}/></span>}
  </button>;
 }
 
@@ -118,11 +156,11 @@ function PressureHud({vitals,gm,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;
 }
 
 /** Always visible on the table: two separate parts, body and pressure, plus the wound vignette for the own view. */
-export function VitalsHud({vitals,gm,onOpen,panelOpen,hideBody,hidePressure}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void;panelOpen:boolean;hideBody:boolean;hidePressure:boolean}){
+export function VitalsHud({vitals,gm,crew=[],onOpen,panelOpen,hideBody,hidePressure}:{vitals:VitalsSnapshot;gm:boolean;crew?:Crew;onOpen:()=>void;panelOpen:boolean;hideBody:boolean;hidePressure:boolean}){
  const own=gm?undefined:vitals.characters.find(c=>c.own);
  return <>
   {own&&<WoundVignette c={own}/>}
-  <BodyHud vitals={vitals} gm={gm} onOpen={onOpen} hidden={hideBody} panelOpen={panelOpen}/>
+  <BodyHud vitals={vitals} gm={gm} crew={crew} onOpen={onOpen} hidden={hideBody} panelOpen={panelOpen}/>
   <PressureHud vitals={vitals} gm={gm} onOpen={onOpen} hidden={hidePressure} panelOpen={panelOpen}/>
  </>;
 }
@@ -146,7 +184,7 @@ function CharacterCard({c,vitals,gm,busy,run}:{c:TableCharacter;vitals:VitalsSna
    <div className={styles.actions}>{allowed('heal.blood')&&<button type="button" disabled={lock||!b.current||!h.track.some(t=>t!=='aggravated')||h.status!=='active'} onClick={()=>act({op:'heal.blood'})}>Normalschaden heilen · 1 Blut</button>}
     {gm&&<button type="button" disabled={busy||(b.current??0)<5||!h.track.includes('aggravated')||h.status!=='active'} onClick={()=>act({op:'heal.blood',aggravated:true})}>Schwere Stufe heilen · 5 Blut</button>}
     {gm&&<button type="button" disabled={busy||!h.track.length} onClick={()=>act({op:'heal',levels:1})}><Minus size={14}/>1 Stufe entfernen</button>}</div>
-   {gm&&<form className={styles.damage} onSubmit={e=>{e.preventDefault();act({op:'damage',...damage});}}><label>Art<select value={damage.type} onChange={e=>setDamage(d=>({...d,type:e.target.value as typeof d.type}))}><option value="bashing">Wucht (/)</option><option value="lethal">Tödlich (X)</option><option value="aggravated">Schwer (*)</option></select></label><label>Stufen<input type="number" min={1} max={10} value={damage.levels} onChange={e=>setDamage(d=>({...d,levels:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}/></label><button type="submit" disabled={busy}>Schaden eintragen</button><small>Nach dem Aufsaugen; Wucht bei Vampiren bereits halbiert.</small></form>}
+   {allowed('damage')&&<form className={styles.damage} onSubmit={e=>{e.preventDefault();act({op:'damage',...damage});}}><label>Art<select value={damage.type} onChange={e=>setDamage(d=>({...d,type:e.target.value as typeof d.type}))}><option value="bashing">Wucht (/)</option><option value="lethal">Tödlich (X)</option><option value="aggravated">Schwer (*)</option></select></label><label>Stufen<input type="number" min={1} max={10} value={damage.levels} onChange={e=>setDamage(d=>({...d,levels:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}/></label><button type="submit" disabled={lock}>Schaden eintragen</button><small>Nach dem Aufsaugen; Wucht bei Vampiren bereits halbiert.</small></form>}
   </div>
   <div className={styles.trait}><h4><Activity size={15}/>Persönlicher Stress <small>{c.stress.value} / {stressMaximum} · {c.stress.label}</small></h4><StressBar value={c.stress.value}/>
    <p className={styles.hint}>{personalStressEffect}</p>
@@ -188,10 +226,26 @@ export function VitalsPanel({vitals,gm,busy,run}:{vitals:VitalsSnapshot;gm:boole
    <fieldset><legend>Wer bucht was?</legend>{(Object.keys(controlProfiles) as ControlProfile[]).map(id=><label key={id}><input type="radio" name="vitals-profile" checked={vitals.profile===id} disabled={busy} onChange={()=>table({op:'settings',profile:id})}/><span><b>{controlProfiles[id].label}</b> {controlProfiles[id].description}</span></label>)}</fieldset>
    <fieldset><legend>Maskerade für Spieler</legend>{masqueradeViews.map((id:MasqueradeView)=><label key={id}><input type="radio" name="vitals-masquerade" checked={vitals.settings!.masqueradeView===id} disabled={busy} onChange={()=>table({op:'settings',masqueradeView:id})}/><span>{masqueradeViewLabels[id]}{id==='risk'?' (Gewahrt, Aufmerksamkeit, In Gefahr, Bruch droht)':''}</span></label>)}</fieldset>
    <label className={styles.check}>Maskerade-Skala bis<select value={vitals.masquerade?.max??5} disabled={busy} onChange={e=>table({op:'settings',masqueradeMax:Number(e.target.value)})}>{[3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
+   <fieldset><legend>Blut, Willenskraft und Schaden der Runde</legend>{roundViews.map(id=><label key={id}><input type="radio" name="vitals-round" checked={vitals.roundView===id} disabled={busy} onChange={()=>table({op:'settings',roundView:id})}/><span>{roundViewLabels[id]}{id==='all'?' (Übersicht unten links; alles andere bleibt privat)':''}</span></label>)}</fieldset>
+   <fieldset><legend>Wer trägt Schaden ein?</legend>{damageModes.map(id=><label key={id}><input type="radio" name="vitals-damage" checked={vitals.damageBy===id} disabled={busy} onChange={()=>table({op:'settings',damageBy:id})}/><span>{damageModeLabels[id]}{id==='player'?' – die SL kann immer korrigieren':''}</span></label>)}</fieldset>
    <label className={styles.check}><input type="checkbox" checked={vitals.settings.nightlyWillpower} disabled={busy} onChange={e=>table({op:'settings',nightlyWillpower:e.target.checked})}/>Neue Nacht: +1 Willenskraft (V20-Option der SL)</label>
   </details>}
   {gm&&(!!vitals.history?.length||!!vitals.log?.length)&&<details className={styles.settings}><summary>Verlauf</summary><ol className={styles.log}>
    {[...(vitals.history||[]).map(h=>({id:h.id,at:h.at,text:`${h.character}: ${h.text}`,actor:h.actor})),...(vitals.log||[]).map(l=>({id:l.id,at:l.at,text:l.text,actor:l.actor}))].sort((x,y)=>y.at.localeCompare(x.at)).slice(0,25).map(e=><li key={e.id}><time dateTime={e.at}>{new Date(e.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</time> {e.text}<small> · {e.actor}</small></li>)}
   </ol></details>}
  </div>;
+}
+
+/** Simple own-value actions for the player menu in the header: one choice, one button. */
+export type QuickAction={value:string;label:string;command:Record<string,unknown>};
+export function quickActions(vitals:VitalsSnapshot|undefined):{characterId:string;title:string;actions:QuickAction[]}|null{
+ const c=vitals?.characters.find(x=>x.own);if(!vitals||!c)return null;
+ const ops=vitals.operations as string[],b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,active=h.status==='active';
+ const list:QuickAction[]=[];
+ if(ops.includes('willpower.spend')&&w.temporary&&active)list.push({value:'will',label:'Willenskraft einsetzen (−1)',command:{op:'willpower.spend'}});
+ if(ops.includes('blood.spend')&&b.current)list.push({value:'blood',label:'1 Blut ausgeben',command:{op:'blood.spend',amount:1}});
+ if(ops.includes('blood.gain')&&b.current!==null&&b.current!==b.max)list.push({value:'drink',label:'1 Blut trinken',command:{op:'blood.gain',amount:1}});
+ if(ops.includes('heal.blood')&&b.current&&active&&h.track.some(t=>t!=='aggravated'))list.push({value:'heal',label:'Normalschaden heilen (1 Blut)',command:{op:'heal.blood'}});
+ if(ops.includes('damage'))for(const [type,label] of [['bashing','Wucht'],['lethal','Tödlich'],['aggravated','Schwer']] as const)list.push({value:'damage-'+type,label:'Schaden: 1 '+label,command:{op:'damage',type,levels:1}});
+ return {characterId:c.id,title:c.title,actions:list};
 }

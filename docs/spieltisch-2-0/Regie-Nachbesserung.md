@@ -117,21 +117,68 @@ Branch `claude/regie-nachbesserung`, abgezweigt von `claude/release-regie-pager`
   - Vorschau vor der Freigabe.
   - Empfängerwahl wie bei den Szenenmaterialien.
 
+## 7. Zustandswerte für die Runde (Nachtrag, gleicher Branch)
+
+Neue Rückmeldung: Die SL steuert Zustände auch im Regie-Fenster. Spieler steuern ihre eigenen Werte, und alle sehen Blut, Willenskraft und Schaden der Runde.
+
+- **Zwei neue Rundeneinstellungen** im Tischstand (`settings`-JSON, optional, keine Migration):
+  - `roundView`: „Für alle sichtbar“ (Standard) oder „Nur eigene und freigegebene Figuren“.
+  - `damageBy`: „Spieler trägt eigenen Schaden selbst ein“ (Standard) oder „Nur die SL“. Die SL kann immer korrigieren.
+  - Umschaltbar im Zustandsfenster am Tisch (SL, „Steuerung & Freigaben“) und im Regie-Fenster.
+  - **Bewusste Änderung am Live-Verhalten:** Ohne gespeicherte Einstellung gelten beide Standards sofort. Spieler sehen also Blut, Willenskraft und Schaden der anderen und können eigenen Schaden eintragen.
+- **Server:**
+  - Der Snapshot trägt neu `round`: pro Figur nur Name, Besitzer, Blut, Willenskraft und Gesundheit (Spur, Stufe, Status, Abzug). Generation, Blut pro Runde und persönlicher Stress fehlen.
+  - Der vollständige Zustandsbogen (`characters`) bleibt eigen bzw. freigegeben.
+  - Bei „Nur eigene“ sendet der Server fremde Figuren gar nicht.
+  - Das Schadensrecht prüft `mayOperate`.
+  - **Fremdsteuerung:**
+    - Eine sichtbare fremde Figur antwortet mit 403.
+    - Eine unsichtbare fremde Figur antwortet weiterhin mit 404.
+    - Vorher war es immer 404, auch bei freigegebenen Figuren.
+- **Live-Übersicht unten links** (in die bestehende `VitalsHud` eingebaut, kein zweites Panel):
+  - Spieler sehen unter ihrem eigenen Block „Am Tisch“ die anderen Figuren mit Anwesenheitspunkt, Schadenskästchen, Blut und Willenskraft.
+  - Die SL sieht wie bisher die Runde, jetzt ergänzt um Willenskraft und Anwesenheit.
+  - Die Schadensstufe erscheint als Text, sobald jemand verletzt ist.
+  - **Neuer Schaden:** Die Zeile blinkt bei allen rot und ruckelt kurz („Schaden!“). Bei reduzierter Bewegung färbt sie sich nur ein.
+  - Auf dem Handy zeigt die Zeile Blut, Willenskraft und die Stufe.
+- **Spieler-Menü in der Kopfleiste:** Ein Klick auf den eigenen Eintrag zeigt neben Profil, Bogen, Inventar, Nachrichten und AFK ein Dropdown „Wert ändern …“ mit Ausführen-Knopf.
+  - Angeboten wird nur, was die Runde erlaubt: Willenskraft einsetzen, 1 Blut ausgeben, ggf. Blut trinken bzw. Normalschaden heilen, Schaden 1 Wucht/Tödlich/Schwer.
+  - Der Server prüft jede Buchung.
+- **Mobil:** Auf Handys lagen in der Kopfleiste alle Teilnehmer übereinander und über Logo und Abendtitel; das ist ein älterer Fehler. Jetzt stehen dort nur Avatare nebeneinander, der Name steckt im Bedienlabel. Abendtitel und „SPIELTISCH“ sind auf dem Handy ausgeblendet.
+- **Platz für die Erzählung:** Der Block unten links meldet seine Höhe (`--vitals-reserve`). Die freigegebene Erzählung hält dann ihren unteren Rand darüber, statt fest 230 px freizulassen.
+- **Regie-Fenster:** Neuer Bereich „Zustände“ im Menü, Block „Zustände der Runde“ oben in der Spalte „Spielfeld & Effekte“.
+  - Pro Figur: Anwesenheit, Schadensspur, Blut ±, Willenskraft ±, Schaden +/ +X +* und Heilen, persönlicher Stress ±.
+  - Für die Runde: Gruppenstress ±, Maskerade ± (nur wenn für die SL sichtbar), „Neue Nacht“ mit Rückfrage, die beiden Rundeneinstellungen.
+  - Alles läuft über die vorhandenen `/api/live-vitals`-Befehle.
+- **Tests:**
+  - Unit: drei neue Fälle in `tests/regie-nachbesserung.test.mjs` (Standards, alte Stände, Schadensrecht).
+  - Integration: neu `tests/zustandswerte-runde-integration.mjs` mit SL, A und B: Sichtbarkeit, nur die drei Werte, eigene Steuerung, Fremdsteuerung 403, Einstellungen nur SL, Schadensmodus, Live-Aktualisierung, „nicht sichtbar heißt nicht gesendet“.
+  - Browser: neu `tests/zustandswerte-runde-browser.mjs` bei 1920, 1440, 125 % und 375 px: Übersicht unten links, Dropdown, Schadens-Effekt bei SL und B, Korrektur im Regie-Fenster, Handybreite.
+  - **Angepasst:** `tests/zustandswerte-integration.mjs` prüft jetzt ausdrücklich die restriktiven Einstellungen. Eine freigegebene fremde Figur antwortet dort mit 403 statt 404.
+- **Offen bzw. bewusst nicht gemacht:**
+  - Spieler können Schaden nur in Einheiten von 1 Stufe eintragen. Mehrere Stufen trägt man mehrfach ein; im Zustandsfenster des Tisches geht es auch mit Stufenzahl.
+  - Spieler können eigenen Schaden nicht selbst heilen, außer mit „Normalschaden mit Blut heilen“ im Profil „Erweitert“. Fehleinträge korrigiert die SL.
+  - Die Übersicht zeigt höchstens 5 andere Figuren (SL: 6), dann „+n weitere“.
+  - Ist eine Figur verletzt, wird der Block unten links eine Zeile höher. Bei sehr großen Runden und gleichzeitig freigegebener Erzählung kann er deren unteren Rand berühren.
+  - Ein Verlauf der Spieler-Buchungen im Regie-Fenster fehlt. Am Tisch zeigt die SL ihn wie bisher unter „Verlauf“.
+
 ## Daten und Schema
 
 - **Keine D1-Migration.** Alle neuen Felder sind optional in den strikten Zod-Parsern.
   - **Bühnenstand:** `youtube` (nullable, optional); Effekte erweitert um `storm`, `snow`, `embers`, `darkness`, `flicker`.
   - **Neuer Bühnenbefehl `youtube`:** nur SL, serverseitig geprüft.
   - **Szenendokument:** `youtube[]` (optional; `{id, title, videoId}`).
+  - **Tischstand der Zustandswerte** (`settings`-Schlüssel `table-vitals:<Kampagne>`): `roundView`, `damageBy` (optional).
 - Ältere Stände und Szenen bleiben unverändert gültig; das ist per Unit-Test geprüft.
 - **Rückfall auf `732bc758`:** Die alte Version parst strikt.
   - Ein Abend mit neuen Effekten oder YouTube-Musik kann dann mit 409 antworten. Vorher Effekte und YouTube stoppen oder den Abend beenden.
   - Szenen mit vorbereiteter YouTube-Musik lassen sich in der alten Version nicht laden oder speichern. Die Stücke vorher entfernen oder Fix-forward.
+  - Ein Tischstand mit `roundView`/`damageBy` macht die Zustandswerte in der alten Version unlesbar (409). Vor einem Rollback die Einstellungen nicht ändern bzw. den Eintrag bereinigen.
 - Produktive Daten wurden nicht angefasst.
 
 ## Tests (alle gegen die isolierte Instanz `--ultio-pager`, Port 8881)
 
-- `pnpm test`: 210/210, darunter neu `tests/regie-nachbesserung.test.mjs` mit Effekten, YouTube-Link-Prüfung, Rechten und Rückwärtskompatibilität.
+- `pnpm test`: 213/213, darunter neu `tests/regie-nachbesserung.test.mjs` mit Effekten, YouTube-Link-Prüfung, Rechten und Rückwärtskompatibilität.
 - Typecheck grün. ESLint ohne Fehler außerhalb von `prototypes/`; die 12 Fehler dort sind älter und unverändert. Produktionsbuild grün.
 - **Integration mit SL, A und B:**
   - neu `tests/regie-nachbesserung-integration.mjs`
@@ -155,6 +202,7 @@ Branch `claude/regie-nachbesserung`, abgezweigt von `claude/release-regie-pager`
   - `ultio-pager-browser`: Die SL bekommt weiterhin kein Pager-Gerät; der neue „Pager-Spiegel“ ist ausgenommen.
   - Port 8881 ist in den Allowlists ergänzt.
   - `spieltisch-regie-ux-browser`: Die Szenenwahl öffnet jetzt das Fenster, danach wird der Schuber geprüft. Dieser Test gehört zur älteren Fixture (Port 8830/8834) und wurde hier nicht ausgeführt.
+- Hinweis: Der erste Browserlauf direkt nach einem Kaltstart der Instanz lief zweimal beim Erzählungstest in einen Timeout. Ein Folgetest scheiterte dann am liegengebliebenen Zustand. Wiederholt waren alle Läufe grün.
 - Nicht automatisiert: das tatsächliche Abspielen eines YouTube-Videos (externer Dienst). Bitte einmal von Hand mit einem eigenen Link prüfen.
 
 ## Lokale Testinstanz

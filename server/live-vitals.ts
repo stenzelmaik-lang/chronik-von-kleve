@@ -3,7 +3,7 @@ import {saveEngine} from './character-engine-service';
 import {liveMembers,type LiveRoom} from './live-game';
 import type {LegacyRecordRow} from '@/domain/legacy';
 import {activeCharacterBody} from '@/domain/character-selection';
-import {readVitals,applyVitals,mayOperate,allowedOperations,applyTableVitals,tableVitalsSchema,emptyTableVitals,stressBand,masqueradeView,masqueradeRisk,VitalsError,type VitalsCommand,type TableCommand,type TableVitals,type CharacterVitals} from '@/domain/character-vitals';
+import {readVitals,applyVitals,mayOperate,allowedOperations,applyTableVitals,tableVitalsSchema,emptyTableVitals,stressBand,masqueradeView,masqueradeRisk,roundViewOf,damageByOf,VitalsError,type VitalsCommand,type TableCommand,type TableVitals,type CharacterVitals} from '@/domain/character-vitals';
 
 const stateKey=(campaignId:string)=>'table-vitals:'+campaignId;
 const personalStress=(state:TableVitals,id:string)=>{const value=state.personal?.[id]??0;return {value,label:stressBand(value).label};};
@@ -39,6 +39,12 @@ async function tableCharacters(a:Actor,room:LiveRoom):Promise<TableCharacter[]>{
  return playable.filter(c=>{const pick=chosen.get(c.row.owner_id);return !pick||!playable.some(p=>p.row.id===pick)||pick===c.row.id;});
 }
 
+/**
+ * Live overview of the round: only blood, willpower and damage per character, nothing else of the sheet.
+ * With the round setting „für alle sichtbar“ (default) every participant receives all table characters;
+ * otherwise players only get their own and explicitly released ones. What a player may not see is not sent.
+ */
+export type RoundEntry={id:string;title:string;ownerId:string;ownerName:string;own:boolean;blood:{current:number|null;max:number|null};willpower:{temporary:number|null;permanent:number|null};health:{track:CharacterVitals['health']['track'];level:string;status:CharacterVitals['health']['status'];penalty:number|null}};
 export type TableCharacterView={id:string;title:string;ownerId:string;ownerName:string;own:boolean;shared:boolean;version:number;vitals:CharacterVitals;stress:{value:number;label:string}};
 /** Snapshot-Teil der Zustandswerte. Spieler erhalten nur eigene und ausdrücklich freigegebene Figuren. */
 function masqueradePart(gm:boolean,state:TableVitals){
@@ -51,7 +57,9 @@ export async function vitalsSnapshot(a:Actor,room:LiveRoom){
  const name=(id:string)=>members.find(m=>m.id===id)?.name||'Teilnehmer';
  const visible=characters.filter(c=>a.gm?canRead(a,c.row):c.row.owner_id===a.id||state.shared.includes(c.row.id));
  const views:TableCharacterView[]=visible.map(c=>({id:c.row.id,title:c.row.title,ownerId:c.row.owner_id,ownerName:name(c.row.owner_id),own:c.row.owner_id===a.id,shared:state.shared.includes(c.row.id),version:c.row.version,vitals:readVitals(c.body),stress:personalStress(state,c.row.id)}));
- const band=stressBand(state.stress),view=masqueradeView(state);
+ const band=stressBand(state.stress),view=masqueradeView(state),roundView=roundViewOf(state),playerDamage=damageByOf(state)==='player';
+ const inRound=characters.filter(c=>a.gm?canRead(a,c.row):roundView==='all'||c.row.owner_id===a.id||state.shared.includes(c.row.id));
+ const round:RoundEntry[]=inRound.map(c=>{const v=readVitals(c.body);return {id:c.row.id,title:c.row.title,ownerId:c.row.owner_id,ownerName:name(c.row.owner_id),own:c.row.owner_id===a.id,blood:{current:v.blood.current,max:v.blood.max},willpower:{...v.willpower},health:{track:v.health.track,level:v.health.level,status:v.health.status,penalty:v.health.penalty}};});
  let history:{id:string;at:string;actor:string;character:string;text:string}[]|undefined;
  if(a.gm&&views.length){
   const ids=views.map(v=>v.id);
@@ -59,7 +67,8 @@ export async function vitalsSnapshot(a:Actor,room:LiveRoom){
   history=events.results.map(e=>{let reason='';try{reason=String(JSON.parse(e.payload).reason||'');}catch{/* keep empty */}return {id:e.id,at:e.created_at,actor:name(e.actor_id),character:views.find(v=>v.id===e.entity_id)?.title||'',text:reason};});
  }
  return {
-  profile:state.profile,operations:allowedOperations(state.profile,a.gm),version:state.version,
+  profile:state.profile,operations:allowedOperations(state.profile,a.gm,playerDamage),version:state.version,
+  round,roundView,damageBy:damageByOf(state),
   stress:{value:state.stress,label:band.label,effect:band.effect},
   // Die genaue Maskerade-Stufe erhalten Spieler nur bei „exact“; bei „risk“ nur die grobe Lage, bei „hidden“ nichts.
   ...masqueradePart(a.gm,state),
@@ -68,17 +77,19 @@ export async function vitalsSnapshot(a:Actor,room:LiveRoom){
  };
 }
 
-async function characterOnTable(a:Actor,room:LiveRoom,id:string){
+async function characterOnTable(a:Actor,room:LiveRoom,id:string,state:TableVitals){
  const found=(await tableCharacters(a,room)).find(c=>c.row.id===id);
- // Fremde oder nicht spielbereite Figuren sind für Spieler nicht existent.
- if(!found||(!a.gm&&found.row.owner_id!==a.id)||(a.gm&&!canRead(a,found.row)))throw new HttpError(404,'Charakter ist an diesem Tisch nicht verfügbar.');
+ // Figuren, die ein Spieler nicht sieht, sind für ihn nicht existent. Sichtbare fremde Figuren steuert er nicht.
+ const seen=!!found&&(found.row.owner_id===a.id||roundViewOf(state)==='all'||state.shared.includes(found.row.id));
+ if(!found||(a.gm&&!canRead(a,found.row))||(!a.gm&&!seen))throw new HttpError(404,'Charakter ist an diesem Tisch nicht verfügbar.');
+ if(!a.gm&&found.row.owner_id!==a.id)throw new HttpError(403,'Diese Werte ändern nur der Spieler selbst oder die Spielleitung.');
  return found;
 }
 function domainError(error:unknown):never{if(error instanceof VitalsError)throw new HttpError(error.status,error.message);throw error;}
 
 export async function changeCharacterVitals(a:Actor,room:LiveRoom,characterId:string,c:VitalsCommand){
- const [{row,body},state]=await Promise.all([characterOnTable(a,room,characterId),readTableVitals(a.campaignId)]);
- if(!mayOperate(state.profile,a,row.owner_id,c.op))throw new HttpError(403,a.gm?'Nicht erlaubt.':'Diesen Wert steuert die Spielleitung.');
+ const state=await readTableVitals(a.campaignId),{row,body}=await characterOnTable(a,room,characterId,state);
+ if(!mayOperate(state.profile,a,row.owner_id,c.op,damageByOf(state)==='player'))throw new HttpError(403,a.gm?'Nicht erlaubt.':'Diesen Wert steuert die Spielleitung.');
  let change;try{change=applyVitals(body,c,a);}catch(e){domainError(e);}
  await saveEngine(a,row,change.body,row.version,'vitals',change.summary+' · '+(a.gm?'SL am Spieltisch':'Spieler am Spieltisch'),row.visibility,row.gm_body,row.title,change.changes);
  return change.summary;

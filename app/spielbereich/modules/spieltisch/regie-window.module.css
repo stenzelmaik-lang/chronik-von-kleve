@@ -122,3 +122,23 @@
 .effectRow button{display:flex;align-items:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #c5a46a40;border-radius:5px;background:#1b292b;color:#eee8dc;font-size:12px}
 .effectRow button svg{width:15px;height:15px}
 @media(max-width:760px){.areas{position:static;padding:8px 10px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}.areas button[data-area-button=material]{margin-left:0}}
+
+/* Condition values of the round with quick actions (same commands and rights as the table). */
+.vitals{display:grid;gap:10px}
+.vitalsList{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.vitalsList>li{display:grid;gap:6px;padding:8px;border:1px solid #c5a46a30;border-radius:6px;background:#0c1417}
+.vitalsList>li[data-status=torpor],.vitalsList>li[data-status=final-death]{border-color:#e0766c88}
+.vitalsList header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}.vitalsList header strong{font:normal 15px Georgia,serif}
+.vitalsList header small{color:#b7bdb6;font-size:11px}.vitalsList header em{margin-left:auto;color:#f0c9b4;font-size:12px;font-style:normal}
+.presence{width:8px;height:8px;border-radius:50%;background:#6b716a;align-self:center}.presence[data-state=online]{background:#7fcf97}.presence[data-state=away],.presence[data-state=afk]{background:#d6b36f}
+.track{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.track i{display:grid;place-items:center;height:20px;border:1px solid #c5a46a55;border-radius:3px;font:700 12px/1 Consolas,monospace;font-style:normal;color:#ffd7cf}
+.track i[data-type=bashing]{background:#4a3b22}.track i[data-type=lethal]{background:#6a2a24}.track i[data-type=aggravated]{background:#8e1f1f}.track i[data-type=unspecified]{background:#3a3a3a}
+.vitalsRow{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.vitalsRow>span{display:inline-flex;align-items:center;gap:4px;margin-right:2px;font-size:12px;color:#d9d1c0}.vitalsRow b{color:#f0dcae;font-variant-numeric:tabular-nums}
+.vitalsRow small{color:#b7bdb6;font-size:11px}
+.vitalsRow button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:32px;min-height:32px;padding:0 8px;border:1px solid #c5a46a40;border-radius:5px;background:#1b292b;color:#eee8dc;font-size:12px}
+.vitalsRow button svg{width:14px;height:14px}
+.vitalsSetting{display:grid;gap:4px;font-size:12px;color:#c5bcaa}
+.vitalsSetting select{min-height:34px;padding:0 8px;border:1px solid #c5a46a40;border-radius:5px;background:#0c1417;color:#eee8dc;font:inherit}
+.muted{margin:0;color:#b7bdb6;font-size:12px}
