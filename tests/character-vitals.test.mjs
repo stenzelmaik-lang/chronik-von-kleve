@@ -8,6 +8,9 @@ const fails=(fn,status)=>assert.throws(fn,e=>e instanceof VitalsError&&(!status|
 test('V20 generation table drives blood maximum and spending per turn (S. 270)',()=>{
  assert.deepEqual(generationLimits(12),{maxTrait:5,bloodMax:11,perTurn:1});
  assert.deepEqual(generationLimits(8),{maxTrait:5,bloodMax:15,perTurn:3});
+ assert.deepEqual(generationLimits(7),{maxTrait:6,bloodMax:20,perTurn:5},'German V20 anniversary edition p. 270');
+ assert.equal(readVitals(sheet({generation:7,blood:20,bloodMax:undefined,bloodPerRound:undefined})).blood.perTurn,5);
+ assert.equal(readVitals(sheet({generation:7,bloodPerRound:4})).blood.perTurn,4,'Stored override remains untouched');
  assert.equal(generationLimits(15).bloodMax,10,'Thirteenth and higher: 10');
  assert.equal(generationLimits(3),null,'Third generation is undefined in the rulebook');
  const v=readVitals(sheet());assert.equal(v.blood.max,11);assert.equal(v.blood.maxSource,'generation');
@@ -47,6 +50,8 @@ test('healing with blood: normal damage first for 1 point, aggravated only by SL
 test('spending blood respects pool and the per-turn limit for players; willpower cannot go negative',()=>{
  assert.equal(applyVitals(sheet(),{op:'blood.spend',amount:1},player).body.blood,10);
  fails(()=>applyVitals(sheet(),{op:'blood.spend',amount:2},player));
+ assert.equal(applyVitals(sheet({generation:7,blood:20,bloodPerRound:undefined}),{op:'blood.spend',amount:5},player).body.blood,15);
+ fails(()=>applyVitals(sheet({generation:7,blood:20,bloodPerRound:undefined}),{op:'blood.spend',amount:6},player));
  assert.equal(applyVitals(sheet(),{op:'blood.spend',amount:2},gm).body.blood,9,'SL may book several turns at once');
  fails(()=>applyVitals(sheet({blood:0}),{op:'blood.spend',amount:1},gm));
  fails(()=>applyVitals(sheet({blood:11}),{op:'blood.gain',amount:1},gm));
