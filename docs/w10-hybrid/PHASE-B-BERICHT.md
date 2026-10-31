@@ -98,4 +98,4 @@ Auf Grundlage der Projektinhaberentscheidungen (Details und Status im [Abgleich]
 | Regression ULTIO-Pager und Zustandswerte auf derselben Instanz | bestanden |
 | Typecheck, ESLint, lokaler Build | bestanden |
 
-Der Integrationstest setzt die Auswahl von A und B und den Gesundheitszustand von B vorübergehend, ausschließlich in der lokalen synthetischen Instanz. Danach setzt er Gesundheit und Auswahl wieder auf den Ausgangszustand.
+Der Integrationstest setzt die Auswahl von A und B und den Gesundheitszustand von B vorübergehend, ausschließlich in der lokalen synthetischen Instanz. Danach setzt er die Gesundheit von B wieder auf „Gesund“. Die Auswahl bleibt auf Regiecharakter A bzw. B stehen.
