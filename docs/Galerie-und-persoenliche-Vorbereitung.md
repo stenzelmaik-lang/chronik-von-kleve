@@ -1,5 +1,7 @@
 # Galerie und persönliche Vorbereitung
 
+**Aktueller Release:** Seit 31.10.2026, 12:40 MEZ live, Codecommit `5567fbf72f3b3557cffa0697a2abd3a8ee567fcf` (PR #48). Nachweise, Grenzen und Claude-Code-Übergabe stehen im [Releasebericht](releases/2026-10-31-galerie-material-claude-handover.md). Die folgenden Aussagen zur lokalen Umsetzung dokumentieren den vorherigen Abnahmestand.
+
 Stand: 31.10.2026. Lokale Umsetzung auf `codex/galerie-vorbereitung`.
 Basis: `69951209bec58ceb03bf2b0bbf5439bf5426eae2`, gemergter PR #47.
 Kein Push, Merge oder Deployment; keine produktiven Datenzugriffe und keine Migration.
