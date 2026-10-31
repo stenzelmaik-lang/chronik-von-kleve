@@ -3,9 +3,10 @@ import {saveEngine} from './character-engine-service';
 import {liveMembers,type LiveRoom} from './live-game';
 import type {LegacyRecordRow} from '@/domain/legacy';
 import {activeCharacterBody} from '@/domain/character-selection';
-import {readVitals,applyVitals,mayOperate,allowedOperations,applyTableVitals,tableVitalsSchema,emptyTableVitals,stressBand,VitalsError,type VitalsCommand,type TableCommand,type TableVitals,type CharacterVitals} from '@/domain/character-vitals';
+import {readVitals,applyVitals,mayOperate,allowedOperations,applyTableVitals,tableVitalsSchema,emptyTableVitals,stressBand,masqueradeView,masqueradeRisk,VitalsError,type VitalsCommand,type TableCommand,type TableVitals,type CharacterVitals} from '@/domain/character-vitals';
 
 const stateKey=(campaignId:string)=>'table-vitals:'+campaignId;
+const personalStress=(state:TableVitals,id:string)=>{const value=state.personal?.[id]??0;return {value,label:stressBand(value).label};};
 export async function readTableVitals(campaignId:string):Promise<TableVitals>{
  const row=await database().prepare('SELECT value FROM settings WHERE key=?').bind(stateKey(campaignId)).first<{value:string}>();
  if(!row)return emptyTableVitals();
@@ -38,14 +39,19 @@ async function tableCharacters(a:Actor,room:LiveRoom):Promise<TableCharacter[]>{
  return playable.filter(c=>{const pick=chosen.get(c.row.owner_id);return !pick||!playable.some(p=>p.row.id===pick)||pick===c.row.id;});
 }
 
-export type TableCharacterView={id:string;title:string;ownerId:string;ownerName:string;own:boolean;shared:boolean;version:number;vitals:CharacterVitals};
+export type TableCharacterView={id:string;title:string;ownerId:string;ownerName:string;own:boolean;shared:boolean;version:number;vitals:CharacterVitals;stress:{value:number;label:string}};
 /** Snapshot-Teil der Zustandswerte. Spieler erhalten nur eigene und ausdrücklich freigegebene Figuren. */
+function masqueradePart(gm:boolean,state:TableVitals){
+ const view=masqueradeView(state),risk=masqueradeRisk(state.masquerade.value,state.masquerade.max),lage={level:risk.level,label:risk.label,hint:risk.hint};
+ if(gm||view==='exact')return {masquerade:{value:state.masquerade.value,max:state.masquerade.max},masqueradeRisk:lage};
+ return view==='risk'?{masqueradeRisk:lage}:{};
+}
 export async function vitalsSnapshot(a:Actor,room:LiveRoom){
  const [state,characters,members]=await Promise.all([readTableVitals(a.campaignId),tableCharacters(a,room),liveMembers(a)]);
  const name=(id:string)=>members.find(m=>m.id===id)?.name||'Teilnehmer';
  const visible=characters.filter(c=>a.gm?canRead(a,c.row):c.row.owner_id===a.id||state.shared.includes(c.row.id));
- const views:TableCharacterView[]=visible.map(c=>({id:c.row.id,title:c.row.title,ownerId:c.row.owner_id,ownerName:name(c.row.owner_id),own:c.row.owner_id===a.id,shared:state.shared.includes(c.row.id),version:c.row.version,vitals:readVitals(c.body)}));
- const band=stressBand(state.stress);
+ const views:TableCharacterView[]=visible.map(c=>({id:c.row.id,title:c.row.title,ownerId:c.row.owner_id,ownerName:name(c.row.owner_id),own:c.row.owner_id===a.id,shared:state.shared.includes(c.row.id),version:c.row.version,vitals:readVitals(c.body),stress:personalStress(state,c.row.id)}));
+ const band=stressBand(state.stress),view=masqueradeView(state);
  let history:{id:string;at:string;actor:string;character:string;text:string}[]|undefined;
  if(a.gm&&views.length){
   const ids=views.map(v=>v.id);
@@ -55,10 +61,10 @@ export async function vitalsSnapshot(a:Actor,room:LiveRoom){
  return {
   profile:state.profile,operations:allowedOperations(state.profile,a.gm),version:state.version,
   stress:{value:state.stress,label:band.label,effect:band.effect},
-  // Die Maskerade-Stufe bleibt ohne Freigabe ausschließlich serverseitig bei der SL.
-  ...(a.gm||state.masquerade.visible?{masquerade:{value:state.masquerade.value,max:state.masquerade.max}}:{}),
+  // Die genaue Maskerade-Stufe erhalten Spieler nur bei „exact“; bei „risk“ nur die grobe Lage, bei „hidden“ nichts.
+  ...masqueradePart(a.gm,state),
   characters:views,
-  ...(a.gm?{settings:{masqueradeVisible:state.masquerade.visible,nightlyWillpower:state.nightlyWillpower,shared:state.shared},log:state.log,history}:{}),
+  ...(a.gm?{settings:{masqueradeVisible:state.masquerade.visible,masqueradeView:view,nightlyWillpower:state.nightlyWillpower,shared:state.shared},log:state.log,history}:{}),
  };
 }
 
@@ -105,11 +111,13 @@ export async function willpowerForAll(a:Actor,room:LiveRoom){
 }
 export async function changeTableVitals(a:Actor,room:LiveRoom,expectedVersion:number,c:TableCommand){
  gmOnly(a);
- if(c.op==='settings'&&c.share&&!(await tableCharacters(a,room)).some(x=>x.row.id===c.share!.characterId))throw new HttpError(404,'Charakter ist an diesem Tisch nicht verfügbar.');
+ const target=c.op==='settings'?c.share?.characterId:c.op==='personalStress'?c.characterId:undefined;
+ const character=target?(await tableCharacters(a,room)).find(x=>x.row.id===target):undefined;
+ if(target&&!character)throw new HttpError(404,'Charakter ist an diesem Tisch nicht verfügbar.');
  const db=database(),key=stateKey(a.campaignId),state=await readTableVitals(a.campaignId);
  if(state.version!==expectedVersion)throw new HttpError(409,'Zustandswerte wurden inzwischen geändert. Bitte erneut versuchen.');
  const now=new Date().toISOString(),id=crypto.randomUUID();
- let next:TableVitals;try{next=applyTableVitals(state,c,a.name,now,id);}catch(e){domainError(e);}
+ let next:TableVitals;try{next=applyTableVitals(state,c,a.name,now,id,character?.row.title);}catch(e){domainError(e);}
  const value=JSON.stringify(next),entry=next.log[0];
  const write=state.version===0
   ?db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING').bind(key,value)
