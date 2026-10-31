@@ -13,13 +13,23 @@ import {
   sameOrigin,
   input,
 } from "@/server/access";
+import {fileUsages} from '@/server/file-usage';
 export const dynamic = "force-dynamic";
 const types = LIVE_MEDIA_TYPES;
+/** Files the actor may manage: own files, or shared SL/group files for the GM. Never other players' private files. */
+const manageable = "SELECT id,owner_id,visibility FROM files WHERE id=? AND campaign_id=? AND (owner_id=? OR (?=1 AND visibility IN ('sl','group')))";
 export async function GET(req: Request) {
   try {
     const a = await actor();
-    const id = new URL(req.url).searchParams.get("id");
+    const params = new URL(req.url).searchParams;
+    const id = params.get("id");
     const db = database();
+    const usage = params.get("usage");
+    if (usage) {
+      const own = await db.prepare(manageable).bind(usage, a.campaignId, a.id, a.gm ? 1 : 0).first();
+      if (!own) throw new HttpError(404, "Eigene Datei nicht gefunden.");
+      return json(await fileUsages(db, a, usage));
+    }
     if (!id) {
       const r = await db
         .prepare(
@@ -117,6 +127,26 @@ export async function POST(req: Request) {
     return failure(e, req);
   }
 }
+/** Change who may see a file. Players choose private/group for their own files; the GM may also mark files SL-internal. */
+export async function PATCH(req: Request) {
+  try {
+    sameOrigin(req);
+    const a = await actor();
+    const d = await input(req);
+    const id = String(d.id || ""), visibility = String(d.visibility || "");
+    if (!["private", "sl", "group"].includes(visibility)) throw new HttpError(400, "Ungültige Sichtbarkeit.");
+    if (visibility === "sl" && !a.gm) throw new HttpError(403, "SL-Dateien können nur von der Spielleitung angelegt werden.");
+    const db = database();
+    const file = await db.prepare(manageable).bind(id, a.campaignId, a.id, a.gm ? 1 : 0).first<{ owner_id: string }>();
+    if (!file) throw new HttpError(404, "Eigene Datei nicht gefunden.");
+    // Another player's shared file must never become private to the GM.
+    if (visibility === "private" && file.owner_id !== a.id) throw new HttpError(403, "Nur die eigene Datei kann privat gestellt werden.");
+    await db.prepare("UPDATE files SET visibility=? WHERE id=? AND campaign_id=?").bind(visibility, id, a.campaignId).run();
+    return json({ ok: true, visibility });
+  } catch (e) {
+    return failure(e, req);
+  }
+}
 export async function DELETE(req: Request) {
   try {
     sameOrigin(req);
@@ -131,12 +161,13 @@ export async function DELETE(req: Request) {
       AND NOT EXISTS (SELECT 1 FROM records i WHERE i.campaign_id=files.campaign_id AND i.kind='inventar' AND json_valid(i.body) AND json_extract(i.body,'$.imageFileId')=files.id)
       AND NOT EXISTS (SELECT 1 FROM entities e WHERE e.campaign_id=files.campaign_id AND (instr(e.content,files.id)>0 OR instr(e.gm_body,files.id)>0))
       AND NOT EXISTS (SELECT 1 FROM records r WHERE r.campaign_id=files.campaign_id AND instr(r.body,files.id)>0)
-      AND NOT EXISTS (SELECT 1 FROM world_events w WHERE w.campaign_id=files.campaign_id AND instr(w.payload,files.id)>0)
       RETURNING key`).bind(String(d.id),a.campaignId,a.id,a.gm?1:0).first<{key:string}>();
+    // The world_events log (e.g. every scene save) is history, not a current use; it no longer blocks deletion.
     if(!removed){
-      const existing=await db.prepare("SELECT id FROM files WHERE id=? AND campaign_id=? AND (owner_id=? OR (?=1 AND visibility IN ('sl','group')))").bind(String(d.id),a.campaignId,a.id,a.gm?1:0).first();
+      const existing=await db.prepare(manageable).bind(String(d.id),a.campaignId,a.id,a.gm?1:0).first();
       if(!existing)throw new HttpError(404,"Eigene Datei nicht gefunden.");
-      throw new HttpError(409,"Diese Datei wird in gespeicherten Inhalten oder deren Verlauf verwendet. Sie bleibt für diese Verknüpfungen geschützt.");
+      const {usages}=await fileUsages(db,a,String(d.id));
+      throw new HttpError(409,"Diese Datei wird noch verwendet: "+(usages.map(u=>u.title?u.label+' „'+u.title+'“':u.label).join(', ')||'in gespeicherten Inhalten')+". Entferne sie dort zuerst.");
     }
     // Remove the D1 locator first. If R2 is temporarily unavailable the object
     // is an inaccessible orphan, never a still-referenced public object.

@@ -1,3 +1,4 @@
+import { withoutDeletedFiles } from "@/server/preparation-media";
 import {
   actor,
   database,
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
         session: await writePreparation(db, a, {
           id: c.id,
           version: c.version,
-          document: h.document,
+          document: await withoutDeletedFiles(db, a.campaignId, h.document),
           restored: true,
         }),
       });

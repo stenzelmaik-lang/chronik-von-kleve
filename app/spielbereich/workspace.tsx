@@ -1,6 +1,6 @@
 "use client";
 import {MediaLibrary} from "./modules/media-library";
-import {TableMaterialLibrary} from "./modules/table-material-library";
+import {PlayerArchive} from "./modules/player-archive";
 import {MaterialPreparation} from "./modules/material-preparation";
 /* eslint-disable @next/next/no-img-element -- Private authenticated R2 URLs and original legacy assets are served directly; no public image optimizer cache. */
 
@@ -454,7 +454,7 @@ export default function Workspace({
       ) : section === "vorbereitung" ? (
         <MaterialPreparation key={dataScope} a={a}/>
       ) : section === "notizen" ? (
-        <><TableMaterialLibrary key={dataScope} a={a}/><section className="panel" style={{marginTop:32}} aria-label="Bestehende persönliche Notizen"><div className="section-title"><h2>Deine Notizen</h2><button className="button" onClick={()=>create()}>Notiz anlegen</button></div>{entries.length?<div className="entry-grid">{entries.map(r=><button className="entry-card text-left" key={r.id} onClick={()=>setEdit(structuredClone(r))}><div className="card-body"><h3>{r.title}</h3><p>{String(r.body.summary||'Persönliche Notiz öffnen')}</p></div></button>)}</div>:<p>Noch keine persönlichen Notizen.</p>}</section></>
+        <PlayerArchive key={dataScope} a={a} notes={entries} onCreateNote={()=>create()} onOpenNote={note=>setEdit(structuredClone(note as typeof entries[number]))}/>
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (

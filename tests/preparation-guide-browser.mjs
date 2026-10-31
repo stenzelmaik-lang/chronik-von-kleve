@@ -82,7 +82,7 @@ try{
  assert.equal(await page.getByRole('group',{name:'NPCs dieser Szene'}).locator('img[src="/api/files?id='+imageId+'"]').count(),1);
  await footer().click();await assertStep('interactions','section');
  phase='material types, handout and gallery persist in the same scene';
- const material=page.getByRole('region',{name:'Spielmaterial vorbereiten',exact:true});
+ const material=page.getByRole('region',{name:'Szenenbausteine',exact:true});
  await material.getByRole('button',{name:'Handout vorbereiten',exact:true}).click();await material.getByLabel('Bausteintitel',{exact:true}).fill('Brief an die Gruppe');
  await material.getByRole('button',{name:'HTML-Quelltext',exact:true}).click();await material.getByRole('textbox',{name:'Handout – Inhalt HTML',exact:true}).fill('<h2>Der Brief</h2><p>PRIVATE_PREPARED_HANDOUT</p>');
  await material.getByRole('button',{name:'Anderes Spielmaterial hinzufügen',exact:true}).click();
