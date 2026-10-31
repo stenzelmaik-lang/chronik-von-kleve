@@ -36,3 +36,18 @@ Stand: 31.10.2026. Branch `claude/spieltisch-aufraeumen` auf `origin/main` `02af
   - Freigestellter Pager-Spiegel oberhalb der Druck-Anzeige.
 
 Keine Daten- oder Schemaänderung.
+
+## Live-Release 31.10.2026
+
+- Freigegeben durch den Projektinhaber („Ja, live und mergen“).
+- Worker-Version `a4f7982e-ec27-4e34-bc3e-af297f6d4a5b`, Tag `spieltisch-aufraeumen`, 100 % Verkehr. Bindings unverändert.
+- Rückfallversion: `88d5f0a6-39ab-413c-b34a-a725803acf99`. Sie ist voll kompatibel, denn es handelt sich nur um Oberfläche und Tests.
+- Sicherung vorab:
+  - 32 Tabellen, 28.547 Zeilen, `integrity_check ok`.
+  - Lesezeichen `00000198-00000bf6-00005115-2b4f9d48dcb8e2c3a761311a88cab2e4`.
+  - Ablage: privat unter `.local-work/release-spieltisch-aufraeumen/`.
+- Live-Prüfung ohne Anmeldung:
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich, SL und Regie leiten mit 307 weiter.
+  - Bühne, Dateien, Material und Datensätze antworten mit 401 und `private, no-store`.
+  - Pager-Gehäuse und Ton antworten mit 200.
