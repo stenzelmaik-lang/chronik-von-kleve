@@ -49,6 +49,7 @@ assert.equal(reloaded.vitals.blood.current,blood-1,'Reload keeps the value');
 console.log('PASS live update for SL and persistence across a new login');
 
 // SL damage, healing and reset with V20 ordering.
+if((await snap(gm)).characters.find(c=>c.id===ca.id).vitals.health.track.length)await op(gm,ca.id,{op:'reset',target:'health'});
 await op(gm,ca.id,{op:'damage',type:'bashing',levels:1});await op(gm,ca.id,{op:'damage',type:'lethal',levels:2});
 let seen=(await snap(a)).characters.find(c=>c.id===ca.id).vitals.health;
 assert.deepEqual(seen.track,['lethal','lethal','bashing']);assert.equal(seen.level,'Schwer verletzt');assert.equal(seen.penalty,-1);
@@ -70,9 +71,22 @@ const masq=(await snap(gm)).masquerade.value;await table(gm,{op:'masquerade',val
 for(const c of [a,b]){assert.equal((await snap(c)).masquerade,undefined);assert.ok(!(await raw(c)).includes('Maskerade-Stufe'),'No masquerade text reaches players');}
 await table(gm,{op:'settings',masqueradeVisible:true});assert.equal((await snap(a)).masquerade.value,masq===0?1:0,'Released masquerade reaches players');
 await table(gm,{op:'settings',masqueradeVisible:false});await table(gm,{op:'masquerade',value:masq});assert.equal((await snap(b)).masquerade,undefined);
+await table(gm,{op:'settings',masqueradeView:'risk'});
+for(const c of [a,b]){const v=await snap(c);assert.equal(v.masquerade,undefined,'Risk view: no exact level');assert.ok(v.masqueradeRisk?.label,'Risk view: players see the situation');}
+await table(gm,{op:'settings',masqueradeView:'hidden'});assert.equal((await snap(a)).masqueradeRisk,undefined,'Hidden view: nothing');
 const stale=(await snap(gm)).version-1;assert.equal((await vitals(gm,{expectedVersion:stale,table:{op:'stress',delta:1}})).status,409,'Stale group version refused');
 assert.equal((await gm.post('/api/live-vitals',{sessionId,runId:crypto.randomUUID(),characterId:ca.id,command:{op:'blood.spend',amount:1}})).status,409,'Old run refused');
 console.log('PASS group stress for all, masquerade SL-only until released, optimistic locking');
+
+// Personal stress: set by the SL per character, seen by its owner only.
+await table(gm,{op:'personalStress',characterId:ca.id,value:4});
+assert.equal((await snap(a)).characters.find(c=>c.id===ca.id).stress.value,4,'A sees own personal stress');
+assert.equal((await snap(a)).characters.find(c=>c.id===ca.id).stress.label,'Angespannte Nerven');
+assert.ok(!(await raw(b)).includes(ca.id),'B gets nothing of A');
+await table(a,{op:'personalStress',characterId:ca.id,delta:-1},403);
+assert.equal((await vitals(gm,{expectedVersion:(await snap(gm)).version,table:{op:'personalStress',characterId:'unbekannt',delta:1}})).status,404,'Only characters at the table');
+await table(gm,{op:'personalStress',characterId:ca.id,value:0});
+console.log('PASS personal stress per character, SL-controlled, owner-visible');
 
 // Explicit release of one character to the round.
 await table(gm,{op:'settings',share:{characterId:ca.id,shared:true}});

@@ -1,7 +1,7 @@
 'use client';
 import {useState} from 'react';
-import {Droplets,Flame,Heart,Activity,EyeOff,Eye,Moon,RotateCcw,Minus,Plus,ChevronRight,ShieldAlert} from 'lucide-react';
-import {vitalHealthLevels,damageLabels,damageMarks,controlProfiles,stressBands,stressMaximum,type DamageType,type ControlProfile} from '@/domain/character-vitals';
+import {Droplets,Flame,Heart,Activity,EyeOff,Eye,Moon,RotateCcw,Minus,Plus,ChevronRight,ShieldAlert,User,Users} from 'lucide-react';
+import {vitalHealthLevels,damageLabels,damageMarks,controlProfiles,stressBands,stressMaximum,personalStressEffect,masqueradeViews,masqueradeViewLabels,type DamageType,type ControlProfile,type MasqueradeView} from '@/domain/character-vitals';
 import type {VitalsSnapshot,TableCharacter} from './types';
 import styles from './vitals.module.css';
 
@@ -14,18 +14,17 @@ const statusLabel={active:'',torpor:'Starre',['final-death']:'Endgültiger Tod'}
 function Boxes({total,filled,reachable=total,label,shape='box',tone}:{total:number;filled:number;reachable?:number;label:string;shape?:'box'|'dot';tone?:string}){
  return <span className={styles.boxes} data-shape={shape} data-tone={tone} role="img" aria-label={label}>{Array.from({length:total},(_,i)=><i key={i} data-on={i<filled} data-off={i>=reachable}/>)}</span>;
 }
-function BloodBoxes({c,compact=false}:{c:TableCharacter;compact?:boolean}){
+function BloodBoxes({c}:{c:TableCharacter}){
  const b=c.vitals.blood;if(b.current===null||b.max===null)return <span className={styles.missing}>nicht erfasst</span>;
- return <Boxes total={compact?Math.min(b.max,20):b.max} filled={compact?Math.min(b.current,20):b.current} label={`Blutvorrat ${b.current} von ${b.max}`} tone="blood"/>;
+ return <Boxes total={b.max} filled={b.current} label={`Blutvorrat ${b.current} von ${b.max}`} tone="blood"/>;
 }
 function WillpowerRows({c}:{c:TableCharacter}){
  const w=c.vitals.willpower;if(w.permanent===null)return <span className={styles.missing}>nicht erfasst</span>;
  return <span className={styles.willpower}><Boxes total={10} filled={w.permanent} shape="dot" label={`Willenskraft permanent ${w.permanent}`}/><Boxes total={10} filled={w.temporary??0} reachable={w.permanent} label={`Willenskraft Vorrat ${w.temporary} von ${w.permanent}`} tone="will"/></span>;
 }
 /** The V20 health chart: one box per level, marked / X * like on paper. */
-function HealthChart({c,compact=false}:{c:TableCharacter;compact?:boolean}){
+function HealthChart({c}:{c:TableCharacter}){
  const h=c.vitals.health;
- if(compact)return <span className={styles.healthMini} role="img" aria-label={`Gesundheit: ${h.level}${h.status!=='active'?', '+statusLabel[h.status]:''}`}>{vitalHealthLevels.map((l,i)=><i key={l.name} data-type={h.track[i]||''}>{h.track[i]?damageMarks[h.track[i] as DamageType]:''}</i>)}</span>;
  return <ol className={styles.healthChart} aria-label="Gesundheitsstufen">{vitalHealthLevels.map((l,i)=>{const t=h.track[i] as DamageType|undefined;return <li key={l.name} data-current={h.track.length===i+1}><span>{l.name}</span><small>{l.penalty===null?'':l.penalty===0?'±0':l.penalty}</small><b data-type={t||''} aria-label={t?damageLabels[t]:'frei'}>{t?damageMarks[t]:''}</b></li>;})}</ol>;
 }
 function StressBar({value}:{value:number}){
@@ -38,22 +37,94 @@ function Confirm({label,confirm,busy,onConfirm,icon}:{label:string;confirm:strin
  return armed?<span className={styles.confirm}><button type="button" disabled={busy} className={styles.danger} onClick={()=>{setArmed(false);onConfirm();}}>{confirm}</button><button type="button" onClick={()=>setArmed(false)}>Abbrechen</button></span>:<button type="button" disabled={busy} onClick={()=>setArmed(true)}>{icon}{label}</button>;
 }
 
-/** Compact, always visible state on the table: own character for players, group pressure for the SL. */
-export function VitalsDock({vitals,gm,onOpen}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void}){
- const own=vitals.characters.filter(c=>c.own);
- if(gm)return <button type="button" className={styles.dock} onClick={onOpen} aria-label="Zustände der Runde öffnen">
-  <span className={styles.dockTitle}>Zustände · {vitals.characters.length} Figur{vitals.characters.length===1?'':'en'}<ChevronRight size={14}/></span>
-  <span className={styles.dockRow}><Activity size={14}/><StressBar value={vitals.stress.value}/><small>{vitals.stress.value}</small></span>
-  {vitals.masquerade&&<span className={styles.dockRow}><ShieldAlert size={14}/><Boxes total={vitals.masquerade.max} filled={vitals.masquerade.value} label={`Maskerade-Stufe ${vitals.masquerade.value}`} tone="masq"/><small>{vitals.masquerade.value}</small></span>}
+type Tone='ok'|'hurt'|'wounded'|'critical'|'torpor'|'dead';
+type Health=TableCharacter['vitals']['health'];
+/** How badly a character is hurt, for colour and the table vignette. */
+function healthTone(h:Health):Tone{
+ if(h.status==='final-death')return 'dead';if(h.status==='torpor')return 'torpor';
+ const n=h.track.length;return n===0?'ok':n<=3?'hurt':n<=5?'wounded':'critical';
+}
+const penaltyText=(p:number|null)=>p===null?'handlungsunfähig':p===0?'kein Abzug':`${p} Würfel`;
+function conditionLabel(h:Health){return h.status!=='active'?statusLabel[h.status]:h.track.length?h.level:'Unverletzt';}
+
+/** Seven boxes of the V20 health chart as a wide bar: / Wucht, X Tödlich, * Schwer. */
+function HealthBar({h,size='large'}:{h:Health;size?:'large'|'small'}){
+ return <span className={styles.healthBar} data-size={size} role="img" aria-label={`Gesundheit: ${conditionLabel(h)}, ${penaltyText(h.penalty)}${h.track.length?', '+h.track.map(t=>damageLabels[t as DamageType]).join(', '):''}`}>
+  {vitalHealthLevels.map((l,i)=>{const t=h.track[i] as DamageType|undefined;return <i key={l.name} data-type={t||''} title={l.name}>{t?damageMarks[t]:''}</i>;})}
+ </span>;
+}
+function BloodBar({b}:{b:TableCharacter['vitals']['blood']}){
+ if(b.current===null||b.max===null)return <span className={styles.missing}>nicht erfasst</span>;
+ const ratio=b.max?b.current/b.max:0;
+ return <span className={styles.bloodBar} data-low={b.current===0?'empty':ratio<=.25?'low':''} style={{'--fill':`${Math.round(ratio*100)}%`,'--n':Math.min(b.max,25)} as React.CSSProperties} role="img" aria-label={`Blutvorrat ${b.current} von ${b.max}`}><i/></span>;
+}
+function WillDots({w}:{w:TableCharacter['vitals']['willpower']}){
+ if(w.permanent===null)return <span className={styles.missing}>nicht erfasst</span>;
+ return <span className={styles.willDots} role="img" aria-label={`Willenskraft ${w.temporary} von ${w.permanent}`}>{Array.from({length:w.permanent},(_,i)=><i key={i} data-on={i<(w.temporary??0)}/>)}</span>;
+}
+const stressLevel=(value:number)=>Math.max(0,stressBands.findIndex(b=>value>=b.from&&value<=b.to));
+/** Pressure meter: faint zones show the bands, filled steps glow in the colour of their band. */
+function Meter({value,total=stressMaximum,label,level}:{value:number;total?:number;label:string;level:number}){
+ return <span className={styles.meter} data-level={level} role="img" aria-label={label}>{Array.from({length:total},(_,i)=><i key={i} data-on={i<value} data-zone={total===stressMaximum?stressLevel(i+1):Math.min(3,Math.floor((i+1)/total*3))}/>)}</span>;
+}
+function PressureRow({icon,name,value,label,level,total,detail}:{icon:React.ReactNode;name:string;value:number;label:string;level:number;total?:number;detail?:string}){
+ return <span className={styles.pressureRow} data-level={level}>
+  <span className={styles.pressureName}>{icon}<span>{name}</span></span><b className={styles.chip} data-level={level}>{label}</b>
+  <Meter value={value} total={total} level={level} label={`${name}: ${label}${detail?' · '+detail:''}`}/>
+ </span>;
+}
+
+/** Red edges on the player's own view while the character is hurt: the table is seen through their eyes. */
+function WoundVignette({c}:{c:TableCharacter}){
+ const tone=healthTone(c.vitals.health),hungry=c.vitals.blood.current===0;
+ if(tone==='ok'&&!hungry)return null;
+ return <div className={styles.vignette} data-tone={tone} data-aggravated={c.vitals.health.track.includes('aggravated')} data-hungry={hungry} aria-hidden="true"/>;
+}
+
+/** Part 1 on the table: body, blood and willpower of the own character (players) or the whole round (SL). */
+function BodyHud({vitals,gm,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
+ if(gm){
+  const list=vitals.characters;
+  return <button type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen">
+   <span className={styles.hudTitle}><Heart size={14}/><span className={styles.hudName}>Runde · {list.length} Figur{list.length===1?'':'en'}</span><ChevronRight size={14}/></span>
+   {list.slice(0,6).map(c=>{const h=c.vitals.health,b=c.vitals.blood;return <span key={c.id} className={styles.roundRow} data-tone={healthTone(h)}>
+    <span className={styles.roundName}>{c.title}</span><HealthBar h={h} size="small"/><small><Droplets size={11}/>{b.current??'–'}/{b.max??'–'}</small></span>;})}
+   {list.length>6&&<small className={styles.more}>+{list.length-6} weitere</small>}
+   {!list.length&&<small className={styles.more}>Noch keine spielbereite Figur</small>}
+  </button>;
+ }
+ const c=vitals.characters.find(x=>x.own);if(!c)return null;
+ const b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,tone=healthTone(h);
+ return <button type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} data-tone={tone} onClick={onOpen} aria-label={`Zustand von ${c.title}: ${conditionLabel(h)}. Öffnen`}>
+  <span className={styles.hudTitle}><Heart size={15} className={styles.heart}/><span className={styles.hudName}>{c.title}</span><ChevronRight size={14}/></span>
+  <span className={styles.condition} data-tone={tone}><b>{conditionLabel(h)}</b>{h.status==='active'&&<small>{penaltyText(h.penalty)}</small>}</span>
+  <HealthBar h={h}/>
+  <span className={styles.bodyRow}><Droplets size={14}/><BloodBar b={b}/><small>{b.current??'–'}/{b.max??'–'}</small></span>
+  <span className={styles.bodyRow}><Flame size={14}/><WillDots w={w}/><small>{w.temporary??'–'}/{w.permanent??'–'}</small></span>
  </button>;
- const c=own[0];if(!c)return null;const b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health;
- return <button type="button" className={styles.dock} onClick={onOpen} aria-label={'Zustand von '+c.title+' öffnen'}>
-  <span className={styles.dockTitle}>{c.title}{h.status!=='active'&&<em>{statusLabel[h.status]}</em>}<ChevronRight size={14}/></span>
-  <span className={styles.dockRow}><Droplets size={14}/><BloodBoxes c={c} compact/><small>{b.current??'–'}/{b.max??'–'}</small></span>
-  <span className={styles.dockRow}><Flame size={14}/><Boxes total={10} filled={w.temporary??0} reachable={w.permanent??0} label={`Willenskraft ${w.temporary} von ${w.permanent}`} tone="will"/><small>{w.temporary??'–'}/{w.permanent??'–'}</small></span>
-  <span className={styles.dockRow}><Heart size={14}/><HealthChart c={c} compact/><small>{h.penalty===null?'–':h.penalty===0?'±0':h.penalty}</small></span>
-  <span className={styles.dockRow}><Activity size={14}/><StressBar value={vitals.stress.value}/><small>{vitals.stress.value}</small></span>
+}
+
+/** Part 2 on the table: personal stress, group stress and masquerade risk, kept apart from the body. */
+function PressureHud({vitals,gm,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
+ const own=vitals.characters.find(c=>c.own),risk=vitals.masqueradeRisk,m=vitals.masquerade;
+ const top=gm?[...vitals.characters].sort((x,y)=>y.stress.value-x.stress.value)[0]:undefined;
+ return <button type="button" className={`${styles.hudBox} ${styles.pressureHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Stress und Maskerade öffnen">
+  <span className={styles.hudTitle}><Activity size={14}/><span className={styles.hudName}>Druck</span><ChevronRight size={14}/></span>
+  {!gm&&own&&<PressureRow icon={<User size={13}/>} name="Ich" value={own.stress.value} label={own.stress.label} level={stressLevel(own.stress.value)}/>}
+  {gm&&top&&top.stress.value>0&&<PressureRow icon={<User size={13}/>} name={top.title} value={top.stress.value} label={top.stress.label} level={stressLevel(top.stress.value)} detail="höchster persönlicher Stress"/>}
+  <PressureRow icon={<Users size={13}/>} name="Gruppe" value={vitals.stress.value} label={vitals.stress.label} level={stressLevel(vitals.stress.value)}/>
+  {risk&&<PressureRow icon={<ShieldAlert size={13}/>} name="Maskerade" value={m?m.value:risk.level} total={m?m.max:3} label={risk.label} level={risk.level} detail={m?`Stufe ${m.value} von ${m.max}`:risk.hint}/>}
  </button>;
+}
+
+/** Always visible on the table: two separate parts, body and pressure, plus the wound vignette for the own view. */
+export function VitalsHud({vitals,gm,onOpen,panelOpen,hideBody,hidePressure}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void;panelOpen:boolean;hideBody:boolean;hidePressure:boolean}){
+ const own=gm?undefined:vitals.characters.find(c=>c.own);
+ return <>
+  {own&&<WoundVignette c={own}/>}
+  <BodyHud vitals={vitals} gm={gm} onOpen={onOpen} hidden={hideBody} panelOpen={panelOpen}/>
+  <PressureHud vitals={vitals} gm={gm} onOpen={onOpen} hidden={hidePressure} panelOpen={panelOpen}/>
+ </>;
 }
 
 function CharacterCard({c,vitals,gm,busy,run}:{c:TableCharacter;vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run}){
@@ -77,6 +148,10 @@ function CharacterCard({c,vitals,gm,busy,run}:{c:TableCharacter;vitals:VitalsSna
     {gm&&<button type="button" disabled={busy||!h.track.length} onClick={()=>act({op:'heal',levels:1})}><Minus size={14}/>1 Stufe entfernen</button>}</div>
    {gm&&<form className={styles.damage} onSubmit={e=>{e.preventDefault();act({op:'damage',...damage});}}><label>Art<select value={damage.type} onChange={e=>setDamage(d=>({...d,type:e.target.value as typeof d.type}))}><option value="bashing">Wucht (/)</option><option value="lethal">Tödlich (X)</option><option value="aggravated">Schwer (*)</option></select></label><label>Stufen<input type="number" min={1} max={10} value={damage.levels} onChange={e=>setDamage(d=>({...d,levels:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}/></label><button type="submit" disabled={busy}>Schaden eintragen</button><small>Nach dem Aufsaugen; Wucht bei Vampiren bereits halbiert.</small></form>}
   </div>
+  <div className={styles.trait}><h4><Activity size={15}/>Persönlicher Stress <small>{c.stress.value} / {stressMaximum} · {c.stress.label}</small></h4><StressBar value={c.stress.value}/>
+   <p className={styles.hint}>{personalStressEffect}</p>
+   {gm&&<div className={styles.actions}><button type="button" disabled={busy||c.stress.value===0} onClick={()=>void run({expectedVersion:vitals.version,table:{op:'personalStress',characterId:c.id,delta:-1}})}><Minus size={14}/>Stress −1</button><button type="button" disabled={busy||c.stress.value===stressMaximum} onClick={()=>void run({expectedVersion:vitals.version,table:{op:'personalStress',characterId:c.id,delta:1}})}><Plus size={14}/>Stress +1</button></div>}
+  </div>
   {gm&&<footer className={styles.footer}>
    <Confirm label="Gesundheit zurücksetzen" confirm="Wirklich alle Wunden entfernen" busy={busy} icon={<RotateCcw size={14}/>} onConfirm={()=>act({op:'reset',target:'health'})}/>
    <Confirm label="Willenskraft voll" confirm="Vorrat auf permanent setzen" busy={busy} icon={<RotateCcw size={14}/>} onConfirm={()=>act({op:'reset',target:'willpower'})}/>
@@ -97,7 +172,8 @@ export function VitalsPanel({vitals,gm,busy,run}:{vitals:VitalsSnapshot;gm:boole
    <h3><Activity size={15}/>Gruppenstress <small>{vitals.stress.value} / {stressMaximum} · {vitals.stress.label}</small></h3><StressBar value={vitals.stress.value}/>
    <p className={styles.hint}>{vitals.stress.effect}</p>
    {gm&&<div className={styles.actions}><button type="button" disabled={busy||vitals.stress.value===0} onClick={()=>table({op:'stress',delta:-1})}><Minus size={14}/>Stress −1</button><button type="button" disabled={busy||vitals.stress.value===stressMaximum} onClick={()=>table({op:'stress',delta:1})}><Plus size={14}/>Stress +1</button></div>}
-   {vitals.masquerade&&<><h3><ShieldAlert size={15}/>Maskerade-Stufe <small>{vitals.masquerade.value} / {vitals.masquerade.max}{gm&&!vitals.settings?.masqueradeVisible?' · nur SL':''}</small></h3><Boxes total={vitals.masquerade.max} filled={vitals.masquerade.value} label={`Maskerade-Stufe ${vitals.masquerade.value} von ${vitals.masquerade.max}`} tone="masq"/>
+   {vitals.masqueradeRisk&&!vitals.masquerade&&<><h3><ShieldAlert size={15}/>Maskerade-Risiko <small>{vitals.masqueradeRisk.label}</small></h3><Boxes total={3} filled={vitals.masqueradeRisk.level} label={`Maskerade-Risiko: ${vitals.masqueradeRisk.label}`} tone="masq"/><p className={styles.hint}>{vitals.masqueradeRisk.hint}</p></>}
+   {vitals.masquerade&&<><h3><ShieldAlert size={15}/>Maskerade-Stufe <small>{vitals.masquerade.value} / {vitals.masquerade.max} · {vitals.masqueradeRisk?.label}{gm&&vitals.settings?` · ${masqueradeViewLabels[vitals.settings.masqueradeView]}`:''}</small></h3><Boxes total={vitals.masquerade.max} filled={vitals.masquerade.value} label={`Maskerade-Stufe ${vitals.masquerade.value} von ${vitals.masquerade.max}`} tone="masq"/>
     {gm&&<div className={styles.actions}><button type="button" disabled={busy||vitals.masquerade.value===0} onClick={()=>table({op:'masquerade',delta:-1})}><Minus size={14}/>Stufe −1</button><button type="button" disabled={busy||vitals.masquerade.value===vitals.masquerade.max} onClick={()=>table({op:'masquerade',delta:1})}><Plus size={14}/>Stufe +1</button></div>}</>}
    {gm&&<div className={styles.actions}>
     <Confirm label="Neue Nacht" confirm={'Alle: −1 Blut beim Erwachen'+(vitals.settings?.nightlyWillpower?', +1 Willenskraft':'')} busy={busy} icon={<Moon size={14}/>} onConfirm={()=>void run({group:'night'})}/>
@@ -110,7 +186,7 @@ export function VitalsPanel({vitals,gm,busy,run}:{vitals:VitalsSnapshot;gm:boole
   {!gm&&<p className={styles.hint}>Steuerung „{profile.label}“: {profile.description}</p>}
   {gm&&vitals.settings&&<details className={styles.settings}><summary>Steuerung & Freigaben</summary>
    <fieldset><legend>Wer bucht was?</legend>{(Object.keys(controlProfiles) as ControlProfile[]).map(id=><label key={id}><input type="radio" name="vitals-profile" checked={vitals.profile===id} disabled={busy} onChange={()=>table({op:'settings',profile:id})}/><span><b>{controlProfiles[id].label}</b> {controlProfiles[id].description}</span></label>)}</fieldset>
-   <label className={styles.check}><input type="checkbox" checked={vitals.settings.masqueradeVisible} disabled={busy} onChange={e=>table({op:'settings',masqueradeVisible:e.target.checked})}/>Maskerade-Stufe für Spieler sichtbar</label>
+   <fieldset><legend>Maskerade für Spieler</legend>{masqueradeViews.map((id:MasqueradeView)=><label key={id}><input type="radio" name="vitals-masquerade" checked={vitals.settings!.masqueradeView===id} disabled={busy} onChange={()=>table({op:'settings',masqueradeView:id})}/><span>{masqueradeViewLabels[id]}{id==='risk'?' (Gewahrt, Aufmerksamkeit, In Gefahr, Bruch droht)':''}</span></label>)}</fieldset>
    <label className={styles.check}>Maskerade-Skala bis<select value={vitals.masquerade?.max??5} disabled={busy} onChange={e=>table({op:'settings',masqueradeMax:Number(e.target.value)})}>{[3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}</option>)}</select></label>
    <label className={styles.check}><input type="checkbox" checked={vitals.settings.nightlyWillpower} disabled={busy} onChange={e=>table({op:'settings',nightlyWillpower:e.target.checked})}/>Neue Nacht: +1 Willenskraft (V20-Option der SL)</label>
   </details>}

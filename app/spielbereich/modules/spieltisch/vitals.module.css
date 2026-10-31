@@ -7,14 +7,70 @@
 .missing{font-size:11px;color:#b7bdb6;font-style:italic}
 .willpower{display:grid;gap:4px}
 
-/* Kompakte Anzeige auf der Bühne. */
-.dock{pointer-events:auto;position:absolute;left:12px;bottom:18px;z-index:6;display:grid;gap:5px;width:min(300px,calc(50% - 50px));padding:10px 12px;border:1px solid #c5a46a55;border-radius:9px;background:#0d171af2;color:#eee8dc;text-align:left;box-shadow:0 8px 24px #0005;font-size:12px}
-.dock:hover{border-color:#d6b36f99}.dockTitle{display:flex;align-items:center;gap:6px;font:15px/1.2 Georgia,serif;min-width:0}.dockTitle>svg{margin-left:auto;flex-shrink:0;color:#c5a46a}
-.dockTitle em{font:normal 10px Arial,sans-serif;color:#ffb3b8;border:1px solid #a84953;border-radius:4px;padding:1px 5px}
-.dockRow{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:7px;color:#c5a46a}.dockRow small{color:#e5ddcb;font-size:11px;font-variant-numeric:tabular-nums}
-.dockRow .boxes{gap:2px;flex-wrap:nowrap;overflow:hidden}.dockRow .boxes>i{width:9px;height:11px;flex-shrink:0}
-.healthMini{display:flex;gap:2px}.healthMini>i{display:grid;place-items:center;width:15px;height:15px;border:1px solid #c5a46a88;border-radius:2px;background:#0c1417;font:normal 700 11px/1 Arial,sans-serif;color:#eee8dc}
-.healthMini>i[data-type=lethal],.healthChart b[data-type=lethal]{color:#ff9aa2}.healthMini>i[data-type=aggravated],.healthChart b[data-type=aggravated]{color:#ffd27a;background:#4a1b20}.healthMini>i[data-type=unspecified],.healthChart b[data-type=unspecified]{color:#c9c2b4}
+/* Auf der Bühne: zwei getrennte Teile, Körper (unten links) und Druck (unten rechts). */
+.hudBox{pointer-events:auto;position:absolute;bottom:18px;z-index:6;display:grid;gap:7px;padding:11px 13px 12px;border:1px solid #c5a46a55;border-radius:10px;background:linear-gradient(180deg,#121f22f5,#0b1416f5);color:#eee8dc;text-align:left;box-shadow:0 10px 28px #0006;font-size:12px;transition:border-color .3s,box-shadow .3s}
+.hudBox:hover{border-color:#d6b36f99}.hudBox[data-hidden=true]{display:none}
+.bodyHud{left:12px;width:min(290px,calc(50% - 70px))}.pressureHud{right:12px;width:min(270px,calc(50% - 70px))}
+.hudTitle{display:flex;align-items:center;gap:7px;min-width:0;font:15px/1.2 Georgia,serif;color:#eee8dc}.hudTitle>svg{flex-shrink:0;color:#c5a46a}.hudTitle>svg:last-child{margin-left:auto}
+.hudName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Zustand der eigenen Figur: Farbe und Puls folgen der Verwundung. */
+.bodyHud[data-tone=hurt]{border-color:#c49a4599}.bodyHud[data-tone=wounded]{border-color:#c4505bbb;box-shadow:0 10px 28px #0006,0 0 18px #9b2a3540}
+.bodyHud[data-tone=critical],.bodyHud[data-tone=torpor],.bodyHud[data-tone=dead]{border-color:#e0766c;box-shadow:0 10px 28px #0006,0 0 26px #b4473f66}
+.heart{color:#c4505b!important}.bodyHud[data-tone=hurt] .heart{animation:beat 1.4s ease-in-out infinite}.bodyHud[data-tone=wounded] .heart{animation:beat .9s ease-in-out infinite}.bodyHud[data-tone=critical] .heart{animation:beat .55s ease-in-out infinite}
+.bodyHud[data-tone=torpor] .heart,.bodyHud[data-tone=dead] .heart{color:#6d7375!important}
+@keyframes beat{0%,100%{transform:scale(1)}15%{transform:scale(1.25)}30%{transform:scale(1)}45%{transform:scale(1.15)}}
+.condition{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.condition b{font:600 13px/1.2 Arial,sans-serif;letter-spacing:.02em}.condition small{font-size:11px;font-variant-numeric:tabular-nums;color:#b7bdb6}
+.condition[data-tone=ok] b{color:#94b398}.condition[data-tone=hurt] b{color:#e0bc6f}.condition[data-tone=wounded] b,.condition[data-tone=critical] b{color:#ff9aa2}.condition[data-tone=critical] small{color:#ff9aa2}
+.condition[data-tone=torpor] b{color:#b9c4d0}.condition[data-tone=dead] b{color:#ffb3b8;text-transform:uppercase}
+
+/* Gesundheitsleiste: sieben Kästchen des Bogens, Schadensart als Farbe und Zeichen. */
+.healthBar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.healthBar>i{display:grid;place-items:center;height:22px;border:1px solid #c5a46a66;border-radius:3px;background:#0a1214;font:normal 700 13px/1 Arial,sans-serif;color:#eee8dc;transition:background .3s}
+.healthBar>i:last-child{border-style:dashed}
+.healthBar>i[data-type=bashing]{background:repeating-linear-gradient(135deg,#6e5520 0 4px,#4d3c18 4px 8px);border-color:#c49a45;color:#ffe2a6}
+.healthBar>i[data-type=lethal]{background:linear-gradient(180deg,#a3313c,#6e1d26);border-color:#e0766c;color:#ffe3e5}
+.healthBar>i[data-type=aggravated]{background:radial-gradient(circle at 50% 60%,#ff8a3d 0,#9b2a35 55%,#3f0f15 100%);border-color:#ffb36b;color:#fff1d6;box-shadow:0 0 8px #ff6a3d88;animation:ember 2.4s ease-in-out infinite}
+.healthBar>i[data-type=unspecified]{background:#3d3f3c;border-color:#8c8f88;color:#d9d6cc}
+@keyframes ember{50%{box-shadow:0 0 12px #ff6a3dcc}}
+.healthBar[data-size=small]{gap:2px}.healthBar[data-size=small]>i{height:12px;font-size:9px;border-radius:2px}
+
+.bodyRow{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:8px;color:#c5a46a}.bodyRow small{color:#e5ddcb;font-size:11px;font-variant-numeric:tabular-nums}
+.bodyRow>svg:first-child{color:#c4505b}.bodyRow:last-child>svg:first-child{color:#87a9c6}
+/* Blutvorrat als Phiole mit Teilstrichen je Blutpunkt. */
+.bloodBar{position:relative;display:block;height:12px;border:1px solid #c4505b88;border-radius:6px;background:#1a0d10;overflow:hidden}
+.bloodBar>i{position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#d14a57,#8a1f2b 60%,#5e1219);transition:width .5s ease}
+.bloodBar::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--n) - 1px),#0b141680 calc(100% / var(--n) - 1px) calc(100% / var(--n)))}
+.bloodBar[data-low=low]{border-color:#ff9aa2;animation:thirst 2s ease-in-out infinite}.bloodBar[data-low=empty]{border-color:#ff9aa2;border-style:dashed;animation:thirst 1s ease-in-out infinite}
+@keyframes thirst{50%{box-shadow:0 0 10px #ff4d5a99}}
+.willDots{display:flex;flex-wrap:wrap;gap:4px}.willDots>i{width:11px;height:11px;border-radius:50%;border:1px solid #87a9c6aa;background:transparent}.willDots>i[data-on=true]{background:radial-gradient(circle at 35% 35%,#b9d3ea,#5a7fa0);border-color:#b9d3ea}
+
+/* SL: kurze Übersicht der Runde. */
+.roundRow{display:grid;grid-template-columns:minmax(0,1fr) 94px auto;align-items:center;gap:8px;padding-left:6px;border-left:2px solid #6f8f73}
+.roundRow[data-tone=hurt]{border-left-color:#c49a45}.roundRow[data-tone=wounded],.roundRow[data-tone=critical]{border-left-color:#e0766c}.roundRow[data-tone=torpor],.roundRow[data-tone=dead]{border-left-color:#8c8f88}
+.roundName{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.roundRow small{display:inline-flex;align-items:center;gap:3px;color:#e5ddcb;font-size:11px;font-variant-numeric:tabular-nums}.roundRow small svg{color:#c4505b}
+.more{color:#b7bdb6;font-size:11px}
+
+/* Druck: eigener Stress, Gruppe, Maskerade, je mit Lage und Leiste. */
+.pressureRow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 8px;padding:5px 7px;border-radius:6px;background:#ffffff06;transition:background .3s}
+.pressureRow[data-level='2']{background:#b4473f1c}.pressureRow[data-level='3']{background:#b4473f30;animation:alarm 2.2s ease-in-out infinite}
+@keyframes alarm{50%{background:#b4473f50}}
+.pressureName{display:flex;align-items:center;gap:6px;min-width:0;color:#d9c8a2}.pressureName>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pressureName>svg{flex-shrink:0;color:#c5a46a}
+.chip{font:600 10px/1 Arial,sans-serif;letter-spacing:.03em;padding:3px 6px;border-radius:4px;border:1px solid #6f8f73;color:#b6d3ba;white-space:nowrap}
+.chip[data-level='1']{border-color:#c49a45;color:#f0cf8a}.chip[data-level='2']{border-color:#e0766c;color:#ffb3b8}.chip[data-level='3']{border-color:#ff9aa2;background:#7a2129;color:#fff}
+.meter{grid-column:1/-1;display:flex;gap:2px}.meter>i{flex:1;height:7px;border-radius:2px;background:#ffffff10}
+.meter>i[data-zone='1']{background:#c49a4522}.meter>i[data-zone='2'],.meter>i[data-zone='3']{background:#b4473f26}
+.meter>i[data-on=true][data-zone='0']{background:#7fa684}.meter>i[data-on=true][data-zone='1']{background:#d6a94f}.meter>i[data-on=true][data-zone='2']{background:#cf5a50}.meter>i[data-on=true][data-zone='3']{background:#ff5d68;box-shadow:0 0 6px #ff5d6899}
+
+/* Wundrand: die eigene Sicht färbt sich bei Verletzung rot, in der Starre dunkel. */
+.vignette{position:absolute;inset:0;pointer-events:none;transition:box-shadow .6s,background .6s}
+.vignette[data-tone=hurt]{box-shadow:inset 0 0 70px 6px #8a1f2b55}
+.vignette[data-tone=wounded]{box-shadow:inset 0 0 110px 16px #8a1f2b88;animation:pulse 2.6s ease-in-out infinite}
+.vignette[data-tone=critical]{box-shadow:inset 0 0 150px 34px #8a1f2bbb;animation:pulse 1.4s ease-in-out infinite}
+.vignette[data-aggravated=true]{background:radial-gradient(ellipse at 50% 120%,#ff6a3d22,transparent 60%)}
+.vignette[data-tone=torpor],.vignette[data-tone=dead]{box-shadow:inset 0 0 180px 60px #000c;background:#05080966}
+.vignette[data-tone=ok][data-hungry=true]{box-shadow:inset 0 0 90px 10px #5e121966;animation:pulse 3s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.6}}
 
 /* Ausführliches Feld in der Seitenleiste. */
 .panel{display:grid;gap:16px}
@@ -46,6 +102,8 @@
 .log{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px;font-size:12px}.log time{color:#c5a46a;font-variant-numeric:tabular-nums}.log small{color:#b7bdb6}
 
 @media(max-width:700px){
- .dock{left:8px;bottom:84px;width:min(260px,calc(100% - 16px));padding:8px 10px;gap:4px}
- .dockTitle{font-size:14px}.dockRow .boxes>i{width:7px;height:10px}.healthMini>i{width:13px;height:13px;font-size:10px}
+ .hudBox{bottom:84px;width:calc(50% - 12px);padding:8px 9px;gap:5px}.bodyHud{left:8px}.pressureHud{right:8px}.hudBox[data-panel=true]{display:none}
+ .hudTitle{font-size:13px}.healthBar>i{height:18px;font-size:11px}.willDots>i{width:9px;height:9px}
+ .pressureRow{grid-template-columns:minmax(0,1fr);padding:4px 5px}.chip{justify-self:start}.roundRow{grid-template-columns:minmax(0,1fr) 60px}.roundRow small{display:none}
 }
+@media(max-width:380px){.condition small{display:none}}
