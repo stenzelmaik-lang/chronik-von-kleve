@@ -2,6 +2,8 @@
 
 Stand: 31.10.2026. Zur persönlichen UX-Abnahme; kein Push, Merge oder Deployment.
 
+**Grafische Weiterentwicklung v2:** Echte Brief-/Nebelassets, Vision oben links, Brief rechts und nichtmodale Leseflächen sind im [Asset- und Prüfbericht](assets/Personal-delivery-v2.md) dokumentiert. Aktueller Standardtest: **230/230 grün**. Die nachstehenden Angaben beschreiben die ursprüngliche Funktionsgrundlage mit ihrem damaligen Teststand.
+
 ## Lokaler Einstieg
 
 - Arbeitszweig: `codex/visionen-botschaften`.

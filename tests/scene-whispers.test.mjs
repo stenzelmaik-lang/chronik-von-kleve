@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync,statSync} from 'node:fs';
 import {emptyScene,sceneDocumentSchema} from '../domain/story-scene.ts';
 import {emptyStage,stageSchema,stageVisible,changeStageObjects} from '../domain/live-stage.ts';
 import {scenePreparation} from '../domain/session-overview.ts';
@@ -23,10 +24,21 @@ test('personal content reuses document objects and the exact existing recipient 
  const source={title:'Brief',kind:'document',sourceId:'scene-whisper:scene:id',sourceKind:'record',ownerId:'gm',presentation:'letter',documentContent:'PRIVATE_A'};
  const state=changeStageObjects(emptyStage(),gm,{action:'add',kind:'document',sourceId:source.sourceId,sourceKind:'record',visible:true,recipients:['a']},source);
  const item=state.objects[0];assert.equal(item.presentation,'letter');assert.equal(stageVisible(item,gm),true);assert.equal(stageVisible(item,a),true);assert.equal(stageVisible(item,b),false);assert.ok(stageSchema.safeParse(state).success);
+ assert.ok(item.rect.x>.65,'new envelopes start on the right');
  assert.throws(()=>changeStageObjects(state,b,{action:'documentEdit',id:item.id,content:'forged'}));
  assert.throws(()=>changeStageObjects(state,gm,{action:'documentEdit',id:item.id,content:'changed'}));
  assert.throws(()=>changeStageObjects(state,gm,{action:'visibility',id:item.id,visible:true,recipients:null}));
  assert.equal(changeStageObjects(state,gm,{action:'remove',id:item.id}).objects.length,0);assert.equal(state.objects.length,1);
+});
+test('new vision placement stays in the upper left without overwriting saved object positions',()=>{
+ const source={title:'Vision',kind:'document',sourceId:'scene-whisper:s:v',sourceKind:'record',ownerId:'gm',presentation:'vision',documentContent:'Private'};
+ const state=changeStageObjects(emptyStage(),gm,{action:'add',kind:'document',visible:true,recipients:['a']},source),item=state.objects[0];
+ assert.ok(item.rect.x<.1&&item.rect.y<.1&&item.rect.h<.45);
+ const rect={x:.4,y:.4,w:.3,h:.3};const moved=changeStageObjects(state,gm,{action:'move',id:item.id,rect});
+ const replay=changeStageObjects(moved,gm,{action:'add',kind:'document',visible:true,recipients:['a']},source);assert.deepEqual(replay.objects[0].rect,rect);
+});
+test('decorative delivery assets are shipped as compact WebP files',()=>{
+ let total=0;for(const name of ['envelope','paper','mist']){const p=new URL('../public/images/personal-delivery/'+name+'-v2.webp',import.meta.url),bytes=readFileSync(p);assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WEBP');total+=statSync(p).size;}assert.ok(total<512000,'asset set stays below 500 KiB');
 });
 test('scene changes clear personal scene deliveries but preserve private sticky notes',()=>{
  let state=changeStageObjects(emptyStage(),a,{action:'add',kind:'note'});

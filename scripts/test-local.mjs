@@ -28,6 +28,9 @@ const characterThree=process.argv.includes('--charakter-3');
 const vitalsDemo=process.argv.includes('--zustandswerte')||process.argv.includes('--regie')||process.argv.includes('--ultio-pager');
 // Regie im Zweitfenster: wie --zustandswerte, eigener Speicher und Port, zusätzlich ein Musikstück.
 const regieDemo=process.argv.includes('--regie')||process.argv.includes('--ultio-pager');
+// Separate visual QA store; never re-seed the user's current local Regie evening.
+const visionAssetsDemo=process.argv.includes('--vision-assets');
+if(visionAssetsDemo&&!regieDemo)throw new Error('--vision-assets requires --regie');
 // ULTIO-Pager: wie --regie, eigener Speicher und Port, zusätzlich vorbereitete Pager-Nachrichten in der Kaserne-Szene.
 const pagerDemo=process.argv.includes('--ultio-pager');
 const commandDemo=process.argv.includes('--command-center-2')||characterThree||vitalsDemo;
@@ -40,7 +43,7 @@ const codexAll=process.argv.includes('--codex-all')||codexPlayers;
 const codexDemo=process.argv.includes('--codex')||codexAll;
 const interactive=mailDemo||stageDemo||stageReleaseTest||areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const preserve=mailDemo||storyWork||commandDemo||stageDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const state=preserve?resolve(mailDemo?'.local-test/nachrichten':storyWork?'.local-work/story-workspace':pagerDemo?'.local-test/ultio-pager':regieDemo?'.local-test/regie':vitalsDemo?'.local-test/zustandswerte':stageDemo?'.local-test/spieltisch-2':characterThree?'.local-test/charakter-3':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const state=preserve?resolve(mailDemo?'.local-test/nachrichten':storyWork?'.local-work/story-workspace':visionAssetsDemo?'.local-test/vision-assets':pagerDemo?'.local-test/ultio-pager':regieDemo?'.local-test/regie':vitalsDemo?'.local-test/zustandswerte':stageDemo?'.local-test/spieltisch-2':characterThree?'.local-test/charakter-3':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
@@ -52,7 +55,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const defaultPort=mailDemo?8850:pagerDemo?8874:regieDemo?8870:vitalsDemo?8852:stageDemo?8830:stageReleaseTest?8820:characterThree?8846:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const defaultPort=mailDemo?8850:visionAssetsDemo?8891:pagerDemo?8874:regieDemo?8870:vitalsDemo?8852:stageDemo?8830:stageReleaseTest?8820:characterThree?8846:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 const port=process.env.CVK_TEST_PORT ? Number(process.env.CVK_TEST_PORT) : defaultPort;
 if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local test port');
 if(interactive){const probe=createServer();await new Promise((ok,fail)=>{probe.once('error',()=>fail(new Error('Der lokale Port '+port+' ist bereits belegt. Öffne die laufende Anwendung; kein anderer Prozess wird beendet.')));probe.listen(port,'127.0.0.1',()=>probe.close(ok));});}

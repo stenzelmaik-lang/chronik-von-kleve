@@ -167,7 +167,7 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
    if(!source)throw Object.assign(Error('Originalobjekt nicht verfügbar.'),{status:404});
    let placed=next.objects.find(o=>o.kind!=='note'&&o.sourceId===source.sourceId&&o.sourceKind===source.sourceKind);
    // Files may carry the prepared material title; original dossiers keep their own title.
-   if(!placed){placed={id:crypto.randomUUID(),...source,...(c.title&&source.sourceKind==='file'?{title:c.title}:{}),visibility:'sl',recipients:null,rect:source.presentation==='vision'?{x:.28,y:.15,w:.42,h:.6}:source.presentation==='letter'?{x:.65,y:.16,w:.24,h:.28}:placement(source.media,next.objects.filter(o=>o.kind!=='note').length)};next.objects.push(placed);}
+   if(!placed){placed={id:crypto.randomUUID(),...source,...(c.title&&source.sourceKind==='file'?{title:c.title}:{}),visibility:'sl',recipients:null,rect:source.presentation==='vision'?{x:.025,y:.035,w:.38,h:.37}:source.presentation==='letter'?{x:.72,y:.14,w:.22,h:.28}:placement(source.media,next.objects.filter(o=>o.kind!=='note').length)};next.objects.push(placed);}
    // "Auf den Tisch legen" may release in the same step; otherwise it stays SL-only.
    if(placed.kind!=='note'&&source.sourceKind==='record'){delete placed.media;delete placed.sourceFileId;delete placed.documentContent;delete placed.pages;Object.assign(placed,source);placed.documentRevision=(placed.documentRevision||0)+1;}
    if(c.visible!==undefined&&placed.kind!=='note'){placed.visibility=c.visible?'group':'sl';placed.recipients=c.recipients??null;}

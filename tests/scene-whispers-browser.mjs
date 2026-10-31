@@ -14,20 +14,36 @@ try{
  const ca=await account('command-a'),cb=await account('command-b'),cg=await account('command-gm');
  const a=await table(ca),b=await table(cb);
  await a.getByRole('heading',{name:'Vision nur A',exact:true}).waitFor();await b.getByRole('heading',{name:'Vision nur B',exact:true}).waitFor();
+ assert.equal(await a.locator('dialog[open]').getAttribute('aria-modal'),'false');
+ assert.equal(await a.locator('dialog[open]').evaluate(el=>el.matches(':modal')),false,'vision must leave the table interactive');
+ await settled(a);let visionBounds=await a.locator('dialog[open]').boundingBox();
+ assert.ok(visionBounds.x<150&&visionBounds.y<150&&visionBounds.y+visionBounds.height<500,'vision occupies only the upper left area');
+ assert.ok((await a.locator('dialog[open]').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('mist-v2.webp'));
  assert.equal(await b.getByText('SECRET_A_VISION',{exact:true}).count(),0);assert.equal(await a.getByText('SECRET_B_VISION',{exact:true}).count(),0);
  await a.locator('dialog[open] img').waitFor();await a.locator('dialog[open] img').evaluate(img=>img.decode());
  await a.getByRole('button',{name:'Nächstes Bild',exact:true}).click();assert.ok((await a.locator('dialog[open] img').getAttribute('src')).endsWith('&page=1'));
+ await a.locator('dialog[open] img').evaluate(img=>Promise.all([img.decode(),...img.getAnimations().map(a=>a.finished)]));
  await settled(a);await a.screenshot({path:out+'/vision-desktop.png'});
+ await a.getByRole('button',{name:'Kontext öffnen',exact:true}).click();await a.getByRole('button',{name:'Werkzeug schließen',exact:true}).click();
+ assert.equal(await a.locator('dialog[open]').count(),1,'other tools remain usable while the vision is open');
+ await a.getByRole('button',{name:'Persönliche Ansicht schließen'}).focus();
  await a.keyboard.press('Escape');await a.locator('dialog[open]').waitFor({state:'detached'});
  await b.getByRole('heading',{name:'Vision nur B',exact:true}).waitFor();
- const letter=a.getByRole('button',{name:'Brief öffnen: Brief nur A',exact:true});await letter.focus();await a.keyboard.press('Enter');
+ const letter=a.getByRole('button',{name:'Brief öffnen: Brief nur A',exact:true});assert.ok((await letter.locator('img').getAttribute('src')).includes('envelope-v2.webp'));await letter.focus();await a.keyboard.press('Enter');
+ await settled(a);const letterBounds=await a.locator('dialog[open]').boundingBox();assert.ok(letterBounds.x>720&&letterBounds.y<150,'opened paper stays on the right');
+ assert.ok((await a.locator('dialog[open]').evaluate(el=>getComputedStyle(el).backgroundImage)).includes('paper-v2.webp'));
  await a.getByRole('heading',{name:'Brief nur A',exact:true}).waitFor();await a.getByText('SECRET_A_LETTER',{exact:true}).waitFor();await settled(a);await a.screenshot({path:out+'/letter-desktop.png'});
+ for(let i=0;i<3;i++){
+  await a.getByRole('button',{name:'Persönliche Ansicht schließen'}).click();await a.getByRole('button',{name:'Vision ansehen: Vision nur A',exact:true}).click();await a.getByRole('heading',{name:'Vision nur A',exact:true}).waitFor();
+  await a.getByRole('button',{name:'Persönliche Ansicht schließen'}).click();await a.getByRole('button',{name:'Brief öffnen: Brief nur A',exact:true}).click();await a.getByRole('heading',{name:'Brief nur A',exact:true}).waitFor();
+ }
  await a.getByRole('button',{name:'Persönliche Ansicht schließen'}).click();await a.reload();await a.getByRole('button',{name:'Brief öffnen: Brief nur A',exact:true}).waitFor();assert.equal(await a.locator('dialog[open]').count(),0,'reconnect does not replay dismissed visions');
  await a.setViewportSize({width:375,height:812});await a.emulateMedia({reducedMotion:'reduce'});
  await a.getByRole('button',{name:'Brief öffnen: Brief nur A',exact:true}).click();await a.getByRole('heading',{name:'Brief nur A',exact:true}).waitFor();
  let bounds=await a.locator('dialog[open]').boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=376);await a.screenshot({path:out+'/letter-mobile.png'});
  await a.keyboard.press('Escape');await a.getByRole('button',{name:'Vision ansehen: Vision nur A',exact:true}).click();await a.getByRole('heading',{name:'Vision nur A',exact:true}).waitFor();
  assert.equal(await a.locator('dialog[open]').evaluate(e=>getComputedStyle(e).animationName),'none');await a.locator('dialog[open] img').evaluate(img=>img.decode());await a.screenshot({path:out+'/vision-mobile.png'});
+ visionBounds=await a.locator('dialog[open]').boundingBox();assert.ok(visionBounds.y+visionBounds.height<812*.65,'mobile vision leaves the lower table free');
  const gm=await cg.newPage();gm.on('pageerror',e=>errors.push(e.message));
  await gm.goto(base+'/sl/command-center?bereich=sitzung&scene='+encodeURIComponent(f.sceneId)+'&section=visions');
  const preparation=gm.getByRole('region',{name:'Visionen und persönliche Botschaften vorbereiten'});await preparation.waitFor();
