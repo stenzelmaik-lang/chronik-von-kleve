@@ -3,6 +3,8 @@ import {useMemo,useState} from 'react';
 import {Minus,Plus,Trash2,X} from 'lucide-react';
 import {Dialog,DialogContent,DialogDescription,DialogTitle} from '@/components/ui/dialog';
 import {characterSheetFields,validateExistingSheet} from '@/domain/character-management';
+import {newSpecialtyId,specialtyRatingError,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating,type Specialty} from '@/domain/character-specialties';
+import {W10_ABILITY_KEYS,W10_ATTRIBUTE_KEYS} from '@/domain/trait-ids';
 import {creationDeviation} from '@/domain/character-engine';
 import {clansForCampaign} from '@/domain/clan-config';
 import {attrsGroups,skillGroups} from './character';
@@ -13,7 +15,7 @@ type Row={name:string;value?:number;cost?:number;category?:string;primary?:boole
 const map=(v:unknown):Record<string,number>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,number>:{};
 const rows=(v:unknown):Row[]=>Array.isArray(v)?(v as Row[]).filter(r=>r&&typeof r==='object'):[];
 const str=(v:unknown)=>typeof v==='string'?v:v===undefined||v===null?'':String(v);
-const fieldLabels:Record<string,string>={player:'Spieler',chronicle:'Chronik',nature:'Wesen',demeanor:'Verhalten',concept:'Konzept',clan:'Clan',generation:'Generation',sire:'Erzeuger',attributes:'Attribute',skills:'Fähigkeiten',customAbilities:'Weitere Fähigkeiten',disciplines:'Disziplinen',backgrounds:'Hintergründe',virtues:'Tugenden',humanity:'Menschlichkeit / Pfad',humanityPath:'Pfad',willpower:'Willenskraft',bloodMax:'Blutvorrat',bloodPerRound:'Blut pro Runde',merits:'Vorzüge',flaws:'Schwächen',clanWeakness:'Clansschwäche',individualInfo:'Individuelle Angaben',text:'Geschichte',goals:'Ziele',characterPermissions:'Freigaben',paths:'Pfade',title:'Name',playGuide:'Spielhilfe',inventory:'Ausrüstung'};
+const fieldLabels:Record<string,string>={player:'Spieler',chronicle:'Chronik',nature:'Wesen',demeanor:'Verhalten',concept:'Konzept',clan:'Clan',generation:'Generation',sire:'Erzeuger',attributes:'Attribute',skills:'Fähigkeiten',specialties:'Spezialisierungen',customAbilities:'Weitere Fähigkeiten',disciplines:'Disziplinen',backgrounds:'Hintergründe',virtues:'Tugenden',humanity:'Menschlichkeit / Pfad',humanityPath:'Pfad',willpower:'Willenskraft',bloodMax:'Blutvorrat',bloodPerRound:'Blut pro Runde',merits:'Vorzüge',flaws:'Schwächen',clanWeakness:'Clansschwäche',individualInfo:'Individuelle Angaben',text:'Geschichte',goals:'Ziele',characterPermissions:'Freigaben',paths:'Pfade',title:'Name',playGuide:'Spielhilfe',inventory:'Ausrüstung'};
 const listFields=['customAbilities','disciplines','paths','backgrounds','merits','flaws'];
 export const sheetFieldLabel=(key:string)=>fieldLabels[key]??key;
 const allDisciplines=[...new Set(clansForCampaign('chronik-von-kleve').flatMap(c=>c.disciplines))].sort((a,b)=>a.localeCompare(b,'de'));
@@ -48,6 +50,31 @@ function RowList({label,value,onChange,metric,suggestions,high,primary=false}:{l
   </div>;
 }
 
+type SpecialtyDraft=Omit<Specialty,'target'>&{target:{kind:Specialty['target']['kind'];id:string}};
+const specialtyRows=(v:unknown):SpecialtyDraft[]=>Array.isArray(v)?(v as SpecialtyDraft[]).filter(r=>r&&typeof r==='object'):[];
+/** Specialties per V20: bound to one attribute or ability by its stable ID; inactive instead of silently lost. */
+function SpecialtyList({value,body,onChange}:{value:unknown;body:Body;onChange:(v:unknown)=>void}){
+  const list=specialtyRows(value);
+  const update=(i:number,patch:Partial<SpecialtyDraft>)=>onChange(list.map((r,j)=>j===i?{...r,...patch}:r));
+  return <div className={sheet.rowList}>
+    {list.map((row,i)=>{const key=specialtyTargetKey(row.target as Specialty['target']),rating=key?traitRating(body,row.target as Specialty['target'])??0:null;
+      return <div className={sheet.rowItem} key={row.id}>
+      <select aria-label={`Spezialisierung ${i+1} gehört zu`} value={row.target.id?row.target.kind+':'+row.target.id:''} onChange={e=>{const [kind,id]=e.target.value.split(':');update(i,{target:{kind:kind as Specialty['target']['kind'],id}});}}>
+        <option value="">Eigenschaft oder Fähigkeit wählen</option>
+        <optgroup label="Attribute">{Object.entries(W10_ATTRIBUTE_KEYS).map(([id,label])=><option key={id} value={'attribute:'+id}>{label}</option>)}</optgroup>
+        <optgroup label="Fähigkeiten">{Object.entries(W10_ABILITY_KEYS).map(([id,label])=><option key={id} value={'ability:'+id}>{label}</option>)}</optgroup>
+      </select>
+      <button type="button" className={sheet.iconButton} aria-label={`${row.name||'Spezialisierung'} entfernen`} onClick={()=>onChange(list.filter((_,j)=>j!==i))}><Trash2 size={15}/></button>
+      <input aria-label={`Spezialisierung ${i+1} Name`} placeholder="Spezialisierung, z. B. Säbel" value={row.name??''} maxLength={120} onChange={e=>update(i,{name:e.target.value})}/>
+      <input aria-label={`Spezialisierung ${i+1} Geltungsbereich`} placeholder="Geltungsbereich (optional)" value={row.scope??''} maxLength={500} onChange={e=>update(i,{scope:e.target.value||undefined})}/>
+      <label className={sheet.primaryToggle}><input type="checkbox" checked={row.active!==false} onChange={e=>update(i,{active:e.target.checked?undefined:false})}/>Aktiv</label>
+      {key&&rating!==null&&rating<SPECIALTY_MINIMUM_RATING&&<p className={sheet.hint} style={{gridColumn:'1/-1'}}>{key} hat {rating} Punkte. Ab {SPECIALTY_MINIMUM_RATING} wirkt die Spezialisierung (jede 10 zählt doppelt).</p>}
+    </div>;})}
+    <button type="button" className={sheet.addRow} onClick={()=>onChange([...list,{id:newSpecialtyId(),target:{kind:'ability',id:''},name:''}])}><Plus size={14}/>Spezialisierung hinzufügen</button>
+    <p className={sheet.hint}>Nur für Werte ab {SPECIALTY_MINIMUM_RATING}. Eine Pflicht-Fachrichtung (etwa bei Handwerk) ist keine Spezialisierung.</p>
+  </div>;
+}
+
 export type SheetEditorProps={open:boolean;onOpenChange:(open:boolean)=>void;title:string;sheet:Body;mode:'sl'|'player';busy:boolean;error:string;historical:boolean;onSave:(patch:Body,title:string,reason:string)=>Promise<boolean>};
 export function CharacterSheetEditor({open,onOpenChange,title,sheet:initial,mode,busy,error,historical,onSave}:SheetEditorProps){
   return <Dialog open={open} onOpenChange={next=>{if(!busy)onOpenChange(next);}}>{open&&<EditorBody key={title} title={title} initial={initial} mode={mode} busy={busy} error={error} historical={historical} onClose={()=>onOpenChange(false)} onSave={onSave}/>}</Dialog>;
@@ -58,10 +85,10 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
   const set=(key:string,value:unknown)=>setBody(prev=>({...prev,[key]:value}));
   const setIn=(key:string,name:string,value:number)=>setBody(prev=>({...prev,[key]:{...map(prev[key]),[name]:value}}));
   // Freshly added rows without a name are drafts, not data: they are dropped instead of blocking the save.
-  const cleaned=useMemo(()=>Object.fromEntries(Object.entries(body).map(([key,value])=>[key,listFields.includes(key)&&Array.isArray(value)?(value as Row[]).filter(row=>String(row?.name??'').trim()):value])),[body]);
+  const cleaned=useMemo(()=>Object.fromEntries(Object.entries(body).map(([key,value])=>[key,(listFields.includes(key)||key==='specialties')&&Array.isArray(value)?(value as Row[]).filter(row=>String(row?.name??'').trim()):value])),[body]);
   const changed=useMemo(()=>characterSheetFields.filter(key=>JSON.stringify(cleaned[key]??null)!==JSON.stringify(initial[key]??null)),[cleaned,initial]);
   const deviation=useMemo(()=>creationDeviation(cleaned),[cleaned]);
-  const invalid=useMemo(()=>{const error=validateExistingSheet(cleaned);return error&&error.replace(/: (\w+)/,(_,key:string)=>': '+sheetFieldLabel(key));},[cleaned]);
+  const invalid=useMemo(()=>{const error=validateExistingSheet(cleaned)??specialtyRatingError(cleaned,initial);return error&&error.replace(/: (\w+)/,(_,key:string)=>': '+sheetFieldLabel(key));},[cleaned,initial]);
   const dirty=changed.length>0||title.trim()!==initialTitle;
   async function save(){const patch=Object.fromEntries(changed.map(key=>[key,cleaned[key]]));if(!Object.keys(patch).length)patch.concept=cleaned.concept??'';if(await onSave(patch,title.trim(),reason))onClose();}
   function close(){if(dirty&&!window.confirm('Ungespeicherte Änderungen am Bogen verwerfen?'))return;onClose();}
@@ -90,6 +117,7 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
       <section id="cvk-sheet-attributes" className={sheet.block}><h3>Attribute</h3><div className={sheet.columns}>{attrsGroups.map(([group,names])=><div key={group}><h4>{group==='Sozial'?'Gesellschaftlich':group==='Mental'?'Geistig':group}</h4>{names.map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.attributes)[name]??(name==='Erscheinungsbild'&&str(body.clan).toLowerCase()==='nosferatu'?0:1))} onChange={n=>setIn('attributes',name,n)}/></div>)}</div>)}</div></section>
       <section id="cvk-sheet-abilities" className={sheet.block}><h3>Fähigkeiten</h3><div className={sheet.columns}>{skillGroups.map(([group,names])=><div key={group}><h4>{group}</h4>{names.map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.skills)[name]??0)} onChange={n=>setIn('skills',name,n)}/></div>)}</div>)}</div>
         {Object.keys(map(body.skills)).filter(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).length>0&&<div className={sheet.subBlock}><h4>Weitere gespeicherte Fähigkeiten</h4>{Object.keys(map(body.skills)).filter(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(name=><div className={sheet.ratingRow} key={name}><span>{name}</span><DotInput label={name} high={high} value={Number(map(body.skills)[name]??0)} onChange={n=>setIn('skills',name,n)}/></div>)}</div>}
+        <div className={sheet.subBlock}><h4>Spezialisierungen</h4><SpecialtyList value={body.specialties??[]} body={body} onChange={v=>set('specialties',v)}/></div>
         <div className={sheet.subBlock}><h4>Zusätzliche Fähigkeiten (freie Zeilen des Bogens)</h4><RowList label="Fähigkeit" value={body.customAbilities??[]} onChange={v=>set('customAbilities',v)} metric="value" high={high}/></div>
       </section>
       <section id="cvk-sheet-advantages" className={sheet.block}><h3>Vorteile</h3><div className={sheet.columns}>

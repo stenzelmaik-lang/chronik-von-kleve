@@ -114,7 +114,7 @@ test('B08: preview never mutates the sheet and lists every rule it did not apply
   const result = preview(body, { attributeId: 'dexterity', abilityId: 'stealth' });
   assert.equal(JSON.stringify(body), before);
   assert.ok(Object.isFrozen(result) && Object.isFrozen(result.provenance) && Object.isFrozen(result.notApplied));
-  assert.deepEqual(result.notApplied.map(n => n.id), ['specialty', 'wound_exceptions', 'hunger', 'personal_stress', 'group_stress', 'willpower']);
+  assert.deepEqual(result.notApplied.map(n => n.id), ['specialty_fit', 'wound_exceptions', 'hunger', 'personal_stress', 'group_stress', 'willpower']);
   // Blood and willpower are on the sheet but never enter the Phase-B pool.
   assert.equal(preview({ ...body, blood: 0, willpowerTemporary: 0 }, { attributeId: 'dexterity', abilityId: 'stealth' }).pool.base, 6);
 });
@@ -129,4 +129,68 @@ test('B09: the draft route stays behind an explicit local binding; production co
   const route = readFileSync(new URL('../app/api/w10-preview/route.ts', import.meta.url), 'utf8');
   assert.match(route, /if \(!w10PreviewEnabled\(\)\) throw new HttpError\(404/);
   assert.equal((route.match(/\.strict\(\)/g) || []).length, 3, 'request, selection and declared are strict');
+});
+
+// K4: structured specialties (owner decision 31.10.2026).
+const { validateSpecialties, specialtyRatingError, readSpecialties, newSpecialtyId } = await import('../domain/character-specialties.ts');
+const { validateExistingSheet, characterSheetFields } = await import('../domain/character-management.ts');
+const { resolveDraftRoll } = await import('../domain/w10-hybrid-draft.ts');
+const spec = (patch = {}) => ({ id: 'spec_00000000-aaaa', target: { kind: 'ability', id: 'firearms' }, name: 'Pistolen', ...patch });
+const strong = { ...engineFixture, attributes: { ...engineFixture.attributes, Geschick: 4 }, skills: { ...engineFixture.skills, Schusswaffen: 4 } };
+
+test('K4-1: specialty field is part of the sheet and validated structurally', () => {
+  assert.ok(characterSheetFields.includes('specialties'));
+  assert.equal(validateSpecialties(undefined), null);
+  assert.equal(validateSpecialties([spec(), spec({ id: 'spec_11111111-bbbb', target: { kind: 'attribute', id: 'dexterity' }, name: 'Schnelle Reflexe', scope: 'Ausweichen', active: false })]), null);
+  assert.match(newSpecialtyId(), /^spec_[0-9a-f-]{36}$/);
+  for (const bad of [[spec({ id: 'x' })], [spec(), spec()], [spec({ target: { kind: 'ability', id: 'security' } })], [spec({ target: { kind: 'virtue', id: 'courage' } })],
+    [spec({ name: ' ' })], [spec({ active: 'yes' })], [spec({ extra: 1 })], [spec({ target: { kind: 'ability', id: 'firearms', key: 'Schusswaffen' } })],
+    [spec(), spec({ id: 'spec_22222222-cccc', name: '  pistolen ' })], 'Pistolen', {}]) assert.notEqual(validateSpecialties(bad), null, JSON.stringify(bad));
+  // Same name inactive twice is allowed (history kept), and different traits may share a name.
+  assert.equal(validateSpecialties([spec(), spec({ id: 'spec_22222222-cccc', active: false })]), null);
+  assert.notEqual(validateExistingSheet({ ...engineFixture, specialties: [spec({ id: 'kaputt' })] }), null);
+  assert.equal(validateExistingSheet({ ...engineFixture, specialties: [spec()] }), null, 'Rating is not part of structural validation');
+  assert.deepEqual(readSpecialties({ specialties: [spec({ id: 'kaputt' })] }), [], 'Malformed lists are never guessed');
+});
+
+test('K4-2: new or changed specialties need a rating of 4; untouched old entries never block edits', () => {
+  assert.match(specialtyRatingError({ ...engineFixture, specialties: [spec()] }, engineFixture), /Schusswaffen braucht mindestens 4 Punkte/);
+  assert.equal(specialtyRatingError({ ...strong, specialties: [spec()] }, strong), null);
+  assert.equal(specialtyRatingError({ ...engineFixture, specialties: [spec({ active: false })] }, engineFixture), null, 'Inactive entries may stay');
+  // Trait dropped below 4 later: the stored specialty survives unrelated edits.
+  const before = { ...strong, specialties: [spec()] }, after = { ...before, skills: { ...strong.skills, Schusswaffen: 3 }, concept: 'neu' };
+  assert.equal(specialtyRatingError(after, before), null);
+  assert.match(specialtyRatingError({ ...after, specialties: [spec({ name: 'Revolver' })] }, before), /mindestens 4/, 'Renaming counts as a change');
+});
+
+test('K4-3: preview applies a specialty only to the matching selected trait with rating 4+', () => {
+  const body = { ...strong, specialties: [spec(), spec({ id: 'spec_33333333-dddd', target: { kind: 'attribute', id: 'dexterity' }, name: 'Fingerfertig' }),
+    spec({ id: 'spec_44444444-eeee', target: { kind: 'ability', id: 'melee' }, name: 'Säbel' }), spec({ id: 'spec_55555555-ffff', name: 'Alt', active: false })] };
+  const sel = (specialtyId) => ({ attributeId: 'dexterity', abilityId: 'firearms', ...(specialtyId ? { specialtyId } : {}) });
+  const plain = preview(body, sel());
+  assert.equal(plain.specialtyApplies, false);
+  assert.deepEqual(plain.specialties.map(s => [s.name, s.applicable, s.reason]), [['Pistolen', true, undefined], ['Fingerfertig', true, undefined], ['Alt', false, 'SPECIALTY_INACTIVE']]);
+  const used = deriveW10Preview(body, sel('spec_00000000-aaaa'), declared(), 9, { claimedBy: 'player' });
+  assert.equal(used.specialtyApplies, true);
+  assert.deepEqual(used.specialty, { id: 'spec_00000000-aaaa', name: 'Pistolen', claimedBy: 'player' });
+  assert.match(used.provenance.find(p => p.part === 'specialty').source, /jede 10 zählt doppelt · vom Spieler beansprucht/);
+  assert.match(deriveW10Preview(body, sel('spec_33333333-dddd'), declared(), 9, { claimedBy: 'gm' }).provenance.find(p => p.part === 'specialty').source, /von der SL gesetzt/);
+  assert.equal(preview(body, sel('spec_44444444-eeee')).code, 'SPECIALTY_NOT_FOR_TRAIT');
+  assert.equal(preview(body, sel('spec_55555555-ffff')).code, 'SPECIALTY_INACTIVE');
+  assert.equal(preview(body, sel('spec_99999999-0000')).code, 'SPECIALTY_NOT_FOUND');
+  const weak = { ...body, skills: { ...strong.skills, Schusswaffen: 3 } };
+  assert.equal(preview(weak, sel('spec_00000000-aaaa')).code, 'SPECIALTY_TRAIT_BELOW_4');
+  assert.equal(preview(weak, sel('spec_00000000-aaaa')).message.includes('bleibt gespeichert'), true);
+  // Sheets without the field keep working unchanged.
+  assert.equal(preview(engineFixture, sel()).specialties.length, 0);
+});
+
+test('K4-4: an applied specialty doubles only rolled tens; ones cancel afterwards (V20)', () => {
+  const used = preview({ ...strong, specialties: [spec()] }, { attributeId: 'dexterity', abilityId: 'firearms', specialtyId: 'spec_00000000-aaaa' });
+  const roll = faces => resolveDraftRoll({ rollId: 'k4', characterVersion: 9, kind: 'ordinary', pool: faces.length, difficulty: used.difficulty.effective,
+    specialtyApplies: used.specialtyApplies }, faces).evaluation;
+  const base = [10, 1, 2, 3, 4, 5, 6, 7];
+  assert.deepEqual([roll(base).rawSuccesses, roll(base).netRolledSuccesses, roll(base).outcome], [4, 3, 'success'], '10 counts twice, 6 and 7 once, one 1 cancels');
+  const noTen = [1, 6, 2, 3, 4, 5, 2, 3];
+  assert.deepEqual([roll(noTen).rawSuccesses, roll(noTen).outcome], [1, 'failure'], 'No ten, no bonus');
 });

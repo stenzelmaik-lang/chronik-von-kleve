@@ -3,6 +3,7 @@ import { validateCharacterDraft, applySlAdjustment, applyXpPurchase, type XpPurc
 import { availableClanForCampaign } from "@/domain/clan-config";
 import { actor, gmOnly, sameOrigin, input, json, failure, HttpError } from "@/server/access";
 import { editableCharacter, engineProjection, saveEngine, characterBody } from "@/server/character-engine-service";
+import { specialtyRatingError } from '@/domain/character-specialties';
 import { adoptHistoricalCharacter, appendCharacterXp, characterPermissions, characterSheet, characterSheetFields, validateExistingSheet,verifyHistoricalCharacter } from '@/domain/character-management';
 
 export const dynamic = "force-dynamic";
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
       if (!a.gm && (row.owner_id !== a.id || !characterPermissions(body).editing)) throw new HttpError(403,'Für diese Bearbeitung fehlt die ausdrückliche SL-Freigabe.');
       next = {...body,...d.patch};
       for (const value of Object.values(d.patch)) if (typeof value === 'string' && value.length > 30000) throw new HttpError(400,'Ein Bogenfeld ist zu lang.');
-      const error = validateExistingSheet(next); if (error) throw new HttpError(400,error);
+      const error = validateExistingSheet(next) ?? specialtyRatingError(next, body); if (error) throw new HttpError(400,error);
       title = d.title ?? row.title;
       if (!a.gm && body.characterState === 'confirmed') next.characterState = 'review';
       auditReason = d.reason + ' · '+(a.gm?'SL-Korrektur':'Freigegebene Spielerbearbeitung')+' · XP und ursprünglicher Bogen unverändert';

@@ -98,4 +98,22 @@ Auf Grundlage der Projektinhaberentscheidungen (Details und Status im [Abgleich]
 | Regression ULTIO-Pager und Zustandswerte auf derselben Instanz | bestanden |
 | Typecheck, ESLint, lokaler Build | bestanden |
 
+## 7. Nachtrag: K4 Spezialisierungen (31.10.2026)
+
+- **Datenmodell:** Neues, optionales Bogenfeld `specialties` (`domain/character-specialties.ts`): `{ id: "spec_<uuid>", target: { kind: "attribute"|"ability", id: <stabile ID> }, name, scope?, active? }`. Die stabilen IDs liegen jetzt in `domain/trait-ids.ts`, das Bogenvalidierung und Würfel-Engine gemeinsam nutzen. Bestehende Bögen ohne das Feld bleiben unverändert; es gibt keine Migration und keine erfundenen Einträge.
+- **Validierung:** Die Struktur prüft `validateExistingSheet` bei jeder Bearbeitung: eindeutige ID, gültiges Ziel, Name, keine fremden Felder, keine aktive Dublette. Neue oder geänderte aktive Einträge brauchen beim Speichern über `edit_sheet` mindestens 4 Punkte (V20 S. 96). Ältere Einträge blockieren keine anderen Änderungen, auch wenn der Wert später unter 4 fällt. Sie bleiben gespeichert, wirken dann aber nicht.
+- **Schutz:** `specialties` gehört zu `characterSheetFields`. Bei bestätigten Bögen und Bögen in Prüfung kann der allgemeine Editor das Feld deshalb nicht ändern; der Integrationstest bestätigt das.
+- **Oberfläche:** Bogeneditor im Bereich „Fähigkeiten“ mit Zuordnung (Attribut oder Fähigkeit), Name, Geltungsbereich, „Aktiv“ und Löschen. Liegt der Wert unter 4, zeigt der Editor einen Hinweis und sperrt das Speichern mit Begründung. Die Bogenansicht listet die Spezialisierungen auf und kennzeichnet deaktivierte sowie noch nicht wirksame Einträge.
+- **Vorschau:** `selection.specialtyId` (Format `spec_…`). Der Server prüft Besitz, Ziel, Aktivität und Mindestwert. Passt etwas nicht, wird die Probe mit Begründung blockiert und nicht still ohne Spezialisierung gewertet. Die Vorschau listet passende Spezialisierungen mit `applicable` auf. Eine angewandte Spezialisierung bringt keinen zusätzlichen Würfel; im Kern zählt jede gewürfelte 10 doppelt, danach ziehen die Einsen nach V20 ab. Der Anspruch ist als „vom Spieler beansprucht“ oder „von der SL gesetzt“ markiert. **Die erzählerische Passung prüft der Server nicht; das ist Rückfrage R4.**
+- **Nicht umgesetzt:** Spezialisierungen im Erschaffungseditor für Engine-Entwürfe; Ziele vom Typ `customAbility` (folgt mit K6); Primärquellenprüfung, ob V20 mehrere Spezialisierungen je Eigenschaft erlaubt. Derzeit sind mehrere mit unterschiedlichen Namen zulässig, angewandt wird je Probe höchstens eine.
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Standardlauf | **275/275 bestanden** |
+| Integration SL/A/B, frische Instanz, jetzt 10 Blöcke einschließlich Spezialisierungen | bestanden |
+| Regression ULTIO-Pager, Zustandswerte | bestanden |
+| Browserregression `character-management-browser.mjs` (eigene `--charakter-3`-Instanz, Port 8846, Edge), einschließlich Editor bei 1440 und 375 px | bestanden |
+| Manuelle Browserprüfung: SL fügt eine Spezialisierung hinzu; Hinweis und Sperre bei 3 Punkten, Speichern bei 4, Anzeige in der Bogenansicht, keine Konsolenfehler | bestanden |
+| Typecheck, ESLint, lokaler Build | bestanden |
+
 Der Integrationstest setzt die Auswahl von A und B und den Gesundheitszustand von B vorübergehend, ausschließlich in der lokalen synthetischen Instanz. Danach setzt er die Gesundheit von B wieder auf „Gesund“. Die Auswahl bleibt auf Regiecharakter A bzw. B stehen.

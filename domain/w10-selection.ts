@@ -5,27 +5,11 @@
  */
 import { abilityGroups, attributeGroups } from './character-engine.ts';
 import { readVitals } from './character-vitals.ts';
+import { W10_ATTRIBUTE_KEYS, W10_ABILITY_KEYS } from './trait-ids.ts';
+import { readSpecialties, SPECIALTY_MINIMUM_RATING, traitRating, type Specialty } from './character-specialties.ts';
 import { HYBRID_DRAFT_PROFILE, prepareDraftRoll, W10RuleError } from './w10-hybrid-draft.ts';
 
-/** Spec 3.2 IDs. Values are the keys the current sheet stores in `attributes`. */
-export const W10_ATTRIBUTE_KEYS = Object.freeze({
-  strength: 'Körperkraft', dexterity: 'Geschick', stamina: 'Widerstandsfähigkeit',
-  charisma: 'Charisma', manipulation: 'Manipulation', appearance: 'Erscheinungsbild',
-  perception: 'Wahrnehmung', intelligence: 'Intelligenz', wits: 'Geistesschärfe',
-} as const);
-/** Spec 3.2 IDs. Values are the keys the current sheet stores in `skills`.
- * Sheet labels win over the spec's suggested translations (investigation → "Nachforschungen",
- * law → "Gesetzeskenntnis"); the spec's wording is only a UI alias. */
-export const W10_ABILITY_KEYS = Object.freeze({
-  alertness: 'Aufmerksamkeit', athletics: 'Sportlichkeit', awareness: 'Magiegespür', brawl: 'Handgemenge',
-  empathy: 'Empathie', expression: 'Ausdruck', intimidation: 'Einschüchtern', leadership: 'Führungsqualitäten',
-  streetwise: 'Szenekenntnis', subterfuge: 'Ausflüchte',
-  animalKen: 'Tierkunde', crafts: 'Handwerk', drive: 'Fahren', etiquette: 'Etikette', firearms: 'Schusswaffen',
-  melee: 'Nahkampf', performance: 'Vortrag', larceny: 'Diebstahl', stealth: 'Heimlichkeit', survival: 'Überleben',
-  academics: 'Akademisches Wissen', computer: 'Computer', finance: 'Finanzen', investigation: 'Nachforschungen',
-  law: 'Gesetzeskenntnis', medicine: 'Medizin', occult: 'Okkultismus', politics: 'Politik',
-  science: 'Naturwissenschaften', technology: 'Technologie',
-} as const);
+export { W10_ATTRIBUTE_KEYS, W10_ABILITY_KEYS } from './trait-ids.ts';
 export type W10AttributeId = keyof typeof W10_ATTRIBUTE_KEYS;
 export type W10AbilityId = keyof typeof W10_ABILITY_KEYS;
 type AbilityCategory = 'talent' | 'skill' | 'knowledge';
@@ -55,17 +39,17 @@ export function adapterCoverage() {
   };
 }
 
-export type W10Selection = Readonly<{ attributeId: string; abilityId?: string }>;
+export type W10Selection = Readonly<{ attributeId: string; abilityId?: string; specialtyId?: string }>;
 export type W10Declared = Readonly<{ baseDifficulty: number; requiredSuccesses?: number }>;
 export type W10Provenance = Readonly<{
-  part: 'attribute' | 'ability' | 'wounds' | 'difficulty';
+  part: 'attribute' | 'ability' | 'specialty' | 'wounds' | 'difficulty';
   id: string; label: string; amount: number; source: string;
 }>;
 /** Rules deliberately not evaluated in Phase B; listed so a preview never hides them. */
 export type W10NotApplied = Readonly<{ id: string; label: string; reason: string }>;
 
 const NOT_APPLIED: readonly W10NotApplied[] = Object.freeze([
-  { id: 'specialty', label: 'Spezialisierung', reason: 'Der Charakterbogen erfasst keine Spezialisierungen. Erst nach Entscheidung über Speicherort und Anwendungsprüfung (Phase F).' },
+  { id: 'specialty_fit', label: 'Passt die Spezialisierung zur Situation?', reason: 'Der Server prüft Besitz, Zuordnung und Mindestwert, nicht die erzählerische Situation. Ein Anspruch wird als „beansprucht“ markiert (Rückfrage R4).' },
   { id: 'wound_exceptions', label: 'Ausnahmen vom Wundabzug', reason: 'Absorption, Schaden, Körperkraft-Schadenswürfe und das Aufheben von Wundabzügen werden erst nach Prüfung der V20-Primärquelle umgesetzt. Phase B leitet nur gewöhnliche Proben ab, bei denen der Wundabzug immer gilt.' },
   { id: 'hunger', label: 'Hungerwürfel', reason: 'Offene Entscheidung Blut → Hunger. Bestehende Blutpunkte werden nicht umgedeutet.' },
   { id: 'personal_stress', label: 'Persönlicher Stress', reason: 'Offene Entscheidung Stress 0–10 → 0–300. Bestehender Stress wird nicht umgedeutet.' },
@@ -84,6 +68,10 @@ const BLOCK_MESSAGES: Readonly<Record<string, string>> = Object.freeze({
   DIFFICULTY_ABOVE_10: 'V20 erlaubt nur Schwierigkeiten von 2 bis 10. Mit allen Modifikatoren liegt diese Probe darüber und ist so ungültig. Die SL kann die Probe oder die Umstände ändern; es wird nicht gewürfelt.',
   INCAPACITATED: 'Der Charakter ist außer Gefecht oder nicht handlungsfähig. Es wird nicht gewürfelt.',
   NO_DICE: 'Nach allen Abzügen bleibt kein Würfel übrig. Es wird kein Ersatzwürfel gestellt.',
+  SPECIALTY_NOT_FOUND: 'Diese Spezialisierung steht nicht im Bogen dieses Charakters.',
+  SPECIALTY_INACTIVE: 'Diese Spezialisierung ist deaktiviert.',
+  SPECIALTY_NOT_FOR_TRAIT: 'Diese Spezialisierung gehört zu keinem der gewählten Werte.',
+  SPECIALTY_TRAIT_BELOW_4: 'Der zugehörige Wert liegt unter 4. Die Spezialisierung bleibt gespeichert, wirkt aber nicht (V20).',
 });
 
 const DIFFICULTY_SOURCES: Readonly<Record<string, { label: string; source: string }>> = Object.freeze({
@@ -96,7 +84,16 @@ function difficultyProvenance(modifier: { source: string; amount: number }): W10
 }
 
 /** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
-export function deriveW10Preview(body: Body, selection: W10Selection, declared: W10Declared, characterVersion: number) {
+/** Why a stored specialty would or would not apply to this selection; null means it applies. */
+function specialtyBlock(body: Body, specialty: Specialty, selection: W10Selection): string | null {
+  if (specialty.active === false) return 'SPECIALTY_INACTIVE';
+  const chosen = specialty.target.kind === 'attribute' ? selection.attributeId : selection.abilityId;
+  if (specialty.target.id !== chosen) return 'SPECIALTY_NOT_FOR_TRAIT';
+  return (traitRating(body, specialty.target) ?? 0) < SPECIALTY_MINIMUM_RATING ? 'SPECIALTY_TRAIT_BELOW_4' : null;
+}
+
+export type W10PreviewOptions = Readonly<{ claimedBy?: 'player' | 'gm' }>;
+export function deriveW10Preview(body: Body, selection: W10Selection, declared: W10Declared, characterVersion: number, options: W10PreviewOptions = {}) {
   const attrKey = attributeKey(selection.attributeId);
   if (!attrKey) throw new W10RuleError('UNKNOWN_ATTRIBUTE_ID');
   const ability = selection.abilityId === undefined ? undefined : abilityEntry(selection.abilityId);
@@ -118,6 +115,21 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
     provenance.push(Object.freeze({ part: 'ability', id: selection.abilityId!, label: ability.key, amount: abilityValue,
       source: `Charakterbogen · Fähigkeiten · ${ability.key}${Object.hasOwn(skills, ability.key) ? '' : ' (kein Eintrag = 0)'}` }));
   }
+  // Specialties: only stored, active entries of the selected traits with a rating of 4+ (K4).
+  const stored = readSpecialties(body);
+  const candidates = Object.freeze(stored.filter(s => (s.target.kind === 'attribute' && s.target.id === selection.attributeId) ||
+    (s.target.kind === 'ability' && s.target.id === selection.abilityId)).map(s => {
+    const reason = specialtyBlock(body, s, selection);
+    return Object.freeze({ id: s.id, name: s.name, ...(s.scope ? { scope: s.scope } : {}), target: s.target.kind, applicable: reason === null, ...(reason ? { reason } : {}) });
+  }));
+  let specialty: Specialty | undefined;
+  if (selection.specialtyId !== undefined) {
+    specialty = stored.find(s => s.id === selection.specialtyId);
+    const code = specialty ? specialtyBlock(body, specialty, selection) : 'SPECIALTY_NOT_FOUND';
+    if (code) return blocked(code, provenance, { message: BLOCK_MESSAGES[code], specialties: candidates });
+    provenance.push(Object.freeze({ part: 'specialty', id: specialty!.id, label: specialty!.name, amount: 0,
+      source: `Charakterbogen · Spezialisierung (${specialty!.target.kind === 'attribute' ? attrKey : ability!.key}) · jede 10 zählt doppelt · ${options.claimedBy === 'gm' ? 'von der SL gesetzt' : 'vom Spieler beansprucht'}` }));
+  }
   // V20 wound penalty from the existing health track, applied once to the pool before any special dice
   // are assigned. Only ordinary checks are derived here, so no wound exception can apply yet.
   const health = readVitals(body).health;
@@ -130,7 +142,7 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
   if (pool < 1) return blocked('NO_DICE', provenance, { message: BLOCK_MESSAGES.NO_DICE });
   let prepared;
   try {
-    prepared = prepareDraftRoll({ rollId: 'preview', characterVersion, kind: 'ordinary', pool,
+    prepared = prepareDraftRoll({ rollId: 'preview', characterVersion, kind: 'ordinary', pool, specialtyApplies: !!specialty,
       difficulty: declared.baseDifficulty, requiredSuccesses: declared.requiredSuccesses,
       ...(ability ? { training: { category: ability.category, rating: abilityValue } } : {}) });
   } catch (error) {
@@ -153,7 +165,9 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
     pool: Object.freeze({ base: pool, effective: prepared.pool.effective }),
     difficulty: prepared.difficulty,
     requiredSuccesses: declared.requiredSuccesses ?? 1,
-    specialtyApplies: false,
+    specialtyApplies: !!specialty,
+    ...(specialty ? { specialty: Object.freeze({ id: specialty.id, name: specialty.name, claimedBy: options.claimedBy ?? 'player' }) } : {}),
+    specialties: candidates,
     provenance: Object.freeze(provenance),
     notApplied: NOT_APPLIED,
   });

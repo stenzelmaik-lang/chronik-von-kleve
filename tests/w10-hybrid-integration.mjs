@@ -107,6 +107,32 @@ for(let i=0;i<3;i++)await ok(b,charB.id,{attributeId:'wits',abilityId:'alertness
 assert.equal(await version(gm,charB.id),before,'Record version unchanged by previews');
 console.log('PASS read-only: no record writes');
 
-// 9. Existing dice path is untouched: the live table still answers with its own contract.
+// 9. K4: structured specialties are edited through the sheet route, protected, and applied by the server.
+const engineView=async(c,id)=>JSON.parse((await c.get('/api/character-engine?id='+encodeURIComponent(id))).text);
+const editSheet=async(c,id,patch)=>{const v=await version(c,id);return c.post('/api/character-engine',{id,version:v,action:'edit_sheet',patch,reason:'Synthetische K4-Abnahme'});};
+const specB={id:'spec_'+crypto.randomUUID(),target:{kind:'ability',id:'firearms'},name:'Pistolen',scope:'Kurze Distanz'};
+const skillsB=(await engineView(gm,charB.id)).sheet?.skills??JSON.parse((await gm.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id).body.skills;
+assert.equal(skillsB.Schusswaffen,3,'Fixture: Schusswaffen 3');
+const tooLow=await editSheet(gm,charB.id,{specialties:[specB]});
+assert.equal(tooLow.status,400,'Rating below 4 refused: '+tooLow.text);assert.match(tooLow.text,/mindestens 4/);
+assert.equal((await editSheet(gm,charB.id,{specialties:[{...specB,id:'kaputt'}],skills:{...skillsB,Schusswaffen:4}})).status,400,'Malformed id refused');
+const saved=await editSheet(gm,charB.id,{specialties:[specB],skills:{...skillsB,Schusswaffen:4}});assert.equal(saved.status,200,'SL saves specialty: '+saved.text);
+const recB=JSON.parse((await b.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id);
+const sneak=await b.post('/api/records',{id:recB.id,version:recB.version,kind:'charaktere',title:recB.title,visibility:recB.visibility,body:{...recB.body,specialties:[{...specB,id:'spec_'+crypto.randomUUID(),name:'Alles'}]}});
+assert.ok([400,403,409].includes(sneak.status),'Player cannot add specialties through the generic editor: '+sneak.status);
+const withSpec=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms',specialtyId:specB.id});
+assert.equal(withSpec.specialtyApplies,true);assert.deepEqual(withSpec.specialty,{id:specB.id,name:'Pistolen',claimedBy:'player'});
+assert.deepEqual(withSpec.pool,{base:7,effective:7},'Specialty adds no die: 3 + 4');
+assert.equal((await ok(gm,charB.id,{attributeId:'dexterity',abilityId:'firearms',specialtyId:specB.id})).specialty.claimedBy,'gm');
+assert.equal((await ok(b,charB.id,{attributeId:'dexterity',abilityId:'melee',specialtyId:specB.id})).code,'SPECIALTY_NOT_FOR_TRAIT');
+assert.equal((await ok(a,charA.id,{attributeId:'dexterity',specialtyId:specB.id})).code,'SPECIALTY_NOT_FOUND','Foreign specialty is unknown on another sheet');
+await status(400,b,charB.id,{attributeId:'dexterity',abilityId:'firearms',specialtyId:'Pistolen'});
+const offered=await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'});
+assert.deepEqual(offered.specialties.map(s=>[s.id,s.applicable]),[[specB.id,true]],'Preview offers the matching specialty');
+const restored=await editSheet(gm,charB.id,{specialties:[],skills:skillsB});assert.equal(restored.status,200,'Reset synthetic sheet: '+restored.text);
+assert.equal((await ok(b,charB.id,{attributeId:'dexterity',abilityId:'firearms'})).specialties.length,0);
+console.log('PASS specialties: edit with V20 minimum, protected, applied only to the matching trait');
+
+// 10. Existing dice path is untouched: the live table still answers with its own contract.
 assert.equal((await gm.get('/api/live-table?view=active')).status,200,'Live table still reachable');
 console.log('PASS W10-Hybrid Phase B integration');

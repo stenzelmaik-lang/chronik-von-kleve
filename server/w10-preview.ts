@@ -50,7 +50,7 @@ async function previewCharacter(a: Actor, userId: string, sessionId: string, id:
 export async function w10Preview(a: Actor, userId: string, sessionId: string, characterId: string, selection: W10Selection, declared: W10Declared) {
   const { row, body } = await previewCharacter(a, userId, sessionId, characterId);
   try {
-    return { sessionId, characterId: row.id, ...deriveW10Preview(body, selection, declared, row.version) };
+    return { sessionId, characterId: row.id, ...deriveW10Preview(body, selection, declared, row.version, { claimedBy: a.gm ? "gm" : "player" }) };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error) throw new HttpError(400, "Ungültige Auswahl: " + String((error as { code: string }).code));
     throw error;

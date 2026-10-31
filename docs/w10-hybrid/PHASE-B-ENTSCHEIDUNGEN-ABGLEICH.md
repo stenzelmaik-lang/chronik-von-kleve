@@ -9,7 +9,8 @@ Stand: 31.10.2026. Branch `claude/w10-hybrid-phase-b` (lokal, `d47ec09`). Grundl
 | K3 SG über 10 | **umgesetzt** (lokal): Ablehnung `DIFFICULTY_ABOVE_10` mit Grund-SG, Modifikatoren, Summe und Hinweistext. `cap_at_10` ist aus dem Phase-A-Kern entfernt; ein mitgesendetes Policy-Feld führt im Kern zu `INVALID_DIFFICULTY_POLICY` und an der Route zu 400. |
 | K7 Charakterbindung | **umgesetzt** (lokal): `sessionId` ist Pflicht, der Spielabend muss laufen. Spieler würfeln nur mit der im Profil gewählten, spielbereiten Figur. Ohne Auswahl, mit einer anderen Auswahl, mit einem Entwurf oder einem Bogen in Prüfung gibt es 409; fremd oder unbekannt 404. Die SL ist auf Spielercharaktere des Abends beschränkt. Offen: NSC-Weg, Wechselprüfung beim verbindlichen Wurf (Phase D). |
 | K5 Wundabzüge | **umgesetzt** für gewöhnliche Proben: Der Abzug aus der bestehenden Gesundheitsleiste (`readVitals`) wird einmal vom Pool abgezogen, bevor Sonderwürfel verteilt werden. Außer Gefecht, Torpor und endgültiger Tod führen zu `INCAPACITATED`. Ist der Pool leer, gilt `NO_DICE` ohne Ersatzwürfel. Die Ausnahmen (Absorption, Schaden, Körperkraft-Schaden, Aufheben von Abzügen) bleiben bis zur Quellprüfung offen und stehen sichtbar in `notApplied`. |
-| K4, K6, K1 | offen |
+| K4 Spezialisierungen | **umgesetzt** (lokal): Feld `specialties` im Bogen, Editor und Bogenansicht; serverseitige Anwendung in der Vorschau. Details unten. Offen: R4 (Bestätigung der Situation), Erschaffungseditor für Engine-Entwürfe, Primärquellenprüfung zur Anzahl je Eigenschaft. |
+| K6, K1 | offen |
 
 **Ursprünglich war dieses Dokument nur ein Plan.** Gegenüber `d47ec09` ändert es weder Code noch Daten. Es beginnt nicht mit Phase C oder D und nimmt keine Migration vor.
 

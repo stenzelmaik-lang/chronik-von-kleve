@@ -1,4 +1,5 @@
 /** Extensions to the existing character body, never a second character store. */
+import { validateSpecialties } from './character-specialties.ts';
 export type CharacterBody = Record<string, unknown>;
 export type DevelopmentPermission = 'direct' | 'approval' | 'blocked';
 export type CharacterPermissions = { editing: boolean; development: DevelopmentPermission };
@@ -10,7 +11,7 @@ export function characterFieldEqual(left:unknown,right:unknown):boolean {
   }
   return false;
 }
-export const characterSheetFields = ['player','chronicle','nature','demeanor','concept','clan','generation','sire','attributes','skills','customAbilities','disciplines','paths','backgrounds','virtues','humanity','humanityPath','willpower','bloodMax','bloodPerRound','merits','flaws','clanWeakness','text','goals','playGuide','inventory','individualInfo'] as const;
+export const characterSheetFields = ['player','chronicle','nature','demeanor','concept','clan','generation','sire','attributes','skills','specialties','customAbilities','disciplines','paths','backgrounds','virtues','humanity','humanityPath','willpower','bloodMax','bloodPerRound','merits','flaws','clanWeakness','text','goals','playGuide','inventory','individualInfo'] as const;
 export function characterPermissions(body: CharacterBody): CharacterPermissions {
   const saved = body.characterPermissions as Partial<CharacterPermissions> | undefined;
   return { editing: saved?.editing === true, development: ['direct','approval','blocked'].includes(String(saved?.development)) ? saved!.development! : 'direct' };
@@ -39,6 +40,7 @@ export function validateExistingSheet(body: CharacterBody): string | null {
   for (const [key, max] of [['humanity',10],['willpower',10],['generation',20],['bloodMax',100],['bloodPerRound',100]] as const) {
     if (body[key] !== undefined && body[key] !== null && (!Number.isInteger(body[key]) || Number(body[key]) < 0 || Number(body[key]) > max)) return `Ungültiger Wert: ${key} (0–${max}).`;
   }
+  const specialtyError = validateSpecialties(body.specialties); if (specialtyError) return specialtyError;
   if (Number(body.willpower) < Number(body.willpowerTemporary ?? 0) || Number(body.bloodMax) < Number(body.blood ?? 0)) return 'Dauerhafte Höchstwerte dürfen nicht unter den aktuellen Ressourcen liegen.';
   return null;
 }

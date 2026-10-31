@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 const schema = z.object({
   sessionId: z.string().trim().min(1).max(160),
   characterId: z.string().trim().min(1).max(100),
-  selection: z.object({ attributeId: z.string().min(1).max(40), abilityId: z.string().min(1).max(40).optional() }).strict(),
+  selection: z.object({ attributeId: z.string().min(1).max(40), abilityId: z.string().min(1).max(40).optional(),
+    specialtyId: z.string().regex(/^spec_[A-Za-z0-9-]{8,64}$/).optional() }).strict(),
   declared: z.object({
     baseDifficulty: z.number().int().min(2).max(10),
     requiredSuccesses: z.number().int().min(1).max(20).optional(),
