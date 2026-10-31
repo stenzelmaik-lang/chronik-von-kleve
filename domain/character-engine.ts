@@ -24,12 +24,12 @@ export const creationBudgets = {
   flawFreebiesMaximum: 7,
 } as const;
 
-const attributeGroups = {
+export const attributeGroups = {
   physical: ["Körperkraft", "Geschick", "Widerstandsfähigkeit"],
   social: ["Charisma", "Manipulation", "Erscheinungsbild"],
   mental: ["Wahrnehmung", "Intelligenz", "Geistesschärfe"],
 } as const;
-const abilityGroups = {
+export const abilityGroups = {
   talents: ["Aufmerksamkeit", "Ausdruck", "Ausflüchte", "Einschüchtern", "Empathie", "Führungsqualitäten", "Handgemenge", "Magiegespür", "Sportlichkeit", "Szenekenntnis"],
   skills: ["Diebstahl", "Etikette", "Fahren", "Handwerk", "Heimlichkeit", "Nahkampf", "Schusswaffen", "Tierkunde", "Überleben", "Vortrag"],
   knowledges: ["Akademisches Wissen", "Computer", "Finanzen", "Gesetzeskenntnis", "Medizin", "Nachforschungen", "Naturwissenschaften", "Okkultismus", "Politik", "Technologie"],

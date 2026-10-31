@@ -1,0 +1,134 @@
+/** CP-RULES-W10-001, Phase B. LOCAL DRAFT ONLY.
+ * Stable selection IDs -> existing German sheet keys, and a pure pool preview
+ * derived from the authoritative character body. Stored keys are never renamed;
+ * no values are written, no dice are rolled, no resources are spent.
+ */
+import { abilityGroups, attributeGroups } from './character-engine.ts';
+import { HYBRID_DRAFT_PROFILE, prepareDraftRoll, W10RuleError } from './w10-hybrid-draft.ts';
+
+/** Spec 3.2 IDs. Values are the keys the current sheet stores in `attributes`. */
+export const W10_ATTRIBUTE_KEYS = Object.freeze({
+  strength: 'Körperkraft', dexterity: 'Geschick', stamina: 'Widerstandsfähigkeit',
+  charisma: 'Charisma', manipulation: 'Manipulation', appearance: 'Erscheinungsbild',
+  perception: 'Wahrnehmung', intelligence: 'Intelligenz', wits: 'Geistesschärfe',
+} as const);
+/** Spec 3.2 IDs. Values are the keys the current sheet stores in `skills`.
+ * Sheet labels win over the spec's suggested translations (investigation → "Nachforschungen",
+ * law → "Gesetzeskenntnis"); the spec's wording is only a UI alias. */
+export const W10_ABILITY_KEYS = Object.freeze({
+  alertness: 'Aufmerksamkeit', athletics: 'Sportlichkeit', awareness: 'Magiegespür', brawl: 'Handgemenge',
+  empathy: 'Empathie', expression: 'Ausdruck', intimidation: 'Einschüchtern', leadership: 'Führungsqualitäten',
+  streetwise: 'Szenekenntnis', subterfuge: 'Ausflüchte',
+  animalKen: 'Tierkunde', crafts: 'Handwerk', drive: 'Fahren', etiquette: 'Etikette', firearms: 'Schusswaffen',
+  melee: 'Nahkampf', performance: 'Vortrag', larceny: 'Diebstahl', stealth: 'Heimlichkeit', survival: 'Überleben',
+  academics: 'Akademisches Wissen', computer: 'Computer', finance: 'Finanzen', investigation: 'Nachforschungen',
+  law: 'Gesetzeskenntnis', medicine: 'Medizin', occult: 'Okkultismus', politics: 'Politik',
+  science: 'Naturwissenschaften', technology: 'Technologie',
+} as const);
+export type W10AttributeId = keyof typeof W10_ATTRIBUTE_KEYS;
+export type W10AbilityId = keyof typeof W10_ABILITY_KEYS;
+type AbilityCategory = 'talent' | 'skill' | 'knowledge';
+
+// The category is taken from the character engine, so the adapter cannot drift from the sheet.
+const categoryOf = new Map<string, AbilityCategory>([
+  ...abilityGroups.talents.map(key => [key, 'talent'] as const),
+  ...abilityGroups.skills.map(key => [key, 'skill'] as const),
+  ...abilityGroups.knowledges.map(key => [key, 'knowledge'] as const),
+]);
+const attributeKeys = new Set<string>(Object.values(attributeGroups).flat());
+
+export function attributeKey(id: string): string | undefined {
+  return Object.hasOwn(W10_ATTRIBUTE_KEYS, id) ? W10_ATTRIBUTE_KEYS[id as W10AttributeId] : undefined;
+}
+export function abilityEntry(id: string): { key: string; category: AbilityCategory } | undefined {
+  if (!Object.hasOwn(W10_ABILITY_KEYS, id)) return undefined;
+  const key = W10_ABILITY_KEYS[id as W10AbilityId], category = categoryOf.get(key);
+  return category && { key, category };
+}
+/** Adapter self-check: every engine key is reachable exactly once. */
+export function adapterCoverage() {
+  const attributes = Object.values(W10_ATTRIBUTE_KEYS), abilities = Object.values(W10_ABILITY_KEYS);
+  return {
+    attributesComplete: attributes.length === attributeKeys.size && attributes.every(key => attributeKeys.has(key)),
+    abilitiesComplete: abilities.length === categoryOf.size && new Set(abilities).size === abilities.length && abilities.every(key => categoryOf.has(key)),
+  };
+}
+
+export type W10Selection = Readonly<{ attributeId: string; abilityId?: string }>;
+export type W10Declared = Readonly<{ baseDifficulty: number; requiredSuccesses?: number; difficultyOverflow?: 'reject' | 'cap_at_10' }>;
+export type W10Provenance = Readonly<{
+  part: 'attribute' | 'ability' | 'difficulty';
+  id: string; label: string; amount: number; source: string;
+}>;
+/** Rules deliberately not evaluated in Phase B; listed so a preview never hides them. */
+export type W10NotApplied = Readonly<{ id: string; label: string; reason: string }>;
+
+const NOT_APPLIED: readonly W10NotApplied[] = Object.freeze([
+  { id: 'specialty', label: 'Spezialisierung', reason: 'Der Charakterbogen erfasst keine Spezialisierungen. Erst nach Entscheidung über Speicherort und Anwendungsprüfung (Phase F).' },
+  { id: 'wounds', label: 'Wundabzüge', reason: 'Offene Entscheidung (Spezifikation 19.1 Nr. 8): Wunden werden nicht vom Pool abgezogen.' },
+  { id: 'hunger', label: 'Hungerwürfel', reason: 'Offene Entscheidung Blut → Hunger. Bestehende Blutpunkte werden nicht umgedeutet.' },
+  { id: 'personal_stress', label: 'Persönlicher Stress', reason: 'Offene Entscheidung Stress 0–10 → 0–300. Bestehender Stress wird nicht umgedeutet.' },
+  { id: 'group_stress', label: 'Gruppenstress', reason: 'Bleibt eine ausdrückliche SL-Aktion; kein Würfelmodifikator in Phase B.' },
+  { id: 'willpower', label: 'Willenskraft', reason: 'Vorabansage, Rundensperre und Buchung erst mit Phase D.' },
+].map(entry => Object.freeze(entry)));
+
+type Body = Record<string, unknown>;
+function record(value: unknown): Body {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Body : {};
+}
+function blocked(code: string, provenance: W10Provenance[]) {
+  return Object.freeze({ status: 'blocked' as const, code, provenance: Object.freeze(provenance), notApplied: NOT_APPLIED });
+}
+
+/** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
+export function deriveW10Preview(body: Body, selection: W10Selection, declared: W10Declared, characterVersion: number) {
+  const attrKey = attributeKey(selection.attributeId);
+  if (!attrKey) throw new W10RuleError('UNKNOWN_ATTRIBUTE_ID');
+  const ability = selection.abilityId === undefined ? undefined : abilityEntry(selection.abilityId);
+  if (selection.abilityId !== undefined && !ability) throw new W10RuleError('UNKNOWN_ABILITY_ID');
+  const provenance: W10Provenance[] = [];
+  const attributes = record(body.attributes);
+  // Missing attributes are not invented as 0 or 1; an incomplete sheet blocks the check.
+  if (!Object.hasOwn(attributes, attrKey)) return blocked('ATTRIBUTE_NOT_ON_SHEET', provenance);
+  const attrValue = attributes[attrKey];
+  if (!Number.isSafeInteger(attrValue) || (attrValue as number) < 0) return blocked('SHEET_VALUE_INVALID', provenance);
+  provenance.push(Object.freeze({ part: 'attribute', id: selection.attributeId, label: attrKey, amount: attrValue as number, source: `Charakterbogen · Attribute · ${attrKey}` }));
+  let abilityValue = 0;
+  if (ability) {
+    const skills = record(body.skills);
+    // Same convention as the character engine: an ability without an entry has no dots.
+    const raw = Object.hasOwn(skills, ability.key) ? skills[ability.key] : 0;
+    if (!Number.isSafeInteger(raw) || (raw as number) < 0) return blocked('SHEET_VALUE_INVALID', provenance);
+    abilityValue = raw as number;
+    provenance.push(Object.freeze({ part: 'ability', id: selection.abilityId!, label: ability.key, amount: abilityValue,
+      source: `Charakterbogen · Fähigkeiten · ${ability.key}${Object.hasOwn(skills, ability.key) ? '' : ' (kein Eintrag = 0)'}` }));
+  }
+  const pool = (attrValue as number) + abilityValue;
+  if (pool < 1) return blocked('NO_DICE', provenance);
+  let prepared;
+  try {
+    prepared = prepareDraftRoll({ rollId: 'preview', characterVersion, kind: 'ordinary', pool,
+      difficulty: declared.baseDifficulty, requiredSuccesses: declared.requiredSuccesses,
+      difficultyOverflow: declared.difficultyOverflow,
+      ...(ability ? { training: { category: ability.category, rating: abilityValue } } : {}) });
+  } catch (error) {
+    if (error instanceof W10RuleError) return blocked(error.code, provenance);
+    throw error;
+  }
+  for (const modifier of prepared.difficulty.modifiers) {
+    provenance.push(Object.freeze({ part: 'difficulty', id: modifier.source, label: 'Fertigkeit ohne Wert', amount: modifier.amount,
+      source: 'V20-Grundregel: ungelernte Fertigkeit +1 SG' }));
+  }
+  return Object.freeze({
+    status: 'ready' as const,
+    profile: HYBRID_DRAFT_PROFILE,
+    characterVersion,
+    selection: Object.freeze({ attributeId: selection.attributeId, ...(ability ? { abilityId: selection.abilityId, category: ability.category } : {}) }),
+    pool: Object.freeze({ base: pool, effective: prepared.pool.effective }),
+    difficulty: prepared.difficulty,
+    requiredSuccesses: declared.requiredSuccesses ?? 1,
+    specialtyApplies: false,
+    provenance: Object.freeze(provenance),
+    notApplied: NOT_APPLIED,
+  });
+}
