@@ -1,8 +1,9 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Static device artwork from /public; no optimization proxy needed. */
 import {useCallback,useEffect,useRef,useState,type KeyboardEvent,type PointerEvent as ReactPointerEvent,type MouseEvent as ReactMouseEvent,type ReactNode} from 'react';
-import {Volume2,VolumeX,ChevronDown,Radio,X} from 'lucide-react';
-import {pagerBaseMenu,pagerDeviceMessages,pagerUnread,pagerKeyOf,pressPagerKey,pagerArrivals,settlePagerDevice,initialPagerDevice,type PagerKey,type PagerDeviceMessage,type PagerDeviceState} from '@/domain/ultio-pager';
+import {Volume2,VolumeX,ChevronDown,Radio,X,BellRing} from 'lucide-react';
+import {pagerBaseMenu,pagerDeviceMessages,pagerUnread,pagerKeyOf,pressPagerKey,pagerRing,pagerReadsToSync,settlePagerDevice,initialPagerDevice,type PagerKey,type PagerDeviceMessage,type PagerDeviceState} from '@/domain/ultio-pager';
+import {playPagerSound,unlockPagerSound,pagerSoundState,onPagerSoundChange,ULTIO_SOUNDS,type PagerSoundState} from './pager-sound';
 import type {PagerMessage} from './types';
 import styles from './ultio-pager.module.css';
 
@@ -11,7 +12,7 @@ import styles from './ultio-pager.module.css';
  * so content, colours and views change at runtime without touching the artwork. Five transparent key areas sit
  * exactly over the keys in the image. Coordinates: percent of the 1448 x 1086 artwork (see ultio-pager.module.css).
  */
-export const ULTIO_ASSETS={shell:'/spieltisch/pager/ultio-shell.webp',ping:'/spieltisch/pager/ping-normal.wav',alarm:'/spieltisch/pager/alarm-urgent.wav'};
+export const ULTIO_ASSETS={shell:'/spieltisch/pager/ultio-shell.webp',...ULTIO_SOUNDS};
 export type PagerTheme='green'|'amber'|'ice'|'red';
 export type PagerDisplayContext={messages:PagerDeviceMessage[];device:PagerDeviceState;unread:number;receiver:string;muted:boolean;now:number};
 export type PagerDisplay={render:(c:PagerDisplayContext)=>ReactNode;menu?:boolean};
@@ -113,23 +114,19 @@ function usePagerPosition(ref:{current:HTMLElement|null},storageKey:string,activ
  return handlers;
 }
 
-/** Pager sounds from the package. Browsers allow sound only after the first interaction with the page: a ring that is
- * blocked waits and plays at the next tap or key press (unless muted by then). */
-const soundCache:Partial<Record<'ping'|'alarm',HTMLAudioElement>>={};
-function pagerSound(kind:'ping'|'alarm'){let a=soundCache[kind];if(!a){a=new Audio(kind==='alarm'?ULTIO_ASSETS.alarm:ULTIO_ASSETS.ping);a.preload='auto';a.volume=.6;soundCache[kind]=a;}return a;}
-
 /**
  * A player's pager on the table: a prop that floats in when a message arrives and folds away into a small button.
  * Only the viewer's own messages arrive here (server filtered). OK on an open message acknowledges it to the GM.
  */
-export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArrival}:{pagers:PagerMessage[];runId:string;actorId:string;receiver:string;onAcknowledge:(id:string)=>void;onArrival?:()=>void}){
- const pending=useRef<'ping'|'alarm'|''>(''),mutedNow=useRef(false);
- const openedKey='chroniplay:pager:'+runId+':'+actorId,muteKey='chroniplay:pager-ton:'+actorId;
+export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onRead,onArrival}:{pagers:PagerMessage[];runId:string;actorId:string;receiver:string;onAcknowledge:(id:string)=>void;onRead:(id:string)=>void;onArrival?:()=>void}){
+ const openedKey='chroniplay:pager:'+runId+':'+actorId,muteKey='chroniplay:pager-ton:'+actorId,heardKey='chroniplay:pager-gehoert:'+runId+':'+actorId;
+ const [sound,setSound]=useState<PagerSoundState>('locked');
+ const heard=useRef<Set<string>|null>(null),readsSent=useRef(new Set<string>());
  const [opened,setOpened]=useState<string[]>(()=>readList(openedKey));
  const [acked,setAcked]=useState<string[]>([]);
  const [muted,setMuted]=useState(()=>{try{return window.localStorage.getItem(muteKey)==='1';}catch{return false;}});
  const [expanded,setExpanded]=useState(false),[device,setDevice]=useState<PagerDeviceState>(initialPagerDevice),[announce,setAnnounce]=useState('');
- const known=useRef<string[]|null>(null),deviceRef=useRef<HTMLDivElement>(null),launcher=useRef<HTMLButtonElement>(null);
+ const deviceRef=useRef<HTMLDivElement>(null),launcher=useRef<HTMLButtonElement>(null);
  const messages=pagerDeviceMessages(pagers,opened,acked),unread=pagerUnread(messages);
  const ids=messages.map(m=>m.id).join('|');
  const urgentOpen=messages.some(m=>m.urgent&&!m.acknowledged);
@@ -138,28 +135,40 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArriva
  // New ids float the pager in and ring once (if not muted and the browser allows sound). A reload restores
  // the badge from the real ids without ringing again.
  useEffect(()=>{
-  const list=ids?ids.split('|'):[];
-  const arrivals=pagerArrivals(known.current,messages);known.current=list;
+  // The first look (mount or reload) only remembers what is there; ids heard once never ring again.
+  const first=heard.current===null;
+  if(first)heard.current=new Set(readList(heardKey));
+  const {fresh,kind,heard:next}=pagerRing(first?new Set([...heard.current!,...messages.map(m=>m.id)]):heard.current!,messages);
+  heard.current=next;writeList(heardKey,[...next]);
   queueMicrotask(()=>setDevice(old=>settlePagerDevice(old,messages)));
-  if(!arrivals.length)return;
-  const newest=arrivals[0];
+  if(!fresh.length||!kind)return;
+  const newest=fresh[0];
   // Someone reading an open message keeps it; a folded pager opens on the inbox with the newest message selected.
   // A personal reader or media view (a modal dialog) would cover the device and make it unusable: the table closes it.
   onArrival?.();
   queueMicrotask(()=>{setDevice(old=>expanded&&old.view==='message'?old:{...old,view:'inbox',inboxIndex:0});setExpanded(true);setAnnounce('Neue Pager-Nachricht'+(newest.sender?' von '+newest.sender:'')+(newest.urgent?', dringend':''));});
-  if(!muted)ring(arrivals.some(m=>m.urgent)?'alarm':'ping');
+  if(!muted)void playPagerSound(kind);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs per change of the message ids only
  },[ids]);
- useEffect(()=>{mutedNow.current=muted;if(muted)pending.current='';try{window.localStorage.setItem(muteKey,muted?'1':'0');}catch{/* storage unavailable */}},[muted,muteKey]);
- function ring(kind:'ping'|'alarm'){try{const a=pagerSound(kind);a.currentTime=0;a.play().then(()=>{pending.current='';}).catch(()=>{pending.current=kind;});}catch{/* no audio support */}}
- // The first tap or key press after a blocked ring plays it; it also warms both sounds up for later messages.
+ useEffect(()=>{try{window.localStorage.setItem(muteKey,muted?'1':'0');}catch{/* storage unavailable */}},[muted,muteKey]);
+ // Browsers allow sound only after an interaction: any tap, click or key press on the page unlocks it for later rings.
  useEffect(()=>{
-  const unlock=()=>{pagerSound('ping').load();pagerSound('alarm').load();const k=pending.current;if(k&&!mutedNow.current){pending.current='';ring(k);}};
+  const sync=()=>setSound(pagerSoundState());queueMicrotask(sync);
+  const unlock=()=>{if(pagerSoundState()==='locked')void unlockPagerSound();};
   window.addEventListener('pointerdown',unlock,true);window.addEventListener('keydown',unlock,true);
-  return()=>{window.removeEventListener('pointerdown',unlock,true);window.removeEventListener('keydown',unlock,true);};
+  const off=onPagerSoundChange(sync);
+  return()=>{off();window.removeEventListener('pointerdown',unlock,true);window.removeEventListener('keydown',unlock,true);};
  },[]);
+ const activateSound=()=>void unlockPagerSound().then(ok=>{setSound(pagerSoundState());if(ok)void playPagerSound('ping');});
+ // Read receipts the server is missing (failed request, another tab, opened before a reload) are sent again, once per id
+ // until the server has them. Read never goes back to unread: the server keeps it, the local list only grows.
+ useEffect(()=>{
+  for(const id of pagerReadsToSync(pagers,opened,readsSent.current)){readsSent.current.add(id);onRead(id);window.setTimeout(()=>readsSent.current.delete(id),8000);}
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to fresh snapshots and new local reads only
+ },[pagers,opened]);
  const section=useRef<HTMLElement>(null),drag=usePagerPosition(section,'chroniplay:pager-position:'+actorId,pagers.length>0,expanded);
 
+ // Opening a message shows its content: it counts as read at once (badge and counter) and is reported to the server.
  const markOpened=(id:string)=>setOpened(old=>{if(old.includes(id))return old;const next=[...old,id];writeList(openedKey,next);return next;});
  function key(k:PagerKey){
   const {state,effect}=pressPagerKey(device,k,messages,menuViews());
@@ -176,7 +185,8 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArriva
   <span className={styles.srOnly} role="status">{announce}</span>
   {expanded?<div ref={deviceRef} className={styles.window}>
    <div className={styles.toolbar}>
-    <button type="button" aria-pressed={muted} aria-label={muted?'Pager-Ton einschalten':'Pager stummschalten'} onClick={()=>setMuted(m=>!m)}>{muted?<VolumeX size={14}/>:<Volume2 size={14}/>} {muted?'Stumm':'Ton an'}</button>
+    {!muted&&sound==='locked'&&<button type="button" className={styles.soundOn} data-sound-unlock="" onClick={activateSound}><BellRing size={14}/> Ton aktivieren</button>}
+    <button type="button" aria-pressed={muted} aria-label={muted?'Pager-Ton einschalten':'Pager stummschalten'} onClick={()=>{if(muted)activateSound();setMuted(m=>!m);}}>{muted?<VolumeX size={14}/>:<Volume2 size={14}/>} {muted?'Stumm':'Ton an'}</button>
     <button type="button" aria-label="Pager zuklappen" onClick={collapse}><ChevronDown size={14}/> Zuklappen</button></div>
    <UltioPagerDevice messages={messages} device={device} receiver={receiver} muted={muted} theme={device.view==='message'&&selected?.urgent?'red':'green'} onKey={key}/>
   </div>:
@@ -208,7 +218,8 @@ export function PagerMirror({pagers,crew,actorId}:{pagers:PagerMessage[];crew:{i
  if(!list.length)return null;
  const name=(id:string)=>crew.find(m=>m.id===id)?.name||'?';
  const total=(p:PagerMessage)=>p.recipients?p.recipients.length:crew.length;
- const readers=(p:PagerMessage)=>{const read=p.acks?.length||0;return read?'Gelesen '+read+'/'+total(p)+': '+p.acks!.map(x=>name(x.id)).join(', '):'Noch nicht gelesen';};
+ const readIds=(p:PagerMessage)=>[...new Set([...(p.reads||[]),...(p.acks||[])].map(x=>x.id))];
+ const readers=(p:PagerMessage)=>{const read=readIds(p);return read.length?'Gelesen '+read.length+'/'+total(p)+': '+read.map(name).join(', ')+(p.acks?.length?' · quittiert '+p.acks.length:''):'Noch nicht gelesen';};
  const messages:PagerDeviceMessage[]=list.map(p=>({id:p.id,at:p.at,opened:true,urgent:p.priority==='hoch',acknowledged:(p.acks?.length||0)>=total(p)&&total(p)>0,
   ...(p.recipients?{sender:'SL',title:'GEZIELT',text:'An '+p.recipients.map(name).join(', ')+'. Inhalt nur in der Regie.'}:{sender:p.sender||'',title:p.title||'',text:p.text})}));
  const latest=list[0],selected=messages.find(m=>m.id===device.selectedId);

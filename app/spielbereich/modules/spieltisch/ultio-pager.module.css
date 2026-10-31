@@ -1,6 +1,7 @@
-/* ULTIO pager R-03. Coordinates are percent of the 1448 x 1086 housing. Keys as in the delivered pager.css ([data-shell="ultio"]):
-   centres x 265, 477, 702, 924, 1147 at y 805. The cleared LCD measures x 233-1206, y 314-650 in the artwork (the package's
-   233-1176 / 314-633 left a strip of the bare LCD visible). The LCD is live HTML, never part of the image. */
+/* ULTIO pager R-03. Coordinates are percent of the 1448 x 1086 housing, measured on the artwork itself. The cleared LCD is
+   x 233-1206, y 314-650. The key caps are x 170-358, 396-580, 612-828, 858-1046, 1084-1268 at y 746-888 (centres 264, 488,
+   720, 952, 1176 at y 817); the package's pager.css (265, 477, 702, 924, 1147 at y 805) drifted up to 29 px off the right
+   keys. The LCD is live HTML, never part of the image. */
 .srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pager{position:absolute;right:18px;bottom:150px;z-index:25;display:grid;justify-items:end;pointer-events:none}
 .pager>*{pointer-events:auto}
@@ -21,6 +22,9 @@
 .toolbar button:hover{background:#1b222ecc}
 .toolbar button[aria-pressed=true]{background:#5a3b31d9;border-color:#8a5a49}
 .toolbar button:focus-visible{outline:3px solid #ebcf96;outline-offset:2px}
+/* Offered when the browser still blocks sound: one tap enables the pager tone. */
+.toolbar .soundOn{background:#d6b36f;border-color:#d6b36f;color:#141a1b}
+.toolbar .soundOn:hover{background:#e3c486}
 
 /* Resting on the table: a slight turn, a tight contact shadow and a soft cast shadow. Focus glows along the housing. */
 .device{position:relative;width:100%;aspect-ratio:1448/1086;container-type:inline-size;isolation:isolate;rotate:-2deg;filter:drop-shadow(0 2px 2px #000d) drop-shadow(6px 18px 16px #0009);outline:0}
@@ -61,10 +65,11 @@
 .status{flex:1;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-content:center;gap:2% 8%;margin:0;padding:2% 4%;font-size:clamp(7px,1.8cqw,12px)}
 .status dd{margin:0;text-align:right}
 
-/* Five transparent hit areas exactly over the keys of the artwork. Only these react to clicks and touch. */
+/* Five transparent hit areas exactly over the key caps of the artwork, slightly inside the caps so the seams between the
+   keys stay dead. Only these react to clicks and touch; percentages keep them on the caps at every size and zoom. */
 .keys{position:absolute;inset:0;pointer-events:none}
-.key{position:absolute;top:74.1%;width:13.2%;height:14.6%;padding:0;transform:translate(-50%,-50%);border:0;border-radius:23%;background:transparent;pointer-events:auto;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
-.key[data-key=menu]{left:18.3%}.key[data-key=up]{left:33%}.key[data-key=down]{left:48.5%}.key[data-key=ok]{left:63.8%}.key[data-key=back]{left:79.2%}
+.key{position:absolute;top:75.23%;width:12.2%;height:12.4%;padding:0;transform:translate(-50%,-50%);border:0;border-radius:20%;background:transparent;pointer-events:auto;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.key[data-key=menu]{left:18.23%}.key[data-key=up]{left:33.7%}.key[data-key=down]{left:49.72%}.key[data-key=ok]{left:65.75%}.key[data-key=back]{left:81.22%}
 .key:hover,.key:focus-visible{background:#d9e3da1a;box-shadow:0 0 0 2px #e8f1d3a6;outline:0}
 .key:active{background:#03080a57}
 

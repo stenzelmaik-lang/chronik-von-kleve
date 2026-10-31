@@ -62,7 +62,9 @@ const recipientList=z.array(z.string().min(1).max(160)).min(1).max(30);
 const pagerAck=z.object({id:z.string().min(1).max(160),at:z.string().max(40)}).strict();
 const pager=z.object({id:z.string().min(1).max(160),text:z.string().min(1).max(pagerTextMax),at:z.string().max(40),recipients:recipientList.nullable(),
  // Optional since the first version of the field: in-world sender, title, priority, origin and server-side acknowledgements.
- title:z.string().max(pagerTitleMax).optional(),sender:z.string().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),acks:z.array(pagerAck).max(30).optional()}).strict();
+ title:z.string().max(pagerTitleMax).optional(),sender:z.string().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),acks:z.array(pagerAck).max(30).optional(),
+ // Optional read receipts (opened and shown), per recipient. Older stages without the field stay valid.
+ reads:z.array(pagerAck).max(30).optional()}).strict();
 export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional(),youtube:youtube.nullable().optional()}).strict();
 export type StageYoutube=z.infer<typeof youtube>;
 /** The playlist view of a stored state, also for states from before playlists existed. */
@@ -107,6 +109,7 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('youtubeControl'),op:z.enum(['play','pause','next','previous','select','volume']),index:z.number().int().min(0).max(youtubeTracksMax-1).optional(),volume:z.number().int().min(0).max(100).optional()}).strict(),
  z.object({action:z.literal('pager'),id:z.string().uuid().optional(),text:z.string().trim().min(1).max(pagerTextMax),title:z.string().trim().max(pagerTitleMax).optional(),sender:z.string().trim().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),recipients:recipientList.nullable()}).strict(),
  z.object({action:z.literal('pagerAck'),id:z.string().min(1).max(160)}).strict(),
+ z.object({action:z.literal('pagerRead'),id:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('pagerWithdraw'),id:z.string().min(1).max(160)}).strict(),
 ]);
 export type StageCommand=z.infer<typeof stageCommandSchema>;
@@ -126,12 +129,15 @@ function placement(media:StageMedia|undefined,count:number){
 }
 export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm'>,c:StageCommand,source?:{title:string;kind:'npc'|'document';sourceId:string;sourceKind:'entity'|'file'|'record';presentation?:'vision'|'letter';sourceVersion?:number;sourceToken?:string;media?:StageMedia;ownerId?:string;documentContent?:string;sourceFileId?:string;pages?:import('./table-material').TableMaterial['pages'];material?:StageMaterial},resolvedBackdrop?:StageBackdrop|null,resolvedMusic?:StageMusic|null,now=new Date().toISOString()){
  const next=structuredClone(state);
- if(c.action==='pagerAck'){
-  // Acknowledgement: only a recipient confirms, once; the GM reads who has confirmed.
+ if(c.action==='pagerAck'||c.action==='pagerRead'){
+  // Read (opened and shown) and acknowledgement: only a recipient, once each; the GM sees both.
+  // Both are monotonic: a repeated or late command never removes anything. An acknowledgement implies reading.
   const p=next.pagers?.find(p=>p.id===c.id);
   if(!p||a.gm||!pagerVisible(p,a))throw Object.assign(Error('Pager-Nachricht nicht verfügbar.'),{status:404});
-  if(p.acks?.some(x=>x.id===a.id))return state;
-  p.acks=[...p.acks||[],{id:a.id,at:now}];
+  const read=p.reads?.some(x=>x.id===a.id),acked=p.acks?.some(x=>x.id===a.id);
+  if(read&&(c.action==='pagerRead'||acked))return state;
+  if(!read)p.reads=[...p.reads||[],{id:a.id,at:now}];
+  if(c.action==='pagerAck'&&!acked)p.acks=[...p.acks||[],{id:a.id,at:now}];
  }else if(c.action==='effects'||c.action==='music'||c.action==='youtube'||c.action==='youtubeList'||c.action==='youtubeControl'||c.action==='pager'||c.action==='pagerWithdraw'){
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung steuert Effekte, Musik und Pager.'),{status:403});
   if(c.action==='effects')next.effects=stageEffects.filter(e=>c.effects.includes(e));

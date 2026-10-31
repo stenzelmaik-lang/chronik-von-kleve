@@ -6,7 +6,7 @@ import {mkdirSync} from 'node:fs';
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8881';
 assert.equal(new URL(base).hostname,'127.0.0.1');
-assert.ok(['8874','8875','8881'].includes(new URL(base).port),'Use the isolated synthetic fixture only');
+assert.ok(['8874','8875','8881','8884'].includes(new URL(base).port),'Use the isolated synthetic fixture only');
 const output='.local-work/ux-check/regie-nachbesserung';mkdirSync(output,{recursive:true});
 const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',viewport:{width:1440,height:900}},{name:'zoom125',viewport:{width:1536,height:864},deviceScaleFactor:1.25}];
 const mobile={viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true};
@@ -82,7 +82,9 @@ try{
   }
   const mirror=sl.getByRole('region',{name:'Pager-Spiegel'});await mirror.getByText(text).waitFor();
   assert.equal(await sl.locator('section[aria-label="Pager"] [aria-roledescription="Pager"]').count(),0,'The GM gets no player device (the mirror is read-only)');
-  await pa.getByRole('button',{name:'OK: öffnen oder quittieren'}).click();await mirror.getByText('Gelesen 1/2: '+nameA).waitFor();
+  // Opening the message counts as read (both opened it above); A's second OK acknowledges it.
+  await mirror.getByText(/Gelesen 2\/2/).waitFor();
+  await pa.getByRole('button',{name:'OK: öffnen oder quittieren'}).click();await mirror.getByText(/quittiert 1/).waitFor();
   await pa.screenshot({path:output+'/'+name+'-spieler-a-pager.png'});await sl.screenshot({path:output+'/'+name+'-sl-spiegel.png'});
   // A targeted pager: the mirror shows that it went out, never its content.
   const secret='Nur für A · '+Date.now();
