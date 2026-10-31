@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Static device artwork from /public; no optimization proxy needed. */
 import {useEffect,useRef,useState,type KeyboardEvent,type ReactNode} from 'react';
-import {Volume2,VolumeX,ChevronDown} from 'lucide-react';
+import {Volume2,VolumeX,ChevronDown,Radio,X} from 'lucide-react';
 import {pagerBaseMenu,pagerDeviceMessages,pagerUnread,pagerKeyOf,pressPagerKey,pagerArrivals,settlePagerDevice,initialPagerDevice,type PagerKey,type PagerDeviceMessage,type PagerDeviceState} from '@/domain/ultio-pager';
 import type {PagerMessage} from './types';
 import styles from './ultio-pager.module.css';
@@ -72,7 +72,7 @@ export function UltioPagerDevice({messages,device,receiver,muted,theme='green',o
  * A player's pager on the table: a prop that floats in when a message arrives and folds away into a small button.
  * Only the viewer's own messages arrive here (server filtered). OK on an open message acknowledges it to the GM.
  */
-export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge}:{pagers:PagerMessage[];runId:string;actorId:string;receiver:string;onAcknowledge:(id:string)=>void}){
+export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArrival}:{pagers:PagerMessage[];runId:string;actorId:string;receiver:string;onAcknowledge:(id:string)=>void;onArrival?:()=>void}){
  const openedKey='chroniplay:pager:'+runId+':'+actorId,muteKey='chroniplay:pager-ton:'+actorId;
  const [opened,setOpened]=useState<string[]>(()=>readList(openedKey));
  const [acked,setAcked]=useState<string[]>([]);
@@ -93,6 +93,8 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge}:{pagers
   if(!arrivals.length)return;
   const newest=arrivals[0];
   // Someone reading an open message keeps it; a folded pager opens on the inbox with the newest message selected.
+  // A personal reader or media view (a modal dialog) would cover the device and make it unusable: the table closes it.
+  onArrival?.();
   queueMicrotask(()=>{setDevice(old=>expanded&&old.view==='message'?old:{...old,view:'inbox',inboxIndex:0});setExpanded(true);setAnnounce('Neue Pager-Nachricht'+(newest.sender?' von '+newest.sender:'')+(newest.urgent?', dringend':''));});
   if(!muted){try{const sound=new Audio(arrivals.some(m=>m.urgent)?ULTIO_ASSETS.alarm:ULTIO_ASSETS.ping);sound.volume=.6;void sound.play().catch(()=>{/* blocked until the player interacts; the badge still shows */});}catch{/* no audio support */}}
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs per change of the message ids only
@@ -122,5 +124,41 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge}:{pagers
   <button ref={launcher} type="button" className={styles.launcher} aria-label={'Pager öffnen'+(unread?', '+unread+(unread===1?' neue Meldung':' neue Meldungen'):'')} onClick={expand}>
    <img src={ULTIO_ASSETS.shell} alt="" draggable={false}/>{unread>0&&<span className={styles.badge} data-pager-badge="">{unread>99?'99+':unread}</span>}
   </button>}
+ </section>;
+}
+
+/**
+ * The GM's mirror of sent pagers on the table, so the GM sees that a message went out and who confirmed it.
+ * The table may be on a shared screen: messages to the whole round show their text, targeted ones only the
+ * recipients and the read state (the content stays in the Regie). It never acknowledges anything.
+ */
+export function PagerMirror({pagers,crew}:{pagers:PagerMessage[];crew:{id:string;name:string}[]}){
+ const [open,setOpen]=useState(false),[announce,setAnnounce]=useState('');
+ const known=useRef<string[]|null>(null),fold=useRef(0);
+ const list=[...pagers].sort((x,y)=>y.at.localeCompare(x.at)||y.id.localeCompare(x.id));
+ const ids=list.map(p=>p.id).join('|');
+ useEffect(()=>{
+  const now=ids?ids.split('|'):[],previous=known.current;known.current=now;
+  if(previous===null||!now.some(id=>!previous.includes(id)))return;
+  // A new message unfolds the mirror for a moment, then it folds back on its own.
+  queueMicrotask(()=>{setOpen(true);setAnnounce('Pager gesendet.');});
+  window.clearTimeout(fold.current);fold.current=window.setTimeout(()=>setOpen(false),12000);
+ },[ids]);
+ useEffect(()=>()=>window.clearTimeout(fold.current),[]);
+ if(!list.length)return null;
+ const name=(id:string)=>crew.find(m=>m.id===id)?.name||'?';
+ const readers=(p:PagerMessage)=>{const total=p.recipients?p.recipients.length:crew.length;const read=p.acks?.length||0;return read?'Gelesen '+read+'/'+total+': '+p.acks!.map(x=>name(x.id)).join(', '):'Noch nicht gelesen';};
+ const latest=list[0];
+ return <section className={styles.mirror} aria-label="Pager-Spiegel" data-open={open}>
+  <span className={styles.srOnly} role="status">{announce}</span>
+  {open?<div className={styles.mirrorPanel}>
+   <header><Radio size={14} aria-hidden="true"/><strong>Pager-Spiegel</strong><small>nur SL · Spieler quittieren selbst</small><button type="button" aria-label="Pager-Spiegel zuklappen" onClick={()=>{window.clearTimeout(fold.current);setOpen(false);}}><X size={14}/></button></header>
+   <ul>{list.slice(0,4).map(p=><li key={p.id} data-mirror-pager={p.id} data-urgent={p.priority==='hoch'}>
+    <div className={styles.mirrorMeta}><span>{pagerTime(p.at)}</span><span>{p.recipients?'an '+p.recipients.map(name).join(', '):'an alle'}</span></div>
+    {p.recipients?<p className={styles.mirrorHidden}>Gezielte Nachricht · Inhalt nur in der Regie</p>:<div className={styles.mirrorLcd}><small>{p.priority==='hoch'?'!! DRINGEND · ':''}{p.sender||'UNBEKANNT'}</small>{p.title&&<strong>{p.title}</strong>}<p>{p.text}</p></div>}
+    <small className={styles.mirrorAcks}>{readers(p)}</small>
+   </li>)}</ul>
+  </div>:
+  <button type="button" className={styles.mirrorChip} aria-label={'Pager-Spiegel öffnen, '+list.length+(list.length===1?' gesendete Nachricht':' gesendete Nachrichten')} onClick={()=>setOpen(true)}><Radio size={14} aria-hidden="true"/> Pager · {list.length}<small>{pagerTime(latest.at)} {latest.recipients?'gezielt':'an alle'}</small></button>}
  </section>;
 }

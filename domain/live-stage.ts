@@ -14,9 +14,23 @@ const object=z.object({...base,kind:z.enum(['npc','document']),visibility:z.enum
 const backdrop=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),sceneId:z.string().max(160)}).strict();
 // Second-screen direction (Regie im Zweitfenster): table-wide effects, background music and pager
 // messages. All optional, so stored stages from before stay valid without a migration.
-export const stageEffects=['rain','fog'] as const;
+// Order is the layering order on the table (later effects lie above earlier ones). New effects are only appended.
+export const stageEffects=['rain','fog','storm','snow','embers','darkness','flicker'] as const;
 export type StageEffect=typeof stageEffects[number];
 const music=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),key:z.string().min(1).max(64)}).strict();
+/** YouTube music: only the video id is stored, never a file. Players load the official embed after their own consent. */
+export const youtubeIdPattern=/^[A-Za-z0-9_-]{11}$/;
+const youtube=z.object({videoId:z.string().regex(youtubeIdPattern),title:z.string().max(200),key:z.string().min(1).max(64)}).strict();
+const youtubeHosts=['youtube.com','www.youtube.com','m.youtube.com','music.youtube.com','youtu.be','www.youtube-nocookie.com','youtube-nocookie.com'];
+/** Video id from a YouTube link (watch, youtu.be, embed, shorts, live, nocookie) or a bare id; anything else is undefined. */
+export function youtubeVideoId(input:string):string|undefined{
+ const value=input.trim();if(youtubeIdPattern.test(value))return value;
+ let url:URL;try{url=new URL(/^[a-z]+:\/\//i.test(value)?value:'https://'+value);}catch{return undefined;}
+ if(!['https:','http:'].includes(url.protocol)||!youtubeHosts.includes(url.hostname.toLowerCase()))return undefined;
+ const parts=url.pathname.split('/').filter(Boolean);
+ const id=url.hostname.toLowerCase()==='youtu.be'?parts[0]:parts[0]==='watch'||!parts.length?url.searchParams.get('v'):['embed','shorts','live','v'].includes(parts[0])?parts[1]:undefined;
+ return id&&youtubeIdPattern.test(id)?id:undefined;
+}
 export const pagerTextMax=280,pagerTitleMax=80,pagerSenderMax=80,pagerKeep=30;
 /** Pager message contract. Regie sends spontaneously; a prepared message (e.g. from the Command Center) may bring its own id. */
 export const pagerPriorities=['normal','hoch'] as const;
@@ -26,7 +40,8 @@ const pagerAck=z.object({id:z.string().min(1).max(160),at:z.string().max(40)}).s
 const pager=z.object({id:z.string().min(1).max(160),text:z.string().min(1).max(pagerTextMax),at:z.string().max(40),recipients:recipientList.nullable(),
  // Optional since the first version of the field: in-world sender, title, priority, origin and server-side acknowledgements.
  title:z.string().max(pagerTitleMax).optional(),sender:z.string().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),acks:z.array(pagerAck).max(30).optional()}).strict();
-export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional()}).strict();
+export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional(),youtube:youtube.nullable().optional()}).strict();
+export type StageYoutube=z.infer<typeof youtube>;
 export type StageMusic=z.infer<typeof music>;
 export type StagePager=z.infer<typeof pager>;
 /** A pager message reaches the whole round (null) or exactly the listed players; the GM sees every message. */
@@ -49,6 +64,8 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('remove'),id:z.string(),expectedRevision:z.number().int().positive().optional()}).strict(),
  z.object({action:z.literal('effects'),effects:z.array(z.enum(stageEffects)).max(stageEffects.length)}).strict(),
  z.object({action:z.literal('music'),fileId:z.string().min(1).max(160).nullable()}).strict(),
+ // A link or id starts YouTube music for the round (null stops it). The server keeps the id only.
+ z.object({action:z.literal('youtube'),video:z.string().trim().min(1).max(300).nullable(),title:z.string().trim().max(200).optional()}).strict(),
  z.object({action:z.literal('pager'),id:z.string().uuid().optional(),text:z.string().trim().min(1).max(pagerTextMax),title:z.string().trim().max(pagerTitleMax).optional(),sender:z.string().trim().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),recipients:recipientList.nullable()}).strict(),
  z.object({action:z.literal('pagerAck'),id:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('pagerWithdraw'),id:z.string().min(1).max(160)}).strict(),
@@ -76,10 +93,16 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
   if(!p||a.gm||!pagerVisible(p,a))throw Object.assign(Error('Pager-Nachricht nicht verfügbar.'),{status:404});
   if(p.acks?.some(x=>x.id===a.id))return state;
   p.acks=[...p.acks||[],{id:a.id,at:now}];
- }else if(c.action==='effects'||c.action==='music'||c.action==='pager'||c.action==='pagerWithdraw'){
+ }else if(c.action==='effects'||c.action==='music'||c.action==='youtube'||c.action==='pager'||c.action==='pagerWithdraw'){
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung steuert Effekte, Musik und Pager.'),{status:403});
   if(c.action==='effects')next.effects=stageEffects.filter(e=>c.effects.includes(e));
   else if(c.action==='music'){if(c.fileId&&!resolvedMusic)throw Object.assign(Error('Musik nicht verfügbar.'),{status:404});next.music=c.fileId?resolvedMusic:null;}
+  else if(c.action==='youtube'){
+   if(c.video===null)next.youtube=null;
+   else{const videoId=youtubeVideoId(c.video);if(!videoId)throw Object.assign(Error('Kein gültiger YouTube-Link.'),{status:400});
+    // A fresh key per start lets everyone restart the track, even when the same video is chosen again.
+    next.youtube={videoId,title:(c.title||'').trim()||'YouTube-Musik',key:crypto.randomUUID().replaceAll('-','').slice(0,16)};}
+  }
   else if(c.action==='pager'){
    // A prepared message is played with its own (element) id, so the same message is never sent twice.
    if(c.origin==='vorbereitet'&&!c.id)throw Object.assign(Error('Vorbereitete Pager-Nachrichten brauchen ihre ID.'),{status:400});

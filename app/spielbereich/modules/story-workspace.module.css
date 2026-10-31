@@ -474,6 +474,12 @@
 .backdropPicker h3{margin:0;font-size:20px}.backdropPicker header p{margin:6px 0 0;color:#c3ced4;font-size:14px}
 .backdropPicker>img{width:100%;max-width:640px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;border:1px solid #b9985b55}
 .backdropPicker>small{color:#b4b9b0}
+.backdropPicker h3 svg{vertical-align:-2px}
+.youtubeList{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.youtubeList li{display:flex;flex-wrap:wrap;align-items:end;gap:8px 12px;padding:8px 10px;border:1px solid #b9985b33;border-radius:6px}
+.youtubeList label{display:grid;gap:4px;flex:1 1 220px;font-size:13px}.youtubeList small{color:#b4b9b0;font-family:ui-monospace,Consolas,monospace}
+.youtubeList button{display:grid;place-items:center;min-width:40px;min-height:40px}
+.youtubeAdd{display:flex;flex-wrap:wrap;align-items:end;gap:8px 12px}.youtubeAdd label{display:grid;gap:4px;flex:1 1 220px;font-size:13px}.youtubeAdd button{min-height:40px}
 .backdropActions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px}
 .backdropActions>button{min-height:44px}
 .backdropMissing{display:flex;align-items:center;gap:8px;color:#e9b3a6}

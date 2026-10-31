@@ -5,7 +5,7 @@ import {mkdirSync} from 'node:fs';
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8864';
 assert.equal(new URL(base).hostname,'127.0.0.1');
-assert.ok(['8830','8852','8864','8870','8874'].includes(new URL(base).port),'Use the isolated synthetic Spieltisch fixture only');
+assert.ok(['8830','8852','8864','8870','8874','8881'].includes(new URL(base).port),'Use the isolated synthetic Spieltisch fixture only');
 const output='.local-work/ux-check/erzaehlung';mkdirSync(output,{recursive:true});
 const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',viewport:{width:1440,height:900}},{name:'zoom125',viewport:{width:1536,height:864},deviceScaleFactor:1.25},{name:'375',viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true}];
 // CVK_PLAYWRIGHT_CHANNEL=msedge uses an installed browser where no Playwright download exists.

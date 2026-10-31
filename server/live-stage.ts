@@ -43,6 +43,8 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
   notes:d.elements.filter(e=>!e.fileId&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
   // Prepared pager messages of this scene. Played from the Regie with the element id as message id, so each is sent once.
   pagers:d.elements.flatMap(e=>{if(e.kind!=='pager')return [];const p=e.pager||emptyScenePager();return [{id:e.id,title:e.title,sender:p.sender,text:p.text,priority:p.priority,recipientIds:p.recipientIds,cue:e.text}];}),
+  // Prepared YouTube music (title and video id only).
+  youtube:d.youtube||[],
  };
 }
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){
@@ -73,6 +75,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   // Table-wide atmosphere and pager messages. Players get only their own pagers, without the recipient list.
   effects:stage.effects||[],
   music:stage.music?{title:stage.music.title,key:stage.music.key,...(a.gm?{fileId:stage.music.fileId}:{})}:null,
+  // YouTube music runs for the whole round; every viewer loads the embed only after their own consent.
+  youtube:stage.youtube?{videoId:stage.youtube.videoId,title:stage.youtube.title,key:stage.youtube.key}:null,
   // Players learn only whether they themselves acknowledged; GMs get recipients and all acknowledgements.
   pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at,...(p.title?{title:p.title}:{}),...(p.sender?{sender:p.sender}:{}),...(p.priority?{priority:p.priority}:{}),acknowledged:!!p.acks?.some(x=>x.id===a.id)})};
 }

@@ -5,7 +5,7 @@ import {mkdirSync} from 'node:fs';
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8874';
 assert.equal(new URL(base).hostname,'127.0.0.1');
-assert.ok(['8874','8875'].includes(new URL(base).port),'Use the isolated synthetic pager fixture only');
+assert.ok(['8874','8875','8881'].includes(new URL(base).port),'Use the isolated synthetic pager fixture only');
 const output='.local-work/ux-check/ultio-pager';mkdirSync(output,{recursive:true});
 const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',viewport:{width:1440,height:900}},{name:'zoom125',viewport:{width:1536,height:864},deviceScaleFactor:1.25}];
 const mobile={viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true};
@@ -68,7 +68,9 @@ try{
   await region.getByText('SÜDTOR').waitFor();
   assert.equal(await view(pa),'inbox',name+': the device floats in on the inbox');
   await pb.waitForTimeout(1500);assert.equal(await pb.getByRole('region',{name:'Pager'}).count(),0,name+': B receives nothing for A');
-  assert.equal(await sl.getByRole('region',{name:'Pager'}).count(),0,name+': the shared SL table never shows a pager');
+  // The GM gets no player device, only the read-only mirror of sent pagers (since the Regie-Nachbesserung).
+  assert.equal(await sl.getByRole('region',{name:'Pager',exact:true}).count(),0,name+': the shared SL table never shows a player pager');
+  assert.equal(await sl.locator('[aria-roledescription="Pager"]').count(),0,name+': no pager device for the GM');
   await suedtor.getByText(/Gesendet .* an /).waitFor();
   await deviceGeometry(pa,name+' A',options.viewport);
   assert.ok((await sounds(pa)).includes('alarm-urgent.wav'),name+': an urgent message tries the alarm sound');

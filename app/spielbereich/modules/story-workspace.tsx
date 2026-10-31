@@ -38,7 +38,7 @@ import { Info, Maximize2, Minimize2, ArrowLeftRight, FolderCog, Archive, Trash2,
 import { PreparationWhispers } from "./preparation-whispers";
 import { PreparationNPCs } from "./preparation-npcs";
 import { PreparationMaterials } from "./preparation-materials";
-import { SceneBackdropPicker } from "./preparation-upload";
+import { SceneBackdropPicker, SceneYoutubePicker } from "./preparation-upload";
 import { PreparationGuide } from "./preparation-guide";
 import { sessionGuideSteps, sceneGuideSteps, sessionStep, sceneStep, type SessionGuideStep } from "@/domain/preparation-guide";
 import { orderedSessionScenes } from "@/domain/session-overview";
@@ -831,7 +831,7 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
                 <>
                   {scene?<PreparationGuide label="Szene vorbereiten" sequential steps={sceneGuideSteps} active={section} busy={busy} onStep={step=>void changeGuideStep(step,"scene")} onFinish={()=>void finishGuide("scene")} finishLabel={returnSession?"Speichern & zum Spielabend":"Speichern & zur Übersicht"}>
                     {section==="narration"&&<><label>Titel<input value={scene.title} maxLength={200} onChange={e=>change({title:e.target.value})}/></label><label>Zentraler Schauplatz<select value={scene.placeId} onChange={e=>change({placeId:e.target.value})}><option value="">Kein Schauplatz</option>{scene.placeId&&!refs.some(ref=>ref.id===scene.placeId&&isCentralPreparationPlace(ref))&&<option value={scene.placeId} disabled>{refs.find(ref=>ref.id===scene.placeId)?.title||"Bestehender Schauplatz"} · bisherige Zuordnung</option>}{refs.filter(ref=>isCentralPreparationPlace(ref)).map(ref=><option key={ref.id} value={ref.id}>{ref.title}</option>)}</select></label></>}
-                    {section==="atmosphere"&&<SceneBackdropPicker fileId={scene.backdropFileId} files={files} onChange={backdropFileId=>change({backdropFileId})} onUploaded={file=>setFiles(old=>[file,...old.filter(f=>f.id!==file.id)])}/>}
+                    {section==="atmosphere"&&<><SceneBackdropPicker fileId={scene.backdropFileId} files={files} onChange={backdropFileId=>change({backdropFileId})} onUploaded={file=>setFiles(old=>[file,...old.filter(f=>f.id!==file.id)])}/><SceneYoutubePicker tracks={scene.youtube||[]} onChange={youtube=>change({youtube})}/></>}
                     {section==="dialogueNotes"&&<PreparationNPCs references={refs} values={scene.npcIds} onChange={npcIds=>change({npcIds})}/>}
                     {section==="interactions"&&<><PreparationMaterials elements={scene.elements} onChange={elements=>change({elements})} references={refs} files={files} editor={editor} players={players} onUploaded={file=>setFiles(old=>[file,...old.filter(f=>f.id!==file.id)])}/><details className={s.optionalSelection}><summary>Vorhandene Hinweise & Handouts auswählen{scene.clueIds.length?" ("+scene.clueIds.length+")":""}</summary>{pick("Vorhandene Hinweis- und Handoutakten dieser Szene",scene.clueIds,refs.filter(ref=>['CLUE','HANDOUT'].includes(ref.type)),clueIds=>change({clueIds}))}</details></>}
                     {section==="visions"?<PreparationWhispers scene={scene} players={players} files={files} onChange={change} onSave={save}>{editor(text,value=>change({visions:value}),"Visionen & persönliche Botschaften",current.id+":visions")}</PreparationWhispers>:editor(text,value=>change({[section]:value}),sceneGuideSteps.find(step=>step.id===section)?.label||"Erzählung",current.id+":"+section)}

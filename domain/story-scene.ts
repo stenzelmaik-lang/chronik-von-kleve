@@ -18,6 +18,10 @@ export const emptyScenePager=():ScenePager=>({sender:'',text:'',priority:'normal
 export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(sceneElementKinds),title:z.string().trim().min(1).max(200),text,referenceId:optionalId,fileId:optionalId,pager:scenePagerSchema.optional()}).strict()
   .refine(e=>e.kind==='pager'?e.title.length<=scenePagerMax.title&&!e.referenceId&&!e.fileId:!e.pager,'Pager-Bausteine haben einen Titel bis 80 Zeichen und keine Datei; andere Bausteine tragen keine Pager-Daten.');
 export type SceneElement=z.infer<typeof sceneElementSchema>;
+/** Prepared YouTube music of a scene: only a title and the video id, no file. Optional, so older scenes stay valid. */
+export const sceneYoutubeMax=8;
+export const sceneYoutubeSchema=z.object({id:z.string().uuid(),title:z.string().trim().max(200),videoId:z.string().regex(/^[A-Za-z0-9_-]{11}$/,'Kein gültiger YouTube-Link.')}).strict();
+export type SceneYoutube=z.infer<typeof sceneYoutubeSchema>;
 // Preparation has no execution flags. Only an explicit SL command creates a run.
 export const sceneDocumentSchema = z.object({
   archived: z.boolean().default(false),
@@ -27,6 +31,7 @@ export const sceneDocumentSchema = z.object({
   interactions: text, secrets: text, visions: text.default(''), possibleConsequences: text,
   visionRecipientIds:z.array(id).max(20).default([]).refine(v=>new Set(v).size===v.length,'Empfänger dürfen nicht doppelt sein.'),
   visionFileIds:z.array(id).max(20).default([]).refine(v=>new Set(v).size===v.length,'Dateien dürfen nicht doppelt sein.'),
+  youtube: z.array(sceneYoutubeSchema).max(sceneYoutubeMax).refine(v=>new Set(v.map(t=>t.id)).size===v.length,'Titel dürfen nicht doppelt sein.').optional(),
   npcIds: ids, clueIds: ids,
   possibilities: z.array(z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(200), text: z.string().max(3000) }).strict()).max(50)
     .refine(v => new Set(v.map(p => p.id)).size === v.length, 'Möglichkeiten dürfen nicht doppelt sein.'),

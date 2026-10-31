@@ -105,3 +105,20 @@
 .pagerCard small{font-size:10px;text-transform:uppercase}
 .pagerCard strong{text-transform:uppercase}
 .pagerCard p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* The scene's areas: one always visible menu. Text areas swap the reading column; others scroll into view. */
+.areas{position:sticky;top:0;z-index:9;display:flex;flex-wrap:wrap;gap:6px;padding:8px 18px;border-bottom:1px solid var(--line);background:#0b1316}
+.areas button{min-height:36px;padding:0 13px;border:1px solid #c5a46a40;border-radius:18px;background:#141e22;color:#e6dfd0;font-size:13px;white-space:nowrap}
+.areas button[data-kind=block]{background:transparent;color:#cfc8b8}
+.areas button[data-area-button=material]{margin-left:10px}
+.areas button[data-empty=true]{color:#8f948d;border-style:dashed}
+.areas button[aria-current=true]{background:var(--accent);border-color:var(--accent);color:#141a1b;font-weight:600}
+.textArea{display:grid;gap:10px;padding:12px 14px;border:1px solid #c5a46a40;border-radius:8px;background:#121c1f}
+.textArea>h3{margin:0;font:normal 1.2em Georgia,serif;color:#f0dcae}
+.anchor{display:block;height:0;scroll-margin-top:8px}
+.block{scroll-margin-top:8px;border-radius:6px;transition:box-shadow .3s}
+.block[data-flash=true]{box-shadow:0 0 0 2px var(--accent)}
+.effectRow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.effectRow button{display:flex;align-items:center;gap:6px;min-height:34px;padding:0 10px;border:1px solid #c5a46a40;border-radius:5px;background:#1b292b;color:#eee8dc;font-size:12px}
+.effectRow button svg{width:15px;height:15px}
+@media(max-width:760px){.areas{position:static;padding:8px 10px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:thin}.areas button[data-area-button=material]{margin-left:0}}
