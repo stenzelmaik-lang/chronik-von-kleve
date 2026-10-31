@@ -215,15 +215,12 @@ export function PagerMirror({pagers,crew,actorId}:{pagers:PagerMessage[];crew:{i
  function key(k:PagerKey){const {state,effect}=pressPagerKey(device,k,messages,menuViews());setDevice(state);if(effect?.type==='collapse')setOpen(false);}
  return <section ref={section} {...drag} className={styles.mirror} aria-label="Pager-Spiegel" data-open={open}>
   <span className={styles.srOnly} role="status">{announce}</span>
-  {open?<div className={styles.mirrorPanel}>
-   <header><Radio size={14} aria-hidden="true"/><strong>Pager-Spiegel</strong><small>nur SL · Spieler quittieren selbst</small><button type="button" aria-label="Pager-Spiegel zuklappen" onClick={()=>{window.clearTimeout(fold.current);setOpen(false);}}><X size={14}/></button></header>
-   <div className={styles.mirrorDevice}><UltioPagerDevice messages={messages} device={device} receiver="SL · SPIEGEL" muted theme={device.view==='message'&&selected?.urgent?'red':'green'} onKey={key}/></div>
-   <ul>{list.slice(0,3).map(p=><li key={p.id} data-mirror-pager={p.id} data-urgent={p.priority==='hoch'}>
-    <div className={styles.mirrorMeta}><span>{pagerTime(p.at)}</span><span>{p.recipients?'an '+p.recipients.map(name).join(', '):'an alle'}</span></div>
-    {p.recipients?<p className={styles.mirrorHidden}>Gezielte Nachricht · Inhalt nur in der Regie</p>:<p className={styles.mirrorText}>{p.priority==='hoch'?'!! ':''}{p.title?p.title+': ':''}{p.text}</p>}
-    <small className={styles.mirrorAcks}>{readers(p)}</small>
-   </li>)}</ul>
+  {/* Freestanding device like the players' pager: no window, only a small close button and the read status. */}
+  {open?<div className={styles.mirrorFree}>
+   <button type="button" className={styles.mirrorClose} aria-label="Pager-Spiegel zuklappen" onClick={()=>{window.clearTimeout(fold.current);setOpen(false);}}><X size={14}/></button>
+   <div className={styles.mirrorDevice} data-drag-handle=""><UltioPagerDevice messages={messages} device={device} receiver="SL · SPIEGEL" muted theme={device.view==='message'&&selected?.urgent?'red':'green'} onKey={key}/></div>
+   <p style={{order:-1}} className={styles.mirrorStatus} data-mirror-pager={latest.id}><Radio size={12} aria-hidden="true"/>{pagerTime(latest.at)} · {latest.recipients?'an '+latest.recipients.map(name).join(', '):<>an alle · <span className={styles.mirrorText}>{latest.title?latest.title+': ':''}{latest.text}</span></>} · <span className={styles.mirrorAcks}>{readers(latest)}</span></p>
   </div>:
-  <button type="button" className={styles.mirrorChip} data-drag-handle="" aria-label={'Pager-Spiegel öffnen, '+list.length+(list.length===1?' gesendete Nachricht':' gesendete Nachrichten')} onClick={()=>setOpen(true)}><img src={ULTIO_ASSETS.shell} alt="" draggable={false}/> Pager · {list.length}<small>{pagerTime(latest.at)} {latest.recipients?'gezielt':'an alle'}</small></button>}
+  <button type="button" className={`${styles.launcher} ${styles.mirrorChip}`} data-drag-handle="" title={'Pager-Spiegel · zuletzt '+pagerTime(latest.at)+(latest.recipients?' gezielt':' an alle')} aria-label={'Pager-Spiegel öffnen, '+list.length+(list.length===1?' gesendete Nachricht':' gesendete Nachrichten')} onClick={()=>setOpen(true)}><img src={ULTIO_ASSETS.shell} alt="" draggable={false}/><span className={styles.badge} data-sent="">{list.length}</span></button>}
  </section>;
 }

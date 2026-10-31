@@ -106,3 +106,7 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .object.personalObject{background:transparent;border:0;box-shadow:none}.personalObject .objectGrip{background:#14252acc;color:#d7e0d7}.personalObject>button:first-child{position:relative;z-index:1}
 
 .object.personalReading{visibility:hidden}
+/* Table drawers never scroll sideways; content wraps inside the drawer width. */
+.drawerBody{overflow-x:hidden;overflow-wrap:anywhere}
+.placedList{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.drawerBody .placedList button{width:100%;justify-content:flex-start;text-align:left}
