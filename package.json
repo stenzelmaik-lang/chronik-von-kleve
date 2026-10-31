@@ -26,6 +26,7 @@
     "test:regie-zweitfenster": "node --experimental-strip-types --test tests/regie-zweitfenster.test.mjs && node --experimental-strip-types tests/regie-zweitfenster-integration.mjs",
     "test:ultio-pager": "node --experimental-strip-types --test tests/ultio-pager.test.mjs && node --experimental-strip-types tests/ultio-pager-integration.mjs",
     "test:regie-nachbesserung": "node --experimental-strip-types --test tests/regie-nachbesserung.test.mjs && node --experimental-strip-types tests/regie-nachbesserung-integration.mjs",
+    "test:ambiente": "node --experimental-strip-types --test tests/regie-nachbesserung.test.mjs && node --experimental-strip-types tests/ambiente-integration.mjs",
     "demo:regie": "node --experimental-strip-types scripts/test-local.mjs --zustandswerte",
     "test:spieltisch-medien": "node --experimental-strip-types --test tests/live-stage.test.mjs && node --experimental-strip-types tests/spieltisch-medien-integration.mjs",
     "test:integration": "npm run build && npm run test:integration:run",

@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Protected existing file endpoints. */
 import {useId,useState} from 'react';
-import {Upload,ImageOff,Music,Trash2} from 'lucide-react';
+import {Upload,ImageOff,Music,Trash2,ArrowUp,ArrowDown} from 'lucide-react';
 import {youtubeVideoId} from '@/domain/live-stage';
 import {sceneYoutubeMax,type SceneYoutube} from '@/domain/story-scene';
 import {api} from './api-client';
@@ -37,15 +37,16 @@ export function SceneBackdropPicker({fileId,files,onChange,onUploaded}:{fileId:s
  </section>;
 }
 
-/** YouTube music for the scene: links are checked and reduced to the video id. Nothing is loaded from YouTube here. */
+/** The scene's ambience playlist (YouTube): order, titles and checked links reduced to video ids. It starts when the
+ * scene is started at the table and loops. Nothing is loaded from YouTube here. */
 export function SceneYoutubePicker({tracks,onChange}:{tracks:SceneYoutube[];onChange:(tracks:SceneYoutube[])=>void}){
  const [link,setLink]=useState(''),[title,setTitle]=useState(''),[error,setError]=useState('');
  function add(){const videoId=youtubeVideoId(link);if(!videoId){setError('Das ist kein gültiger YouTube-Link (z. B. https://www.youtube.com/watch?v=… oder https://youtu.be/…).');return;}
   onChange([...tracks,{id:crypto.randomUUID(),title:title.trim()||'YouTube-Musik',videoId}]);setLink('');setTitle('');setError('');}
- return <section className={s.backdropPicker} aria-label="Musik von YouTube">
-  <header><h3><Music size={16} aria-hidden="true"/> Musik von YouTube</h3><p>Vorbereitete Stücke startest du in der Regie für die ganze Runde. Gespeichert wird nur die Video-ID; geladen wird erst am Tisch, nachdem jede Person zugestimmt hat.</p></header>
-  {tracks.length?<ul className={s.youtubeList}>{tracks.map(t=><li key={t.id}><label>Titel<input maxLength={200} value={t.title} onChange={e=>onChange(tracks.map(x=>x.id===t.id?{...x,title:e.target.value}:x))}/></label><small>youtu.be/{t.videoId}</small><button type="button" aria-label={t.title+' entfernen'} onClick={()=>onChange(tracks.filter(x=>x.id!==t.id))}><Trash2 size={15}/></button></li>)}</ul>:<p>Noch keine YouTube-Musik vorbereitet.</p>}
-  {tracks.length<sceneYoutubeMax&&<div className={s.youtubeAdd}><label>YouTube-Link<input inputMode="url" value={link} placeholder="https://youtu.be/…" onChange={e=>{setLink(e.target.value);setError('');}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}}/></label><label>Titel (optional)<input maxLength={200} value={title} onChange={e=>setTitle(e.target.value)}/></label><button type="button" disabled={!link.trim()} onClick={add}>Stück hinzufügen</button></div>}
+ return <section className={s.backdropPicker} aria-label="Ambiente-Playlist (YouTube)">
+  <header><h3><Music size={16} aria-hidden="true"/> Ambiente-Playlist (YouTube)</h3><p>Startet automatisch, sobald du die Szene am Spieltisch startest, und läuft in Schleife – auch lange Titel. In der Regie steuerst du Pause, Titel und Lautstärke. Gespeichert wird nur die Video-ID.</p></header>
+  {tracks.length?<ul className={s.youtubeList}>{tracks.map(t=><li key={t.id}><label>Titel<input maxLength={200} value={t.title} onChange={e=>onChange(tracks.map(x=>x.id===t.id?{...x,title:e.target.value}:x))}/></label><small>{tracks.indexOf(t)+1}. youtu.be/{t.videoId}</small><button type="button" aria-label={t.title+' nach oben'} disabled={tracks.indexOf(t)===0} onClick={()=>{const i=tracks.indexOf(t),n=[...tracks];[n[i-1],n[i]]=[n[i],n[i-1]];onChange(n);}}><ArrowUp size={15}/></button><button type="button" aria-label={t.title+' nach unten'} disabled={tracks.indexOf(t)===tracks.length-1} onClick={()=>{const i=tracks.indexOf(t),n=[...tracks];[n[i+1],n[i]]=[n[i],n[i+1]];onChange(n);}}><ArrowDown size={15}/></button><button type="button" aria-label={t.title+' entfernen'} onClick={()=>onChange(tracks.filter(x=>x.id!==t.id))}><Trash2 size={15}/></button></li>)}</ul>:<p>Noch keine Ambiente-Playlist vorbereitet.</p>}
+  {tracks.length<sceneYoutubeMax&&<div className={s.youtubeAdd}><label>YouTube-Link<input inputMode="url" value={link} placeholder="https://youtu.be/…" onChange={e=>{setLink(e.target.value);setError('');}} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();add();}}}/></label><label>Titel (optional)<input maxLength={200} value={title} onChange={e=>setTitle(e.target.value)}/></label><button type="button" disabled={!link.trim()} onClick={add}>Titel hinzufügen</button></div>}
   {error&&<p role="alert">{error}</p>}
  </section>;
 }

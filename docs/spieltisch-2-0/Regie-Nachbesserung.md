@@ -162,23 +162,74 @@ Neue Rückmeldung: Die SL steuert Zustände auch im Regie-Fenster. Spieler steue
   - Ist eine Figur verletzt, wird der Block unten links eine Zeile höher. Bei sehr großen Runden und gleichzeitig freigegebener Erzählung kann er deren unteren Rand berühren.
   - Ein Verlauf der Spieler-Buchungen im Regie-Fenster fehlt. Am Tisch zeigt die SL ihn wie bisher unter „Verlauf“.
 
+## 8. Ambiente-Player (YouTube), Nachtrag nach dem Live-Stand `dbe65764`
+
+Rückmeldung des Projektinhabers: Es ist seine eigene KI-Ambiente-Musik. Deshalb gibt es keine Einwilligungsabfrage mehr, der Player läuft als Schuber, und jede Szene hat ihre Playlist.
+
+- **Ohne Einwilligungssperre:**
+  - Der offizielle IFrame-Player lädt sofort, weiter über `youtube-nocookie.com`.
+  - Blockiert der Browser den Start mit Ton, erscheint nach 2,5 Sekunden dezent „Zum Abspielen tippen“.
+  - **Datenschutz:** Beim Einbetten werden trotzdem Daten an YouTube/Google übertragen (u. a. IP-Adresse, Geräteinformationen). Ob die Datenschutzerklärung das abdeckt, entscheidet der Projektinhaber.
+- **Schuber aus der Ecke:**
+  - In der oberen rechten Ecke des Tisches, unter „Kontext“, sitzt eine kleine Schallplatte. Ein Klick fährt den Player-Schuber heraus, ein zweiter klappt ihn ein. Der Zustand wird lokal gemerkt.
+  - Eingeklappt läuft die Musik weiter. Die Platte dreht sich, solange wirklich Ton läuft, und steht bei Pause still.
+  - Bei reduzierter Bewegung dreht sie nicht; stattdessen zeigt ein grüner Ring, dass Musik läuft.
+  - Geprüft wird, dass nichts die Rundenübersicht unten links, das Würfel-Dock, die Druck-Anzeige oder „Kontext“ verdeckt (1920, 1440, 125 %, 375 px). Der Pager liegt unten rechts in einer höheren Ebene und wird nie verdeckt.
+  - **Hinweis:** Die Einbettungsregeln von YouTube erwarten einen sichtbaren Player. Eingeklappt ist er versteckt. Das hat der Projektinhaber so gewünscht.
+- **Lautstärke:**
+  - Die SL setzt einen Grundpegel für alle, Standard 25 % (leises Ambiente).
+  - Jeder skaliert ihn mit „Meine Lautstärke“ für sich (0–200 %, lokal gemerkt) oder schaltet stumm.
+- **Playlist pro Szene:**
+  - Im Command Center unter Szene › Atmosphäre › „Ambiente-Playlist (YouTube)“: bis zu 30 Titel mit Titel, Reihenfolge (↑/↓) und geprüftem Link.
+  - Es wird das vorhandene optionale Szenenfeld `youtube[]` genutzt; das Maximum stieg von 8 auf 30.
+  - Startet die SL die Szene am Tisch oder in der Regie, läuft die Playlist automatisch für alle. Eine Szene ohne Playlist lässt die laufende Musik weiterlaufen.
+  - **Schleife:** Ein einzelner Titel beginnt am Ende von vorn. Eine Playlist geht zum nächsten Titel und am Ende wieder zum ersten. Das gilt auch für lange Titel.
+- **Regie:** Block „Ambiente · YouTube“ in der Spalte „Ton & Video“ (Menü „Ton & Musik“).
+  - Abspielen/Pause für alle, vorheriger/nächster Titel, Titel wählen, Grundpegel.
+  - „Playlist der Szene starten“.
+  - **Spontan:** Links einfügen, einer pro Zeile, optional „Titel | Link“, mit Namen (z. B. Wald, Stadt, Bar), dann „Für alle starten“.
+  - **„Merken“:** Die Eingabe kommt in die Liste „Gemerkte Ambiente-Klänge“, die in jeder Szene griffbereit ist. Diese Liste liegt nur im Browser der SL, nicht kampagnenweit (offen).
+- **Überblendung:** Beim Titel- oder Szenenwechsel blendet der Player in 1,4 Sekunden aus, lädt den neuen Titel und blendet wieder ein. Pause und Weiterspielen blenden ebenfalls weich.
+- **Server:**
+  - Neu sind die Befehle `youtubeList` und `youtubeControl` (`play`, `pause`, `next`, `previous`, `select`, `volume`), beide nur für die SL.
+  - Spieler erhalten nur den Abspielzustand: aktueller Titel, Video-IDs der Playlist, Position, Pause und Grundpegel. Den Szenenbezug bekommen sie nicht.
+- **Offen:**
+  - YouTube-eigene Playlists (`list=`) werden nicht übernommen; nur einzelne Video-Links.
+  - Läuft ein Titel bei einem Spieler zu Ende, geht dessen Player lokal weiter. Die Position kann dann bis zur nächsten SL-Wahl zwischen Geräten abweichen.
+  - Gemerkte Ambiente-Klänge sind nicht kampagnenweit gespeichert.
+- **Tests:**
+  - Unit: zwei neue Fälle in `tests/regie-nachbesserung.test.mjs`.
+  - Integration: neu `tests/ambiente-integration.mjs` mit SL, A und B. Szenen-Playlist, automatischer Start, Steuerung nur durch die SL (403 für Spieler), Spieler ohne Szenenbezug.
+  - Browser: neu `tests/ambiente-browser.mjs` gegen eine nachgebildete IFrame-API; jede YouTube-Anfrage wird abgefangen, kein echter Netzwerkaufruf. Es prüft:
+    - Schuber und Schallplatte; Musik läuft eingeklappt weiter.
+    - Hinweis bei blockiertem Autoplay.
+    - Szenenstart mit automatischer Playlist; Pause/Weiter/Nächster mit Überblendung.
+    - Grundpegel und persönliche Lautstärke, auch nach dem Neuladen.
+    - Spontanes Ambiente, Schleife am Titelende.
+    - Nichts verdeckt die anderen Bedienelemente; 375 px.
+  - `regie-nachbesserung-browser`: Der alte Einwilligungsteil ist entfallen; Pager bei 375 px wird nach der Einflug-Animation gemessen.
+  - Testdaten: Bei einem frischen Testspeicher (`-Reset`) hat die Kaserne-Szene eine Playlist mit dem Beispiel-Link des Projektinhabers (nur die ID).
+
 ## Daten und Schema
 
 - **Keine D1-Migration.** Alle neuen Felder sind optional in den strikten Zod-Parsern.
   - **Bühnenstand:** `youtube` (nullable, optional); Effekte erweitert um `storm`, `snow`, `embers`, `darkness`, `flicker`.
   - **Neuer Bühnenbefehl `youtube`:** nur SL, serverseitig geprüft.
   - **Szenendokument:** `youtube[]` (optional; `{id, title, videoId}`).
+  - **Bühnenstand `youtube`** (Ambiente-Nachtrag), zusätzlich optional: `tracks[]`, `index`, `playing`, `volume`, `label`, `sceneId`. `videoId` und `title` bleiben der aktuelle Titel, ältere Stände gelten als Playlist mit einem Titel.
+  - **Szenenfeld `youtube[]`:** höchstens 30 statt 8 Einträge.
   - **Tischstand der Zustandswerte** (`settings`-Schlüssel `table-vitals:<Kampagne>`): `roundView`, `damageBy` (optional).
 - Ältere Stände und Szenen bleiben unverändert gültig; das ist per Unit-Test geprüft.
 - **Rückfall auf `732bc758`:** Die alte Version parst strikt.
   - Ein Abend mit neuen Effekten oder YouTube-Musik kann dann mit 409 antworten. Vorher Effekte und YouTube stoppen oder den Abend beenden.
   - Szenen mit vorbereiteter YouTube-Musik lassen sich in der alten Version nicht laden oder speichern. Die Stücke vorher entfernen oder Fix-forward.
+  - Ein Bühnenstand mit Playlist-Feldern ist für `dbe65764` und älter nicht lesbar (409). Vor einem Rollback „Stoppen“ in der Regie drücken. Szenen mit mehr als 8 Ambiente-Titeln lassen sich dort nicht laden.
   - Ein Tischstand mit `roundView`/`damageBy` macht die Zustandswerte in der alten Version unlesbar (409). Vor einem Rollback die Einstellungen nicht ändern bzw. den Eintrag bereinigen.
 - Produktive Daten wurden nicht angefasst.
 
 ## Tests (alle gegen die isolierte Instanz `--ultio-pager`, Port 8881)
 
-- `pnpm test`: 213/213, darunter neu `tests/regie-nachbesserung.test.mjs` mit Effekten, YouTube-Link-Prüfung, Rechten und Rückwärtskompatibilität.
+- `pnpm test`: 215/215, darunter neu `tests/regie-nachbesserung.test.mjs` mit Effekten, YouTube-Link-Prüfung, Rechten und Rückwärtskompatibilität.
 - Typecheck grün. ESLint ohne Fehler außerhalb von `prototypes/`; die 12 Fehler dort sind älter und unverändert. Produktionsbuild grün.
 - **Integration mit SL, A und B:**
   - neu `tests/regie-nachbesserung-integration.mjs`

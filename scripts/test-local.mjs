@@ -198,7 +198,9 @@ try{
     const {scene}=await (await fetch(env.CVK_TEST_URL+'/api/command-center/scenes?id='+encodeURIComponent(fixture.kaserne),{headers})).json();
     const pager=(title,sender,text,priority,recipientIds)=>({id:randomUUID(),kind:'pager',title,text:'',referenceId:'',fileId:'',pager:{sender,text,priority,recipientIds}});
     const elements=[...scene.document.elements,pager('SÜDTOR','SCHÄFER','In 10 Minuten am Südtor. Komm allein.','hoch',['command-a']),pager('LAGE','ZENTRALE','Funkstille bis 23:40. Weitere Anweisungen folgen.','normal',[])];
-    const saved=await fetch(env.CVK_TEST_URL+'/api/command-center/scenes',{method:'POST',headers,body:JSON.stringify({action:'save',id:scene.id,version:scene.version,document:{...scene.document,elements}})});
+    const saved=await fetch(env.CVK_TEST_URL+'/api/command-center/scenes',{method:'POST',headers,body:JSON.stringify({action:'save',id:scene.id,version:scene.version,document:{...scene.document,elements,
+     // Ambience playlist of the scene (Regie-Nachbesserung): the project owner's example link, only an id is stored.
+     youtube:[{id:randomUUID(),title:'Ambiente-Beispiel',videoId:'l8GAZU4eY7g'}]}})});
     if(!saved.ok)throw new Error('Synthetic prepared pager failed '+saved.status+' '+await saved.text());
    }
    if(vitalsDemo){

@@ -1,9 +1,9 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
-import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen,Play} from 'lucide-react';
+import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen} from 'lucide-react';
 import type {Actor} from '@/domain/types';
-import {pagerTextMax,pagerTitleMax,pagerSenderMax,stageEffects,youtubeVideoId,type StageEffect} from '@/domain/live-stage';
+import {pagerTextMax,pagerTitleMax,pagerSenderMax,stageEffects,type StageEffect} from '@/domain/live-stage';
 import {api,ApiError} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
@@ -11,6 +11,7 @@ import {BackdropChoice,tableState} from './regie';
 import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
 import {RegieVitals} from './regie-vitals';
+import {RegieAmbience} from './regie-ambience';
 import type {RegieContext,Snapshot,StageObject,PreparedPager} from './types';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
@@ -58,7 +59,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [contexts,setContexts]=useState<Record<string,RegieContext>>({}),[contextError,setContextError]=useState<{id:string;message:string}|null>(null);
  const [chosenScene,setChosenScene]=useState(''),[audiences,setAudiences]=useState<Record<string,Audience>>({});
- const [area,setArea]=useState<RegieArea>('narration'),[textArea,setTextArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false),[ytLink,setYtLink]=useState(''),[ytTitle,setYtTitle]=useState('');
+ const [area,setArea]=useState<RegieArea>('narration'),[textArea,setTextArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
  const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null),[catalogSearch,setCatalogSearch]=useState('');
  const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),previewDialog=useRef<HTMLDialogElement>(null);
  // One id per spontaneous pager draft: a repeated click or a retry after a lost answer never sends it twice.
@@ -156,8 +157,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const effects=snapshot?.effects||[];
  // Effects combine; with "Überblenden" a choice replaces the running ones in one step, so the table blends over.
  const toggleEffect=(e:StageEffect)=>{const on=effects.includes(e),next=on?effects.filter(x=>x!==e):crossfade?[e]:[...effects,e];return run({action:'effects',effects:next},null,effectLabels[e]+(on?' beendet.':crossfade&&effects.length?' blendet über.':' läuft.'));};
- function startYoutube(video:string,title:string){const id=youtubeVideoId(video);if(!id){setError('Das ist kein gültiger YouTube-Link (z. B. https://youtu.be/… oder https://www.youtube.com/watch?v=…).');return Promise.resolve(false);}
-  return run({action:'youtube',video:id,...(title.trim()?{title:title.trim()}:{})},null,'YouTube-Musik startet für alle: '+(title.trim()||'YouTube-Musik')+'.');}
+
  const pagerTarget=audienceOf('pager');
  const sentPagers=snapshot?.pagers||[];
  // Prepared recipients outside this round are left out; when none remain, the GM chooses before playing it.
@@ -238,7 +238,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
    </Column>
 
    <Column id="col-media" title="Ton & Video" icon={<Music size={17}/>}>
-    <Block title="Tonaufnahmen · Kassette" area="sound">{sceneAudio.length?sceneAudio.map(m=>media(m,Music,'audio')):<p className={regieStyles.empty}>Keine Tonaufnahme mit dieser Szene verknüpft.</p>}</Block>
+    <Block title="Tonaufnahmen · Kassette">{sceneAudio.length?sceneAudio.map(m=>media(m,Music,'audio')):<p className={regieStyles.empty}>Keine Tonaufnahme mit dieser Szene verknüpft.</p>}</Block>
     <Block title="Video · Röhrenbildschirm">{sceneVideo.length?sceneVideo.map(m=>media(m,Film,'video')):<p className={regieStyles.empty}>Kein Video mit dieser Szene verknüpft.</p>}</Block>
     <Block title="Hintergrundmusik">
      <p className={regieStyles.state} data-placed={!!snapshot?.music}>{snapshot?.music?'Läuft für alle: '+snapshot.music.title:'Keine Musik'}</p>
@@ -246,15 +246,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      <ul className={styles.compact}>{[...sceneAudio.map(m=>({id:m.fileId,title:m.title})),...catalogAudio.filter(o=>!sceneAudio.some(m=>m.fileId===o.id)).map(o=>({id:o.id,title:o.title}))].map(t=><li key={t.id} data-active={snapshot?.music?.fileId===t.id}><span>{t.title}</span><button type="button" disabled={busy} onClick={()=>void run({action:'music',fileId:t.id},null,'Musik läuft: '+t.title)}>{snapshot?.music?.fileId===t.id?<><RotateCcw/> Neu starten</>:<><Music/> Als Musik</>}</button></li>)}</ul>
      {snapshot?.music&&<button type="button" disabled={busy} onClick={()=>void run({action:'music',fileId:null},null,'Musik gestoppt.')}><Square/> Musik stoppen</button>}
     </Block>
-    <Block title="Musik von YouTube">
-     <p className={regieStyles.state} data-placed={!!snapshot?.youtube} data-youtube-state="">{snapshot?.youtube?'Läuft für alle: '+snapshot.youtube.title:'Keine YouTube-Musik'}</p>
-     <p className={regieStyles.empty}>Offizieller YouTube-Player (youtube-nocookie.com). Jede Person stimmt am Tisch selbst zu, bevor etwas von YouTube lädt, und regelt die Lautstärke selbst. Nichts wird heruntergeladen.</p>
-     {!!context.youtube?.length&&<ul className={styles.compact} aria-label="YouTube-Musik der Szene">{context.youtube.map(t=><li key={t.id} data-active={snapshot?.youtube?.videoId===t.videoId}><span>{t.title}<small>youtu.be/{t.videoId}</small></span><button type="button" disabled={busy} onClick={()=>void startYoutube(t.videoId,t.title)}>{snapshot?.youtube?.videoId===t.videoId?<><RotateCcw/> Neu starten</>:<><Play/> Für alle</>}</button></li>)}</ul>}
-     <form className={styles.pager} onSubmit={e=>{e.preventDefault();void startYoutube(ytLink,ytTitle).then(ok=>{if(ok){setYtLink('');setYtTitle('');}});}}>
-      <div className={styles.pagerMeta}><label>YouTube-Link<input aria-label="YouTube-Link" inputMode="url" value={ytLink} onChange={e=>setYtLink(e.target.value)} placeholder="https://youtu.be/…"/></label><label>Titel<input aria-label="YouTube-Titel" maxLength={200} value={ytTitle} onChange={e=>setYtTitle(e.target.value)} placeholder="optional"/></label></div>
-      <button type="submit" className={styles.primary} disabled={busy||!ytLink.trim()}><Play/> Für alle starten</button>
-     </form>
-     {snapshot?.youtube&&<button type="button" disabled={busy} onClick={()=>void run({action:'youtube',video:null},null,'YouTube-Musik gestoppt.')}><Square/> YouTube stoppen</button>}
+    <Block title="Ambiente · YouTube" area="sound">
+     <RegieAmbience youtube={snapshot?.youtube} sceneTracks={context.youtube||[]} sceneTitle={s!.title} actorId={a.id} busy={busy} run={(body,done)=>run(body,null,done||'')}/>
     </Block>
    </Column>
 

@@ -142,3 +142,12 @@
 .vitalsSetting{display:grid;gap:4px;font-size:12px;color:#c5bcaa}
 .vitalsSetting select{min-height:34px;padding:0 8px;border:1px solid #c5a46a40;border-radius:5px;background:#0c1417;color:#eee8dc;font:inherit}
 .muted{margin:0;color:#b7bdb6;font-size:12px}
+
+/* Ambience control (YouTube) in the Regie. */
+.ambienceControl{display:grid;gap:9px}
+.ambienceState{margin:0;padding:7px 9px;border:1px solid #c5a46a33;border-radius:5px;font-size:12px;color:#d9d1c0}
+.ambienceState[data-playing=true]{border-color:#a9d6b966;color:#cdeedd}
+.ambienceGroup{display:grid;gap:6px;padding-top:6px;border-top:1px solid #c5a46a26}
+.ambienceGroup h4{display:flex;align-items:center;gap:6px;margin:0;font-size:12px;color:#e6d3a8}
+.ambienceGroup>button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:34px;border:1px solid #c5a46a40;border-radius:5px;background:#1b292b;color:#eee8dc;font-size:12px}
+.ambienceGroup>button svg{width:15px;height:15px}

@@ -19,7 +19,7 @@ export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(scene
   .refine(e=>e.kind==='pager'?e.title.length<=scenePagerMax.title&&!e.referenceId&&!e.fileId:!e.pager,'Pager-Bausteine haben einen Titel bis 80 Zeichen und keine Datei; andere Bausteine tragen keine Pager-Daten.');
 export type SceneElement=z.infer<typeof sceneElementSchema>;
 /** Prepared YouTube music of a scene: only a title and the video id, no file. Optional, so older scenes stay valid. */
-export const sceneYoutubeMax=8;
+export const sceneYoutubeMax=30;
 export const sceneYoutubeSchema=z.object({id:z.string().uuid(),title:z.string().trim().max(200),videoId:z.string().regex(/^[A-Za-z0-9_-]{11}$/,'Kein gültiger YouTube-Link.')}).strict();
 export type SceneYoutube=z.infer<typeof sceneYoutubeSchema>;
 // Preparation has no execution flags. Only an explicit SL command creates a run.

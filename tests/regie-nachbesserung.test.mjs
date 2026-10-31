@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {emptyStage,changeStageObjects,stageSchema,stageCommandSchema,stageEffects,youtubeVideoId} from '../domain/live-stage.ts';
+import {emptyStage,changeStageObjects,stageSchema,stageCommandSchema,stageEffects,youtubeVideoId,youtubePlaylist,startYoutube,youtubeDefaultVolume} from '../domain/live-stage.ts';
 import {sceneDocumentSchema,emptyScene} from '../domain/story-scene.ts';
 import {mayOperate,allowedOperations,applyTableVitals,emptyTableVitals,tableVitalsSchema,tableCommandSchema,roundViewOf,damageByOf} from '../domain/character-vitals.ts';
 // Regie-Nachbesserung: more atmosphere effects, YouTube music as an optional stage field, YouTube tracks in scenes.
@@ -68,4 +68,33 @@ test('only settings change round view and damage mode; unknown values are refuse
  assert.equal(s.roundView,'shared');assert.equal(s.damageBy,'sl');assert.ok(s.log[0].secret);
  s=applyTableVitals(s,{op:'settings',roundView:'all'},'SL','t','2');assert.equal(s.roundView,'all');assert.equal(s.damageBy,'sl');
  assert.equal(tableCommandSchema.safeParse({op:'settings',damageBy:'alle'}).success,false);
+});
+
+// Ambiente-Playlist: Szenenstart, Steuerung nur durch die SL, alte Stände bleiben gültig.
+test('a playlist starts at a position with the base volume; old single-track states read as a playlist of one',()=>{
+ const old={videoId:'dQw4w9WgXcQ',title:'Alt',key:'k'};
+ assert.ok(stageSchema.safeParse({format:1,version:1,objects:[],youtube:old}).success,'First YouTube version stays valid');
+ assert.deepEqual(youtubePlaylist(old),{tracks:[{videoId:'dQw4w9WgXcQ',title:'Alt'}],index:0,playing:true,volume:youtubeDefaultVolume,label:'Alt'});
+ const tracks=[{videoId:'l8GAZU4eY7g',title:'Wald'},{videoId:'dQw4w9WgXcQ',title:'Bar'}];
+ let s=startYoutube(emptyStage(),tracks,{label:'Szene 1',sceneId:'s1'});
+ assert.equal(s.youtube.videoId,'l8GAZU4eY7g');assert.equal(s.youtube.volume,youtubeDefaultVolume);assert.equal(s.youtube.playing,true);assert.equal(s.youtube.label,'Szene 1');
+ s={...s,youtube:{...s.youtube,volume:60}};
+ const again=startYoutube(s,tracks.slice(1),{label:'Bar'});assert.equal(again.youtube.volume,60,'The GM base volume survives a new playlist');assert.notEqual(again.youtube.key,s.youtube.key);
+ assert.equal(stageSchema.safeParse(s).success,true);
+});
+test('only the GM controls: play/pause keep the track, next/previous wrap, select checks the range, volume 0–100',()=>{
+ const a={id:'a',name:'A',gm:false},gm={id:'sl',name:'SL',gm:true};
+ let s=changeStageObjects(emptyStage(),gm,{action:'youtubeList',tracks:[{video:'https://youtu.be/l8GAZU4eY7g',title:'Eins'},{video:'dQw4w9WgXcQ'}],label:'Wald'});
+ assert.deepEqual(s.youtube.tracks.map(t=>t.title),['Eins','Titel 2']);
+ for(const c of [{action:'youtubeControl',op:'pause'},{action:'youtubeList',tracks:[{video:'dQw4w9WgXcQ'}]}])assert.throws(()=>changeStageObjects(s,a,c),e=>e.status===403);
+ const key=s.youtube.key;
+ s=changeStageObjects(s,gm,{action:'youtubeControl',op:'pause'});assert.equal(s.youtube.playing,false);assert.equal(s.youtube.key,key,'Pause does not reload');
+ s=changeStageObjects(s,gm,{action:'youtubeControl',op:'next'});assert.equal(s.youtube.index,1);assert.equal(s.youtube.videoId,'dQw4w9WgXcQ');assert.equal(s.youtube.playing,true);assert.notEqual(s.youtube.key,key);
+ s=changeStageObjects(s,gm,{action:'youtubeControl',op:'next'});assert.equal(s.youtube.index,0,'Wraps around');
+ s=changeStageObjects(s,gm,{action:'youtubeControl',op:'previous'});assert.equal(s.youtube.index,1);
+ assert.throws(()=>changeStageObjects(s,gm,{action:'youtubeControl',op:'select',index:5}),e=>e.status===400);
+ s=changeStageObjects(s,gm,{action:'youtubeControl',op:'volume',volume:40});assert.equal(s.youtube.volume,40);
+ assert.equal(stageCommandSchema.safeParse({action:'youtubeControl',op:'volume',volume:140}).success,false);
+ assert.throws(()=>changeStageObjects(s,gm,{action:'youtubeList',tracks:[{video:'https://example.com/x'}]}),e=>e.status===400);
+ assert.throws(()=>changeStageObjects(emptyStage(),gm,{action:'youtubeControl',op:'play'}),e=>e.status===404);
 });

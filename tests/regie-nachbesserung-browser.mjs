@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {mkdirSync} from 'node:fs';
 // Regie-Nachbesserung in real browsers: scene choice opens the Regie window, the persistent area menu, pager
-// reception by A and B (also over an open media view) plus the GM mirror, atmosphere effects and YouTube consent.
+// reception by A and B (also over an open media view) plus the GM mirror and atmosphere effects.
 // 1920, 1440 and 125 % for Regie window and table; players also at 375 px. Run against the --ultio-pager fixture.
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8881';
@@ -12,8 +12,7 @@ const viewports=[{name:'1920',viewport:{width:1920,height:1080}},{name:'1440',vi
 const mobile={viewport:{width:375,height:812},deviceScaleFactor:2,isMobile:true,hasTouch:true};
 const browser=await chromium.launch({headless:true,channel:process.env.CVK_PLAYWRIGHT_CHANNEL||undefined});const errors=[];let phase='setup';
 const pass=label=>console.log('PASS '+label);
-const youtubeRequests=[];
-async function account(id,options){const context=await browser.newContext(options);context.on('request',r=>{if(/youtube|ytimg|googlevideo/.test(new URL(r.url()).hostname))youtubeRequests.push(id+' '+r.url());});const login=await context.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(login.status(),200);return context;}
+async function account(id,options){const context=await browser.newContext(options);const login=await context.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(login.status(),200);return context;}
 const watch=(p,label)=>{p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(phase+' '+label+': '+e.message));return p;};
 async function table(context,label){const p=watch(await context.newPage(),label);await p.goto(base+'/spielbereich?bereich=sitzung');await p.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();return p;}
 const noHorizontalScroll=async(p,label)=>{const [w,inner]=await p.evaluate(()=>[document.documentElement.scrollWidth,window.innerWidth]);assert.ok(w<=inner+1,label+': no horizontal page scroll ('+w+' > '+inner+')');};
@@ -113,26 +112,16 @@ try{
   await Promise.all([gm.close(),a.close(),b.close()]);
  }
 
- // 5. YouTube: consent first, nothing from YouTube before; players at 375 px.
+ // 5. Players at 375 px: the pager fits on a phone. (YouTube ambience: tests/ambiente-browser.mjs.)
  phase='375';
  const [gm,a]=await Promise.all([account('command-gm',viewports[1]),account('command-a',mobile)]);
  const regie=watch(await gm.newPage(),'Regie');await regie.goto(base+'/sl/regie');await regie.getByRole('heading',{name:/Texte zum Vorlesen/}).waitFor();
  const pa=await table(a,'A375');
- await regie.getByLabel('YouTube-Link').fill('https://example.com/watch?v=dQw4w9WgXcQ');await regie.getByRole('button',{name:'Für alle starten'}).click();
- await regie.getByRole('alert').getByText(/kein gültiger YouTube-Link/).waitFor();
- await regie.getByLabel('YouTube-Link').fill('https://youtu.be/dQw4w9WgXcQ?si=test');await regie.getByLabel('YouTube-Titel').fill('Kasernenhof');await regie.getByRole('button',{name:'Für alle starten'}).click();
- const yt=pa.getByRole('region',{name:'Musik von YouTube'});await yt.getByText('Kasernenhof').waitFor();
- await yt.getByRole('button',{name:'YouTube laden & abspielen'}).waitFor();
- assert.equal(await pa.locator('iframe').count(),0,'No embed before consent');
- const box=await yt.boundingBox();assert.ok(box.x>=0&&box.x+box.width<=375+1,'YouTube notice fits 375 px');
- await pa.screenshot({path:output+'/375-youtube-einwilligung.png'});
  const text='Pager 375 · '+Date.now();await regie.getByLabel('Pager-Nachricht').fill(text);await regie.getByRole('button',{name:'Pager senden'}).click();
- await pa.getByRole('region',{name:'Pager'}).waitFor();const pager=await pa.locator('[aria-roledescription="Pager"]').boundingBox();
+ await pa.getByRole('region',{name:'Pager'}).waitFor();await pa.waitForTimeout(900);const pager=await pa.locator('[aria-roledescription="Pager"]').boundingBox();
  assert.ok(pager&&pager.x>=0&&pager.x+pager.width<=375+1,'Pager fits 375 px');await noHorizontalScroll(pa,'375 table');
  await pa.screenshot({path:output+'/375-pager.png'});
- assert.deepEqual(youtubeRequests,[],'Nothing is requested from YouTube without consent');
- await regie.getByRole('button',{name:'YouTube stoppen'}).click();await yt.waitFor({state:'detached'});
- pass('375: YouTube consent notice first, no YouTube request before consent; pager fits on a phone');
+ pass('375: pager fits on a phone');
  await calm();
  assert.deepEqual(errors,[],'No page errors');
  console.log('ALL PASS: Regie-Nachbesserung im Browser');

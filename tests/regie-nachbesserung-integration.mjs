@@ -32,7 +32,7 @@ for(const p of [a,b])await stage(p,{action:'youtube',video:'https://youtu.be/dQw
 await stage(gm,{action:'youtube',video:'https://evil.example/watch?v=dQw4w9WgXcQ'},400);
 await stage(gm,{action:'youtube',video:'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=x',title:'Kasernenhof'});
 const seen=await Promise.all([a,b,gm].map(snap));
-for(const s of seen){assert.equal(s.youtube.videoId,'dQw4w9WgXcQ');assert.equal(s.youtube.title,'Kasernenhof');assert.deepEqual(Object.keys(s.youtube).sort(),['key','title','videoId']);}
+for(const s of seen){assert.equal(s.youtube.videoId,'dQw4w9WgXcQ');assert.equal(s.youtube.title,'Kasernenhof');assert.deepEqual(Object.keys(s.youtube).sort(),['index','key','label','playing','title','tracks','videoId','volume'],'Only the play state');}
 assert.equal(new Set(seen.map(s=>s.youtube.key)).size,1,'Everyone gets the same start key');
 await stage(gm,{action:'youtube',video:'dQw4w9WgXcQ',title:'Kasernenhof'});
 assert.notEqual((await snap(a)).youtube.key,seen[0].youtube.key,'Starting again restarts for everyone');

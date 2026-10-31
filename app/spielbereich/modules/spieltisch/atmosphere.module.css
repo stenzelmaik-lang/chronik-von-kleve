@@ -76,21 +76,3 @@
 .music .musicStart{background:#d6b36f;border-color:#d6b36f;color:#141a1b;padding:0 10px;white-space:nowrap}
 .music input{width:84px;accent-color:#d6b36f}
 @media(max-width:600px){.music{top:56px;left:10px;max-width:calc(100% - 20px)}.music input{width:60px}}
-
-
-/* YouTube music: personal consent, then the official player (kept visible, at least 200 x 200 px). */
-.youtube{position:absolute;left:18px;top:60px;z-index:6;display:grid;gap:7px;width:min(300px,calc(100% - 36px));padding:8px;border:1px solid #c5a46a40;border-radius:6px;background:#0c1417e6;color:#e7dac1;font-size:12px;pointer-events:auto}
-.youtube[data-offset=true]{top:112px}
-.youtube header{display:flex;align-items:center;gap:7px;min-width:0}.youtube header small{margin-left:auto;color:#b7bdb6;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
-.consent{display:grid;gap:7px}.consent p{margin:0;line-height:1.4;color:#d9d1c0}.consent p svg{vertical-align:-2px;margin-right:3px}
-.remember{display:flex;align-items:center;gap:6px;color:#d9d1c0}
-.youtube .musicStart{display:flex;align-items:center;justify-content:center;gap:6px;min-height:36px;border:1px solid #d6b36f;border-radius:5px;background:#d6b36f;color:#141a1b;font-size:12px;font-weight:600}
-.youtubeFrame{width:100%;min-width:200px;height:200px;border-radius:4px;overflow:hidden;background:#000}
-.youtubeFrame iframe{display:block;width:100%;height:100%;border:0}
-.youtubeControls{display:flex;align-items:center;gap:6px}
-.youtubeControls button{display:grid;place-items:center;min-width:34px;min-height:34px;border:1px solid #c5a46a40;border-radius:5px;background:#182125;color:#eee8dc}
-.youtubeControls button[aria-pressed=true]{background:#5a3b31}
-.youtubeControls input{flex:1;min-width:0;accent-color:#d6b36f}
-.withdraw{justify-self:start;padding:2px 0;border:0;background:none;color:#b7bdb6;font-size:11px;text-decoration:underline;cursor:pointer}
-.youtubeError{margin:0;color:#ffcfbf}
-@media(max-width:600px){.youtube{left:10px;top:56px;width:calc(100% - 20px);max-width:300px}.youtube[data-offset=true]{top:104px}}

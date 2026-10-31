@@ -6,7 +6,7 @@ import {listScenes,readScene} from './story-scenes';
 import {preparedSession} from './story-preparation';
 import {emptyScenePager,type SceneSummary} from '@/domain/story-scene';
 import {liveSceneChoice} from '@/domain/session-overview';
-import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stageSourceToken,stageMediaOf,type StageCommand,type StageState,type StageObject,type StageBackdrop,type StageMusic} from '@/domain/live-stage';
+import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stageSourceToken,stageMediaOf,startYoutube,youtubePlaylist,type StageCommand,type StageState,type StageObject,type StageBackdrop,type StageMusic} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
@@ -76,7 +76,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   effects:stage.effects||[],
   music:stage.music?{title:stage.music.title,key:stage.music.key,...(a.gm?{fileId:stage.music.fileId}:{})}:null,
   // YouTube music runs for the whole round; every viewer loads the embed only after their own consent.
-  youtube:stage.youtube?{videoId:stage.youtube.videoId,title:stage.youtube.title,key:stage.youtube.key}:null,
+  // Players get only the play state: current track, playlist ids for looping, play/pause and the base volume.
+  youtube:stage.youtube?(()=>{const p=youtubePlaylist(stage.youtube);return {videoId:stage.youtube.videoId,title:stage.youtube.title,key:stage.youtube.key,tracks:p.tracks,index:p.index,playing:p.playing,volume:p.volume,label:p.label};})():null,
   // Players learn only whether they themselves acknowledged; GMs get recipients and all acknowledgements.
   pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at,...(p.title?{title:p.title}:{}),...(p.sender?{sender:p.sender}:{}),...(p.priority?{priority:p.priority}:{}),acknowledged:!!p.acks?.some(x=>x.id===a.id)})};
 }
@@ -86,10 +87,12 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
  if((c.action==='visibility'||c.action==='add'||c.action==='pager')&&c.recipients?.length){const eligible=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id));if(c.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Zielperson ist nicht in dieser Runde.');}
  const source=c.action==='add'&&c.kind!=='note'?await stageSource(a,c.sourceId||'',c.sourceKind||'entity'):undefined;
  if(c.action==='add'&&source&&source.kind!==c.kind)throw new HttpError(400,'Objekttyp passt nicht zur Quelle.');
- let backdrop:StageBackdrop|null=null;
+ let backdrop:StageBackdrop|null=null,scenePlaylist:{tracks:{videoId:string;title:string}[];label:string}|null=null;
  if(c.action==='backdrop'||c.action==='activateScene'){
   gmOnly(a);
-  const fileId=c.action==='backdrop'?c.fileId:(await readScene(database(),a,c.sceneId)).document.backdropFileId||null;
+  const sceneDocument=c.action==='activateScene'?(await readScene(database(),a,c.sceneId)).document:null;
+  if(sceneDocument?.youtube?.length)scenePlaylist={tracks:sceneDocument.youtube.map(t=>({videoId:t.videoId,title:t.title||'Ambiente'})),label:sceneDocument.title};
+  const fileId=c.action==='backdrop'?c.fileId:sceneDocument?.backdropFileId||null;
   const sceneId=c.action==='activateScene'?c.sceneId:state.sceneId||'';
   if(fileId){const f=await liveFile(a,fileId);if(!f.mime.startsWith('image/'))throw new HttpError(400,'Das Szenenbild muss ein Bild sein.');backdrop={fileId:f.id,title:f.name,sceneId};}
  }
@@ -100,6 +103,8 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
   music={fileId:f.id,title:f.name,key:crypto.randomUUID().replaceAll('-','').slice(0,16)};
  }
  let next:StageState;try{next=changeStageObjects(state,a,c,source,backdrop,music);}catch(e){if(e instanceof Error&&'status' in e)throw new HttpError(Number(e.status),e.message);throw new HttpError(400,'Ungültige Bühnenaktion.');}
+ // Starting a scene with a prepared playlist starts it for everyone (it loops); without one the current music keeps playing.
+ if(c.action==='activateScene'&&scenePlaylist)next=startYoutube(next,scenePlaylist.tracks,{label:scenePlaylist.label,sceneId:c.sceneId});
  const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1").bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId).run();
  if(!result.meta.changes)throw new HttpError(409,'Spielstand inzwischen geändert. Deine Änderung wurde nicht überschreibend gespeichert.');
 }
