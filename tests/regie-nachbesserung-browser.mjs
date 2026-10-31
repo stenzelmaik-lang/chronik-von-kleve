@@ -81,7 +81,7 @@ try{
    assert.ok(await p.getByRole('button',{name:'Aktuelle Medien öffnen'}).isVisible(),'The media view stays reopenable');
   }
   const mirror=sl.getByRole('region',{name:'Pager-Spiegel'});await mirror.getByText(text).waitFor();
-  assert.equal(await sl.locator('[aria-roledescription="Pager"]').count(),0,'The GM gets no player device');
+  assert.equal(await sl.locator('section[aria-label="Pager"] [aria-roledescription="Pager"]').count(),0,'The GM gets no player device (the mirror is read-only)');
   await pa.getByRole('button',{name:'OK: öffnen oder quittieren'}).click();await mirror.getByText('Gelesen 1/2: '+nameA).waitFor();
   await pa.screenshot({path:output+'/'+name+'-spieler-a-pager.png'});await sl.screenshot({path:output+'/'+name+'-sl-spiegel.png'});
   // A targeted pager: the mirror shows that it went out, never its content.

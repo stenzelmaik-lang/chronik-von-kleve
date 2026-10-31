@@ -70,7 +70,7 @@ try{
   await pb.waitForTimeout(1500);assert.equal(await pb.getByRole('region',{name:'Pager'}).count(),0,name+': B receives nothing for A');
   // The GM gets no player device, only the read-only mirror of sent pagers (since the Regie-Nachbesserung).
   assert.equal(await sl.getByRole('region',{name:'Pager',exact:true}).count(),0,name+': the shared SL table never shows a player pager');
-  assert.equal(await sl.locator('[aria-roledescription="Pager"]').count(),0,name+': no pager device for the GM');
+  assert.equal(await sl.locator('section[aria-label="Pager"] [aria-roledescription="Pager"]').count(),0,name+': no player pager device for the GM (only the read-only mirror)');
   await suedtor.getByText(/Gesendet .* an /).waitFor();
   await deviceGeometry(pa,name+' A',options.viewport);
   assert.ok((await sounds(pa)).includes('alarm-urgent.wav'),name+': an urgent message tries the alarm sound');

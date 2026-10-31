@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Static device artwork from /public; no optimization proxy needed. */
-import {useEffect,useRef,useState,type KeyboardEvent,type ReactNode} from 'react';
+import {useCallback,useEffect,useRef,useState,type KeyboardEvent,type PointerEvent as ReactPointerEvent,type MouseEvent as ReactMouseEvent,type ReactNode} from 'react';
 import {Volume2,VolumeX,ChevronDown,Radio,X} from 'lucide-react';
 import {pagerBaseMenu,pagerDeviceMessages,pagerUnread,pagerKeyOf,pressPagerKey,pagerArrivals,settlePagerDevice,initialPagerDevice,type PagerKey,type PagerDeviceMessage,type PagerDeviceState} from '@/domain/ultio-pager';
 import type {PagerMessage} from './types';
@@ -61,7 +61,7 @@ export function UltioPagerDevice({messages,device,receiver,muted,theme='green',o
  useEffect(()=>{const t=window.setInterval(()=>setNow(Date.now()),20000);return()=>window.clearInterval(t);},[]);
  const view=displays.get(device.view)??displays.get('home')!;
  const keydown=(e:KeyboardEvent<HTMLDivElement>)=>{if(e.altKey||e.ctrlKey||e.metaKey)return;const key=pagerKeyOf(e.key);if(!key||(e.target as Element).closest('input,textarea,select'))return;e.preventDefault();onKey(key);};
- return <div className={styles.device} data-shell="ultio" data-theme={theme} tabIndex={0} role="group" aria-roledescription="Pager" aria-label="Pager ULTIO R-03. Bedienung über die fünf Tasten oder mit Pfeiltasten, Enter, Escape und M." onKeyDown={keydown}>
+ return <div className={styles.device} data-shell="ultio" data-drag-handle="" data-theme={theme} tabIndex={0} role="group" aria-roledescription="Pager" aria-label="Pager ULTIO R-03. Bedienung über die fünf Tasten oder mit Pfeiltasten, Enter, Escape und M." onKeyDown={keydown}>
   <img className={styles.shell} src={ULTIO_ASSETS.shell} alt="" draggable={false}/>
   <div className={styles.screen} aria-live="polite">{view.render({messages,device,unread:pagerUnread(messages),receiver,muted,now})}</div>
   <div className={styles.keys}>{(['menu','up','down','ok','back'] as const).map(k=><button type="button" key={k} className={styles.key} data-key={k} aria-label={keyLabels[k]} onClick={e=>{e.stopPropagation();onKey(k);}}/>)}</div>
@@ -69,10 +69,61 @@ export function UltioPagerDevice({messages,device,receiver,muted,theme='green',o
 }
 
 /**
+ * The pager lies freely on the table like the other props: dragged by its housing (never by the five keys), with
+ * mouse or touch. The position is personal, remembered per person in this browser, as fractions of the free space,
+ * so it stays fully visible on any screen size. A short tap (under 6 px of movement) still counts as a click.
+ */
+function usePagerPosition(ref:{current:HTMLElement|null},storageKey:string,active:boolean,layout:unknown){
+ const [pos,setPos]=useState<{x:number;y:number}|null>(null);
+ const drag=useRef<{id:number;sx:number;sy:number;left:number;top:number;moved:boolean}|null>(null),swallow=useRef(false);
+ const unit=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)?Math.min(1,Math.max(0,v)):null;
+ useEffect(()=>{queueMicrotask(()=>{try{const v=JSON.parse(window.localStorage.getItem(storageKey)||'null');const x=unit(v?.x),y=unit(v?.y);if(x!==null&&y!==null)setPos({x,y});}catch{/* storage unavailable */}});},[storageKey]);
+ const place=useCallback(()=>{
+  const el=ref.current,box=el?.offsetParent as HTMLElement|null;if(!el||!box||!pos||drag.current?.moved)return;
+  el.style.left=pos.x*Math.max(0,box.clientWidth-el.offsetWidth)+'px';el.style.top=pos.y*Math.max(0,box.clientHeight-el.offsetHeight)+'px';el.style.right='auto';el.style.bottom='auto';
+ },[pos,ref]);
+ useEffect(()=>{if(!active)return;place();const el=ref.current;if(!el)return;const o=new ResizeObserver(place);o.observe(el);if(el.offsetParent)o.observe(el.offsetParent);return()=>o.disconnect();},[place,active,layout,ref]);
+ const handlers={
+  onPointerDown:(e:ReactPointerEvent<HTMLElement>)=>{
+   const t=e.target as Element,button=t.closest('button');
+   if(e.button!==0||t.closest('[data-key]')||(button&&!button.hasAttribute('data-drag-handle'))||!t.closest('[data-drag-handle]'))return;
+   const el=ref.current,box=el?.offsetParent as HTMLElement|null;if(!el||!box)return;
+   const r=el.getBoundingClientRect(),b=box.getBoundingClientRect();
+   drag.current={id:e.pointerId,sx:e.clientX,sy:e.clientY,left:r.left-b.left,top:r.top-b.top,moved:false};
+  },
+  onPointerMove:(e:ReactPointerEvent<HTMLElement>)=>{
+   const d=drag.current,el=ref.current,box=el?.offsetParent as HTMLElement|null;if(!d||d.id!==e.pointerId||!el||!box)return;
+   const dx=e.clientX-d.sx,dy=e.clientY-d.sy;
+   if(!d.moved){if(Math.hypot(dx,dy)<6)return;d.moved=true;el.setPointerCapture(e.pointerId);el.dataset.dragging='true';}
+   e.preventDefault();
+   el.style.left=Math.min(Math.max(0,d.left+dx),Math.max(0,box.clientWidth-el.offsetWidth))+'px';
+   el.style.top=Math.min(Math.max(0,d.top+dy),Math.max(0,box.clientHeight-el.offsetHeight))+'px';el.style.right='auto';el.style.bottom='auto';
+  },
+  onPointerUp:(e:ReactPointerEvent<HTMLElement>)=>{
+   const d=drag.current,el=ref.current,box=el?.offsetParent as HTMLElement|null;drag.current=null;if(!d||!d.moved||!el||!box)return;
+   delete el.dataset.dragging;if(el.hasPointerCapture(e.pointerId))el.releasePointerCapture(e.pointerId);swallow.current=true;
+   const fw=Math.max(1,box.clientWidth-el.offsetWidth),fh=Math.max(1,box.clientHeight-el.offsetHeight);
+   const next={x:Math.min(1,Math.max(0,parseFloat(el.style.left)/fw)),y:Math.min(1,Math.max(0,parseFloat(el.style.top)/fh))};
+   setPos(next);try{window.localStorage.setItem(storageKey,JSON.stringify(next));}catch{/* storage unavailable */}
+  },
+  onPointerCancel:()=>{const el=ref.current;if(el)delete el.dataset.dragging;drag.current=null;queueMicrotask(()=>setPos(p=>p?{...p}:p));},
+  // A drag ends without the click that would open the folded pager.
+  onClickCapture:(e:ReactMouseEvent<HTMLElement>)=>{if(swallow.current){swallow.current=false;e.preventDefault();e.stopPropagation();}},
+ };
+ return handlers;
+}
+
+/** Pager sounds from the package. Browsers allow sound only after the first interaction with the page: a ring that is
+ * blocked waits and plays at the next tap or key press (unless muted by then). */
+const soundCache:Partial<Record<'ping'|'alarm',HTMLAudioElement>>={};
+function pagerSound(kind:'ping'|'alarm'){let a=soundCache[kind];if(!a){a=new Audio(kind==='alarm'?ULTIO_ASSETS.alarm:ULTIO_ASSETS.ping);a.preload='auto';a.volume=.6;soundCache[kind]=a;}return a;}
+
+/**
  * A player's pager on the table: a prop that floats in when a message arrives and folds away into a small button.
  * Only the viewer's own messages arrive here (server filtered). OK on an open message acknowledges it to the GM.
  */
 export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArrival}:{pagers:PagerMessage[];runId:string;actorId:string;receiver:string;onAcknowledge:(id:string)=>void;onArrival?:()=>void}){
+ const pending=useRef<'ping'|'alarm'|''>(''),mutedNow=useRef(false);
  const openedKey='chroniplay:pager:'+runId+':'+actorId,muteKey='chroniplay:pager-ton:'+actorId;
  const [opened,setOpened]=useState<string[]>(()=>readList(openedKey));
  const [acked,setAcked]=useState<string[]>([]);
@@ -96,10 +147,18 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArriva
   // A personal reader or media view (a modal dialog) would cover the device and make it unusable: the table closes it.
   onArrival?.();
   queueMicrotask(()=>{setDevice(old=>expanded&&old.view==='message'?old:{...old,view:'inbox',inboxIndex:0});setExpanded(true);setAnnounce('Neue Pager-Nachricht'+(newest.sender?' von '+newest.sender:'')+(newest.urgent?', dringend':''));});
-  if(!muted){try{const sound=new Audio(arrivals.some(m=>m.urgent)?ULTIO_ASSETS.alarm:ULTIO_ASSETS.ping);sound.volume=.6;void sound.play().catch(()=>{/* blocked until the player interacts; the badge still shows */});}catch{/* no audio support */}}
+  if(!muted)ring(arrivals.some(m=>m.urgent)?'alarm':'ping');
   // eslint-disable-next-line react-hooks/exhaustive-deps -- runs per change of the message ids only
  },[ids]);
- useEffect(()=>{try{window.localStorage.setItem(muteKey,muted?'1':'0');}catch{/* storage unavailable */}},[muted,muteKey]);
+ useEffect(()=>{mutedNow.current=muted;if(muted)pending.current='';try{window.localStorage.setItem(muteKey,muted?'1':'0');}catch{/* storage unavailable */}},[muted,muteKey]);
+ function ring(kind:'ping'|'alarm'){try{const a=pagerSound(kind);a.currentTime=0;a.play().then(()=>{pending.current='';}).catch(()=>{pending.current=kind;});}catch{/* no audio support */}}
+ // The first tap or key press after a blocked ring plays it; it also warms both sounds up for later messages.
+ useEffect(()=>{
+  const unlock=()=>{pagerSound('ping').load();pagerSound('alarm').load();const k=pending.current;if(k&&!mutedNow.current){pending.current='';ring(k);}};
+  window.addEventListener('pointerdown',unlock,true);window.addEventListener('keydown',unlock,true);
+  return()=>{window.removeEventListener('pointerdown',unlock,true);window.removeEventListener('keydown',unlock,true);};
+ },[]);
+ const section=useRef<HTMLElement>(null),drag=usePagerPosition(section,'chroniplay:pager-position:'+actorId,pagers.length>0,expanded);
 
  const markOpened=(id:string)=>setOpened(old=>{if(old.includes(id))return old;const next=[...old,id];writeList(openedKey,next);return next;});
  function key(k:PagerKey){
@@ -113,7 +172,7 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArriva
  function expand(){setExpanded(true);queueMicrotask(()=>deviceRef.current?.querySelector<HTMLElement>('[tabindex="0"]')?.focus({preventScroll:true}));}
  function collapse(){setExpanded(false);queueMicrotask(()=>launcher.current?.focus({preventScroll:true}));}
  if(!messages.length)return null;
- return <section className={styles.pager} aria-label="Pager" data-expanded={expanded} data-alert={urgentOpen}>
+ return <section ref={section} {...drag} className={styles.pager} aria-label="Pager" data-expanded={expanded} data-alert={urgentOpen}>
   <span className={styles.srOnly} role="status">{announce}</span>
   {expanded?<div ref={deviceRef} className={styles.window}>
    <div className={styles.toolbar}>
@@ -121,44 +180,50 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onArriva
     <button type="button" aria-label="Pager zuklappen" onClick={collapse}><ChevronDown size={14}/> Zuklappen</button></div>
    <UltioPagerDevice messages={messages} device={device} receiver={receiver} muted={muted} theme={device.view==='message'&&selected?.urgent?'red':'green'} onKey={key}/>
   </div>:
-  <button ref={launcher} type="button" className={styles.launcher} aria-label={'Pager öffnen'+(unread?', '+unread+(unread===1?' neue Meldung':' neue Meldungen'):'')} onClick={expand}>
+  <button ref={launcher} type="button" className={styles.launcher} data-drag-handle="" aria-label={'Pager öffnen'+(unread?', '+unread+(unread===1?' neue Meldung':' neue Meldungen'):'')} onClick={expand}>
    <img src={ULTIO_ASSETS.shell} alt="" draggable={false}/>{unread>0&&<span className={styles.badge} data-pager-badge="">{unread>99?'99+':unread}</span>}
   </button>}
  </section>;
 }
 
 /**
- * The GM's mirror of sent pagers on the table, so the GM sees that a message went out and who confirmed it.
- * The table may be on a shared screen: messages to the whole round show their text, targeted ones only the
- * recipients and the read state (the content stays in the Regie). It never acknowledges anything.
+ * The GM's mirror of sent pagers on the table: the same ULTIO device, read-only, so the GM sees what went out and
+ * who confirmed it. The table may be on a shared screen: messages to the whole round show their text, targeted ones
+ * only the recipients (the content stays in the Regie). It never acknowledges anything.
  */
-export function PagerMirror({pagers,crew}:{pagers:PagerMessage[];crew:{id:string;name:string}[]}){
- const [open,setOpen]=useState(false),[announce,setAnnounce]=useState('');
+export function PagerMirror({pagers,crew,actorId}:{pagers:PagerMessage[];crew:{id:string;name:string}[];actorId:string}){
+ const [open,setOpen]=useState(false),[announce,setAnnounce]=useState(''),[device,setDevice]=useState<PagerDeviceState>({...initialPagerDevice(),view:'inbox'});
  const known=useRef<string[]|null>(null),fold=useRef(0);
  const list=[...pagers].sort((x,y)=>y.at.localeCompare(x.at)||y.id.localeCompare(x.id));
  const ids=list.map(p=>p.id).join('|');
+ const section=useRef<HTMLElement>(null),drag=usePagerPosition(section,'chroniplay:pager-spiegel-position:'+actorId,list.length>0,open);
  useEffect(()=>{
   const now=ids?ids.split('|'):[],previous=known.current;known.current=now;
   if(previous===null||!now.some(id=>!previous.includes(id)))return;
-  // A new message unfolds the mirror for a moment, then it folds back on its own.
-  queueMicrotask(()=>{setOpen(true);setAnnounce('Pager gesendet.');});
+  // A new message unfolds the mirror on the inbox for a moment, then it folds back on its own.
+  queueMicrotask(()=>{setOpen(true);setDevice(d=>({...d,view:'inbox',inboxIndex:0}));setAnnounce('Pager gesendet.');});
   window.clearTimeout(fold.current);fold.current=window.setTimeout(()=>setOpen(false),12000);
  },[ids]);
  useEffect(()=>()=>window.clearTimeout(fold.current),[]);
  if(!list.length)return null;
  const name=(id:string)=>crew.find(m=>m.id===id)?.name||'?';
- const readers=(p:PagerMessage)=>{const total=p.recipients?p.recipients.length:crew.length;const read=p.acks?.length||0;return read?'Gelesen '+read+'/'+total+': '+p.acks!.map(x=>name(x.id)).join(', '):'Noch nicht gelesen';};
- const latest=list[0];
- return <section className={styles.mirror} aria-label="Pager-Spiegel" data-open={open}>
+ const total=(p:PagerMessage)=>p.recipients?p.recipients.length:crew.length;
+ const readers=(p:PagerMessage)=>{const read=p.acks?.length||0;return read?'Gelesen '+read+'/'+total(p)+': '+p.acks!.map(x=>name(x.id)).join(', '):'Noch nicht gelesen';};
+ const messages:PagerDeviceMessage[]=list.map(p=>({id:p.id,at:p.at,opened:true,urgent:p.priority==='hoch',acknowledged:(p.acks?.length||0)>=total(p)&&total(p)>0,
+  ...(p.recipients?{sender:'SL',title:'GEZIELT',text:'An '+p.recipients.map(name).join(', ')+'. Inhalt nur in der Regie.'}:{sender:p.sender||'',title:p.title||'',text:p.text})}));
+ const latest=list[0],selected=messages.find(m=>m.id===device.selectedId);
+ function key(k:PagerKey){const {state,effect}=pressPagerKey(device,k,messages,menuViews());setDevice(state);if(effect?.type==='collapse')setOpen(false);}
+ return <section ref={section} {...drag} className={styles.mirror} aria-label="Pager-Spiegel" data-open={open}>
   <span className={styles.srOnly} role="status">{announce}</span>
   {open?<div className={styles.mirrorPanel}>
    <header><Radio size={14} aria-hidden="true"/><strong>Pager-Spiegel</strong><small>nur SL · Spieler quittieren selbst</small><button type="button" aria-label="Pager-Spiegel zuklappen" onClick={()=>{window.clearTimeout(fold.current);setOpen(false);}}><X size={14}/></button></header>
-   <ul>{list.slice(0,4).map(p=><li key={p.id} data-mirror-pager={p.id} data-urgent={p.priority==='hoch'}>
+   <div className={styles.mirrorDevice}><UltioPagerDevice messages={messages} device={device} receiver="SL · SPIEGEL" muted theme={device.view==='message'&&selected?.urgent?'red':'green'} onKey={key}/></div>
+   <ul>{list.slice(0,3).map(p=><li key={p.id} data-mirror-pager={p.id} data-urgent={p.priority==='hoch'}>
     <div className={styles.mirrorMeta}><span>{pagerTime(p.at)}</span><span>{p.recipients?'an '+p.recipients.map(name).join(', '):'an alle'}</span></div>
-    {p.recipients?<p className={styles.mirrorHidden}>Gezielte Nachricht · Inhalt nur in der Regie</p>:<div className={styles.mirrorLcd}><small>{p.priority==='hoch'?'!! DRINGEND · ':''}{p.sender||'UNBEKANNT'}</small>{p.title&&<strong>{p.title}</strong>}<p>{p.text}</p></div>}
+    {p.recipients?<p className={styles.mirrorHidden}>Gezielte Nachricht · Inhalt nur in der Regie</p>:<p className={styles.mirrorText}>{p.priority==='hoch'?'!! ':''}{p.title?p.title+': ':''}{p.text}</p>}
     <small className={styles.mirrorAcks}>{readers(p)}</small>
    </li>)}</ul>
   </div>:
-  <button type="button" className={styles.mirrorChip} aria-label={'Pager-Spiegel öffnen, '+list.length+(list.length===1?' gesendete Nachricht':' gesendete Nachrichten')} onClick={()=>setOpen(true)}><Radio size={14} aria-hidden="true"/> Pager · {list.length}<small>{pagerTime(latest.at)} {latest.recipients?'gezielt':'an alle'}</small></button>}
+  <button type="button" className={styles.mirrorChip} data-drag-handle="" aria-label={'Pager-Spiegel öffnen, '+list.length+(list.length===1?' gesendete Nachricht':' gesendete Nachrichten')} onClick={()=>setOpen(true)}><img src={ULTIO_ASSETS.shell} alt="" draggable={false}/> Pager · {list.length}<small>{pagerTime(latest.at)} {latest.recipients?'gezielt':'an alle'}</small></button>}
  </section>;
 }

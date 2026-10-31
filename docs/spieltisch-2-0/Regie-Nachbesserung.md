@@ -210,6 +210,34 @@ Rückmeldung des Projektinhabers: Es ist seine eigene KI-Ambiente-Musik. Deshalb
   - `regie-nachbesserung-browser`: Der alte Einwilligungsteil ist entfallen; Pager bei 375 px wird nach der Einflug-Animation gemessen.
   - Testdaten: Bei einem frischen Testspeicher (`-Reset`) hat die Kaserne-Szene eine Playlist mit dem Beispiel-Link des Projektinhabers (nur die ID).
 
+## 9. Pager-Fehler aus dem Live-Test (`dbe65764`)
+
+- **„Pager-Asset ist nicht drin“:**
+  - Lokal nachgeprüft als Spieler bei 1920, 1440, 125 % und 375 px.
+    - Das Gehäuse `/spieltisch/pager/ultio-shell.webp` ist byte-gleich mit `shell-ultio.webp` aus dem Paket (171.182 Bytes, 1448 × 1086).
+    - Es lädt (`naturalWidth` 1448), ist sichtbar und unverzerrt. Das LCD liegt als HTML darüber, wie in den Vorschaubildern des Pakets.
+  - Wahrscheinliche Ursache: Die SL hat am eigenen Tisch nur meinen Text-Spiegel gesehen, eine grüne Karte ohne Gehäuse.
+  - **Behebung:** Der SL-Spiegel zeigt jetzt dasselbe ULTIO-Gerät, nur lesend: Tasten navigieren, quittiert wird nichts. Zusammengeklappt zeigt er das Gehäuse als kleines Symbol.
+    - Gezielte Nachrichten erscheinen darin weiter nur mit Empfängern („GEZIELT · Inhalt nur in der Regie“).
+  - Den Live-Stand selbst konnte ich nicht ansehen, weil keine Anmeldung möglich war. Falls ein Spieler live trotzdem kein Gehäuse sieht, bitte melden, in welcher Ansicht.
+- **Verschieben:**
+  - Der Pager lässt sich am Gehäuse mit Maus oder Touch ziehen, aufgeklappt wie zusammengeklappt.
+  - Die fünf Tasten sind keine Ziehfläche und bleiben klickbar. Erst ab 6 px Bewegung wird gezogen, ein Tippen bleibt ein Klick.
+  - Die Position ist persönlich und wird lokal pro Person gemerkt (`chroniplay:pager-position:<Person>`). Gespeichert wird sie als Anteil des freien Platzes, so bleibt der Pager bei jeder Fenstergröße ganz sichtbar und wird an den Tischrand geklemmt.
+  - Beim Ziehen wird kein Seitentext markiert. Der SL-Spiegel ist genauso verschiebbar.
+  - Offen: Verschieben per Tastatur.
+- **Töne:**
+  - Pfade und Dateien stimmen (`ping-normal.wav`, `alarm-urgent.wav`).
+  - Ursache war die Autoplay-Sperre: Hatte ein Spieler noch nicht auf die Seite geklickt, wurde der Ton still verworfen. Die SL bekommt ohnehin keinen Spieler-Pager.
+  - **Jetzt:** Ein blockierter Ton wartet und spielt beim ersten Tippen oder Tastendruck. Normal klingt „ping“, dringend „alarm“.
+  - Ist stumm geschaltet, spielt nichts, auch kein wartender Ton.
+- **Tests:**
+  - Neu `tests/ultio-pager-tisch-browser.mjs` (1920, 1440, 125 %, 375 px). Er prüft:
+    - Gehäuse bei Spieler und SL-Spiegel: geladen, sichtbar, Seitenverhältnis.
+    - Töne: `Audio.play` mit `ping-normal.wav` bzw. `alarm-urgent.wav`; nichts bei Stumm; ein blockierter Ton spielt nach dem ersten Tippen.
+    - Ziehen ändert die Position, die Tasten funktionieren danach, die Position bleibt nach dem Neuladen und wird an den Rand geklemmt; kein markierter Text.
+  - `ultio-pager-browser` und `regie-nachbesserung-browser` prüfen jetzt „kein Spieler-Gerät für die SL“, weil der Spiegel ein Gerät enthält.
+
 ## Daten und Schema
 
 - **Keine D1-Migration.** Alle neuen Felder sind optional in den strikten Zod-Parsern.
