@@ -500,3 +500,5 @@ audio.materialPreview{width:100%;max-width:420px}
 .checkConsequences label{display:grid;gap:4px}
 .checkConsequences textarea{min-height:52px;font-family:inherit}
 @media(max-width:640px){.checkGrid{grid-template-columns:1fr 1fr}}
+.pagerFields fieldset.checkConsequences label{display:grid;gap:4px;align-items:stretch;min-height:0}
+.pagerFields fieldset.checkConsequences textarea{width:100%;min-height:48px;height:48px;resize:vertical}
