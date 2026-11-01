@@ -97,3 +97,15 @@ Neue optionale Felder sind `rect.r`, `notice`, `material.takeable` im Bühnenzus
   - Das Anselmus-Paket liegt ohne Griffleiste auf dem Tisch, mit dem Hinweis „nur SL“.
   - `/api/inventory/material` antwortet mit 200.
   - Keine Fehlermeldungen.
+
+## Nachbesserung 01.11.2026: Tooltip-Text
+
+- **Fehler:** Der Tisch-Tooltip zeigte gespeicherte Texte im Rohformat (`cvk-rich-v1:{…}`), weil nur HTML-Tags entfernt wurden.
+- **Behebung:** Tooltip, Regie (Einsatz und Text-Prüfung) und Editor nutzen jetzt `richTextToPlainText`. PR #65 ist als `3a46961` gemergt.
+- **Test:** Neu ist `tests/material-tooltip-browser.mjs`. Die CI „Project CI and W10 checks“ ist grün.
+- **Worker:** `190dac20-993c-49f4-9adc-c15702ae27ba`. Rückfallversion: `c36b4a4b-2119-40ed-be77-9c44bdcea8f8`.
+- **Sicherung vorab:**
+  - 32 Tabellen, 31.204 Zeilen, `integrity_check ok`.
+  - Lesezeichen `000001a2-000011d2-00005116-347115c5d4683e3ed9beb1d89f476f04`.
+  - Ablage: `.local-work/release-tooltip/`.
+- **Live geprüft:** Der Tooltip des Anselmus-Pakets zeigt lesbaren Text.
