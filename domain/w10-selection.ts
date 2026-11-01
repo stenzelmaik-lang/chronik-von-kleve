@@ -102,7 +102,7 @@ function targetsSelection(s: Specialty, selection: W10Selection) {
 }
 
 /** Unknown IDs throw (request error). Rule-level refusals return `status: 'blocked'` with provenance. */
-export type W10PreviewOptions = Readonly<{ claimedBy?: 'player' | 'gm'; legacyManualStress?: unknown }>;
+export type W10PreviewOptions = Readonly<{ claimedBy?: 'player' | 'gm'; legacyManualStress?: unknown; ignoreWoundPenalty?: boolean }>;
 export function deriveW10Preview(body: Body, selection: W10Selection, declared: W10Declared, characterVersion: number, options: W10PreviewOptions = {}) {
   const attrKey = attributeKey(selection.attributeId);
   if (!attrKey) throw new W10RuleError('UNKNOWN_ATTRIBUTE_ID');
@@ -159,9 +159,10 @@ export function deriveW10Preview(body: Body, selection: W10Selection, declared: 
   if (health.status !== 'active' || health.penalty === null) {
     return blocked('INCAPACITATED', provenance, { message: BLOCK_MESSAGES.INCAPACITATED, health: Object.freeze({ level: health.level, status: health.status }) });
   }
-  provenance.push(Object.freeze({ part: 'wounds', id: 'wound_penalty', label: health.level, amount: health.penalty,
-    source: `Gesundheitsleiste · ${health.level} (V20-Wundabzug)` }));
-  const pool = (attrValue as number) + abilityValue + health.penalty;
+  const woundPenalty = options.ignoreWoundPenalty ? 0 : health.penalty;
+  provenance.push(Object.freeze({ part: 'wounds', id: 'wound_penalty', label: health.level, amount: woundPenalty,
+    source: `Gesundheitsleiste · ${health.level} (${options.ignoreWoundPenalty ? 'Wundabzug nach vorab geprüfter Willenskraftansage für diese Probe ignoriert' : 'V20-Wundabzug'})` }));
+  const pool = (attrValue as number) + abilityValue + woundPenalty;
   if (pool < 1) return blocked('NO_DICE', provenance, { message: BLOCK_MESSAGES.NO_DICE });
   let prepared;
   try {
