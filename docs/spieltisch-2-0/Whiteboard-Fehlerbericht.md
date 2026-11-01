@@ -35,6 +35,7 @@ Es gibt zwei Ursachen.
   - Der Editor zeigt ihn als Entwurf und sperrt sich (`can draw again: false`).
   - Beim nächsten Laden, beim Leeren oder beim Verwerfen ist der Strich weg. Gespeichert wurde er nie.
   - Auf dem Spieltisch kann die SL das Board nicht leeren (Fehler 1). Der Zustand bleibt also bestehen.
+  - Solange der Entwurf hängt, gilt der Editor als „in Bearbeitung“ (`boardDirty`). Die Bühne fragt dann gar nicht mehr ab: Pager, Szenen und fremde Striche kommen bei diesem Spieler nicht mehr an.
 
 **Nebenursache: Veraltete Abfragen überschreiben kurz den neuen Stand.**
 - **Ablauf:**
