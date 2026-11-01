@@ -25,7 +25,7 @@ try{
  phase='scene preparation holds the structured check';
  const prep=await gmC.newPage();prep.on('pageerror',e=>errors.push('Vorbereitung: '+e.message));await prep.setViewportSize({width:1100,height:1000});
  await prep.goto(base+'/spielbereich?bereich=vorbereitung');await prep.getByRole('button',{name:'Szenenbausteine'}).click();
- await prep.getByRole('combobox',{name:/Szene auswählen/}).selectOption({label:'Szene 01 – Spielort Kaserne (Auftakt)'});
+ const sceneSelect=prep.locator('select').filter({has:prep.locator('option',{hasText:'Szene 01 – Spielort Kaserne (Auftakt)'})}).first();await sceneSelect.waitFor({timeout:20000});await sceneSelect.selectOption({label:'Szene 01 – Spielort Kaserne (Auftakt)'});
  const block=prep.getByRole('button',{name:/^\d+\. Schlüsselbund stehlen/});await block.waitFor({timeout:20000});
  assert.match(await block.innerText(),/Geschick \+ Diebstahl · SG 7/);await block.click();
  const fields=prep.locator('[data-check-fields]');await fields.waitFor();
