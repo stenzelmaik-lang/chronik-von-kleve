@@ -10,11 +10,12 @@ import {LivePdf} from '../live-pdf';
 import type {RegieContext,StageObject} from './types';
 import styles from './regie.module.css';
 import {ThumbImage} from '../file-thumb';
+import {CheckIssueForm} from './check-issue-form';
 
 export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],['dialogue','Dialoge'],['interactions','Interaktionen'],['whispers','Visionen & Briefe'],['secrets','Geheimnisse'],['consequences','Folgen'],['notes','SL-Notizen'],['material','Material']] as const;
 export type RegieTab=typeof regieTabs[number][0];
 
-type Props={deliveryBusy:boolean;crew:import('./types').Snapshot['crew'];onCommand:(body:Record<string,unknown>)=>unknown;sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
+type Props={deliveryBusy:boolean;crew:import('./types').Snapshot['crew'];onCommand:(body:Record<string,unknown>)=>unknown;onIssue:(body:Record<string,unknown>,audience:string[]|null)=>Promise<boolean>;checksEnabled:boolean;sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
  onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string,sourceKind?:'entity'|'record')=>void;
  table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};
  onPlace:(sourceId:string,sourceKind:'entity'|'file'|'record',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
@@ -41,7 +42,7 @@ export function BackdropChoice({current,sceneImages,busy,onChoose}:{current:stri
  return sceneImages.length?<ul className={styles.backdropGrid} aria-label="Szenenbild">{sceneImages.map(tile)}</ul>:<p className={styles.empty}>Für diese Szene ist kein Szenenbild vorbereitet. Lege es in der Szene unter Atmosphäre fest.</p>;
 }
 
-export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
+export function Regie({deliveryBusy,crew,onCommand,onIssue,checksEnabled,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
  const [preview,setPreview]=useState<Media|null>(null),previewDialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  // Loaded scenes stay cached for the evening: switching back costs no request.
@@ -75,7 +76,7 @@ export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,b
    {tab==='atmosphere'&&<Text value={s.atmosphere} empty="Keine Atmosphäre vorbereitet."/>}
    {tab==='dialogue'&&<>{context.npcs.map(n=><article key={n.id} className={styles.npc}><img src={n.image} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display='none';}}/><div><h3>{n.title}</h3>{n.summary&&<p>{n.summary}</p>}{n.cue&&<Text value={n.cue} empty=""/>}<button disabled={busy} onClick={()=>onStage('npc',n.id)}><UserPlus/> Privat auf Bühne legen</button></div></article>)}
     <Text value={s.dialogueNotes} empty={context.npcs.length?'Keine zusätzlichen Dialoghilfen.':'Keine NPCs oder Dialoge vorbereitet.'}/></>}
-   {tab==='interactions'&&<><Text value={s.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={styles.note}><h3>{n.title}</h3><Text value={n.text} empty=""/></article>)}</>}
+   {tab==='interactions'&&<><Text value={s.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={styles.note}><h3>{n.title}</h3><Text value={n.text} empty=""/></article>)}<CheckIssueForm key={s.id} sceneId={s.id} notes={context.notes} crew={crew} checksEnabled={checksEnabled} busy={busy} onIssue={onIssue}/></>}
    {tab==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s.id} version={s.version} crew={crew} objects={table.objects} busy={deliveryBusy} onCommand={onCommand}/>}
    {tab==='secrets'&&<><Text value={s.secrets} empty="Keine Geheimnisse hinterlegt."/>{s.visions.trim()&&<><h3>Visionen</h3><Text value={s.visions} empty=""/></>}</>}
    {tab==='consequences'&&<><Text value={s.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s.possibilities.map(p=><article key={p.id} className={styles.note}><h3>{p.title}</h3><p>{p.text}</p></article>)}</>}

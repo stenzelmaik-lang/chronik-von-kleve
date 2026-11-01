@@ -26,3 +26,4 @@
 @media(max-width:600px){.actions{flex-wrap:wrap;max-width:calc(100vw - 16px);justify-content:center}.ownValues{flex-basis:100%;margin:4px 0 0;padding:4px 0 0;border-left:0;border-top:1px solid #ac925b55;justify-content:center}}
 /* Phone: only avatars in the header, so every participant stays reachable (names stay in the accessible label). */
 @media(max-width:600px){.crew{gap:2px;justify-content:center}.participant{flex:none}.member{padding:4px 3px;gap:0}.playerName{display:none}}
+.characterSheet button[data-preset=true]{border-color:#d6b36f88;color:#f4d58d}.characterSheet button[aria-pressed=true]{background:#66502b;color:#fff2d0}.characterSheet button:disabled{opacity:.45;cursor:not-allowed}

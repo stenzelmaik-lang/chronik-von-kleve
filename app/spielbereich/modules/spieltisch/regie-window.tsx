@@ -21,6 +21,7 @@ import {BellRing} from 'lucide-react';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
 import {ThumbImage} from '../file-thumb';
+import {CheckIssueForm} from './check-issue-form';
 
 type Media=RegieContext['media'][number];
 type Crew=Snapshot['crew'];
@@ -237,7 +238,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      </section>}
      {textArea==='atmosphere'&&<section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section>}
      {textArea==='dialogue'&&<section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section>}
-     {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}</section>}
+     {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}<CheckIssueForm key={s!.id} sceneId={s!.id} notes={context.notes} crew={crew} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Charakterprobe ausgegeben.')}/></section>}
      {textArea==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s!.id} version={s!.version} crew={crew} objects={objects} busy={busy} onCommand={body=>run(body,null)}/>}
      {textArea==='secrets'&&<section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section>}
      {textArea==='consequences'&&<section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section>}
