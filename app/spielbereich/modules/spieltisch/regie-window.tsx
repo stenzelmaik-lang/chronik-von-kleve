@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {PreparedWhisperReleases} from './prepared-whisper-releases';
-import {useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
 import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen} from 'lucide-react';
 import type {Actor} from '@/domain/types';
 import {pagerTextMax,pagerTitleMax,pagerSenderMax,stageEffects,type StageEffect} from '@/domain/live-stage';
@@ -21,6 +21,8 @@ import {BellRing} from 'lucide-react';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
 import {ThumbImage} from '../file-thumb';
+import {CheckDesk,ChecksSwitch} from './check-issue-form';
+import {pendingTargets,isTablePlayer} from '@/domain/live-checks';
 
 type Media=RegieContext['media'][number];
 type Crew=Snapshot['crew'];
@@ -48,7 +50,7 @@ function Block({title,children,open=true,area}:{title:string;children:ReactNode;
  * Every area of a scene, always reachable from one menu. Text areas replace each other in the reading column;
  * the other areas live in their own columns and are scrolled into view (and opened) on choice.
  */
-const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
+const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['checks','Proben','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
  ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
 type RegieArea=typeof regieAreas[number][0];
 const areaKey=(actorId:string)=>'chroniplay:regie-bereich:'+actorId;
@@ -122,6 +124,9 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  useEffect(()=>{try{const v=Number(window.localStorage.getItem('chroniplay:regie-textgroesse:'+a.id));if([.9,1,1.15,1.3,1.5].includes(v))queueMicrotask(()=>setTextSize(v));}catch{/* storage unavailable */}},[a.id]);
  useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));const known=regieAreas.find(([id])=>id===saved);if(known)queueMicrotask(()=>{setArea(known[0]);if(known[2]==='text')setTextArea(known[0]);});}catch{/* storage unavailable */}},[a.id]);
  /** Opens one area: a text area in the reading column, any other area by scrolling its block into view. */
+ const checksOn=!!snapshot?.checksEnabled,checksShown=checksOn||!!snapshot?.checksSwitch;
+ const visibleAreas=useMemo(()=>regieAreas.filter(([id])=>id!=='checks'||checksShown),[checksShown]);
+ const openTargets=checksOn?pendingTargets(snapshot?.checks||[],snapshot?.dice.events||[],(snapshot?.crew||[]).filter(isTablePlayer).map(m=>m.id)):0;
  const chooseArea=useCallback((id:RegieArea,scroll=true)=>{
   setArea(id);try{window.localStorage.setItem(areaKey(a.id),id);}catch{/* storage unavailable */}
   const kind=regieAreas.find(([x])=>x===id)?.[2];
@@ -133,7 +138,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
    el.dataset.flash='true';window.setTimeout(()=>{delete el.dataset.flash;},1400);el.querySelector<HTMLElement>('summary')?.focus({preventScroll:true});});
  },[a.id]);
  // Alt+1 … Alt+9 jump to the first nine areas without leaving the keyboard.
- useEffect(()=>{const keys=(e:KeyboardEvent)=>{if(!e.altKey||e.ctrlKey||e.metaKey)return;const n=Number(e.key);if(!Number.isInteger(n)||n<1||n>9)return;e.preventDefault();chooseArea(regieAreas[n-1][0]);};window.addEventListener('keydown',keys);return()=>window.removeEventListener('keydown',keys);},[chooseArea]);
+ useEffect(()=>{const keys=(e:KeyboardEvent)=>{if(!e.altKey||e.ctrlKey||e.metaKey)return;const n=Number(e.key);if(!Number.isInteger(n)||n<1||n>9)return;e.preventDefault();chooseArea(visibleAreas[n-1][0]);};window.addEventListener('keydown',keys);return()=>window.removeEventListener('keydown',keys);},[chooseArea,visibleAreas]);
  const resize=(d:number)=>{const steps=[.9,1,1.15,1.3,1.5],next=steps[Math.max(0,Math.min(steps.length-1,steps.indexOf(textSize)+d))];setTextSize(next);try{window.localStorage.setItem('chroniplay:regie-textgroesse:'+a.id,String(next));}catch{/* storage unavailable */}};
 
  /** Runs one existing stage/table command; outdated versions are retried once, nothing else is guessed. */
@@ -195,7 +200,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
 
  const s=context?.scene,running=!!s&&snapshot?.stageSceneId===s.id,shared=!!s&&snapshot?.sceneInfo?.id===s.id;
  const filled=(v:string|undefined)=>!!v&&!!v.replace(/<[^>]*>/g,'').trim();
- const areaHasText=(id:RegieArea)=>!s||!context?true:id==='narration'?filled(s.narration):id==='atmosphere'?filled(s.atmosphere):id==='dialogue'?filled(s.dialogueNotes)||context.npcs.some(n=>n.cue.trim()):id==='interactions'?filled(s.interactions)||context.notes.length>0:id==='whispers'?!!context.whispers?.length:id==='secrets'?filled(s.secrets)||filled(s.visions):id==='consequences'?filled(s.possibleConsequences)||s.possibilities.length>0:id==='notes'?filled(s.gmNotes):true;
+ const areaHasText=(id:RegieArea)=>!s||!context?true:id==='narration'?filled(s.narration):id==='atmosphere'?filled(s.atmosphere):id==='dialogue'?filled(s.dialogueNotes)||context.npcs.some(n=>n.cue.trim()):id==='interactions'?filled(s.interactions)||context.notes.length>0:id==='checks'?true:id==='whispers'?!!context.whispers?.length:id==='secrets'?filled(s.secrets)||filled(s.visions):id==='consequences'?filled(s.possibleConsequences)||s.possibilities.length>0:id==='notes'?filled(s.gmNotes):true;
 
  const allScenes=[...snapshot?.scenes||[],...snapshot?.moreScenes||[]];
  return <div className={styles.app} data-regie-window="true">
@@ -212,7 +217,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
    <button type="button" className={styles.tableLink} onClick={()=>{if(window.opener&&!window.opener.closed)window.opener.focus();else window.open('/spielbereich?bereich=sitzung','_blank');}}><BookOpen size={15}/> Zum Spieltisch</button>
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
-  <nav className={styles.areas} aria-label="Bereiche der Szene">{regieAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id);return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} aria-current={(kind==='text'?textArea===id&&area===id:area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{label}</button>;})}</nav>
+  <nav className={styles.areas} aria-label="Bereiche der Szene">{visibleAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id),waiting=id==='checks'?openTargets:0;return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} data-attention={waiting>0||undefined} aria-current={(kind==='text'?textArea===id&&area===id:area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{label}{waiting>0&&<span className={styles.areaBadge} aria-label={waiting+' Würfe ausstehend'}>{waiting}</span>}</button>;})}</nav>
   {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
   <main className={styles.grid} data-scene={s!.id}>
    <Column id="col-material" title="Material" icon={<ImageIcon size={17}/>}>
@@ -237,7 +242,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      </section>}
      {textArea==='atmosphere'&&<section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section>}
      {textArea==='dialogue'&&<section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section>}
-     {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}</section>}
+     {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}{snapshot?.checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.primary} onClick={()=>chooseArea('checks')}>Vorbereitete Proben ausgeben</button>}</section>}
+     {textArea==='checks'&&<section className={styles.textArea} aria-label="Proben"><h3>Proben</h3>{snapshot?.checksSwitch&&<ChecksSwitch on={snapshot.checksSwitch.on} busy={busy} onSwitch={(body,target)=>run(body,target,snapshot.checksSwitch?.on?'Charakterproben ausgeschaltet.':'Charakterproben eingeschaltet.')}/>}<CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?.dice.events||[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section>}
      {textArea==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s!.id} version={s!.version} crew={crew} objects={objects} busy={busy} onCommand={body=>run(body,null)}/>}
      {textArea==='secrets'&&<section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section>}
      {textArea==='consequences'&&<section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section>}

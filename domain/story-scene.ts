@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isRichTextWithinLimit, sanitizeRichTextInput } from './location-rich-text.ts';
 import { sceneMaterialSchema, materialElementKind } from './material-system.ts';
+import { W10_ATTRIBUTE_KEYS, W10_ABILITY_KEYS } from './trait-ids.ts';
 
 const id = z.string().min(1).max(100);
 const optionalId = z.string().max(100).default('');
@@ -16,10 +17,20 @@ export const scenePagerMax={sender:80,title:80,text:280,recipients:30} as const;
 export const scenePagerSchema=z.object({sender:z.string().trim().max(scenePagerMax.sender).default(''),text:z.string().trim().max(scenePagerMax.text).default(''),priority:z.enum(['normal','hoch']).default('normal'),recipientIds:z.array(id).max(scenePagerMax.recipients).default([]).refine(v=>new Set(v).size===v.length,'Empfänger dürfen nicht doppelt sein.')}).strict();
 export type ScenePager=z.infer<typeof scenePagerSchema>;
 export const emptyScenePager=():ScenePager=>({sender:'',text:'',priority:'normal',recipientIds:[]});
-export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(sceneElementKinds),title:z.string().trim().min(1).max(200),text,referenceId:optionalId,fileId:optionalId,pager:scenePagerSchema.optional(),
+/** Prepared character check (GE-02): traits, SG, intended figures and private consequences. The Regie issues it through the
+ * same requestCheck as a spontaneous check; nothing is evaluated here. Optional, so older scenes stay valid. */
+export const sceneCheckMax={consequence:1000,targets:30} as const;
+const traitId=(keys:Readonly<Record<string,string>>)=>z.string().max(40).default('').refine(v=>!v||Object.hasOwn(keys,v),'Unbekannte Eigenschaft.');
+export const sceneCheckSchema=z.object({attributeId:traitId(W10_ATTRIBUTE_KEYS),abilityId:traitId(W10_ABILITY_KEYS),difficulty:z.number().int().min(2).max(10).default(6),
+  targetCharacterIds:z.array(id).max(sceneCheckMax.targets).default([]).refine(v=>new Set(v).size===v.length,'Eine Figur darf nur einmal vorgesehen sein.'),
+  consequences:z.object({success:z.string().trim().max(sceneCheckMax.consequence).default(''),failure:z.string().trim().max(sceneCheckMax.consequence).default(''),botch:z.string().trim().max(sceneCheckMax.consequence).default('')}).strict().default({success:'',failure:'',botch:''})}).strict();
+export type SceneCheck=z.infer<typeof sceneCheckSchema>;
+export const emptySceneCheck=():SceneCheck=>({attributeId:'',abilityId:'',difficulty:6,targetCharacterIds:[],consequences:{success:'',failure:'',botch:''}});
+export const sceneElementSchema=z.object({id:z.string().uuid(),kind:z.enum(sceneElementKinds),title:z.string().trim().min(1).max(200),text,referenceId:optionalId,fileId:optionalId,pager:scenePagerSchema.optional(),check:sceneCheckSchema.optional(),
   // Spielmaterial 3.0: optional material block (type, ordered files, display asset, effect). Older scenes stay valid.
   material:sceneMaterialSchema.optional()}).strict()
   .refine(e=>e.kind==='pager'?e.title.length<=scenePagerMax.title&&!e.referenceId&&!e.fileId:!e.pager,'Pager-Bausteine haben einen Titel bis 80 Zeichen und keine Datei; andere Bausteine tragen keine Pager-Daten.')
+  .refine(e=>!e.check||e.kind==='check','Nur Probenbausteine tragen Probendaten.')
   .refine(e=>!e.material||materialElementKind[e.material.type]===e.kind&&(e.material.type!=='pager'||!e.material.files.length),'Die Materialart passt nicht zum Baustein.');
 export type SceneElement=z.infer<typeof sceneElementSchema>;
 /** Prepared YouTube music of a scene: only a title and the video id, no file. Optional, so older scenes stay valid. */
@@ -100,3 +111,19 @@ export const sceneCommandSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('withdraw'), ...base, target: sceneTargetSchema }).strict(),
 ]);
 export type SceneCommand = z.infer<typeof sceneCommandSchema>;
+
+/** Rollback aid (GE-02 release): turns structured checks back into the free text an older build understands.
+ * Nothing is lost: traits, SG, intended figure ids and consequences are appended to the element text. Pure and idempotent. */
+export function sceneWithoutStructuredChecks(document:Record<string,unknown>):{document:Record<string,unknown>;changed:number}{
+  const elements=Array.isArray(document.elements)?document.elements as Record<string,unknown>[]:[];let changed=0;
+  const esc=(v:unknown)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const next=elements.map(e=>{
+    if(!e||typeof e!=='object'||(e as {check?:unknown}).check==null)return e;
+    const {check,...rest}=e as Record<string,unknown>&{check?:Partial<SceneCheck>};changed++;
+    const c=check||{},parts=[c.attributeId&&'Attribut '+esc(W10_ATTRIBUTE_KEYS[c.attributeId as keyof typeof W10_ATTRIBUTE_KEYS]||c.attributeId),c.abilityId&&'Fähigkeit '+esc(W10_ABILITY_KEYS[c.abilityId as keyof typeof W10_ABILITY_KEYS]||c.abilityId),c.difficulty&&'SG '+esc(c.difficulty),c.targetCharacterIds?.length&&'Figuren '+esc(c.targetCharacterIds.join(', '))].filter(Boolean);
+    const follow=(['success','failure','botch'] as const).flatMap(k=>c.consequences?.[k]?[{success:'Erfolg',failure:'Fehlschlag',botch:'Patzer'}[k]+': '+esc(c.consequences[k])]:[]);
+    const note='<p>Probe (strukturiert, zurückgeführt): '+(parts.join(' · ')||'ohne Werte')+'</p>'+(follow.length?'<p>Folgen: '+follow.join(' · ')+'</p>':'');
+    return {...rest,text:String(rest.text||'')+note};
+  });
+  return {document:changed?{...document,elements:next}:document,changed};
+}

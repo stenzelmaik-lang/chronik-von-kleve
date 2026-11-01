@@ -40,6 +40,9 @@ jobs:
             tests/character-vitals.test.mjs
             prototypes/spieltisch-2/w10-rules.test.mjs
             prototypes/spieltisch-2/shared-dice.test.mjs
+            domain/live-checks.ts domain/w10-modifier-register.ts server/live-checks.ts
+            tests/ge-01c-check-lifecycle.test.mjs tests/ge-02-check-desk.test.mjs tests/ge-02-release.test.mjs
+            tests/ge-02-rollback.test.mjs scripts/ge02-rollback-scene-checks.mjs
           )
           if [[ -f domain/w10-c1-ordinary.ts ]]; then files+=(domain/w10-c1-ordinary.ts); fi
           if [[ -f tests/w10-c1-ordinary.test.mjs ]]; then files+=(tests/w10-c1-ordinary.test.mjs); fi

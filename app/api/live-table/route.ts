@@ -4,6 +4,8 @@ import { GET as recordsGET } from '../records/route';
 import type { Entry,LegacyRecordRow } from '@/domain/legacy';
 import { boardElement,tableSignal,tablePeerId,TABLE_PEER_TTL,BOARD_MAX_CHARS,BOARD_MAX_ELEMENTS,type TablePeer } from '@/domain/live-table';
 import {LIVE_ACTIONS,liveCommand,liveEvents} from '@/server/live-commands';
+import {liveCheckCommand} from '@/server/live-checks';
+import {account} from '@/server/account-profile';
 import {roomAllowed,liveFile,liveMembers,type LiveRoom} from '@/server/live-game';
 export const dynamic='force-dynamic';
 type TableBody=LiveRoom;
@@ -79,6 +81,7 @@ export async function POST(req:Request) {
   try {
     sameOrigin(req);const a=await actor();const d=await tableInput(req);
     if(!d||typeof d!=='object'||typeof d.sessionId!=='string'||d.sessionId.length>160)throw new HttpError(400,'Ungültiger Spielraum.');
+    if(d.action==='requestCheck'||d.action==='rollCheck'||d.action==='setChecks'||d.action==='previewCheck')return json(await liveCheckCommand(a,(await account(req)).id,d));
     if(LIVE_ACTIONS.includes(d.action))return json(await liveCommand(a,d));
     const db=database(),id=`live-table:${a.campaignId}:${d.sessionId}`,now=Date.now(),stamp=new Date(now).toISOString();
     const row=await db.prepare("SELECT * FROM records WHERE campaign_id=? AND id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table'").bind(a.campaignId,id).first<LegacyRecordRow>();

@@ -2,7 +2,9 @@
 "use client";
 import {useState,type ReactNode} from 'react';
 import {ArrowUp,ArrowDown,Trash2,Image as ImageIcon,Music,Film,FileText,Puzzle,MessageSquareText} from 'lucide-react';
-import {emptyScenePager,scenePagerMax,type SceneElement,type ScenePager} from '@/domain/story-scene';
+import {emptyScenePager,scenePagerMax,emptySceneCheck,sceneCheckMax,type SceneElement,type ScenePager,type SceneCheck} from '@/domain/story-scene';
+import {W10_ATTRIBUTE_KEYS,W10_ABILITY_KEYS} from '@/domain/trait-ids';
+import {traitLine} from '@/domain/live-checks';
 import type {PreparationRecipient} from '@/domain/personal-message';
 import type {CommandReference} from '@/domain/command-workspace';
 import {ProtectedImageGallery,type PreparationFile} from './protected-image-gallery';
@@ -18,7 +20,7 @@ export const materialKinds:Record<SceneElement['kind'],{label:string;hint:string
   video:{label:'Video',hint:'Bereite eine vorhandene Videodatei für die Szene vor.',group:'Zeigen und übergeben'},
   clue:{label:'Hinweis',hint:'Was kann entdeckt werden? Notiere Fundort, Voraussetzung und Bedeutung. Eine bestehende Hinweisakte lässt sich verknüpfen.',group:'Entdecken und handeln'},
   object:{label:'Gegenstand',hint:'Beschreibe ein untersuchbares Objekt, seine Eigenschaften und mögliche Reaktionen.',group:'Entdecken und handeln'},
-  check:{label:'Probe',hint:'Notiere Auslöser, Werte und mögliche Ergebnisse. Hier wird keine Probe automatisch ausgewertet.',group:'Entdecken und handeln'},
+  check:{label:'Probe',hint:'Lege Eigenschaften, Schwierigkeit, vorgesehene Figuren und mögliche Folgen fest. In der Regie unter „Proben“ gibst du sie mit einem Klick aus; gewürfelt wird erst am Spieltisch.',group:'Entdecken und handeln'},
   puzzle:{label:'Rätsel',hint:'Bereite Aufgabe, Hinweise und Lösung als Text vor; optional mit einer vorhandenen Regel oder Unterlage.',group:'Entdecken und handeln'},
   dialogue:{label:'Dialog',hint:'Halte Gesprächseinstieg, Antworten und Bedingungen als eigenen Baustein fest.',group:'Begegnungen und Regie'},
   encounter:{label:'Begegnung',hint:'Plane eine Begegnung mit Anlass, Beteiligten und möglichem Ablauf.',group:'Begegnungen und Regie'},
@@ -31,6 +33,26 @@ export const materialKinds:Record<SceneElement['kind'],{label:string;hint:string
 };
 const referenceTypes:Partial<Record<SceneElement['kind'],string[]>>={place:['PLACE'],person:['NPC','CHARACTER'],clue:['CLUE'],handout:['HANDOUT'],puzzle:['RULE','HANDOUT']};
 
+/** Prepared character check (GE-02): what is rolled, against which SG, by whom, and what follows. Issued live from the Regie. */
+export function CheckFields({check,players,onChange}:{check:SceneCheck;players:PreparationRecipient[];onChange:(check:SceneCheck)=>void}){
+  const set=(patch:Partial<SceneCheck>)=>onChange({...check,...patch});
+  const figures=players.flatMap(p=>p.character?[{id:p.character.id,name:p.character.name,player:p.name}]:[]);
+  const unknown=check.targetCharacterIds.filter(id=>!figures.some(f=>f.id===id));
+  const toggle=(id:string)=>set({targetCharacterIds:check.targetCharacterIds.includes(id)?check.targetCharacterIds.filter(x=>x!==id):[...check.targetCharacterIds,id]});
+  const consequence=(key:keyof SceneCheck['consequences'],label:string)=><label>{label}<textarea value={check.consequences[key]} maxLength={sceneCheckMax.consequence} rows={2} placeholder="Nur für die SL" onChange={e=>set({consequences:{...check.consequences,[key]:e.target.value}})}/></label>;
+  return <div className={s.pagerFields} data-check-fields="">
+    <div className={s.checkGrid}><label>Attribut<select value={check.attributeId} onChange={e=>set({attributeId:e.target.value})}><option value="">Spieler wählt</option>{Object.entries(W10_ATTRIBUTE_KEYS).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+    <label>Fähigkeit<select value={check.abilityId} onChange={e=>set({abilityId:e.target.value})}><option value="">Spieler wählt</option>{Object.entries(W10_ABILITY_KEYS).map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label>
+    <label>Schwierigkeit<input type="number" min={2} max={10} value={check.difficulty} onChange={e=>set({difficulty:Math.max(2,Math.min(10,Math.round(Number(e.target.value))||6))})}/></label></div>
+    <fieldset><legend>Vorgesehene Figuren</legend>
+      <label><input type="checkbox" checked={!check.targetCharacterIds.length} onChange={()=>set({targetCharacterIds:[]})}/> Entscheide ich live</label>
+      {figures.map(f=><label key={f.id}><input type="checkbox" checked={check.targetCharacterIds.includes(f.id)} onChange={()=>toggle(f.id)}/> {f.name} · {f.player}</label>)}
+      {unknown.length>0&&<p role="note">{unknown.length===1?'Eine Figur ist':unknown.length+' Figuren sind'} nicht mehr aktiv. <button type="button" onClick={()=>set({targetCharacterIds:check.targetCharacterIds.filter(id=>!unknown.includes(id))})}>Entfernen</button></p>}
+      <small>In der Regie lässt sich die Auswahl vor dem Ausgeben noch ändern.</small>
+    </fieldset>
+    <fieldset className={s.checkConsequences}><legend>Mögliche Folgen (nur SL)</legend>{consequence('success','Bei Erfolg')}{consequence('failure','Bei Fehlschlag')}{consequence('botch','Bei Patzer')}</fieldset>
+  </div>;
+}
 /** Prepared pager message: sender, text, priority and recipients. Nothing is sent here; the Regie plays it live. */
 export function PagerFields({pager,players,onChange}:{pager:ScenePager;players:PreparationRecipient[];onChange:(pager:ScenePager)=>void}){
   const set=(patch:Partial<ScenePager>)=>onChange({...pager,...patch});
@@ -59,12 +81,13 @@ export function PreparationMaterials({elements,onChange,references,files,editor,
   const blocks=variant==='blocks';
   const groups=[...new Set(Object.values(materialKinds).map(kind=>kind.group))].filter(group=>!blocks||group!=='Zeigen und übergeben');
   const update=(id:string,patch:Partial<SceneElement>)=>onChange(elements.map(element=>element.id===id?{...element,...patch}:element));
-  function add(kind:SceneElement['kind']){const id=crypto.randomUUID();onChange([...elements,{id,kind,title:materialKinds[kind].label,text:'',referenceId:'',fileId:'',...(kind==='pager'?{pager:emptyScenePager()}:{})}]);setActive(id);setAdding(false);}
+  function add(kind:SceneElement['kind']){const id=crypto.randomUUID();onChange([...elements,{id,kind,title:materialKinds[kind].label,text:'',referenceId:'',fileId:'',...(kind==='pager'?{pager:emptyScenePager()}:{}),...(kind==='check'?{check:emptySceneCheck()}:{})}]);setActive(id);setAdding(false);}
   function move(index:number,direction:number){const next=[...elements];[next[index],next[index+direction]]=[next[index+direction],next[index]];onChange(next);}
   function list(){return <ol className={s.materialList}>{elements.map((element,index)=>{const info=materialKinds[element.kind];const allowed=referenceTypes[element.kind];const file=files.find(file=>file.id===element.fileId);return <li key={element.id}>
-      <div className={s.materialHead}>{file?.mime.startsWith('image/')?<ThumbImage className={s.materialThumb} id={file.id}/>:(()=>{const KindIcon=kindIcon(element.kind);return <span className={s.materialThumb} aria-hidden="true"><KindIcon size={20}/></span>;})()}<button type="button" aria-expanded={active===element.id} onClick={()=>setActive(active===element.id?'':element.id)}>{index+1}. {element.title||info.label}<small>{info.label}{file?' · '+file.name:['image','audio','video'].includes(element.kind)?' · noch keine Datei':''}{element.kind==='pager'?(element.pager?.text.trim()?' · '+(element.pager.recipientIds.length?element.pager.recipientIds.length+' Empfänger':'ganze Runde'):' · noch kein Text'):''} · vorbereitet, nicht veröffentlicht</small></button><div><button type="button" aria-label={element.title+' nach oben'} disabled={index===0} onClick={()=>move(index,-1)}><ArrowUp size={16}/></button><button type="button" aria-label={element.title+' nach unten'} disabled={index===elements.length-1} onClick={()=>move(index,1)}><ArrowDown size={16}/></button><button type="button" aria-label={'Baustein entfernen: '+element.title} onClick={()=>onChange(elements.filter(item=>item.id!==element.id))}><Trash2 size={16}/></button></div></div>
+      <div className={s.materialHead}>{file?.mime.startsWith('image/')?<ThumbImage className={s.materialThumb} id={file.id}/>:(()=>{const KindIcon=kindIcon(element.kind);return <span className={s.materialThumb} aria-hidden="true"><KindIcon size={20}/></span>;})()}<button type="button" aria-expanded={active===element.id} onClick={()=>setActive(active===element.id?'':element.id)}>{index+1}. {element.title||info.label}<small>{info.label}{file?' · '+file.name:['image','audio','video'].includes(element.kind)?' · noch keine Datei':''}{element.kind==='pager'?(element.pager?.text.trim()?' · '+(element.pager.recipientIds.length?element.pager.recipientIds.length+' Empfänger':'ganze Runde'):' · noch kein Text'):''}{element.kind==='check'&&element.check?' · '+traitLine(element.check)+' · SG '+element.check.difficulty:''} · vorbereitet, nicht veröffentlicht</small></button><div><button type="button" aria-label={element.title+' nach oben'} disabled={index===0} onClick={()=>move(index,-1)}><ArrowUp size={16}/></button><button type="button" aria-label={element.title+' nach unten'} disabled={index===elements.length-1} onClick={()=>move(index,1)}><ArrowDown size={16}/></button><button type="button" aria-label={'Baustein entfernen: '+element.title} onClick={()=>onChange(elements.filter(item=>item.id!==element.id))}><Trash2 size={16}/></button></div></div>
       {active===element.id&&<div className={s.materialBody}><p>{info.hint}</p><label>{element.kind==='pager'?'Titel / Betreff':'Bausteintitel'}<input value={element.title} maxLength={element.kind==='pager'?scenePagerMax.title:200} onChange={e=>update(element.id,{title:e.target.value})}/></label>
         {element.kind==='pager'&&<PagerFields pager={element.pager||emptyScenePager()} players={players} onChange={pager=>update(element.id,{pager})}/>}
+        {element.kind==='check'&&<CheckFields check={element.check||emptySceneCheck()} players={players} onChange={check=>update(element.id,{check})}/>}
         {allowed&&<label>Vorhandene Akte (optional)<select value={element.referenceId} onChange={e=>update(element.id,{referenceId:e.target.value})}><option value="">Ohne bestehende Akte vorbereiten</option>{element.referenceId&&!references.some(ref=>ref.id===element.referenceId)&&<option value={element.referenceId} disabled>Bestehende Verknüpfung derzeit nicht verfügbar</option>}{references.filter(ref=>allowed.includes(ref.type)).map(ref=><option key={ref.id} value={ref.id}>{ref.title}</option>)}</select></label>}
         {element.kind==='image'?<ProtectedImageGallery label="Bildgalerie" files={files} selected={element.fileId} onSelect={fileId=>update(element.id,{fileId})}/>:['audio','video','handout'].includes(element.kind)&&<label>{element.kind==='handout'?'Unterlage / Datei (optional)':'Vorhandene '+info.label+'datei'}<select value={element.fileId} onChange={e=>update(element.id,{fileId:e.target.value})}><option value="">Keine Datei zugeordnet</option>{element.fileId&&!file&&<option value={element.fileId} disabled>Bestehende Datei derzeit nicht verfügbar</option>}{files.filter(file=>element.kind==='handout'||file.mime.startsWith(element.kind+'/')).map(file=><option key={file.id} value={file.id}>{file.name}</option>)}</select></label>}
         {onUploaded&&['image','audio','video','handout'].includes(element.kind)&&<PreparationUpload kind={element.kind as 'image'|'audio'|'video'|'handout'} label={'Neue '+info.label+'datei hochladen'} onUploaded={uploaded=>{onUploaded(uploaded);update(element.id,{fileId:uploaded.id,title:element.title===info.label?uploaded.name.replace(/\.[^.]+$/,''):element.title});}}/>}

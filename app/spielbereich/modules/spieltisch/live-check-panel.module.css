@@ -1,0 +1,79 @@
+.panel{display:grid;gap:10px;margin:0 0 14px;color:#eee2ce}
+.kicker{margin:0;color:#d6b36f;font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.panel[data-state=done] .kicker{color:#9fc3a5}
+.panel label,.issue label{display:grid;gap:5px;font-size:12px}
+.panel select,.issue input:not([type=checkbox]):not([type=radio]),.issue select,.issue textarea{width:100%;min-width:0;min-height:38px;padding:7px 8px;border:1px solid #5f5745;border-radius:4px;background:#152022;color:#f4ead7}
+.panel button:focus-visible,.issue button:focus-visible,.progress button:focus-visible{outline:2px solid #e7c47f;outline-offset:2px}
+.checkBar{position:sticky;top:0;z-index:3;display:grid;gap:7px;padding:12px 12px 10px;border:1px solid #b99b6188;border-left:3px solid #d6b36f;border-radius:6px;background:#15211fF2;box-shadow:0 8px 20px #0009}
+.panel[data-state=done] .checkBar{border-left-color:#7fae8a}
+.checkBar strong{font:19px/1.2 Georgia,serif;color:#f4e6c6}
+.checkChoice{grid-template-columns:auto 1fr;align-items:center}.checkChoice span{color:#bfb39b}
+.steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.steps li{display:flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid #4c4a3e;border-radius:999px;font-size:12px;color:#bfb39b}
+.steps li b{font-weight:600;color:#e9dcc0}
+.steps li[data-done=true]{border-color:#d6b36f;background:#3a301c;color:#f0dcae}
+.steps li[data-done=true] svg{color:#f4d58d}
+.dot{width:7px;height:7px;border:1px solid #9b8d70;border-radius:50%}
+.pool{display:grid;gap:2px;margin:0}.pool span{font-size:14px;color:#e9dcc0}.pool b{font:600 18px Georgia,serif;color:#f4d58d}
+.pool small{font-size:12px;color:#b8ad96;overflow-wrap:anywhere}
+.blocked{margin:0;font-size:12px;color:#f0b8a0}
+.rollButton{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:8px 14px;border:1px solid #d6b36f;border-radius:5px;background:#6a5228;color:#fff4d8;font-weight:600;cursor:pointer}
+.rollButton:disabled{border-color:#5f5745;background:#262923;color:#a59d8c;font-weight:400;cursor:default}
+.selectionHint{margin:0;font-size:12px;color:#bfb39b}
+.emptyState{margin:0;font-size:13px;color:#a59d8c}
+.issue{display:grid;gap:10px;padding:12px;border:1px solid #d6b36f55;border-radius:7px;background:#101b1de8;color:#eee2ce}
+.issue h3{margin:0;font:19px Georgia,serif;color:#f0dcae}
+.issue textarea{min-height:56px;resize:vertical}
+.issueGrid{display:grid;grid-template-columns:90px 1fr 1fr;gap:8px}
+.issueAudience{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;border:0}
+.issueAudience legend{margin-bottom:5px;color:#e6c895;font-size:12px}
+.issueAudience button{min-height:32px;padding:4px 11px;border:1px solid #5f5745;border-radius:999px;background:#152022;color:#d9cfbd;font-size:12px}
+.issueAudience button[aria-pressed=true]{border-color:#e7c47f;background:#5d4a27;color:#fff2d0}
+.issueAudience button small{color:#c9b98f;margin-left:4px}
+.issueHint{margin:0;font-size:12px;color:#bfb39b}
+.issue details summary{cursor:pointer;font-size:12px;color:#bfb39b}
+.issue .primary{min-height:42px;padding:8px 12px;border:1px solid #d6b36f;border-radius:5px;background:#6a5228;color:#fff4d8;font-weight:600}
+.issue .primary:disabled{opacity:.5}
+.issueDone{margin:0;padding:8px 10px;border-left:3px solid #7fae8a;background:#1b2b24;font-size:13px}
+.progress{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.progress>li{display:grid;gap:4px;padding:9px 10px;border:1px solid #3d4643;border-left:3px solid #d6b36f;border-radius:5px;background:#121c1e}
+.progress>li[data-done=true]{border-left-color:#7fae8a;opacity:.85}
+.progress header{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.progress header strong{font:15px Georgia,serif;color:#f0dcae}.progress header span{flex:none;font-size:11px;color:#c9b98f}
+.progress>li>small{font-size:12px;color:#a59d8c}
+.progress ul{display:grid;gap:3px;margin:2px 0 0;padding:0;list-style:none}
+.progress ul li{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px;color:#d9cfbd}
+.progress ul li em{font-style:normal;color:#d6b36f}
+.progress ul li button{padding:2px 8px;border:1px solid #5f7a66;border-radius:999px;background:#1b2b24;color:#cfe5d3;font-size:12px}
+@media(max-width:600px){.issueGrid{grid-template-columns:1fr 1fr}.issueGrid label:first-child{grid-column:span 2}}
+.desk{display:grid;gap:12px}
+.deskTitle{margin:4px 0 0;font:16px Georgia,serif;color:#e6c895}
+.hintField{margin-top:6px}
+/* Compact, solid strip: title and state left, the one action right, so the sheet below stays readable. */
+.checkBar{grid-template-columns:minmax(0,1fr) auto;column-gap:14px;row-gap:5px;padding:10px 12px;background:#15211f}
+.checkBar>*{grid-column:1}
+.checkBar>.rollButton{grid-column:2;grid-row:1/span 4;align-self:center}
+.checkBar>[role=alert]{grid-column:1/-1}
+.checkBar strong{font-size:17px}
+.issue .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+@media(max-width:600px){.checkBar{grid-template-columns:1fr}.checkBar>.rollButton{grid-column:1;grid-row:auto}}
+.issueAudience button{width:auto;flex:none}
+.progress ul li button{width:auto;flex:none;min-height:28px}
+/* GE-02: prepared checks of the scene and consequences next to a result. */
+.prepared{display:grid;gap:6px;padding-bottom:10px;border-bottom:1px solid #d6b36f33}
+.prepared ul{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.prepared li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid #3d4643;border-left:3px solid #d6b36f;border-radius:5px;background:#121c1e}
+.prepared li[data-issued]{border-left-color:#7fae8a}
+.prepared li>span:first-child{display:grid;gap:2px;min-width:0}.prepared strong{font:15px Georgia,serif;color:#f0dcae}.prepared small{font-size:12px;color:#a59d8c}
+.preparedActions{display:flex;gap:6px;flex:none}
+.preparedActions button{width:auto;min-height:34px;padding:5px 10px;border:1px solid #5f5745;border-radius:5px;background:#152022;color:#e6dfd0;display:inline-flex;align-items:center;gap:6px}
+.preparedActions .primary{border-color:#d6b36f;background:#6a5228;color:#fff4d8;font-weight:600}
+.issue h3 small{font:12px Arial,sans-serif;color:#bfb39b}
+.progress ul li{flex-wrap:wrap}
+.consequence{flex-basis:100%;margin:2px 0 4px;padding:4px 8px;border-left:2px solid #d6b36f88;background:#1a2422;color:#d9cfbd;font-size:12px}
+/* Release switch of the evening (GM only). */
+.switch{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;padding:10px 12px;border:1px solid #5f5745;border-radius:6px;background:#121c1e}
+.switch[data-on=true]{border-color:#7fae8a88}
+.switch span{display:grid;gap:2px}.switch strong{font-size:13px;color:#f0dcae}.switch small{font-size:12px;color:#a59d8c}
+.switch button{flex:none;width:auto;min-width:64px;min-height:34px;padding:4px 12px;border:1px solid #5f5745;border-radius:999px;background:#262923;color:#d9cfbd;font-weight:600}
+.switch[data-on=true] button{border-color:#7fae8a;background:#24402e;color:#dff2e3}

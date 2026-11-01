@@ -494,3 +494,11 @@ audio.materialPreview{width:100%;max-width:420px}
 .pagerFields fieldset label{display:inline-flex;align-items:center;gap:6px;min-height:36px}
 .pagerFields fieldset small,.pagerFields fieldset p{flex-basis:100%;margin:0;color:#bdcbd2}
 .pagerFields small{color:#bdcbd2}
+/* GE-02: prepared character check. */
+.checkGrid{display:grid;grid-template-columns:1fr 1fr 110px;gap:10px}
+.pagerFields fieldset.checkConsequences{display:grid;grid-template-columns:1fr;gap:8px}
+.checkConsequences label{display:grid;gap:4px}
+.checkConsequences textarea{min-height:52px;font-family:inherit}
+@media(max-width:640px){.checkGrid{grid-template-columns:1fr 1fr}}
+.pagerFields fieldset.checkConsequences label{display:grid;gap:4px;align-items:stretch;min-height:0}
+.pagerFields fieldset.checkConsequences textarea{width:100%;min-height:48px;height:48px;resize:vertical}

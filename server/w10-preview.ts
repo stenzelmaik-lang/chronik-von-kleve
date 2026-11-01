@@ -28,7 +28,7 @@ function playable(body: Record<string, unknown>) {
 /** Owner decision 31.10.2026 (K7): a check is bound to the running evening and to exactly one character.
  * Player: only the character explicitly selected in the profile, never an owner-based fallback.
  * SL: any player character at this evening's table. Foreign, secret, archived, missing → 404. */
-async function previewCharacter(a: Actor, userId: string, sessionId: string, id: string): Promise<{ row: LegacyRecordRow; body: Record<string, unknown> }> {
+export async function previewCharacter(a: Actor, userId: string, sessionId: string, id: string): Promise<{ row: LegacyRecordRow; body: Record<string, unknown> }> {
   const { room } = await stageRoom(a, sessionId);
   if (a.gm) {
     const { row, body } = await editableCharacter(a, id);
