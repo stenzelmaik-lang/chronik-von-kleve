@@ -136,7 +136,7 @@ try{
  await b.locator('[class*=ownHint]').waitFor({timeout:20000});
  const simplest=(await get(gmC,q)).checks.findLast(c=>c.title==='Probe');assert.equal(simplest.difficulty,5);assert.equal(simplest.attributeId,undefined);assert.equal(simplest.recipients.length,1);
  await gm.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();await shot(gm,'10b-spontan-figur-und-sg');
- pass('spontaneous check with only figure B and SG 5 reaches B; traits stay the player's choice');
+ pass('spontaneous check with only figure B and SG 5 reaches B; traits stay the player’s choice');
  phase='mobile 390 × 844';
  const mobile=await context('command-a',{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
  const m=await open(mobile,'A mobil');await m.locator('[class*=ownHint]').waitFor({timeout:20000});await m.locator('[class*=ownHint]').click();

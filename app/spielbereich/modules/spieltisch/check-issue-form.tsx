@@ -2,7 +2,7 @@
 import {useRef,useState} from 'react';
 import {Dices,SlidersHorizontal} from 'lucide-react';
 import {W10_ATTRIBUTE_KEYS,W10_ABILITY_KEYS} from '@/domain/trait-ids';
-import {parsePreparedCheck,traitLine,isTablePlayer,checkRequestBody,type CheckSpec} from '@/domain/live-checks';
+import {parsePreparedCheck,traitLine,isTablePlayer,checkRequestBody,defaultCheckTitle,type CheckSpec} from '@/domain/live-checks';
 import {CheckProgressList} from './live-check-panel';
 import type {DiceEvent,RegieContext,Snapshot} from './types';
 import styles from './live-check-panel.module.css';
@@ -35,7 +35,7 @@ export function CheckIssueForm({sceneId,notes,crew,figures=[],checks=[],checksEn
   if(flight.current)return false;
   const key=JSON.stringify(spec);if(draft.current?.key!==key)draft.current={key,id:crypto.randomUUID()};
   flight.current=true;setWorking(true);setError('');setIssued('');
-  try{if(await onIssue(checkRequestBody(spec,draft.current.id),null)){draft.current=null;setIssued(spec.title||traitLine(spec));return true;}setError('Probe konnte nicht ausgegeben werden.');return false;}
+  try{if(await onIssue(checkRequestBody(spec,draft.current.id),null)){draft.current=null;setIssued(spec.title.trim()||defaultCheckTitle(spec));return true;}setError('Probe konnte nicht ausgegeben werden.');return false;}
   catch(e){setError((e as Error).message);return false;}finally{flight.current=false;setWorking(false);}
  };
  const load=(spec:CheckSpec)=>{setPrepared(spec);setTitle(spec.title);setDifficulty(spec.difficulty);setAttribute(spec.attributeId);setAbility(spec.abilityId);setHints(spec.hints||'');setTargets(spec.targetCharacterIds.filter(id=>atTable.some(f=>f.id===id)));setIssued('');setError('');};
@@ -52,7 +52,7 @@ export function CheckIssueForm({sceneId,notes,crew,figures=[],checks=[],checksEn
   <h3>Neue Probe{prepared?<small> · aus „{prepared.title}“</small>:null}</h3>
   <fieldset className={styles.issueAudience}><legend>Wer würfelt?</legend><button type="button" aria-pressed={!targets.length} onClick={()=>setTargets([])}>Ganze Runde</button>{atTable.map(f=><button type="button" key={f.id} aria-pressed={targets.includes(f.id)} onClick={()=>toggle(f.id)}>{f.title}<small>{players.find(p=>p.id===f.ownerId)?.name}</small></button>)}</fieldset>
   <div className={styles.issueGrid}><label>SG<input aria-label="SG" type="number" min={2} max={10} value={difficulty} onChange={e=>setDifficulty(Number(e.target.value))}/></label><label>Attribut<select aria-label="Attribut" value={attributeId} onChange={e=>setAttribute(e.target.value)}><option value="">Spieler wählt</option>{attributes.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label><label>Fähigkeit<select aria-label="Fähigkeit" value={abilityId} onChange={e=>setAbility(e.target.value)}><option value="">Spieler wählt</option>{abilities.map(([id,name])=><option key={id} value={id}>{name}</option>)}</select></label></div>
-  <label>Bezeichnung (optional)<input aria-label="Probe" value={title} maxLength={160} onChange={e=>setTitle(e.target.value)} placeholder={traitLine({attributeId,abilityId})==='Attribut frei + Fähigkeit frei'?'Probe':traitLine({attributeId,abilityId})}/></label>
+  <label>Bezeichnung (optional)<input aria-label="Probe" value={title} maxLength={160} onChange={e=>setTitle(e.target.value)} placeholder={defaultCheckTitle({attributeId,abilityId})}/></label>
   <details open={!!hints||undefined}><summary>Privater SL-Hinweis</summary><textarea className={styles.hintField} aria-label="Privater SL-Hinweis" value={hints} maxLength={2000} onChange={e=>setHints(e.target.value)} placeholder="Nur für dich sichtbar"/></details>
   <p className={styles.issueHint}>{traitLine({attributeId,abilityId})} · SG {difficulty} · {targets.length?targets.map(figureName).join(', '):'ganze Runde'}</p>
   <button type="button" className={styles.primary} disabled={busy||working||!valid} onClick={()=>void issueForm()}><Dices size={16}/> Probe ausgeben</button>
