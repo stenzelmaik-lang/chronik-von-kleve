@@ -43,5 +43,9 @@
 @media (prefers-reduced-motion:no-preference){.ownHint::before{animation:hintPulse 1.8s ease-in-out infinite}}
 @keyframes hintPulse{50%{opacity:.35}}
 .ownHint:focus-visible{outline:2px solid #e7c47f;outline-offset:2px}
-/* Release GE-02: on phones the own toolbar wraps into two rows; the drawer starts below it instead of underneath. */
-@media(max-width:600px){.drawer{top:168px;max-height:calc(100dvh - 176px);max-width:calc(100vw - 16px)}}
+/* Release GE-02: on phones the own toolbar wraps into two rows; the drawer starts below it instead of underneath, */
+/* …and to the right of the 56px tool rail, which otherwise covers its left edge. */
+@media(max-width:600px){.drawer{top:168px;left:64px;right:8px;width:auto;max-width:none;transform:none;max-height:calc(100dvh - 176px)}}
+@media(max-width:600px){.drawer{animation-name:lowerAside}.drawer[data-closing=true]{animation-name:raiseAside}}
+@keyframes lowerAside{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:none}}
+@keyframes raiseAside{to{opacity:0;transform:translateY(-24px)}}
