@@ -46,8 +46,8 @@ jobs:
           ./node_modules/.bin/eslint "${files[@]}"
       - name: Unit and regression tests
         run: pnpm test
-      - name: W10 core and character sheet tests
-        run: pnpm run test:w10-hybrid
+      - name: W10 core and character sheet tests (Linux)
+        run: node --experimental-strip-types --test tests/w10-hybrid.test.mjs tests/w10-selection.test.mjs prototypes/spieltisch-2/w10-rules.test.mjs tests/character-vitals.test.mjs
       - name: C1 ordinary checks when present in the PR
         shell: bash
         run: |
@@ -62,3 +62,15 @@ jobs:
         run: pnpm run build
       - name: Project synthetic HTTP integration
         run: pnpm run test:integration:run
+
+  shared-dice-windows:
+    name: Shared Dice test (Windows path semantics)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Shared Dice regression
+        run: node --experimental-strip-types --test prototypes/spieltisch-2/shared-dice.test.mjs
