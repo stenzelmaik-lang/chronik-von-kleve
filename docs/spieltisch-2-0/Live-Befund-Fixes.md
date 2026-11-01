@@ -65,3 +65,28 @@ Live lief der neueste Code. Die Fehler zeigten sich erst mit echten, großen Bil
 
 - Ein Rückfall auf den Vorgänger-Build ist unkritisch. Gespeicherte Vorschaubilder sind zusätzliche R2-Objekte und werden dann einfach nicht genutzt.
 - Browser ohne WebP-Kodierung (ältere Safari-Versionen) speichern keine Vorschau und zeigen weiter das Original.
+
+## Live-Release 01.11.2026
+
+- Freigegeben durch den Projektinhaber („Ja, mergen und live“). PR #59 ist als `5cc4c97` gemergt.
+- CI: Typecheck, Lint, Tests und Build grün.
+  - Der SL-Browserdurchlauf brach im ersten Lauf in `story-browser-smoke` mit einem Timeout ab, weil ein Element beim Klicken neu gezeichnet wurde.
+  - Lokal gegen `--spieltisch-release` liefen `story-browser-smoke` und `preparation-guide-browser` grün, der Neustart in der CI ebenfalls.
+- Worker-Version `91a7b6ce-06af-4d64-8701-7e5201273287`, Tag `5cc4c97-Live-Befund`, 100 % Verkehr. Bindings unverändert.
+- Rückfallversion: `9f9dbbcc-2cfb-4616-86df-f978723a46fd` (Spielmaterial 3.0), voll kompatibel. Gespeicherte Vorschaubilder bleiben dann ungenutzt in R2 liegen.
+- Sicherung vorab:
+  - 32 Tabellen, 30.389 Zeilen, `integrity_check ok`.
+  - Lesezeichen `000001a1-0000023e-00005116-6b5448afbb7c5372a8d74989f610c6dc`.
+  - Ablage: privat unter `.local-work/release-live-befund/`.
+- Live-Prüfung ohne Anmeldung:
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich, Command Center und Regie leiten mit 307 weiter.
+  - Dateien, Vorschaubild, Darstellungs-Assets und Bühne antworten mit 401.
+  - Vorschaubild speichern ohne Anmeldung ergibt 401.
+- Live-Prüfung mit dem SL-Konto:
+  - Die Bildauswahl im Asset-Editor lädt 6 Vorschaubilder mit zusammen 134 KB. Vorher waren es 46 Originale mit 75 MB.
+  - „Diese Szene“ zeigt 6 Dateien.
+  - Nach „Übernehmen“ bleibt das Asset-Fenster offen, Name und Bild bleiben erhalten. Abgebrochen, nichts gespeichert.
+  - In der Regie gibt es keine Galerie-Auswahl für das Bühnenbild mehr. Das Szenenbild ist aktiv.
+  - „An mich testen“ zeigt den Spieler-Pager mit der Nachricht. Gesendet wird nichts.
+  - Ohne echte Klick-Geste bietet der Pager „Ton aktivieren“ an. Danach sind die Töne geladen und der Bestätigungston spielt.
