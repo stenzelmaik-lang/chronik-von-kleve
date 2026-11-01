@@ -189,3 +189,17 @@ Nicht verantwortbar wäre es, die Allowlist ohne vorherigen Smoke-Test zu setzen
   - Testkampagne oder echte Runde in `GE01_ALPHA_CAMPAIGNS` eintragen; das erzeugt eine neue Worker-Version ohne Codeänderung.
   - Den Ablauf mit SL- und Spielerkonten prüfen, auch auf einem echten Telefon.
   - Dann die Alpha am vereinbarten Abend einschalten.
+
+## 10. Alpha-Freischaltung „Chronik von Kleve“ (1. November 2026)
+
+- **Freigabe:** Die Projektleitung hat die Runde „Chronik von Kleve“ ausgewählt (Kampagnen-ID `chronik-von-kleve`). Schritt 4, eine synthetische Testkampagne in Produktion, wurde damit bewusst übersprungen.
+- **Worker:** Neue Version `89105921-459d-477d-b5bc-9cac5ee2d7c3`, Tag `4195929-GE02-Alpha-CvK`. Code identisch mit `875bb0e3`, nur die Variable `GE01_ALPHA_CAMPAIGNS=chronik-von-kleve` ist hinzugekommen. Bindings unverändert.
+- **Live geprüft mit dem SL-Konto am laufenden Abend:**
+  - Der Snapshot meldet `checksSwitch: {on:false}` und `checksEnabled: false`.
+  - In der Regie unter „Proben“ steht „Charakterproben an diesem Abend – Ausgeschaltet. Die Runde würfelt wie gewohnt frei.“
+  - Es gibt keine offenen Proben. Der Schalter wurde **nicht** eingeschaltet.
+- **Abschalten, gestaffelt:**
+  1. Am Abend den SL-Schalter auf „Aus“ stellen.
+  2. Für den Betrieb die Version `875bb0e3` (gleicher Code, ohne Alpha-Liste) wiederherstellen oder ohne Variable neu ausrollen.
+  3. Im Notfall die Schritte aus Abschnitt 7.
+- **Offen:** Prüfung auf einem echten Telefon und der erste Alpha-Abend nach dem Ablauf in Abschnitt 6.
