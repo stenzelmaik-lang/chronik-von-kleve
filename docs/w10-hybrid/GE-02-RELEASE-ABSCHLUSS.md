@@ -161,3 +161,31 @@ Begründung:
 Nicht verantwortbar wäre es, die Allowlist ohne vorherigen Smoke-Test zu setzen oder einen Worker-Rollback ohne Szenenprüfung auszuführen.
 
 **Ausdrücklich nicht getan:** kein Push, kein PR, kein Merge, kein Deployment, keine Variable in Cloudflare gesetzt, keine Migration, keine Remote-D1-Befehle, keine neuen Funktionen und keine neue Game-Engine-Phase. Gelesen wurde nur `origin/main` per `git fetch`.
+
+## 9. Release-Nachweis: Schritte 1–3 des Freigabeplans (1. November 2026)
+
+- **Freigabe:** Die Projektleitung hat die kontrollierte Veröffentlichung gestartet. PR #69 ist als `4195929` gemergt.
+- **CI grün:** „Project CI and W10 checks“ (Frozen install, types, lint, tests, build sowie der Windows-Würfeltest) und „Command Center – Story Editor checks“ (Typecheck, Lint, Tests, Build sowie der SL-Browserdurchlauf). „Workers Builds“ ist wie immer rot, weil die Cloudflare-Vorschau pausiert ist.
+- **Sicherung vor dem Deployment:**
+  - 32 Tabellen, 34.830 Zeilen, `integrity_check ok`.
+  - Lesezeichen `000001a2-00010ad5-00005116-d8158c8559cf6f583a5d00ad6f2003ee`.
+  - Ablage: privat unter `.local-work/release-ge02/`.
+- **Deployment ohne `GE01_ALPHA_CAMPAIGNS`:**
+  - Worker `875bb0e3-9e64-4ca6-8e3c-a77fd3f0614c`, Tag `4195929-GE02-aus`.
+  - Die Variablen bestehen nur aus `AUTH_ACCESS_ENVIRONMENT=closed-alpha-production`; Bindings unverändert.
+  - Keine Migration.
+- **Rückfallversion:** `2371bc92-e0a5-459a-90f2-e7d5cd4ab995` (Whiteboard 2.0). Vorher die Rollback-Hinweise in Abschnitt 7 beachten.
+- **Smoke-Test ohne Anmeldung:**
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich, Command Center und Regie leiten mit 307 weiter.
+  - Bühne, Spieltisch, Dateien und Inventar-Material antworten mit 401.
+- **Smoke-Test mit dem SL-Konto am laufenden Abend:**
+  - Der Snapshot meldet `checksEnabled: false`.
+  - `requestCheck` antwortet mit **404**.
+  - Am Tisch gibt es keine Proben-Oberfläche; der freie Würfelknopf ist vorhanden.
+  - Die Regie ist „Live verbunden“, ohne Proben-Schalter.
+  - Keine Fehlermeldungen.
+- **Offen** (Schritte 4–6 des Freigabeplans):
+  - Testkampagne oder echte Runde in `GE01_ALPHA_CAMPAIGNS` eintragen; das erzeugt eine neue Worker-Version ohne Codeänderung.
+  - Den Ablauf mit SL- und Spielerkonten prüfen, auch auf einem echten Telefon.
+  - Dann die Alpha am vereinbarten Abend einschalten.
