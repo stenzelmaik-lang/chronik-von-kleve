@@ -42,7 +42,11 @@ test('a second GM is never a target; GM marks reach GM viewers only',()=>{
  assert.match(src('server/live-checks.ts'),/!isGmMembership\(m\.membershipRole\)&&m\.id!==a\.id/);
 });
 
-test('frozen scope: hunger, stress, masquerade and other open mechanics stay unreleased; the preview follows the switch',()=>{
+test('frozen scope: hunger, stress, masquerade and other open mechanics stay unreleased; live checks preview only issued checks',()=>{
  for(const id of ['hunger','personal_stress','group_stress','masquerade','scene_condition','willpower'])assert.equal(W10_MODIFIER_REGISTER.find(e=>e.id===id)?.released,false,id);
- assert.match(src('app/api/w10-preview/route.ts'),/!w10PreviewEnabled\(\) && !\(await liveChecksActiveFor\(a, d\.sessionId\)\)/);
+ // The W10 draft preview route stays local-only (B09); live checks use their own read-only previewCheck on the gated path.
+ assert.match(src('app/api/w10-preview/route.ts'),/if \(!w10PreviewEnabled\(\)\) throw new HttpError\(404/);
+ assert.doesNotMatch(src('app/spielbereich/modules/spieltisch/live-check-panel.tsx'),/\/api\/w10-preview/);
+ const checks=src('server/live-checks.ts'),preview=checks.slice(checks.indexOf('async function previewCheck'),checks.indexOf('const switchSchema'));
+ assert.match(preview,/liveChecksActive\(a,room\)/);assert.match(preview,/addressedCheck\(/);assert.doesNotMatch(preview,/INSERT|UPDATE|DELETE/,'read-only');
 });

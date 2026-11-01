@@ -5,7 +5,7 @@ import {z} from 'zod';
 import {database,gmOnly,HttpError,type Actor} from './access';
 import {liveMembers,isGmMembership} from './live-game';
 import {stageRoom} from './live-stage';
-import {previewCharacter} from './w10-preview';
+import {previewCharacter,w10Preview} from './w10-preview';
 import {readScene} from './story-scenes';
 import {liveAudience,liveRoll} from '@/domain/live-game';
 import {deriveW10Preview} from '@/domain/w10-selection';
@@ -17,8 +17,6 @@ import {checksAvailable,checksActive,type ChecksGateEnv} from '@/domain/live-che
 const gateEnv=()=>env as unknown as ChecksGateEnv;
 export function liveChecksAvailable(a:Actor){return checksAvailable(gateEnv(),a.campaignId);}
 export function liveChecksActive(a:Actor,room:Parameters<typeof checksActive>[2]){return checksActive(gateEnv(),a.campaignId,room);}
-/** For routes outside the live table (pool preview): checks must be active for exactly this evening. */
-export async function liveChecksActiveFor(a:Actor,sessionId:string){if(!liveChecksAvailable(a))return false;try{return liveChecksActive(a,(await stageRoom(a,sessionId)).room);}catch{return false;}}
 const uuid=z.string().uuid();
 const common={sessionId:z.string().min(1).max(160),runId:uuid,eventId:uuid};
 const requestSchema=z.object({...common,action:z.literal('requestCheck'),title:z.string().trim().min(1).max(160),attributeId:z.string().min(1).max(40).optional(),abilityId:z.string().min(1).max(80).optional(),difficulty:z.number().int().min(2).max(10),audience:z.union([z.object({scope:z.literal('all')}).strict(),z.object({scope:z.literal('players'),playerIds:z.array(z.string()).min(1).max(30)}).strict()]).optional(),sceneId:z.string().min(1).max(100).optional(),gmHints:z.string().max(2000).optional(),
@@ -33,6 +31,27 @@ async function prior(a:Actor,eventId:string){return database().prepare('SELECT b
 function replay(row:Row|undefined|null,a:Actor,request:string){if(!row)return false;const old=JSON.parse(row.body);if(old.authorId!==a.id||old.request!==request)throw new HttpError(409,'Ereigniskennung bereits anders verwendet.');return true;}
 async function rateLimit(a:Actor){const r=await database().prepare("SELECT count(*) n FROM (SELECT id FROM records WHERE campaign_id=? AND owner_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND created_at>? LIMIT 31)").bind(a.campaignId,a.id,new Date(Date.now()-60000).toISOString()).first<{n:number}>();if((r?.n||0)>=30)throw new HttpError(429,'Zu viele Live-Aktionen. Bitte kurz warten.');}
 
+const previewSchema=z.object({action:z.literal('previewCheck'),sessionId:z.string().min(1).max(160),runId:uuid,requestId:uuid,characterId:z.string().min(1).max(100),selection:z.object({attributeId:z.string().min(1).max(40),abilityId:z.string().min(1).max(80).optional(),specialtyId:z.string().regex(/^spec_[A-Za-z0-9-]{8,64}$/).optional()}).strict()}).strict();
+/** An issued check this player may roll right now, or 404/400; shared by the pool preview and the roll. */
+function addressedCheck(a:Actor,body:string|undefined,d:{sessionId:string;runId:string;characterId:string;selection:{attributeId:string;abilityId?:string}}){
+ if(!body)throw new HttpError(404,'Probenanforderung nicht verfügbar.');
+ const issued=JSON.parse(body);
+ if(issued.kind!=='check'||issued.sessionId!==d.sessionId||issued.runId!==d.runId||issued.hidden||issued.recipients!==null&&!issued.recipients.includes(a.id))throw new HttpError(404,'Probenanforderung nicht verfügbar.');
+ if(Array.isArray(issued.targetCharacterIds)&&!issued.targetCharacterIds.includes(d.characterId))throw new HttpError(400,'Diese Probe gilt einer anderen Figur. Bitte die vorgesehene Figur auswählen.');
+ if(issued.check.attributeId&&issued.check.attributeId!==d.selection.attributeId||issued.check.abilityId&&issued.check.abilityId!==d.selection.abilityId)throw new HttpError(400,'Bitte die von der SL vorgegebene Kombination wählen.');
+ return issued as {check:{title:string;difficulty:number;attributeId?:string;abilityId?:string};recipients:string[]|null};
+}
+/** Read-only pool preview for exactly one issued, active, addressed check: the same server derivation as the roll.
+ * Replaces the local-only W10 draft preview route for live checks, which stays behind its own local binding. */
+async function previewCheck(a:Actor,userId:string,raw:unknown){
+ if(a.gm)throw new HttpError(403,'Die Vorschau gilt der würfelnden Spielerin oder dem würfelnden Spieler.');
+ const parsed=previewSchema.safeParse(raw);if(!parsed.success)throw new HttpError(400,'Ungültige Vorschau: '+parsed.error.issues[0].message);
+ const d=parsed.data,{room}=await stageRoom(a,d.sessionId);
+ if(room.runId!==d.runId)throw new HttpError(409,'Spielabend inzwischen gewechselt.');
+ if(!liveChecksActive(a,room))throw new HttpError(409,'Charakterproben sind für diesen Spielabend ausgeschaltet.');
+ const issued=addressedCheck(a,(await prior(a,d.requestId))?.body,d);
+ return w10Preview(a,userId,d.sessionId,d.characterId,d.selection,{baseDifficulty:issued.check.difficulty});
+}
 const switchSchema=z.object({action:z.literal('setChecks'),sessionId:z.string().min(1).max(160),runId:uuid,enabled:z.boolean()}).strict();
 /** The GM switches checks on or off for the running evening only. Stored rolls stay untouched either way. */
 async function setChecks(a:Actor,raw:unknown){
@@ -48,6 +67,7 @@ export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
  if(!liveChecksAvailable(a))throw new HttpError(404,'Nicht gefunden.');
  const action=(raw as {action?:unknown})?.action;
  if(action==='setChecks')return setChecks(a,raw);
+ if(action==='previewCheck')return previewCheck(a,userId,raw);
  if(action!=='requestCheck'&&action!=='rollCheck')throw new HttpError(400,'Unbekannte Probe.');
  const parsed=(action==='requestCheck'?requestSchema:rollSchema).safeParse(raw);
  if(!parsed.success)throw new HttpError(400,'Ungültige Probenaktion: '+parsed.error.issues[0].message);
@@ -79,12 +99,8 @@ export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
  if(a.gm)throw new HttpError(403,'Die Spielerin oder der Spieler würfelt die eigene Probe.');
  const request=JSON.stringify({action:d.action,runId:d.runId,requestId:d.requestId,characterId:d.characterId,selection:d.selection});
  if(replay(await prior(a,d.eventId),a,request))return {ok:true,eventId:d.eventId};
- const source=await prior(a,d.requestId);if(!source)throw new HttpError(404,'Probenanforderung nicht verfügbar.');
- const issued=JSON.parse(source.body);
- if(issued.kind!=='check'||issued.sessionId!==d.sessionId||issued.runId!==d.runId||issued.hidden||issued.recipients!==null&&!issued.recipients.includes(a.id))throw new HttpError(404,'Probenanforderung nicht verfügbar.');
- if(Array.isArray(issued.targetCharacterIds)&&!issued.targetCharacterIds.includes(d.characterId))throw new HttpError(400,'Diese Probe gilt einer anderen Figur. Bitte die vorgesehene Figur auswählen.');
+ const issued=addressedCheck(a,(await prior(a,d.requestId))?.body,d);
  const {row,body}=await previewCharacter(a,userId,d.sessionId,d.characterId);
- if(issued.check.attributeId&&issued.check.attributeId!==d.selection.attributeId||issued.check.abilityId&&issued.check.abilityId!==d.selection.abilityId)throw new HttpError(400,'Bitte die von der SL vorgegebene Kombination wählen.');
  let preview;try{preview=deriveW10Preview(body,d.selection,{baseDifficulty:issued.check.difficulty},row.version);}catch{throw new HttpError(400,'Ungültige Eigenschaftenauswahl.');}
  if(preview.status==='blocked')throw new HttpError(409,'message' in preview&&typeof preview.message==='string'?preview.message:'Diese Probe ist mit dem aktuellen Bogen nicht möglich.');
  // GE-02: only released register entries may shape the pool; anything else stops the roll instead of silently counting.

@@ -29,11 +29,18 @@ assert.ok(bView.checks.some(c=>c.id===prepared.eventId));assert.doesNotMatch(JSO
 assert.ok(!bView.checks.some(c=>c.targetCharacterIds||c.preparedId),'no figure ids or origin for players');
 assert.deepEqual(bView.checks.find(c=>c.id===spontaneous.eventId).recipients,null);
 assert.ok(!(await stage(a)).checks.some(c=>c.id===prepared.eventId),'A does not see a check for figure B');
+// Pool preview on the gated live path: only the addressed player, only for the issued check.
+const pv={action:'previewCheck',sessionId,runId,requestId:prepared.eventId,characterId:charB.id,selection:{attributeId:'dexterity',abilityId:'brawl'}};
+const previewB=await b.post('/api/live-table',pv);assert.equal(previewB.status,200,JSON.stringify(previewB.body));assert.equal(previewB.body.status,'ready');
+assert.equal((await a.post('/api/live-table',{...pv,characterId:charA.id})).status,404,'not addressed: no preview');
+assert.equal((await gm.post('/api/live-table',pv)).status,403,'the GM does not preview for players');
+assert.equal((await b.post('/api/live-table',{...pv,selection:{attributeId:'strength',abilityId:'brawl'}})).status,400,'GM preset cannot be changed in the preview either');
 // Rolling: only the intended figure, then the same server pool path as any check.
 assert.equal((await a.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:prepared.eventId,characterId:charA.id,selection:{attributeId:'dexterity',abilityId:'brawl'}})).status,404,'A is not addressed');
 const rolledP=await b.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:prepared.eventId,characterId:charB.id,selection:{attributeId:'dexterity',abilityId:'brawl'}});assert.equal(rolledP.status,200,JSON.stringify(rolledP.body));
 const rolledS=await b.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:spontaneous.eventId,characterId:charB.id,selection:{attributeId:'dexterity',abilityId:'brawl'}});assert.equal(rolledS.status,200);
 const after=(await stage(gm)).dice.events,rp=after.find(e=>e.id===rolledP.body.eventId),rs=after.find(e=>e.id===rolledS.body.eventId);
+assert.equal(rp.roll.pool,previewB.body.pool.effective,'roll pool equals the preview pool');
 assert.equal(rp.roll.pool,rs.roll.pool,'same pool from both ways');assert.equal(rp.roll.target,rs.roll.target);
 assert.deepEqual(Object.keys(rp).sort(),Object.keys(rs).sort(),'same event structure');
 // Data protection: no membership roles, scene ids or GM marks reach players.
@@ -49,6 +56,7 @@ assert.equal(JSON.stringify(off.dice.events),rollsBefore,'stored rolls unchanged
 const bOff=await stage(b);assert.equal(bOff.checksSwitch,undefined,'players never see the switch');assert.deepEqual(bOff.checks,[]);
 assert.equal((await gm.post('/api/live-table',{...common,eventId:crypto.randomUUID(),title:'aus',audience:{scope:'all'}})).status,409,'no new checks while off');
 assert.equal((await b.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:spontaneous.eventId,characterId:charB.id,selection:{attributeId:'dexterity'}})).status,409,'no rolls while off');
+assert.equal((await b.post('/api/live-table',pv)).status,409,'no preview while off');
 assert.equal((await gm.post('/api/live-table',{action:'setChecks',sessionId,runId:crypto.randomUUID(),enabled:true})).status,409,'only the running evening');
 assert.equal((await gm.post('/api/live-table',{action:'setChecks',sessionId,runId,enabled:true})).status,200);
 const on=await stage(gm);assert.equal(on.checksEnabled,true);assert.ok(on.checks.some(c=>c.id===prepared.eventId),'checks come back');assert.equal(JSON.stringify(on.dice.events),rollsBefore,'stored rolls unchanged after switching on');
