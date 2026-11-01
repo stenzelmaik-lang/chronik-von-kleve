@@ -77,3 +77,23 @@ Neue optionale Felder sind `rect.r`, `notice`, `material.takeable` im Bühnenzus
   - Gegen `--regie`: `table-materials-browser` und `table-materials-edges-browser`.
   - Gegen `--ultio-pager`: Pager- und Regie-Integration und -Browser, Spieltisch-Medien.
   - CI-Durchlauf `story-browser-smoke` und `preparation-guide-browser`.
+
+## Live-Release 01.11.2026
+
+- Freigegeben durch den Projektinhaber („Passt, live bringen“), ausdrücklich zusammen mit W10-Hybrid C1 (PR #61, „Ja, mit C1 live“). PR #63 ist als `9ece332` gemergt.
+- **CI:** „Project CI and W10 checks“ grün. Das umfasst eingefrorene Installation, Typecheck, Lint, Tests, Build, die Integrationstests und den Windows-Würfeltest.
+- **Worker:** Version `c36b4a4b-2119-40ed-be77-9c44bdcea8f8`, Tag `9ece332-Material-Tisch`, 100 % Verkehr. Bindings unverändert.
+- **Rückfallversion:** `91a7b6ce-06af-4d64-8701-7e5201273287` (Live-Befund-Fixes). Hinweise dazu stehen oben unter „Rückfall“.
+- **Mit C1 live:** Generation 7 hat jetzt 5 statt 4 Blutpunkte pro Runde. Das übrige C1-Modul ist noch nicht eingebunden.
+- **Sicherung direkt vor dem Deploy:**
+  - 32 Tabellen, 31.053 Zeilen, `integrity_check ok`.
+  - Lesezeichen `000001a2-00000902-00005116-557b98a4a816fb443998fbc1264ef1f3`.
+  - Ablage: privat unter `.local-work/release-material-tisch/`.
+- **Live-Prüfung ohne Anmeldung:**
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich, Command Center und Regie leiten mit 307 weiter.
+  - Bühne, Dateien, Inventar-Material und Darstellungs-Assets antworten mit 401 und `private, no-store`.
+- **Live-Prüfung mit dem SL-Konto:**
+  - Das Anselmus-Paket liegt ohne Griffleiste auf dem Tisch, mit dem Hinweis „nur SL“.
+  - `/api/inventory/material` antwortet mit 200.
+  - Keine Fehlermeldungen.
