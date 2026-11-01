@@ -95,7 +95,7 @@
 .upload small{flex-basis:100%;font-size:11px;color:#9fb0ad}
 .uploadQueue{flex-basis:100%;list-style:none;margin:0;padding:0;display:grid;gap:2px;font-size:12px}
 .uploadQueue li[data-state=fertig]{color:#a9d6b9}.uploadQueue li[data-state=fehler],.uploadQueue li[data-state=abgebrochen]{color:#f6b8a6}
-.dialog,.confirmDialog{color:#eee5d2;background:#0d1b21;border:1px solid #6b705f;border-radius:12px;padding:0;width:min(1000px,94vw);max-height:90dvh}
+.dialog,.confirmDialog{color:#eee5d2;background:#0d1b21;border:1px solid #6b705f;border-radius:12px;padding:0;width:min(1000px,94vw);max-height:90dvh;margin:auto;inset:0}
 .dialog[open]{display:flex;flex-direction:column}
 .dialog::backdrop,.confirmDialog::backdrop{background:#060b10cc}
 .dialog>header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #34454a}

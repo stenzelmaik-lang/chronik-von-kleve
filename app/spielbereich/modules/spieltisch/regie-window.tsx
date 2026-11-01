@@ -15,9 +15,12 @@ import {TableMaterialLibrary} from '../table-material-library';
 import {RegieVitals} from './regie-vitals';
 import {RegieAmbience} from './regie-ambience';
 import {RegieMaterials} from '../material/regie-materials';
-import type {RegieContext,Snapshot,StageObject,PreparedPager} from './types';
+import type {RegieContext,Snapshot,StageObject,PreparedPager,PagerMessage} from './types';
+import {PagerSelfTest} from './ultio-pager';
+import {BellRing} from 'lucide-react';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
+import {ThumbImage} from '../file-thumb';
 
 type Media=RegieContext['media'][number];
 type Crew=Snapshot['crew'];
@@ -63,6 +66,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [contexts,setContexts]=useState<Record<string,RegieContext>>({}),[contextError,setContextError]=useState<{id:string;message:string}|null>(null);
  const [chosenScene,setChosenScene]=useState(''),[audiences,setAudiences]=useState<Record<string,Audience>>({});
  const [area,setArea]=useState<RegieArea>('narration'),[textArea,setTextArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
+ const [pagerTest,setPagerTest]=useState<PagerMessage|null>(null);
  const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null);
  const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),previewDialog=useRef<HTMLDialogElement>(null);
  // One id per spontaneous pager draft: a repeated click or a retry after a lost answer never sends it twice.
@@ -94,7 +98,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  // Live sync with the table: fast while visible, slower in the background, at once on focus.
  useEffect(()=>{
   if(!room)return;queueMicrotask(()=>void refresh(true));
-  let last=0;const tick=window.setInterval(()=>{const gap=window.document.visibilityState==='visible'?900:4000;if(Date.now()-last>=gap){last=Date.now();void refresh();}},300);
+  let last=0;const tick=window.setInterval(()=>{const gap=window.document.visibilityState==='visible'?1500:5000;if(Date.now()-last>=gap){last=Date.now();void refresh();}},300);
   const focus=()=>void refresh();window.addEventListener('focus',focus);
   return()=>{window.clearInterval(tick);window.removeEventListener('focus',focus);};
  },[room,refresh]);
@@ -124,7 +128,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   if(kind==='text'){setTextArea(id);if(scroll)queueMicrotask(()=>window.document.getElementById('col-text')?.scrollIntoView({block:'nearest'}));return;}
   if(!scroll)return;
   queueMicrotask(()=>{const el=window.document.getElementById('regie-bereich-'+id);if(!el)return;if(el instanceof HTMLDetailsElement)el.open=true;
-   const calm=window.matchMedia('(prefers-reduced-motion: reduce)').matches;el.scrollIntoView({block:'start',behavior:calm?'auto':'smooth'});
+   // Jump without smooth scrolling: live updates re-render the columns several times a second and would cancel it.
+   el.scrollIntoView({block:'start',behavior:'auto'});
    el.dataset.flash='true';window.setTimeout(()=>{delete el.dataset.flash;},1400);el.querySelector<HTMLElement>('summary')?.focus({preventScroll:true});});
  },[a.id]);
  // Alt+1 … Alt+9 jump to the first nine areas without leaving the keyboard.
@@ -152,7 +157,6 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const crew=(snapshot?.crew||[]).filter(m=>m.id!==a.id);
  const objects=(snapshot?.objects||[]).filter((o):o is Exclude<StageObject,{kind:'note'}>=>o.kind!=='note');
  const placedFile=(id:string)=>objects.find(o=>o.sourceKind==='file'&&o.sourceId===id);
- const images=(snapshot?.catalog||[]).filter(o=>o.sourceKind==='file'&&o.mime?.startsWith('image/')).map(o=>({id:o.id,title:o.title}));
  const context=contexts[sceneId];
  const sceneMedia=context?.media||[];
  const sceneAudio=sceneMedia.filter(m=>m.mime.startsWith('audio/')),sceneVideo=sceneMedia.filter(m=>m.mime.startsWith('video/'));
@@ -178,7 +182,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  if(!room)return <main className={styles.waiting}><p className={styles.eyebrow}>CHRONIPLAY · REGIE</p><h1>Live-Regie</h1><p role="status">{waiting||'Spielabend wird gesucht …'}</p><p>Starte den Spielabend am Spieltisch. Diese Regie verbindet sich dann von selbst.</p></main>;
 
  const media=(m:Media,Icon:typeof ImageIcon,kind:'image'|'pdf'|'audio'|'video')=>{const placed=placedFile(m.fileId),key='file:'+m.fileId,target=audienceOf(key);return <article key={m.id} className={styles.item} data-item={m.fileId}>
-  {kind==='image'?<button type="button" className={styles.thumb} aria-label={'Vorschau: '+m.title} onClick={()=>setPreview(m)}><img src={fileUrl(m.fileId)} alt="" loading="lazy"/></button>:<div className={styles.fileIcon}><Icon/><small>{m.name}</small></div>}
+  {kind==='image'?<button type="button" className={styles.thumb} aria-label={'Vorschau: '+m.title} onClick={()=>setPreview(m)}><ThumbImage id={m.fileId}/></button>:<div className={styles.fileIcon}><Icon/><small>{m.name}</small></div>}
   <div className={styles.itemBody}><h3>{m.title}</h3><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p>
    <AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={m.title}/>
    <div className={styles.actions}>
@@ -264,8 +268,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     </Block>
     <Block title="Hintergrund">
      <p className={regieStyles.state} data-placed={!!snapshot?.backdrop}>Jetzt: {snapshot?.backdrop?.title||'Standardbühne'}</p>
-     <BackdropChoice current={snapshot?.backdrop?.fileId||''} busy={busy} images={images} onChoose={fileId=>void run({action:'backdrop',fileId},null,'Hintergrund gewechselt.')}
-      sceneImages={[...(context.backdrop?[{id:context.backdrop.fileId,title:'Szenenbild · '+context.backdrop.name}]:[]),...sceneMedia.filter(m=>m.mime.startsWith('image/')&&m.fileId!==context.backdrop?.fileId).map(m=>({id:m.fileId,title:m.title}))]}/>
+     <BackdropChoice current={snapshot?.backdrop?.fileId||''} busy={busy} onChoose={fileId=>void run({action:'backdrop',fileId},null,'Hintergrund gewechselt.')}
+      sceneImages={context.backdrop?[{id:context.backdrop.fileId,title:'Szenenbild · '+context.backdrop.name}]:[]}/>
      {snapshot?.backdrop&&<button type="button" disabled={busy} onClick={()=>void run({action:'backdrop',fileId:null},null,'Standardbühne.')}><RotateCcw/> Standardbühne</button>}
     </Block>
     <Block title="NPCs der Szene" area="npcs">{context.npcs.length?context.npcs.map(n=>{const placed=objects.find(o=>o.kind==='npc'&&o.sourceId===n.id),key='npc:'+n.id,target=audienceOf(key),onTable=placed&&placed.visibility==='group';return <article key={n.id} className={styles.item} data-npc={n.id}>
@@ -283,7 +287,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
        <div className={styles.actions}><button type="button" disabled={busy} onClick={()=>void run({action:'pagerWithdraw',id:p.id},null,'Pager zurückgezogen. Er kann erneut ausgespielt werden.')}><Undo2/> Zurückziehen</button></div></>
       :<>{missing>0&&<p className={regieStyles.empty} role="note">{missing===1?'Ein vorgesehener Empfänger ist':missing+' vorgesehene Empfänger sind'} nicht in dieser Runde.</p>}
        <AudiencePicker value={target} onChange={setAudience('pager:'+p.id)} crew={crew} label={p.title||'Vorbereiteter Pager'}/>
-       <div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||!ready||invalid(target)} onClick={()=>void playPrepared(p)}><Send/> Ausspielen</button></div></>}
+       <div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||!ready||invalid(target)} onClick={()=>void playPrepared(p)}><Send/> Ausspielen</button><button type="button" disabled={!ready} onClick={()=>setPagerTest({id:'test-'+p.id+'-'+Date.now(),at:new Date().toISOString(),sender:p.sender,title:p.title,text:p.text,priority:p.priority,recipients:null})}><BellRing/> An mich testen</button></div></>}
      </li>;})}</ul>:<p className={regieStyles.empty}>Für diese Szene sind keine Pager vorbereitet. Vorbereiten lassen sie sich im Command Center unter „Material“ → „Szenenbausteine“ → Szene auswählen → „Pager-Nachricht“.</p>}
     </Block>
     <Block title="Pager · spontan">
@@ -292,8 +296,10 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
       <label>Nachricht<textarea aria-label="Pager-Nachricht" maxLength={pagerTextMax} rows={3} value={pagerText} onChange={e=>{const v=e.target.value;draft(()=>setPagerText(v));}} placeholder="z. B. RUF MICH AN · 0281-1922"/></label>
       <div className={styles.pagerRow}><label className={styles.check}><input type="checkbox" checked={pagerUrgent} onChange={e=>{const v=e.target.checked;draft(()=>setPagerUrgent(v));}}/> Dringend</label><small>{pagerText.length}/{pagerTextMax}</small></div>
       <AudiencePicker value={pagerTarget} onChange={v=>draft(()=>setAudience('pager')(v))} crew={crew} label="Pager"/>
-      <button type="submit" className={styles.primary} disabled={busy||!pagerText.trim()||invalid(pagerTarget)}><Send/> Pager senden</button>
+      <div className={styles.actions}><button type="submit" className={styles.primary} disabled={busy||!pagerText.trim()||invalid(pagerTarget)}><Send/> Pager senden</button>
+       <button type="button" disabled={!pagerText.trim()} onClick={()=>setPagerTest({id:'test-'+Date.now(),at:new Date().toISOString(),sender:pagerSender,title:pagerTitle,text:pagerText,priority:pagerUrgent?'hoch':'normal',recipients:null})}><BellRing/> An mich testen</button></div>
      </form>
+     {pagerTest&&<PagerSelfTest message={pagerTest} actorId={a.id} onClose={()=>setPagerTest(null)}/>}
      {!!sentPagers.length&&<ul className={styles.compact} aria-label="Gesendete Pager">{[...sentPagers].reverse().map(p=><li key={p.id}><span>{p.priority==='hoch'&&<b>Dringend · </b>}{p.title&&<b>{p.title}: </b>}{p.text}<small>{p.origin==='vorbereitet'?'vorbereitet · ':''}{p.sender?'von '+p.sender+' · ':''}an {audienceText(p.recipients??null,crew)} · {pagerTime(p.at)}</small><small data-pager-acks="">{ackText(p)}</small></span><button type="button" aria-label="Pager zurückziehen" disabled={busy} onClick={()=>void run({action:'pagerWithdraw',id:p.id},null,'Pager zurückgezogen.')}><Undo2/></button></li>)}</ul>}
     </Block>
     <Block title={'Auf dem Tisch ('+objects.length+')'} open={false} area="table">{objects.length?<ul className={styles.compact}>{objects.map(o=><li key={o.id}><span>{o.title}<small>{tableState(o)}</small></span><button type="button" aria-label={o.title+' vom Tisch nehmen'} disabled={busy} onClick={()=>void run({action:'remove',id:o.id})}><EyeOff/></button></li>)}</ul>:<p className={regieStyles.empty}>Der Tisch ist leer.</p>}</Block>

@@ -5,7 +5,14 @@ import {X,Check,Upload,Trash2,FileText,Music,Film,Search,AlertTriangle,Ban} from
 import {mimeFits,type MaterialAccept} from '@/domain/material-system';
 import {api,ApiError} from '../api-client';
 import type {PreparationFile} from '../protected-image-gallery';
+import {ThumbImage} from '../file-thumb';
 import styles from './workbench.module.css';
+
+/**
+ * React passes the close event of a nested <dialog> up to the dialogs around it. Only the dialog's own close may run
+ * its handler, otherwise closing the image choice also closes (and discards) the asset editor around it.
+ */
+export const ownClose=(handler:()=>void)=>(e:{target:EventTarget;currentTarget:EventTarget})=>{if(e.target===e.currentTarget)handler();};
 
 /** A file as /api/files lists it: own files, group files and (for the GM) SL files. Never other players' private files. */
 export type PickerFile=PreparationFile&{owner_id?:string;visibility?:string;size?:number;created_at?:string};
@@ -20,7 +27,7 @@ export function fileOrigin(f:PickerFile,actorId:string){
 }
 export function FileThumb({file,size=64}:{file:PickerFile|undefined;size?:number}){
  if(!file)return <span className={styles.thumbMissing} style={{width:size,height:size}} title="Datei fehlt"><Ban size={18}/></span>;
- if(file.mime.startsWith('image/'))return <img className={styles.fileThumb} style={{width:size,height:size}} src={fileUrl(file.id)} alt="" loading="lazy" decoding="async"/>;
+ if(file.mime.startsWith('image/'))return <ThumbImage className={styles.fileThumb} style={{width:size,height:size}} id={file.id}/>;
  const Icon=file.mime.startsWith('audio/')?Music:file.mime.startsWith('video/')?Film:FileText;
  return <span className={styles.fileThumb} style={{width:size,height:size}}><Icon size={22}/></span>;
 }
@@ -84,7 +91,7 @@ export function FilePicker({files,accept,multiple,actorId,sceneFileIds,assetFile
  async function askRemove(file:PickerFile){setError('');setBusy(true);try{const r=await api<{usages:{label:string;title:string|null}[];history:number}>('/api/files?usage='+encodeURIComponent(file.id));setRemoving({file,usage:r.usages,history:r.history});}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  async function remove(){if(!removing)return;setBusy(true);setError('');try{await api('/api/files','DELETE',{id:removing.file.id});onFilesChange(files.filter(f=>f.id!==removing.file.id));setChosen(old=>old.filter(id=>id!==removing.file.id));setRemoving(null);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
  const manageable=(f:PickerFile)=>!f.owner_id||f.owner_id===actorId||f.visibility==='sl'||f.visibility==='group';
- return <dialog ref={dialog} className={styles.dialog} aria-label={title} onClose={onClose}>
+ return <dialog ref={dialog} className={styles.dialog} aria-label={title} onClose={ownClose(onClose)}>
   <header><h2>{title}</h2><button type="button" aria-label="Dateiauswahl schließen" onClick={()=>dialog.current?.close()}><X/></button></header>
   <div className={styles.dialogBody}>
    <nav className={styles.segmented} aria-label="Quelle">{(Object.keys(tabLabels) as Tab[]).map(t=><button type="button" key={t} aria-pressed={tab===t} onClick={()=>{setTab(t);setLimit(pageSize);}}>{tabLabels[t]} <small>{fitting.filter(f=>t==='scene'?sceneFileIds.includes(f.id):t==='assets'?assetFileIds.includes(f.id):t==='own'?!f.owner_id||f.owner_id===actorId:!!f.owner_id&&f.owner_id!==actorId).length}</small></button>)}</nav>

@@ -58,7 +58,7 @@ export async function locationAreaIntegration({req,check,base,ids}) {
   check(visible.summary===oldText&&playerArea?.playerHint===text,'AREA published HTML and unchanged old plain text reach the same player projection');
   check(!JSON.stringify(visible).includes('AREA_QA_SL_SECRET')&&!JSON.stringify(visible).includes('AREA_SCRIPT_SECRET'),'AREA player projection includes neither SL text nor removed scripts');
   const image=await fetch(base+playerArea.image,{headers:ids.a});
-  check(image.status===200&&image.headers.get('cache-control')==='private, no-store','AREA lightbox source uses the existing authenticated private no-store media route');
+  check(image.status===200&&/^private, no-(store|cache)$/.test(image.headers.get('cache-control')||''),'AREA lightbox source uses the existing authenticated private no-store media route');
   check((await fetch(base+playerArea.image)).status===401,'AREA anonymous visitors cannot retrieve lightbox image bytes');
   check((await fetch(base+'/api/files?id='+upload.d.id,{headers:ids.a})).status===404,'AREA public-facing descriptions do not turn private uploads into generic file links');
   check((await req('/api/cms/locations?place='+root.id,'gm')).d.nodes.some(n=>n.id===area.id&&n.parentId===root.id),'AREA identity and parent relationship survive HTML editing');

@@ -174,7 +174,7 @@ function Editor({element,files,assets,players,actorId,sceneFileIds,editor,saveSt
   </footer>
   {picker&&<FilePicker title={picker.sound?'Effektton wählen':picker.replace?'Datei ersetzen':info.multiple?'Dateien wählen':'Datei wählen'} files={files} accept={picker.sound?'audio':info.accept} multiple={!picker.sound&&!picker.replace&&info.multiple} actorId={actorId} sceneFileIds={sceneFileIds} assetFileIds={assetFileIds} onFilesChange={onFilesChange} onClose={()=>setPicker(null)}
    onPick={ids=>{if(picker.sound)setMaterial({...m,effect:{...m.effect,soundFileId:ids[0]||''}});else if(picker.replace)setMaterial({...m,files:m.files.map(f=>f.id===picker.replace?{...f,fileId:ids[0]||f.fileId}:f)});else addFiles(ids);}}/>}
-  {gallery&&<AssetGallery assets={assets} files={files} actorId={actorId} kinds={info.assetKinds} selected={m.assetId} onSelect={id=>setMaterial({...m,assetId:id})} onAssetsChange={onAssetsChange} onFilesChange={onFilesChange} onClose={()=>setGallery(false)}/>}
+  {gallery&&<AssetGallery assets={assets} files={files} actorId={actorId} sceneFileIds={sceneFileIds} kinds={info.assetKinds} selected={m.assetId} onSelect={id=>setMaterial({...m,assetId:id})} onAssetsChange={onAssetsChange} onFilesChange={onFilesChange} onClose={()=>setGallery(false)}/>}
   {testing&&<MaterialPresenter material={view} personalKey={'test:'+element.id} badge="Privater Test – nur für dich" onClose={()=>setTesting(false)}/>}
  </section>;
 }

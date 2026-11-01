@@ -6,6 +6,7 @@ import type {Actor} from '@/domain/types';
 import type {Upload as StoredFile} from '@/domain/legacy';
 import {api} from './api-client';
 import {LivePdf} from './live-pdf';
+import {ThumbImage} from './file-thumb';
 import s from './material-library.module.css';
 
 type File_=StoredFile&{created_at?:string};
@@ -66,7 +67,7 @@ export function MediaLibrary({a,files,onRefresh,title='Galerie',intro}:{a:Actor;
    <label>Sortieren<select value={sort} onChange={e=>setSort(e.target.value)}><option value="newest">Neueste zuerst</option><option value="oldest">Älteste zuerst</option><option value="name">Name A–Z</option><option value="size">Größte zuerst</option></select></label>
    <span aria-live="polite">{items.length} {items.length===1?'Datei':'Dateien'}</span></div>
   {!items.length?<div className={s.empty}><Images size={36}/><h2>{search||kind!=='all'||scope!=='all'?'Keine passenden Dateien':'Noch keine Dateien'}</h2><p>{search||kind!=='all'||scope!=='all'?'Ändere Suche oder Filter.':'Ziehe Bilder oder Dokumente hierher, um zu beginnen.'}</p></div>
-  :<ul className={s.gallery}>{items.map(f=>{const k=kindOf(f.mime);return <li key={f.id}><button className={s.thumbnail} onClick={()=>void show(f)} aria-label={'Öffnen: '+f.name}>{k==='image'?<img loading="lazy" decoding="async" src={url(f)} alt=""/>:k==='audio'?<Music/>:k==='video'?<Film/>:<FileText/>}<span className={s.pill} data-visibility={f.visibility}><VisibilityIcon v={f.visibility}/>{visibilityText[f.visibility as keyof typeof visibilityText]}</span><span className={s.hover}><Eye size={16}/>Öffnen</span></button><div className={s.caption}><strong title={f.name}>{f.name}</strong><small>{megabytes(f.size)}{f.created_at?' · '+date(f.created_at):''}{f.owner_id===a.id?' · von dir':''}</small></div></li>;})}</ul>}
+  :<ul className={s.gallery}>{items.map(f=>{const k=kindOf(f.mime);return <li key={f.id}><button className={s.thumbnail} onClick={()=>void show(f)} aria-label={'Öffnen: '+f.name}>{k==='image'?<ThumbImage id={f.id}/>:k==='audio'?<Music/>:k==='video'?<Film/>:<FileText/>}<span className={s.pill} data-visibility={f.visibility}><VisibilityIcon v={f.visibility}/>{visibilityText[f.visibility as keyof typeof visibilityText]}</span><span className={s.hover}><Eye size={16}/>Öffnen</span></button><div className={s.caption}><strong title={f.name}>{f.name}</strong><small>{megabytes(f.size)}{f.created_at?' · '+date(f.created_at):''}{f.owner_id===a.id?' · von dir':''}</small></div></li>;})}</ul>}
 
   <dialog ref={dialog} className={s.preview} aria-label="Datei" onClose={()=>{setOpen(null);setConfirming(false);}}>
    {open&&<><header><h2>{open.name}</h2><button aria-label="Schließen" onClick={close}><X/></button></header>
