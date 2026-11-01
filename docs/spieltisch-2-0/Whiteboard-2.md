@@ -105,7 +105,7 @@ Isolierte Instanz: `$env:CVK_TEST_PORT='8897'; node --experimental-strip-types s
   - `tests/board-sync.test.mjs` (neu, weist auch die alte Halbierung als Ursache nach) und `tests/board-editor.test.mjs` (angepasst). Beide sind jetzt in `pnpm test` aufgenommen.
   - Alle 67 Dateien `tests/*.test.mjs`: 465 von 466 bestanden. Fehlgeschlagen ist `tests/npc-data.test.mjs` („NPC workspace uses read panel …“). Er prüft nur `app/spielbereich/workspace.tsx` und `use-workspace-data.ts`; beide wurden hier nicht geändert. Der Fehler besteht also schon auf `main`, der Test steht nicht in `pnpm test`.
 - **Typecheck und Lint** (`app server domain tests scripts`): ohne Befund.
-- **CI-Integration** (`scripts/test-local.mjs` ohne Schalter, enthält `tests/live-game-integration.mjs`): siehe Übergabe.
+- **CI-Integration** (`scripts/test-local.mjs` ohne Schalter, Port 8898, enthält `tests/live-game-integration.mjs`): 1932 Prüfungen bestanden, dazu 46 Rollen-Prüfungen. Einschließlich der angepassten Rechteprüfungen.
 
 ## Bewusst geänderte bestehende Prüfung
 
