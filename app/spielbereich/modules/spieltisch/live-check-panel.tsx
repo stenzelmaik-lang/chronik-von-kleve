@@ -12,7 +12,7 @@ type Preview={status:'ready'|'blocked';code?:string;message?:string;pool?:{effec
 type SheetResponse={projection:CharacterDetailProjection|null};
 type Check=NonNullable<Snapshot['checks']>[number];
 const signed=(n:number)=>(n>=0?'+':'')+n;
-export const rollOutcome=(e:DiceEvent)=>e.result.outcome==='botch'?'Patzer':e.result.outcome==='success'?e.result.netSuccesses+(e.result.netSuccesses===1?' Erfolg':' Erfolge'):'Misserfolg';
+export const rollOutcome=(e:DiceEvent)=>e.result.outcome==='botch'?'Patzer':e.result.outcome==='success'?e.result.netSuccesses+(e.result.netSuccesses===1?' Erfolg':' Erfolge'):'Fehlschlag';
 
 /**
  * The player's character check inside the own character sheet (top bar → own name → Charakterbogen).

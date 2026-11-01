@@ -58,3 +58,4 @@
 .issue .primary{display:inline-flex;align-items:center;justify-content:center;gap:8px}
 @media(max-width:600px){.checkBar{grid-template-columns:1fr}.checkBar>.rollButton{grid-column:1;grid-row:auto}}
 .issueAudience button{width:auto;flex:none}
+.progress ul li button{width:auto;flex:none;min-height:28px}
