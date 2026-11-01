@@ -36,4 +36,20 @@ const rolledS=await b.post('/api/live-table',{action:'rollCheck',sessionId,runId
 const after=(await stage(gm)).dice.events,rp=after.find(e=>e.id===rolledP.body.eventId),rs=after.find(e=>e.id===rolledS.body.eventId);
 assert.equal(rp.roll.pool,rs.roll.pool,'same pool from both ways');assert.equal(rp.roll.target,rs.roll.target);
 assert.deepEqual(Object.keys(rp).sort(),Object.keys(rs).sort(),'same event structure');
-console.log('GE-02 PASS: figures as targets, exactly-one target rule, private consequences, identical path and pool for prepared and spontaneous checks.');
+// Data protection: no membership roles, scene ids or GM marks reach players.
+const aView=await stage(a);
+assert.doesNotMatch(JSON.stringify(aView),/membershipRole|"gm":true/,'no roles or GM marks for players');
+assert.ok(aView.checks.every(c=>!('sceneId' in c)),'no SL scene ids in player checks');
+// Release switch: GM only, per evening, stored rolls untouched.
+const rollsBefore=JSON.stringify((await stage(gm)).dice.events);
+assert.equal((await a.post('/api/live-table',{action:'setChecks',sessionId,runId,enabled:false})).status,403,'players cannot switch');
+assert.equal((await gm.post('/api/live-table',{action:'setChecks',sessionId,runId,enabled:false})).status,200);
+const off=await stage(gm);assert.equal(off.checksEnabled,false);assert.deepEqual(off.checksSwitch,{on:false});assert.deepEqual(off.checks,[]);
+assert.equal(JSON.stringify(off.dice.events),rollsBefore,'stored rolls unchanged while switched off');
+const bOff=await stage(b);assert.equal(bOff.checksSwitch,undefined,'players never see the switch');assert.deepEqual(bOff.checks,[]);
+assert.equal((await gm.post('/api/live-table',{...common,eventId:crypto.randomUUID(),title:'aus',audience:{scope:'all'}})).status,409,'no new checks while off');
+assert.equal((await b.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:spontaneous.eventId,characterId:charB.id,selection:{attributeId:'dexterity'}})).status,409,'no rolls while off');
+assert.equal((await gm.post('/api/live-table',{action:'setChecks',sessionId,runId:crypto.randomUUID(),enabled:true})).status,409,'only the running evening');
+assert.equal((await gm.post('/api/live-table',{action:'setChecks',sessionId,runId,enabled:true})).status,200);
+const on=await stage(gm);assert.equal(on.checksEnabled,true);assert.ok(on.checks.some(c=>c.id===prepared.eventId),'checks come back');assert.equal(JSON.stringify(on.dice.events),rollsBefore,'stored rolls unchanged after switching on');
+console.log('GE-02 PASS: figures as targets, exactly-one target rule, private consequences, identical path and pool, data protection, release switch on/off without touching stored rolls.');

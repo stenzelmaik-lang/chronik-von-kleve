@@ -9,7 +9,9 @@ export async function liveEvents(a:Actor,sessionId:string,knownRoom?:LiveRoom){
  const rows=await Promise.all(['scene','media','roll','check'].map(kind=>database().prepare("SELECT body FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.kind')=? AND json_extract(body,'$.runId')=? AND (?=1 OR json_extract(body,'$.recipients') IS NULL OR EXISTS(SELECT 1 FROM json_each(records.body,'$.recipients') WHERE value=?)) ORDER BY created_at DESC,id DESC LIMIT ?").bind(a.campaignId,sessionId,kind,room.runId||'',a.gm?1:0,a.id,kind==='roll'?500:kind==='check'?100:1).all<{body:string}>()));
  return rows.flatMap(r=>r.results).map(r=>JSON.parse(r.body) as LiveEvent).sort((a,b)=>a.at.localeCompare(b.at)||a.id.localeCompare(b.id)).map(e=>{if(e.hidden)return {id:e.id,kind:e.kind,authorId:e.authorId,authorName:e.authorName,at:e.at,recipients:e.recipients,hidden:true};if(e.kind!=='check')return e;const {request:_internal,gmHints:_private,consequences:_outcomes,targetCharacterIds:_targets,preparedId:_origin,...visible}=e as LiveEvent&{request?:string};void _internal;
   // Players see only that a check is addressed to them, never other addressees, intended figures or the GM's consequences.
-  return a.gm?{...visible,...(_private?{gmHints:_private}:{}),...(_outcomes?{consequences:_outcomes}:{}),...(_targets?{targetCharacterIds:_targets}:{}),...(_origin?{preparedId:_origin}:{})}:{...visible,recipients:visible.recipients===null?null:[a.id]};});
+  if(a.gm)return {...visible,...(_private?{gmHints:_private}:{}),...(_outcomes?{consequences:_outcomes}:{}),...(_targets?{targetCharacterIds:_targets}:{}),...(_origin?{preparedId:_origin}:{})};
+  const {sceneId:_scene,...check}=visible.check||{} as NonNullable<LiveEvent['check']>;void _scene;
+  return {...visible,...(visible.check?{check}:{}),recipients:visible.recipients===null?null:[a.id]} as LiveEvent;});
 }
 export async function liveCommand(a:Actor,d:Command){
  const db=database(),stamp=new Date().toISOString(),id=`live-table:${a.campaignId}:${d.sessionId}`;

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { actor, failure, HttpError, input, json, sameOrigin } from "@/server/access";
 import { account } from "@/server/account-profile";
 import { w10Preview, w10PreviewEnabled } from "@/server/w10-preview";
+import { liveChecksActiveFor } from "@/server/live-checks";
 
 export const dynamic = "force-dynamic";
 // Strict: pool, faces, stress, hunger, willpower, specialty, allowed, characterVersion or a
@@ -19,12 +20,14 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   try {
-    if (!w10PreviewEnabled()) throw new HttpError(404, "Nicht gefunden.");
     sameOrigin(req);
     const a = await actor();
     const parsed = schema.safeParse(await input(req));
     if (!parsed.success) throw new HttpError(400, "Ungültige Würfelvorschau: " + parsed.error.issues[0].message);
-    const d = parsed.data, u = await account(req);
+    const d = parsed.data;
+    // Outside the isolated local preview the pool preview exists only where character checks are active for this evening.
+    if (!w10PreviewEnabled() && !(await liveChecksActiveFor(a, d.sessionId))) throw new HttpError(404, "Nicht gefunden.");
+    const u = await account(req);
     return json(await w10Preview(a, u.id, d.sessionId, d.characterId, d.selection, d.declared));
   } catch (error) { return failure(error, req); }
 }

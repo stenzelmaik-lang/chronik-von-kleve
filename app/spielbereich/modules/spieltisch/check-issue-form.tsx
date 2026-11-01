@@ -65,3 +65,9 @@ export function CheckDesk({sceneId,notes,crew,figures,checks,events,checksEnable
  if(!checksEnabled)return null;
  return <div className={styles.desk}><CheckIssueForm key={sceneId} sceneId={sceneId} notes={notes} crew={crew} figures={figures} checks={checks} checksEnabled={checksEnabled} busy={busy} onIssue={onIssue}/><h3 className={styles.deskTitle}>Laufende Proben</h3><CheckProgressList checks={checks} events={events} crew={crew} figures={figures} onShow={onShow}/></div>;
 }
+
+/** GM-only release switch of the running evening (protected live alpha). Off hides open checks; stored rolls stay. */
+export function ChecksSwitch({on,busy,onSwitch}:{on:boolean;busy:boolean;onSwitch:(body:Record<string,unknown>,audience:Audience)=>Promise<boolean>}){
+ const [working,setWorking]=useState(false);
+ return <div className={styles.switch} data-on={on}><span><strong>Charakterproben an diesem Abend</strong><small>{on?'Eingeschaltet. Ausschalten blendet offene Proben aus; gespeicherte Würfe bleiben im Würfelprotokoll.':'Ausgeschaltet. Die Runde würfelt wie gewohnt frei.'}</small></span><button type="button" role="switch" aria-checked={on} aria-label="Charakterproben an diesem Abend" disabled={busy||working} onClick={async()=>{setWorking(true);try{await onSwitch({action:'setChecks',enabled:!on},null);}finally{setWorking(false);}}}>{on?'An':'Aus'}</button></div>;
+}

@@ -71,3 +71,9 @@
 .issue h3 small{font:12px Arial,sans-serif;color:#bfb39b}
 .progress ul li{flex-wrap:wrap}
 .consequence{flex-basis:100%;margin:2px 0 4px;padding:4px 8px;border-left:2px solid #d6b36f88;background:#1a2422;color:#d9cfbd;font-size:12px}
+/* Release switch of the evening (GM only). */
+.switch{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;padding:10px 12px;border:1px solid #5f5745;border-radius:6px;background:#121c1e}
+.switch[data-on=true]{border-color:#7fae8a88}
+.switch span{display:grid;gap:2px}.switch strong{font-size:13px;color:#f0dcae}.switch small{font-size:12px;color:#a59d8c}
+.switch button{flex:none;width:auto;min-width:64px;min-height:34px;padding:4px 12px;border:1px solid #5f5745;border-radius:999px;background:#262923;color:#d9cfbd;font-weight:600}
+.switch[data-on=true] button{border-color:#7fae8a;background:#24402e;color:#dff2e3}

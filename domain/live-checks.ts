@@ -19,8 +19,8 @@ export function checkProgress(check:CheckLike,rolls:readonly CheckRoll[],players
  return {targets,rolled,done:!!targets.length&&rolled===targets.length};
 }
 
-/** Players at the table as the GM sees the crew. The stage labels the viewer's own entry "Spielleitung"; role codes are kept for older payloads. */
-export const isTablePlayer=(m:{role:string})=>!['gm','campaign_gm','Spielleitung'].includes(m.role);
+/** Players at the table as the GM sees the crew. The server marks every campaign GM with `gm` (GM viewers only) and labels the viewer's own entry "Spielleitung"; role codes are kept for older payloads. */
+export const isTablePlayer=(m:{role:string;gm?:boolean})=>!m.gm&&!['gm','campaign_gm','Spielleitung'].includes(m.role);
 
 /** Number of rolls the round still owes across all issued checks (badge of the Regie area "Proben"). */
 export function pendingTargets(checks:readonly CheckLike[],rolls:readonly CheckRoll[],players:readonly string[]){return checks.reduce((n,c)=>{const p=checkProgress(c,rolls,players);return n+p.targets.length-p.rolled;},0);}
@@ -69,4 +69,22 @@ export function defaultCheckTitle(spec:{attributeId?:string;abilityId?:string}){
 export function checkRequestBody(spec:CheckSpec,eventId:string):Record<string,unknown>{
  const consequences=spec.consequences&&(spec.consequences.success||spec.consequences.failure||spec.consequences.botch)?spec.consequences:undefined;
  return {action:'requestCheck',eventId,title:spec.title.trim()||defaultCheckTitle(spec),difficulty:spec.difficulty,...(spec.attributeId?{attributeId:spec.attributeId}:{}),...(spec.abilityId?{abilityId:spec.abilityId}:{}),...(spec.hints?.trim()?{gmHints:spec.hints.trim()}:{}),...(spec.sceneId?{sceneId:spec.sceneId}:{}),...(spec.targetCharacterIds.length?{targetCharacterIds:spec.targetCharacterIds}:{}),...(spec.preparedId?{preparedId:spec.preparedId}:{}),...(consequences?{consequences}:{})};
+}
+
+/** Release gate for character checks (protected live alpha). Pure: env values, campaign and room are passed in.
+ * - Isolated local test instance (GE01_CHECKS=local-only and AUTH_ACCESS_ENVIRONMENT=local-test): available everywhere,
+ *   active unless the GM switched it off for the running evening.
+ * - Anywhere else: only campaigns named explicitly in GE01_ALPHA_CAMPAIGNS (comma list, no wildcard), and only after the GM
+ *   switched it on for exactly this evening (runId). A new evening therefore always starts switched off. */
+export type ChecksGateEnv={GE01_CHECKS?:string;AUTH_ACCESS_ENVIRONMENT?:string;GE01_ALPHA_CAMPAIGNS?:string};
+export type ChecksSwitch={runId:string;on:boolean};
+const localChecks=(env:ChecksGateEnv)=>env.GE01_CHECKS==='local-only'&&env.AUTH_ACCESS_ENVIRONMENT==='local-test';
+export function checksAvailable(env:ChecksGateEnv,campaignId:string){
+ if(localChecks(env))return true;
+ return !!campaignId&&(env.GE01_ALPHA_CAMPAIGNS||'').split(',').map(s=>s.trim()).filter(s=>s&&s!=='*').includes(campaignId);
+}
+export function checksActive(env:ChecksGateEnv,campaignId:string,room:{runId?:string;checks?:ChecksSwitch}){
+ if(!checksAvailable(env,campaignId)||!room.runId)return false;
+ const current=room.checks?.runId===room.runId?room.checks:undefined;
+ return localChecks(env)?current?.on!==false:current?.on===true;
 }

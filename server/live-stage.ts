@@ -2,7 +2,8 @@ import {richTextFileIds,richTextToPlainText} from '@/domain/location-rich-text';
 import {validatePreparationMedia} from './preparation-media';
 import {readMaterial} from './table-materials';
 import {database,gmOnly,HttpError,type Actor} from './access';
-import {readLiveRoom,liveMembers,liveFile} from './live-game';
+import {readLiveRoom,liveMembers,liveFile,isGmMembership} from './live-game';
+import {checksActive,checksAvailable,type ChecksGateEnv} from '@/domain/live-checks';
 import {liveEvents} from './live-commands';
 import {loadEntities,loadEntitiesForIds} from './entities';
 import {listScenes,readScene} from './story-scenes';
@@ -77,7 +78,9 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
  const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:e.report||evaluateNormalV20(e.roll!.dice,e.roll!.target),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
  // Consequences, intended figures and the prepared origin are GM-only; liveEvents already strips them for players.
- const checks=events.filter(e=>e.kind==='check'&&e.check&&!e.hidden).map(e=>({id:e.id,...e.check!,recipients:e.recipients,...(a.gm&&'gmHints' in e&&typeof e.gmHints==='string'?{gmHints:e.gmHints}:{}),...(a.gm&&e.consequences?{consequences:e.consequences}:{}),...(a.gm&&e.targetCharacterIds?{targetCharacterIds:e.targetCharacterIds}:{}),...(a.gm&&e.preparedId?{preparedId:e.preparedId}:{})}));
+ const checksOn=checksActive(env as unknown as ChecksGateEnv,a.campaignId,room);
+ // Switched off: no open checks are shown; stored rolls stay in the dice journal unchanged.
+ const checks=!checksOn?[]:events.filter(e=>e.kind==='check'&&e.check&&!e.hidden).map(e=>({id:e.id,...e.check!,recipients:e.recipients,...(a.gm&&'gmHints' in e&&typeof e.gmHints==='string'?{gmHints:e.gmHints}:{}),...(a.gm&&e.consequences?{consequences:e.consequences}:{}),...(a.gm&&e.targetCharacterIds?{targetCharacterIds:e.targetCharacterIds}:{}),...(a.gm&&e.preparedId?{preparedId:e.preparedId}:{})}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
  const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string;mime?:string}[]=[];
  let scenes:{id:string;title:string;image:string;version:number}[]=[],moreScenes:typeof scenes=[];
@@ -89,12 +92,14 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   scenes=split.session.map(card);moreScenes=split.more.map(card);
  }
  const version=stage.version,diceRevision=rolls.length+rolls.reduce((n,e)=>n+(e.revision||1),0);
- return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+checks.length+':'+(checks.at(-1)?.id||'')+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,checks,checksEnabled:(env as unknown as {GE01_CHECKS?:string;AUTH_ACCESS_ENVIRONMENT?:string}).GE01_CHECKS==='local-only'&&(env as unknown as {AUTH_ACCESS_ENVIRONMENT?:string}).AUTH_ACCESS_ENVIRONMENT==='local-test',
+ return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+checks.length+':'+(checks.at(-1)?.id||'')+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,checks,checksEnabled:checksOn,
+  // GM only: the release switch of this evening; players never learn whether a campaign is in the alpha.
+  ...(a.gm&&checksAvailable(env as unknown as ChecksGateEnv,a.campaignId)?{checksSwitch:{on:checksOn}}:{}),
   // The backdrop belongs to the whole round; its file is only served through the stage asset route.
   // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
   backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(stage.backdrop.transition?{transition:stage.backdrop.transition}:{}),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,boardLocked:!!room.boardLocked,
-  crew:members.filter(m=>room.participants?.includes(m.id)).map(m=>({...m,avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
+  crew:members.filter(m=>room.participants?.includes(m.id)).map(({membershipRole,...m})=>({...m,...(a.gm&&isGmMembership(membershipRole)?{gm:true}:{}),avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
   // Character condition values: own and explicitly released characters only; GM sees the whole table.
   vitals,

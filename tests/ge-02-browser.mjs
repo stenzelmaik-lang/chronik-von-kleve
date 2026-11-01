@@ -31,8 +31,13 @@ try{
  const fields=prep.locator('[data-check-fields]');await fields.waitFor();
  assert.equal(await fields.getByLabel('Attribut').inputValue(),'dexterity');assert.equal(await fields.getByLabel('Schwierigkeit').inputValue(),'7');
  assert.equal(await fields.getByLabel('Bei Patzer').inputValue(),'Schäfer bemerkt den Griff.');
- await fields.scrollIntoViewIfNeeded();await shot(prep,'00-szenenvorbereitung-probe');await prep.close();
- pass('scene preparation shows traits, SG, intended figures and private consequences of the prepared check');
+ // The SL prepares the intended figure A, so the Regie can issue the check with one click.
+ await fields.getByRole('checkbox',{name:/SYNTHETISCH – Regiecharakter A/}).check();
+ await fields.scrollIntoViewIfNeeded();await shot(prep,'00-szenenvorbereitung-probe');
+ await prep.getByRole('button',{name:'Szenenmaterial speichern'}).first().click();
+ await prep.waitForFunction(()=>![...document.querySelectorAll('button')].some(b=>/Szenenmaterial speichern|Wird gespeichert/.test(b.textContent||'')),null,{timeout:20000});
+ await prep.close();
+ pass('scene preparation holds traits, SG, intended figure A and private consequences; saved');
  phase='SL issues a prepared check from the Regie window';
  const popup=gm.waitForEvent('popup');await gm.getByRole('button',{name:'Regie im zweiten Fenster'}).click();const regie=await popup;regie.on('pageerror',e=>errors.push('Regie: '+e.message));
  await regie.setViewportSize({width:1440,height:900});
@@ -41,16 +46,14 @@ try{
  const badge=async()=>{const el=regie.locator('[data-area-button=checks] [class*=areaBadge]');return await el.count()?Number(await el.innerText()):0;};const owedBefore=await badge();
  await probenTab.click();
  const form=regie.getByRole('region',{name:'Neue Probe'});await form.waitFor();
+ const evening=regie.getByRole('switch',{name:'Charakterproben an diesem Abend'});assert.equal(await evening.getAttribute('aria-checked'),'true','release switch visible to the SL and on for this evening');
  const preparedList=form.getByRole('list',{name:'Vorbereitete Proben'});await preparedList.waitFor();
  const keyRow=preparedList.getByRole('listitem').filter({hasText:'Schlüsselbund stehlen'});
- assert.match(await keyRow.innerText(),/Geschick \+ Diebstahl · SG 7 · Figur live wählen/,'structured prepared check is listed with its values');
+ assert.match(await keyRow.innerText(),/Geschick \+ Diebstahl · SG 7 · SYNTHETISCH – Regiecharakter A/,'structured prepared check is listed with its values and intended figure');
  assert.match(await preparedList.getByRole('listitem').filter({hasText:'Dienstbuch durchsuchen'}).innerText(),/Wahrnehmung \+ Nachforschungen · SG 6/,'free-text check still readable as fallback');
- await keyRow.getByRole('button',{name:'Figur wählen'}).click();
- assert.equal(await form.getByLabel('Attribut',{exact:true}).inputValue(),'dexterity');assert.equal(await form.getByLabel('Fähigkeit',{exact:true}).inputValue(),'larceny');assert.equal(await form.getByLabel('SG',{exact:true}).inputValue(),'7');
- pass('prepared check from the scene preparation: values taken over, only the figure is left to choose');
- await form.getByRole('button',{name:/^SYNTHETISCH – Regiecharakter A/}).click();
  await shot(regie,'01-regie-proben-vorbereitet');
- await form.getByRole('button',{name:'Probe ausgeben'}).click();
+ await keyRow.getByRole('button',{name:'Ausgeben',exact:true}).click();
+ pass('prepared check with intended figure is issued with one click from the Regie');
  await form.getByText('„Schlüsselbund stehlen“ ist ausgegeben.').waitFor({timeout:15000});
  await regie.getByRole('list',{name:'Ausgegebene Proben'}).getByText('Probe ausstehend').first().waitFor();
  assert.equal(await badge(),owedBefore+1,'badge counts the new owed roll');

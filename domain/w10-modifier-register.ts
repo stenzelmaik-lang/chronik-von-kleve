@@ -17,6 +17,7 @@ export const W10_MODIFIER_REGISTER:readonly W10ModifierEntry[]=Object.freeze(([
  {id:'hunger',part:'pool',label:'Hungerwürfel',released:false,basis:'V5-Mechanik; Entscheidung Blut → Hunger offen'},
  {id:'scene_condition',part:'difficulty',label:'Szenenbedingung',released:false,basis:'Regel offen'},
  {id:'willpower',part:'pool',label:'Willenskraft',released:false,basis:'Vorabansage und Buchung erst mit Phase D'},
+ {id:'masquerade',part:'difficulty',label:'Maskerade',released:false,basis:'Maskeradestufe wirkt nicht auf Proben; Regel offen'},
 ] as W10ModifierEntry[]).map(entry=>Object.freeze(entry)));
 
 /** Trait parts are identified by their part (the id is the trait); modifiers by their own id. */

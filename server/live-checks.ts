@@ -1,8 +1,9 @@
-/** GE-01 is an isolated local prototype. No production binding enables these commands. */
+/** Character checks (GE-01C/GE-02). Gated per campaign and evening by checksAvailable/checksActive (protected live alpha);
+ * without GE01_ALPHA_CAMPAIGNS outside the isolated local instance every command answers 404. */
 import {env} from 'cloudflare:workers';
 import {z} from 'zod';
 import {database,gmOnly,HttpError,type Actor} from './access';
-import {liveMembers} from './live-game';
+import {liveMembers,isGmMembership} from './live-game';
 import {stageRoom} from './live-stage';
 import {previewCharacter} from './w10-preview';
 import {readScene} from './story-scenes';
@@ -11,8 +12,13 @@ import {deriveW10Preview} from '@/domain/w10-selection';
 import {resolveC1OrdinaryCheck} from '@/domain/w10-c1-ordinary';
 import {W10_ATTRIBUTE_KEYS,W10_ABILITY_KEYS} from '@/domain/trait-ids';
 import {registerEntry,unreleasedModifiers} from '@/domain/w10-modifier-register';
+import {checksAvailable,checksActive,type ChecksGateEnv} from '@/domain/live-checks';
 
-export function liveChecksEnabled(){const v=env as unknown as {GE01_CHECKS?:string;AUTH_ACCESS_ENVIRONMENT?:string};return v.GE01_CHECKS==='local-only'&&v.AUTH_ACCESS_ENVIRONMENT==='local-test';}
+const gateEnv=()=>env as unknown as ChecksGateEnv;
+export function liveChecksAvailable(a:Actor){return checksAvailable(gateEnv(),a.campaignId);}
+export function liveChecksActive(a:Actor,room:Parameters<typeof checksActive>[2]){return checksActive(gateEnv(),a.campaignId,room);}
+/** For routes outside the live table (pool preview): checks must be active for exactly this evening. */
+export async function liveChecksActiveFor(a:Actor,sessionId:string){if(!liveChecksAvailable(a))return false;try{return liveChecksActive(a,(await stageRoom(a,sessionId)).room);}catch{return false;}}
 const uuid=z.string().uuid();
 const common={sessionId:z.string().min(1).max(160),runId:uuid,eventId:uuid};
 const requestSchema=z.object({...common,action:z.literal('requestCheck'),title:z.string().trim().min(1).max(160),attributeId:z.string().min(1).max(40).optional(),abilityId:z.string().min(1).max(80).optional(),difficulty:z.number().int().min(2).max(10),audience:z.union([z.object({scope:z.literal('all')}).strict(),z.object({scope:z.literal('players'),playerIds:z.array(z.string()).min(1).max(30)}).strict()]).optional(),sceneId:z.string().min(1).max(100).optional(),gmHints:z.string().max(2000).optional(),
@@ -27,19 +33,33 @@ async function prior(a:Actor,eventId:string){return database().prepare('SELECT b
 function replay(row:Row|undefined|null,a:Actor,request:string){if(!row)return false;const old=JSON.parse(row.body);if(old.authorId!==a.id||old.request!==request)throw new HttpError(409,'Ereigniskennung bereits anders verwendet.');return true;}
 async function rateLimit(a:Actor){const r=await database().prepare("SELECT count(*) n FROM (SELECT id FROM records WHERE campaign_id=? AND owner_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND created_at>? LIMIT 31)").bind(a.campaignId,a.id,new Date(Date.now()-60000).toISOString()).first<{n:number}>();if((r?.n||0)>=30)throw new HttpError(429,'Zu viele Live-Aktionen. Bitte kurz warten.');}
 
+const switchSchema=z.object({action:z.literal('setChecks'),sessionId:z.string().min(1).max(160),runId:uuid,enabled:z.boolean()}).strict();
+/** The GM switches checks on or off for the running evening only. Stored rolls stay untouched either way. */
+async function setChecks(a:Actor,raw:unknown){
+ gmOnly(a);
+ const parsed=switchSchema.safeParse(raw);if(!parsed.success)throw new HttpError(400,'Ungültiger Schalter: '+parsed.error.issues[0].message);
+ const d=parsed.data,stamp=new Date().toISOString();
+ const updated=await database().prepare("UPDATE records SET body=json_set(body,'$.checks',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table' AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1").bind(JSON.stringify({runId:d.runId,on:d.enabled}),stamp,roomKey(a,d.sessionId),a.campaignId,d.runId).run();
+ if(!updated.meta.changes)throw new HttpError(409,'Spielabend beendet oder gewechselt.');
+ return {ok:true,enabled:d.enabled};
+}
+
 export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
- if(!liveChecksEnabled())throw new HttpError(404,'Nicht gefunden.');
+ if(!liveChecksAvailable(a))throw new HttpError(404,'Nicht gefunden.');
  const action=(raw as {action?:unknown})?.action;
+ if(action==='setChecks')return setChecks(a,raw);
  if(action!=='requestCheck'&&action!=='rollCheck')throw new HttpError(400,'Unbekannte Probe.');
  const parsed=(action==='requestCheck'?requestSchema:rollSchema).safeParse(raw);
  if(!parsed.success)throw new HttpError(400,'Ungültige Probenaktion: '+parsed.error.issues[0].message);
  const d=parsed.data, {room}=await stageRoom(a,d.sessionId);
  if(room.runId!==d.runId)throw new HttpError(409,'Spielabend inzwischen gewechselt.');
+ if(!liveChecksActive(a,room))throw new HttpError(409,'Charakterproben sind für diesen Spielabend ausgeschaltet.');
  const stamp=new Date().toISOString();
  if(d.action==='requestCheck'){
   gmOnly(a);
   if(d.attributeId&&!Object.hasOwn(W10_ATTRIBUTE_KEYS,d.attributeId)||d.abilityId&&!Object.hasOwn(W10_ABILITY_KEYS,d.abilityId))throw new HttpError(400,'Unbekannte Eigenschaft oder Fähigkeit.');
-  const members=(await liveMembers(a)).map(m=>m.id).filter(id=>room.participants?.includes(id));
+  // Only players at the table can be addressed; a second GM never becomes a target (the roll would be refused anyway).
+  const members=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id)&&!isGmMembership(m.membershipRole)&&m.id!==a.id).map(m=>m.id);
   let recipients:string[]|null;
   if(d.targetCharacterIds){
    const rows=(await database().prepare(`SELECT id,owner_id FROM records WHERE campaign_id=? AND kind='charaktere' AND id IN (${d.targetCharacterIds.map(()=>'?').join(',')})`).bind(a.campaignId,...d.targetCharacterIds).all<{id:string;owner_id:string}>()).results;

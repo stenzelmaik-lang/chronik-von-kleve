@@ -21,7 +21,7 @@ import {BellRing} from 'lucide-react';
 import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
 import {ThumbImage} from '../file-thumb';
-import {CheckDesk} from './check-issue-form';
+import {CheckDesk,ChecksSwitch} from './check-issue-form';
 import {pendingTargets,isTablePlayer} from '@/domain/live-checks';
 
 type Media=RegieContext['media'][number];
@@ -124,8 +124,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  useEffect(()=>{try{const v=Number(window.localStorage.getItem('chroniplay:regie-textgroesse:'+a.id));if([.9,1,1.15,1.3,1.5].includes(v))queueMicrotask(()=>setTextSize(v));}catch{/* storage unavailable */}},[a.id]);
  useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));const known=regieAreas.find(([id])=>id===saved);if(known)queueMicrotask(()=>{setArea(known[0]);if(known[2]==='text')setTextArea(known[0]);});}catch{/* storage unavailable */}},[a.id]);
  /** Opens one area: a text area in the reading column, any other area by scrolling its block into view. */
- const checksOn=!!snapshot?.checksEnabled;
- const visibleAreas=useMemo(()=>regieAreas.filter(([id])=>id!=='checks'||checksOn),[checksOn]);
+ const checksOn=!!snapshot?.checksEnabled,checksShown=checksOn||!!snapshot?.checksSwitch;
+ const visibleAreas=useMemo(()=>regieAreas.filter(([id])=>id!=='checks'||checksShown),[checksShown]);
  const openTargets=checksOn?pendingTargets(snapshot?.checks||[],snapshot?.dice.events||[],(snapshot?.crew||[]).filter(isTablePlayer).map(m=>m.id)):0;
  const chooseArea=useCallback((id:RegieArea,scroll=true)=>{
   setArea(id);try{window.localStorage.setItem(areaKey(a.id),id);}catch{/* storage unavailable */}
@@ -243,7 +243,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      {textArea==='atmosphere'&&<section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section>}
      {textArea==='dialogue'&&<section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section>}
      {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}{snapshot?.checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.primary} onClick={()=>chooseArea('checks')}>Vorbereitete Proben ausgeben</button>}</section>}
-     {textArea==='checks'&&<section className={styles.textArea} aria-label="Proben"><h3>Proben</h3><CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?.dice.events||[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section>}
+     {textArea==='checks'&&<section className={styles.textArea} aria-label="Proben"><h3>Proben</h3>{snapshot?.checksSwitch&&<ChecksSwitch on={snapshot.checksSwitch.on} busy={busy} onSwitch={(body,target)=>run(body,target,snapshot.checksSwitch?.on?'Charakterproben ausgeschaltet.':'Charakterproben eingeschaltet.')}/>}<CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?.dice.events||[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section>}
      {textArea==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s!.id} version={s!.version} crew={crew} objects={objects} busy={busy} onCommand={body=>run(body,null)}/>}
      {textArea==='secrets'&&<section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section>}
      {textArea==='consequences'&&<section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section>}
