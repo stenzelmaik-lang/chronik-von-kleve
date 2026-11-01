@@ -92,6 +92,9 @@ export async function seedSpieltischKaserne({db,base,cookie}){
    {id:randomUUID(),kind:'handout',title:'Dienstbuch, Seite 12',text:'',referenceId:'',fileId:order},
    {id:randomUUID(),kind:'handout',title:'Versiegelte Order',text:'',referenceId:handout.id,fileId:''},
    {id:randomUUID(),kind:'person',title:'Herr Schäfer',text:'<p>Steht rauchend am Tor.</p>',referenceId:npc.id,fileId:''},
+   // Prepared character checks (GE-01C): wording only; the Regie reads traits and SG from it.
+   {id:randomUUID(),kind:'check',title:'Dienstbuch durchsuchen',text:'<p>Wahrnehmung + Nachforschung (6). Erfolg: Eintrag zu Silas Vance, Seite 12.</p>',referenceId:'',fileId:''},
+   {id:randomUUID(),kind:'check',title:'Schlüsselbund stehlen',text:'<p>Geschick + Taschendiebstahl (7). Patzer: Schäfer bemerkt den Griff.</p>',referenceId:'',fileId:''},
   ],
  });
  const cellarImage=await upload('Kellertreppe.png',syntheticPng(960,540,[10,10,14],[50,40,44]));

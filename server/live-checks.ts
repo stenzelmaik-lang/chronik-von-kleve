@@ -60,7 +60,7 @@ export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
  await rateLimit(a);
  const roll=liveRoll(preview.pool.effective,preview.difficulty.effective);
  const resolved=resolveC1OrdinaryCheck(body,d.selection,{baseDifficulty:issued.check.difficulty},{rollId:d.eventId,characterVersion:row.version,faces:roll.dice});
- if(resolved.status!=='resolved'||resolved.costIntentions.length)throw new HttpError(409,'Diese Probe ist für GE-01 nicht freigegeben.');
+ if(resolved.status!=='resolved'||resolved.costIntentions.length)throw new HttpError(409,'Diese Probe braucht Regeln, die am Spieltisch noch nicht freigegeben sind.');
  const e=resolved.result.evaluation;
  const report={rule:'v20-normal',target:roll.target,dice:roll.dice,rawSuccesses:e.rawSuccesses,ones:e.ones,cancelled:e.cancelled,netSuccesses:e.totalSuccesses,outcome:e.outcome,cancelledSuccessIndices:e.cancelledSuccessIndices};
  const event={context:'live-table-event',kind:'roll',id:d.eventId,sessionId:d.sessionId,runId:d.runId,authorId:a.id,authorName:a.name,at:stamp,recipients:issued.recipients,request,roll,report,animationSeed:Array.from(crypto.getRandomValues(new Uint32Array(4))),revision:1,checkRef:{requestId:d.requestId,characterId:d.characterId,characterVersion:row.version,selection:d.selection,provenance:preview.provenance,title:issued.check.title}};

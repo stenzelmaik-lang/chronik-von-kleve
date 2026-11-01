@@ -125,3 +125,16 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 @media(max-width:650px){.checkNotice{left:8px;right:8px;top:8px;flex-wrap:wrap}.checkNotice span{flex-basis:100%}.checkNotice button:last-child{margin-left:auto}}
 @keyframes noticeIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.tableNotice{animation:none}}
+/* GE-01C: one calm notice per new check, a pointer in the dice drawer and the Würfelprotokoll. */
+.checkNotice span{display:grid;gap:1px}.checkNotice span small{color:#d6b36f;font-size:10px;letter-spacing:.1em;text-transform:uppercase}.checkNotice span strong{font:15px Georgia,serif;color:#f4e6c6}
+.checkNotice button:nth-of-type(1){border-color:#d6b36f;background:#6a5228;color:#fff4d8;font-weight:600}
+.checkPointer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:10px 12px;border:1px solid #d6b36f88;border-left:3px solid #d6b36f;border-radius:6px;background:#15211f}
+.checkPointer span{display:grid;gap:1px}.checkPointer small{color:#d6b36f;font-size:10px;letter-spacing:.1em;text-transform:uppercase}.checkPointer strong{font:15px Georgia,serif}
+.checkPointer button{min-height:36px;padding:6px 11px;border:1px solid #d6b36f;border-radius:5px;background:#6a5228;color:#fff4d8;white-space:nowrap}
+.checkSummary{margin:0 0 14px}.checkSummary h2{margin:0 0 8px}
+.diceLog{display:grid;gap:4px;margin:0;padding:0;list-style:none}
+.diceLog button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 10px;border:1px solid #33403f;border-radius:5px;background:#111b1d;color:#e6dfd0;text-align:left}
+.diceLog button:hover{border-color:#8a7650}
+.diceLog span{display:grid;gap:1px;min-width:0}.diceLog strong{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.diceLog small{color:#a59d8c;font-size:11px}
+.diceLog b{flex:none;font-size:12px;font-weight:600;color:#d9cfbd}.diceLog b[data-outcome=success]{color:#9fc3a5}.diceLog b[data-outcome=botch]{color:#e59b8a}
+.diceLogEmpty{color:#a59d8c;font-size:13px}
