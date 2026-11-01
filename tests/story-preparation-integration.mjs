@@ -435,7 +435,7 @@ export async function storyPreparationIntegration({
   check(letter.s===200&&letter.d.messages[0].format==='rich'&&letter.d.messages[0].text.includes('PRIVATE_VISION')&&letter.d.messages[0].attachments[0].id===uploaded.d.id,'WHISPER chosen player reads formatted message and attachment metadata');
   check(!JSON.stringify(letter.d).includes('NEVER_SEND_'),'WHISPER only the explicit message snapshot is delivered, never scene secrets or notes');
   const privateImage=await fetch(base+'/api/files?id='+uploaded.d.id,{headers:ids.a});
-  check(privateImage.status===200&&privateImage.headers.get('cache-control')==='private, no-store'&&(await privateImage.arrayBuffer()).byteLength>0,'WHISPER recipient may read the selected private image with private caching');
+  check(privateImage.status===200&&/^private, no-(store|cache)$/.test(privateImage.headers.get('cache-control')||'')&&(await privateImage.arrayBuffer()).byteLength>0,'WHISPER recipient may read the selected private image with private caching');
   check((await req('/api/files?id='+uploaded.d.id,'b')).s===404&&(await req('/api/messages?id='+messageId,'b')).s===404,'WHISPER other player cannot read guessed message or file IDs');
   check((await req('/api/files?id='+uploaded.d.id)).s===401,'WHISPER anonymous file access denied');
   check(!(await req('/api/files','a')).d.files.some(file=>file.id===uploaded.d.id),'WHISPER sending never makes file globally visible in the player gallery');

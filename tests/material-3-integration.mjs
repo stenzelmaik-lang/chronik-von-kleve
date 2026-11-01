@@ -119,7 +119,9 @@ assert.equal((await snap(b)).pagers.some(p=>p.text.includes('MATERIAL3')),false,
 await stage(gm,{action:'add',kind:'document',sourceId:'scene-material:'+kaserne+':'+pagerElement.id,sourceKind:'record'},400);
 pass('pager message reaches only Player A');
 
-// Backdrop material: own layer with the chosen transition; weather stays.
+// Backdrop material: own layer with the chosen transition; weather stays. The stage image always comes from the
+// running scene, so the scene that holds the backdrop material runs first.
+if((await snap(gm)).stageSceneId!==kaserne)await stage(gm,{action:'activateScene',sceneId:kaserne});
 await stage(gm,{action:'effects',effects:['rain']});
 await stage(gm,{action:'backdrop',fileId:backdrop.files[0].fileId,transition:'slow'});
 const pb=(await snap(a));assert.equal(pb.backdrop.transition,'slow');assert.deepEqual(pb.effects,['rain']);assert.equal(pb.backdrop.fileId,undefined,'players get no file id');

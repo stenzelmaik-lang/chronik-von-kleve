@@ -118,6 +118,13 @@
 .mirrorFree .mirrorDevice{cursor:grab;touch-action:none}
 .mirrorClose{position:absolute;top:-6px;right:-6px;z-index:2;display:grid;place-items:center;width:28px;height:28px;border:1px solid #ffffff33;border-radius:50%;background:#0b0f14b3;color:#e2ddd2;cursor:pointer;backdrop-filter:blur(3px);box-shadow:0 2px 8px #0006}
 .mirrorClose:hover{background:#1b222ecc}.mirrorClose:focus-visible{outline:3px solid #ebcf96;outline-offset:2px}
+.mirrorSound{position:absolute;top:-6px;right:28px;z-index:2;display:grid;place-items:center;width:28px;height:28px;border:1px solid #ffffff33;border-radius:50%;background:#0b0f14b3;color:#e2ddd2;cursor:pointer;backdrop-filter:blur(3px);box-shadow:0 2px 8px #0006}
+.mirrorSound[aria-pressed="false"]{color:#9a958a}.mirrorSound:hover{background:#1b222ecc}.mirrorSound:focus-visible{outline:3px solid #ebcf96;outline-offset:2px}
+/* "An mich testen": the real player pager over the Regie window, with a slim bar that says it is only a test. */
+.selfTest{position:fixed;inset:0;z-index:80;pointer-events:none}
+.selfTestBar{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;margin:0;padding:6px 8px 6px 14px;border:1px solid #ebcf9666;border-radius:999px;background:#0b0f14e6;color:#ebcf96;font-size:13px;pointer-events:auto;box-shadow:0 4px 16px #0008;max-width:calc(100vw - 24px)}
+.selfTestBar button{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid #ffffff33;border-radius:999px;background:#1b222e;color:#eee5d2;cursor:pointer}
+.selfTest .pager{position:absolute}
 .mirrorStatus{display:inline-flex;align-items:center;gap:5px;margin:0;padding:4px 10px;border-radius:999px;background:#0b0f14b3;color:#d6d0c2;font-size:11px;backdrop-filter:blur(3px);max-width:100%;overflow-wrap:anywhere}
 @media(prefers-reduced-motion:reduce){.mirrorFree{animation:none}}
 .pager,.mirror{-webkit-user-select:none;user-select:none}

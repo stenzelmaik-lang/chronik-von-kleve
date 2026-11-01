@@ -197,6 +197,22 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onRead,o
 }
 
 /**
+ * "An mich testen" in the Regie: the real player pager with tone, keys and reading, fed with one local message. Nothing
+ * is sent or stored on the server; the GM sees and hears exactly what a recipient would.
+ */
+export function PagerSelfTest({message,actorId,onClose}:{message:PagerMessage;actorId:string;onClose:()=>void}){
+ const [pagers,setPagers]=useState<PagerMessage[]>([]);
+ const runId='selbsttest:'+message.id,testActor='test:'+actorId;
+ // The message arrives a moment after mounting, so it counts as new: the pager floats in and rings like at the table.
+ useEffect(()=>{const t=window.setTimeout(()=>setPagers([message]),250);return()=>window.clearTimeout(t);},[message]);
+ const close=()=>{try{for(const k of ['chroniplay:pager:'+runId+':'+testActor,'chroniplay:pager-gehoert:'+runId+':'+testActor])window.localStorage.removeItem(k);}catch{/* storage unavailable */}onClose();};
+ return <div className={styles.selfTest} data-pager-selftest="">
+  <p className={styles.selfTestBar}><BellRing size={13} aria-hidden="true"/> Test · nur für dich · so sieht und hört es der Spieler <button type="button" onClick={close}><X size={14}/> Test beenden</button></p>
+  <UltioPager pagers={pagers} runId={runId} actorId={testActor} receiver="TEST · SL" onAcknowledge={()=>{}} onRead={()=>{}}/>
+ </div>;
+}
+
+/**
  * The GM's mirror of sent pagers on the table: the same ULTIO device, read-only, so the GM sees what went out and
  * who confirmed it. The table may be on a shared screen: messages to the whole round show their text, targeted ones
  * only the recipients (the content stays in the Regie). It never acknowledges anything.
@@ -204,6 +220,12 @@ export function UltioPager({pagers,runId,actorId,receiver,onAcknowledge,onRead,o
 export function PagerMirror({pagers,crew,actorId}:{pagers:PagerMessage[];crew:{id:string;name:string}[];actorId:string}){
  const [open,setOpen]=useState(false),[announce,setAnnounce]=useState(''),[device,setDevice]=useState<PagerDeviceState>({...initialPagerDevice(),view:'inbox'});
  const known=useRef<string[]|null>(null),fold=useRef(0);
+ // The GM hears the signal tone too (switchable), so sending is audible at the table without a player account.
+ const soundKey='chroniplay:pager-spiegel-ton:'+actorId;
+ const [sound,setSound]=useState(()=>{try{return window.localStorage.getItem(soundKey)!=='0';}catch{return true;}});
+ const soundRef=useRef(sound);
+ useEffect(()=>{soundRef.current=sound;},[sound]);
+ const toggleSound=()=>setSound(on=>{const next=!on;try{window.localStorage.setItem(soundKey,next?'1':'0');}catch{/* storage unavailable */}if(next)void unlockPagerSound().then(ok=>{if(ok)void playPagerSound('ping');});return next;});
  const list=[...pagers].sort((x,y)=>y.at.localeCompare(x.at)||y.id.localeCompare(x.id));
  const ids=list.map(p=>p.id).join('|');
  const section=useRef<HTMLElement>(null),drag=usePagerPosition(section,'chroniplay:pager-spiegel-position:'+actorId,list.length>0,open);
@@ -212,7 +234,10 @@ export function PagerMirror({pagers,crew,actorId}:{pagers:PagerMessage[];crew:{i
   if(previous===null||!now.some(id=>!previous.includes(id)))return;
   // A new message unfolds the mirror on the inbox for a moment, then it folds back on its own.
   queueMicrotask(()=>{setOpen(true);setDevice(d=>({...d,view:'inbox',inboxIndex:0}));setAnnounce('Pager gesendet.');});
+  const fresh=pagers.filter(p=>!previous.includes(p.id));
+  if(soundRef.current)void playPagerSound(fresh.some(p=>p.priority==='hoch')?'alarm':'ping');
   window.clearTimeout(fold.current);fold.current=window.setTimeout(()=>setOpen(false),12000);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- runs per change of the message ids only
  },[ids]);
  useEffect(()=>()=>window.clearTimeout(fold.current),[]);
  if(!list.length)return null;
@@ -229,6 +254,7 @@ export function PagerMirror({pagers,crew,actorId}:{pagers:PagerMessage[];crew:{i
   {/* Freestanding device like the players' pager: no window, only a small close button and the read status. */}
   {open?<div className={styles.mirrorFree}>
    <button type="button" className={styles.mirrorClose} aria-label="Pager-Spiegel zuklappen" onClick={()=>{window.clearTimeout(fold.current);setOpen(false);}}><X size={14}/></button>
+   <button type="button" className={styles.mirrorSound} aria-pressed={sound} aria-label={sound?'Ton für mich ausschalten':'Ton für mich einschalten'} title={sound?'Ton für mich: an':'Ton für mich: aus'} onClick={toggleSound}>{sound?<Volume2 size={14}/>:<VolumeX size={14}/>}</button>
    <div className={styles.mirrorDevice} data-drag-handle=""><UltioPagerDevice messages={messages} device={device} receiver="SL · SPIEGEL" muted theme={device.view==='message'&&selected?.urgent?'red':'green'} onKey={key}/></div>
    <p style={{order:-1}} className={styles.mirrorStatus} data-mirror-pager={latest.id}><Radio size={12} aria-hidden="true"/>{pagerTime(latest.at)} · {latest.recipients?'an '+latest.recipients.map(name).join(', '):<>an alle · <span className={styles.mirrorText}>{latest.title?latest.title+': ':''}{latest.text}</span></>} · <span className={styles.mirrorAcks}>{readers(latest)}</span></p>
   </div>:

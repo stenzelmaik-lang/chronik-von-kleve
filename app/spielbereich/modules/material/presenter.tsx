@@ -7,6 +7,7 @@ import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import {CassettePlayer,RetroScreen} from '../spieltisch/media-objects';
 import {useViewerState,useEffectSound,prefersReducedMotion} from './viewer-state';
+import {ownClose} from './file-picker';
 import styles from './presenter.module.css';
 
 /** Everything a viewer needs to show one material: resolved URLs only, never ids or GM notes. */
@@ -20,15 +21,18 @@ export const typeIcon:Record<MaterialType,typeof ImageIcon>={image:ImageIcon,let
 const baseDuration:Partial<Record<MaterialEffectId,number>>={instant:0,fade:650,unfold:1100,'open-book':1200,unseal:1400,'slide-out':1100,fan:1100,'page-turn':900,'lay-out':1200};
 
 /** The closed look of a material: its closed state image, otherwise a drawn fallback per type. */
-export function MaterialCover({material,showOpen=false,className}:{material:Pick<PresentedMaterial,'type'|'states'|'pages'|'title'>;showOpen?:boolean;className?:string}){
+/** Covers are small: protected library files use their stored preview (see file-thumb.tsx), stage assets stay as they are. */
+const smallSrc=(src:string)=>src.startsWith('/api/files?id=')&&!src.includes('&size=')?src+'&size=thumb':src;
+export function MaterialCover({material,showOpen=false,className,full=false}:{material:Pick<PresentedMaterial,'type'|'states'|'pages'|'title'>;showOpen?:boolean;className?:string;full?:boolean}){
+ const small=full?(src:string)=>src:smallSrc;
  const state=(showOpen&&material.states.find(s=>s.key==='open'))||material.states.find(s=>s.key==='closed');
  const firstImage=material.pages.find(p=>p.mime.startsWith('image/'));
  const Icon=typeIcon[material.type];
  if(material.type==='image'&&firstImage)return <span className={`${styles.cover} ${styles.photoCover} ${className||''}`} data-framed={!!state}>
-  <img src={firstImage.src} alt="" loading="lazy" decoding="async" draggable={false}/>{state&&<img className={styles.frame} src={state.src} alt="" loading="lazy" draggable={false}/>}
+  <img src={small(firstImage.src)} alt="" loading="lazy" decoding="async" draggable={false}/>{state&&<img className={styles.frame} src={small(state.src)} alt="" loading="lazy" draggable={false}/>}
   {material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}
  </span>;
- if(state)return <span className={`${styles.cover} ${className||''}`}><img src={state.src} alt="" loading="lazy" decoding="async" draggable={false}/>{material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}</span>;
+ if(state)return <span className={`${styles.cover} ${className||''}`}><img src={small(state.src)} alt="" loading="lazy" decoding="async" draggable={false}/>{material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}</span>;
  return <span className={`${styles.cover} ${styles.fallback} ${className||''}`} data-type={material.type}><Icon size={30} aria-hidden="true"/><small>{materialTypeInfo[material.type].label}</small>{material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}</span>;
 }
 
@@ -81,7 +85,7 @@ export function MaterialPresenter({material,personalKey,onClose,badge}:{material
  },[material,pages,single,page,shown,spread,turn,view.zoom,view.volume,setView,openState,closedState]);
 
  const paged=pages.length>1&&material.display!=='grid'&&material.type!=='audio'&&material.type!=='video';
- return <dialog ref={dialog} className={styles.presenter} aria-label={'Material: '+material.title} onCancel={e=>{e.preventDefault();close();}} onClose={onClose} style={style}>
+ return <dialog ref={dialog} className={styles.presenter} aria-label={'Material: '+material.title} onCancel={e=>{if(e.target!==e.currentTarget)return;e.preventDefault();close();}} onClose={ownClose(onClose)} style={style}>
   <header>
    <div><small>{badge?<><Lock size={11}/> {badge}</>:materialTypeInfo[material.type].label}</small><h2 title={material.title}>{material.title}</h2></div>
    <div className={styles.tools}>
@@ -93,7 +97,7 @@ export function MaterialPresenter({material,personalKey,onClose,badge}:{material
   {problem&&badge&&<p className={styles.notice} role="note">{problem}</p>}
   <div className={styles.stage} data-phase={phase} data-effect={phase==='closing'?'close-'+material.effect.close:effect}>
    {(phase==='closed'||phase==='opening'||phase==='closing')&&<div className={styles.coverLayer}>
-    {closedState?<img className={styles.closedImage} src={closedState.src} alt={phase==='closed'?material.title+' (geschlossen)':''} decoding="async"/>:<MaterialCover material={material} className={styles.closedImage}/>}
+    {closedState?<img className={styles.closedImage} src={closedState.src} alt={phase==='closed'?material.title+' (geschlossen)':''} decoding="async"/>:<MaterialCover material={material} className={styles.closedImage} full/>}
     {openState&&<img className={styles.openImage} src={openState.src} alt="" decoding="async"/>}
    </div>}
    {phase==='closed'&&<button type="button" className={styles.openButton} onClick={open} autoFocus><BookOpen size={18}/> Öffnen{effect!=='instant'?' · '+materialEffects[effect].label:''}</button>}

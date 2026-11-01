@@ -123,6 +123,12 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
   if(sceneDocument?.youtube?.length)scenePlaylist={tracks:sceneDocument.youtube.map(t=>({videoId:t.videoId,title:t.title||'Ambiente'})),label:sceneDocument.title};
   const fileId=c.action==='backdrop'?c.fileId:sceneDocument?.backdropFileId||null;
   const sceneId=c.action==='activateScene'?c.sceneId:state.sceneId||'';
+  // The stage image always comes from the running scene: its Szenenbild or one of its prepared backdrop materials.
+  if(c.action==='backdrop'&&fileId){
+   const running=sceneId?(await readScene(database(),a,sceneId).catch(()=>null))?.document:null;
+   const allowed=running?[running.backdropFileId,...running.elements.flatMap(e=>e.material?.type==='backdrop'?e.material.files.map(f=>f.fileId):[])].filter(Boolean):[];
+   if(!allowed.includes(fileId))throw new HttpError(400,'Das Bühnenbild kommt immer aus der laufenden Szene. Starte die passende Szene oder lege das Bild als Szenenbild fest.');
+  }
   if(fileId){const f=await liveFile(a,fileId);if(!f.mime.startsWith('image/'))throw new HttpError(400,'Das Szenenbild muss ein Bild sein.');backdrop={fileId:f.id,title:f.name,sceneId,...(c.action==='backdrop'&&c.transition&&c.transition!=='fade'?{transition:c.transition}:{})};}
  }
  let music:StageMusic|null=null;

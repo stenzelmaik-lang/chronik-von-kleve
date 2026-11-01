@@ -78,7 +78,7 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
  const asset=(id:string)=>'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&objectId='+encodeURIComponent(id);
  const accept=useCallback((next:Snapshot)=>{if(!alive.current)return;if(next.principal.id!==a.id||next.principal.gm!==a.gm||next.principal.role!==a.role){latest.current=null;setSnapshot(null);window.location.reload();return;}if(next.runId!==runId){latest.current=null;setSnapshot(null);onExit();return;}const merged=next.catalogIncluded?next:{...next,catalog:latest.current?.catalog||[],scenes:latest.current?.scenes||[],moreScenes:latest.current?.moreScenes||[]};latest.current=merged;setSnapshot(merged);},[runId,onExit,a.id,a.gm,a.role]);
  const refresh=useCallback(async()=>{if(flight.current||saving.current||gesture.current||boardDirty.current)return;flight.current=true;try{accept(await api<Snapshot>('/api/live-stage?sessionId='+encodeURIComponent(sessionId)+(latest.current?'':'&catalog=1')));setError('');}catch(e){setError((e as Error).message);if(e instanceof ApiError&&[401,403,404,409].includes(e.status)){latest.current=null;setSnapshot(null);setDocument(null);onExit();}}finally{flight.current=false;}},[sessionId,accept,onExit]);
- useEffect(()=>{alive.current=true;queueMicrotask(()=>void refresh());const tick=window.setInterval(()=>{if(window.document.visibilityState==='visible')void refresh();},750);const focus=()=>void refresh();window.addEventListener('focus',focus);return()=>{alive.current=false;window.clearInterval(tick);window.removeEventListener('focus',focus);cancelAnimationFrame(frame.current);};},[refresh]);
+ useEffect(()=>{alive.current=true;queueMicrotask(()=>void refresh());const tick=window.setInterval(()=>{if(window.document.visibilityState==='visible')void refresh();},1500);const focus=()=>void refresh();window.addEventListener('focus',focus);return()=>{alive.current=false;window.clearInterval(tick);window.removeEventListener('focus',focus);cancelAnimationFrame(frame.current);};},[refresh]);
  useEffect(()=>{const el=stage.current;if(!el)return;const observer=new ResizeObserver(()=>{const b=el.getBoundingClientRect();setSize({w:b.width,h:b.height});});observer.observe(el);return()=>observer.disconnect();},[]);
  const closePanel=()=>{setPanel(null);queueMicrotask(()=>trigger.current?.focus());};
  const openPanel=(id:Panel)=>{if(panel===id){closePanel();return;}trigger.current=window.document.activeElement as HTMLElement;setPanel(id);};
@@ -130,7 +130,6 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
  }
  const backdropKey=snapshot?.backdrop?.key||'',backdropTitle=snapshot?.backdrop?.title||'',backdropTransition=snapshot?.backdrop?.transition||'fade';
  const backdropImage=useMemo(()=>backdropKey?{key:backdropKey,title:backdropTitle,transition:backdropTransition,src:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&objectId=backdrop&k='+encodeURIComponent(backdropKey)}:null,[backdropKey,backdropTitle,backdropTransition,sessionId]);
- const images=useMemo(()=>(snapshot?.catalog||[]).filter(o=>o.sourceKind==='file'&&o.mime?.startsWith('image/')).map(o=>({id:o.id,title:o.title})),[snapshot?.catalog]);
  // Without an explicit choice the Regie follows the released scene, then the evening's first scene.
  const regieScene=regie.sceneId||snapshot?.sceneInfo?.id||snapshot?.scenes[0]?.id||'';
  const choice=snapshot?.objects.find(o=>o.id===selected),chosen=choice&&(localRects[choice.id]||choice.rect);
@@ -174,7 +173,7 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
     </>}
     {panel==='regie'&&a.gm&&regie.tab==='material'&&snapshot&&<TableMaterialLibrary a={a} compact playOnly live={{snapshot,busy,command}}/>}
     {panel==='regie'&&a.gm&&<Regie deliveryBusy={busy} crew={snapshot?.crew||[]} onCommand={command} sessionId={sessionId} sceneId={regieScene} tab={regie.tab} onTab={tab=>setRegie({sceneId:regieScene,tab})} busy={busy||recipients?.length===0} audience={recipients===null?'ganze Runde':recipients.length+' Teilnehmer'} onShowScene={id=>void showNarration(id)} onShowMedia={fileId=>void command({action:'showMedia',eventId:crypto.randomUUID(),fileIds:[fileId]})} onStage={(kind,sourceId,sourceKind='entity')=>void command({action:'add',kind,sourceId,sourceKind})}
-     table={{objects:snapshot?.objects.filter(o=>o.kind!=='note')||[],backdrop:snapshot?.backdrop?.title||'',backdropFileId:snapshot?.backdrop?.fileId||'',activeScene:snapshot?.stageSceneId||''}} images={images}
+     table={{objects:snapshot?.objects.filter(o=>o.kind!=='note')||[],backdrop:snapshot?.backdrop?.title||'',backdropFileId:snapshot?.backdrop?.fileId||'',activeScene:snapshot?.stageSceneId||''}}
      onPlace={(sourceId,sourceKind,title)=>void command({action:'add',kind:'document',sourceId,sourceKind,...(title?{title}:{}),visible:true,recipients})}
      onRemove={id=>void command({action:'remove',id})}
      onBackdrop={fileId=>void command({action:'backdrop',fileId})}
