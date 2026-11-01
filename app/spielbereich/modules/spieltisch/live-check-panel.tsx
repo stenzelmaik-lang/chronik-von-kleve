@@ -58,12 +58,12 @@ export function PlayerCheck({snapshot,send,busy,showRoll,onSeen,fallback}:{snaps
 }
 
 /** The GM's synchronous view of issued checks: who still has to roll, who rolled with which result. */
-export function CheckProgressList({checks,events,crew,figures,onShow,limit=6}:{checks:Check[];events:DiceEvent[];crew:Snapshot['crew'];figures?:{ownerId:string;title:string}[];onShow?:(id:string)=>void;limit?:number}){
+export function CheckProgressList({checks,events,crew,figures,onShow,limit=6}:{checks:Check[];events:DiceEvent[];crew:Snapshot['crew'];figures?:{id?:string;ownerId:string;title:string}[];onShow?:(id:string)=>void;limit?:number}){
  const players=crew.filter(isTablePlayer);
  if(!checks.length)return <p className={styles.emptyState}>Noch keine Probe ausgegeben.</p>;
  return <ol className={styles.progress} aria-label="Ausgegebene Proben">{[...checks].reverse().slice(0,limit).map(c=>{const p=checkProgress(c,events,players.map(m=>m.id));return <li key={c.id} data-done={p.done}>
   <header><strong>{c.title}</strong><span>{p.done?'Wurf abgeschlossen':p.targets.length?p.rolled+' von '+p.targets.length+' gewürfelt':'Keine Spieler am Tisch'}</span></header>
   <small>{traitLine(c)} · SG {c.difficulty}</small>
-  <ul>{p.targets.map(t=>{const roll=events.find(e=>e.id===t.rollId),name=crew.find(m=>m.id===t.playerId)?.name||'Spieler',fig=figures?.find(f=>f.ownerId===t.playerId)?.title;return <li key={t.playerId} data-rolled={!!roll}><span>{name}{fig?' · '+fig:''}</span>{roll?onShow?<button type="button" onClick={()=>onShow(roll.id)}>{rollOutcome(roll)} · ansehen</button>:<b>{rollOutcome(roll)}</b>:<em>Probe ausstehend</em>}</li>;})}</ul>
+  <ul>{p.targets.map(t=>{const roll=events.find(e=>e.id===t.rollId),name=crew.find(m=>m.id===t.playerId)?.name||'Spieler',own=figures?.filter(f=>f.ownerId===t.playerId)||[],fig=(own.find(f=>f.id&&f.id===(roll?.checkRef?.characterId||c.targetCharacterIds?.find(id=>own.some(o=>o.id===id))))||own[0])?.title,follow=roll&&c.consequences?.[roll.result.outcome];return <li key={t.playerId} data-rolled={!!roll}><span>{name}{fig?' · '+fig:''}</span>{roll?onShow?<button type="button" onClick={()=>onShow(roll.id)}>{rollOutcome(roll)} · ansehen</button>:<b>{rollOutcome(roll)}</b>:<em>Probe ausstehend</em>}{follow&&<p className={styles.consequence}>Folge: {follow}</p>}</li>;})}</ul>
  </li>;})}</ol>;
 }

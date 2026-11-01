@@ -61,7 +61,7 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
   npcs:npcIds.flatMap(id=>{const e=entity(id);return e&&e.type==='NPC'?[{id,title:e.title,summary:text(e.content.text),gmBody:e.gmBody||'',image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(id),cue:d.elements.filter(x=>x.referenceId===id).map(x=>x.text).join('')}]:[];}),
   handouts:[...d.elements.filter(e=>e.kind==='handout'&&!e.material&&!e.fileId&&!e.referenceId&&e.text.trim()).map(e=>({id:'scene-material:'+scene.id+':'+e.id,title:e.title,stageable:true,sourceKind:'record' as const})),...handoutIds.flatMap(id=>{const e=entity(id);return e&&['HANDOUT','CLUE'].includes(e.type)?[{id,title:e.title,stageable:e.type==='HANDOUT',sourceKind:'entity' as const}]:[];})],
   media:d.elements.flatMap(e=>{const f=!e.material&&files.results.find(f=>f.id===e.fileId);return f?[{id:e.id,title:e.title,kind:e.kind,text:e.text,fileId:f.id,name:f.name,mime:f.mime}]:[];}),
-  notes:d.elements.filter(e=>!e.fileId&&!e.material&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text})),
+  notes:d.elements.filter(e=>!e.fileId&&!e.material&&!['person','handout','pager'].includes(e.kind)).map(e=>({id:e.id,kind:e.kind,title:e.title,text:e.text,...(e.kind==='check'&&e.check?{check:e.check}:{})})),
   // Prepared pager messages of this scene. Played from the Regie with the element id as message id, so each is sent once.
   pagers:d.elements.flatMap(e=>{if(e.kind!=='pager')return [];const p=e.pager||emptyScenePager();return [{id:e.id,title:e.title,sender:p.sender,text:p.text,priority:p.priority,recipientIds:p.recipientIds,cue:e.text}];}),
   // Prepared YouTube music (title and video id only).
@@ -76,7 +76,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const [events,members,vitals]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room)]);
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
  const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:e.report||evaluateNormalV20(e.roll!.dice,e.roll!.target),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
- const checks=events.filter(e=>e.kind==='check'&&e.check&&!e.hidden).map(e=>({id:e.id,...e.check!,recipients:e.recipients,...(a.gm&&'gmHints' in e&&typeof e.gmHints==='string'?{gmHints:e.gmHints}:{})}));
+ // Consequences, intended figures and the prepared origin are GM-only; liveEvents already strips them for players.
+ const checks=events.filter(e=>e.kind==='check'&&e.check&&!e.hidden).map(e=>({id:e.id,...e.check!,recipients:e.recipients,...(a.gm&&'gmHints' in e&&typeof e.gmHints==='string'?{gmHints:e.gmHints}:{}),...(a.gm&&e.consequences?{consequences:e.consequences}:{}),...(a.gm&&e.targetCharacterIds?{targetCharacterIds:e.targetCharacterIds}:{}),...(a.gm&&e.preparedId?{preparedId:e.preparedId}:{})}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
  const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string;mime?:string}[]=[];
  let scenes:{id:string;title:string;image:string;version:number}[]=[],moreScenes:typeof scenes=[];

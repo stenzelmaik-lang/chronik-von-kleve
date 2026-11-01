@@ -94,7 +94,8 @@ export async function seedSpieltischKaserne({db,base,cookie}){
    {id:randomUUID(),kind:'person',title:'Herr Schäfer',text:'<p>Steht rauchend am Tor.</p>',referenceId:npc.id,fileId:''},
    // Prepared character checks (GE-01C): wording only; the Regie reads traits and SG from it.
    {id:randomUUID(),kind:'check',title:'Dienstbuch durchsuchen',text:'<p>Wahrnehmung + Nachforschung (6). Erfolg: Eintrag zu Silas Vance, Seite 12.</p>',referenceId:'',fileId:''},
-   {id:randomUUID(),kind:'check',title:'Schlüsselbund stehlen',text:'<p>Geschick + Taschendiebstahl (7). Patzer: Schäfer bemerkt den Griff.</p>',referenceId:'',fileId:''},
+   // GE-02: structured prepared check; the figure is chosen live, consequences stay with the GM.
+   {id:randomUUID(),kind:'check',title:'Schlüsselbund stehlen',text:'<p>Wenn Schäfer abgelenkt ist.</p>',referenceId:'',fileId:'',check:{attributeId:'dexterity',abilityId:'larceny',difficulty:7,targetCharacterIds:[],consequences:{success:'Der Schlüssel zum Keller ist erbeutet.',failure:'Kein Zugriff; Schäfer bleibt arglos.',botch:'Schäfer bemerkt den Griff.'}}},
   ],
  });
  const cellarImage=await upload('Kellertreppe.png',syntheticPng(960,540,[10,10,14],[50,40,44]));

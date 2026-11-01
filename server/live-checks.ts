@@ -10,11 +10,15 @@ import {liveAudience,liveRoll} from '@/domain/live-game';
 import {deriveW10Preview} from '@/domain/w10-selection';
 import {resolveC1OrdinaryCheck} from '@/domain/w10-c1-ordinary';
 import {W10_ATTRIBUTE_KEYS,W10_ABILITY_KEYS} from '@/domain/trait-ids';
+import {registerEntry,unreleasedModifiers} from '@/domain/w10-modifier-register';
 
 export function liveChecksEnabled(){const v=env as unknown as {GE01_CHECKS?:string;AUTH_ACCESS_ENVIRONMENT?:string};return v.GE01_CHECKS==='local-only'&&v.AUTH_ACCESS_ENVIRONMENT==='local-test';}
 const uuid=z.string().uuid();
 const common={sessionId:z.string().min(1).max(160),runId:uuid,eventId:uuid};
-const requestSchema=z.object({...common,action:z.literal('requestCheck'),title:z.string().trim().min(1).max(160),attributeId:z.string().min(1).max(40).optional(),abilityId:z.string().min(1).max(80).optional(),difficulty:z.number().int().min(2).max(10),audience:z.union([z.object({scope:z.literal('all')}).strict(),z.object({scope:z.literal('players'),playerIds:z.array(z.string()).min(1).max(30)}).strict()]),sceneId:z.string().min(1).max(100).optional(),gmHints:z.string().max(2000).optional()}).strict();
+const requestSchema=z.object({...common,action:z.literal('requestCheck'),title:z.string().trim().min(1).max(160),attributeId:z.string().min(1).max(40).optional(),abilityId:z.string().min(1).max(80).optional(),difficulty:z.number().int().min(2).max(10),audience:z.union([z.object({scope:z.literal('all')}).strict(),z.object({scope:z.literal('players'),playerIds:z.array(z.string()).min(1).max(30)}).strict()]).optional(),sceneId:z.string().min(1).max(100).optional(),gmHints:z.string().max(2000).optional(),
+ // GE-02: a check may name figures instead of players; the server derives the players from the characters' owners.
+ targetCharacterIds:z.array(z.string().min(1).max(100)).min(1).max(30).refine(v=>new Set(v).size===v.length,'Figur doppelt.').optional(),preparedId:z.string().uuid().optional(),
+ consequences:z.object({success:z.string().trim().max(1000),failure:z.string().trim().max(1000),botch:z.string().trim().max(1000)}).strict().optional()}).strict().refine(d=>!!d.audience!==!!d.targetCharacterIds,'Entweder Zielgruppe oder Zielfiguren angeben.');
 const rollSchema=z.object({...common,action:z.literal('rollCheck'),requestId:uuid,characterId:z.string().min(1).max(100),selection:z.object({attributeId:z.string().min(1).max(40),abilityId:z.string().min(1).max(80).optional(),specialtyId:z.string().regex(/^spec_[A-Za-z0-9-]{8,64}$/).optional()}).strict()}).strict();
 const roomKey=(a:Actor,sessionId:string)=>`live-table:${a.campaignId}:${sessionId}`;
 const eventKey=(eventId:string)=>`live-event:${eventId}`;
@@ -36,12 +40,18 @@ export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
   gmOnly(a);
   if(d.attributeId&&!Object.hasOwn(W10_ATTRIBUTE_KEYS,d.attributeId)||d.abilityId&&!Object.hasOwn(W10_ABILITY_KEYS,d.abilityId))throw new HttpError(400,'Unbekannte Eigenschaft oder Fähigkeit.');
   const members=(await liveMembers(a)).map(m=>m.id).filter(id=>room.participants?.includes(id));
-  let recipients:string[]|null;try{recipients=liveAudience(d.audience,members);}catch(e){throw new HttpError(400,(e as Error).message);}
+  let recipients:string[]|null;
+  if(d.targetCharacterIds){
+   const rows=(await database().prepare(`SELECT id,owner_id FROM records WHERE campaign_id=? AND kind='charaktere' AND id IN (${d.targetCharacterIds.map(()=>'?').join(',')})`).bind(a.campaignId,...d.targetCharacterIds).all<{id:string;owner_id:string}>()).results;
+   if(rows.length!==d.targetCharacterIds.length||rows.some(r=>!members.includes(r.owner_id)))throw new HttpError(400,'Eine gewählte Figur gehört zu keinem Spieler an diesem Spielabend.');
+   recipients=[...new Set(d.targetCharacterIds.map(id=>rows.find(r=>r.id===id)!.owner_id))];
+  }else{try{recipients=liveAudience(d.audience!,members);}catch(e){throw new HttpError(400,(e as Error).message);}}
+  const consequences=d.consequences&&(d.consequences.success||d.consequences.failure||d.consequences.botch)?d.consequences:undefined;
   if(d.sceneId){const scene=await readScene(database(),a,d.sceneId);if(scene.document.archived)throw new HttpError(409,'Szene archiviert.');}
-  const request=JSON.stringify({action:d.action,runId:d.runId,title:d.title,attributeId:d.attributeId,abilityId:d.abilityId,difficulty:d.difficulty,recipients,sceneId:d.sceneId,gmHints:d.gmHints});
+  const request=JSON.stringify({action:d.action,runId:d.runId,title:d.title,attributeId:d.attributeId,abilityId:d.abilityId,difficulty:d.difficulty,recipients,sceneId:d.sceneId,gmHints:d.gmHints,targetCharacterIds:d.targetCharacterIds,preparedId:d.preparedId,consequences});
   if(replay(await prior(a,d.eventId),a,request))return {ok:true,eventId:d.eventId};
   await rateLimit(a);
-  const event={context:'live-table-event',kind:'check',id:d.eventId,sessionId:d.sessionId,runId:d.runId,authorId:a.id,authorName:a.name,at:stamp,recipients,request,check:{title:d.title,difficulty:d.difficulty,...(d.attributeId?{attributeId:d.attributeId}:{}),...(d.abilityId?{abilityId:d.abilityId}:{}),...(d.sceneId?{sceneId:d.sceneId}:{})},...(d.gmHints?{gmHints:d.gmHints}:{})};
+  const event={context:'live-table-event',kind:'check',id:d.eventId,sessionId:d.sessionId,runId:d.runId,authorId:a.id,authorName:a.name,at:stamp,recipients,request,check:{title:d.title,difficulty:d.difficulty,...(d.attributeId?{attributeId:d.attributeId}:{}),...(d.abilityId?{abilityId:d.abilityId}:{}),...(d.sceneId?{sceneId:d.sceneId}:{})},...(d.gmHints?{gmHints:d.gmHints}:{}),...(consequences?{consequences}:{}),...(d.targetCharacterIds?{targetCharacterIds:d.targetCharacterIds}:{}),...(d.preparedId?{preparedId:d.preparedId}:{})};
   const inserted=await database().prepare("INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) SELECT ?,?,?,'notizen','private','Probenanforderung',?,'',?,? WHERE EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1) ON CONFLICT(id) DO NOTHING").bind(eventKey(d.eventId),a.campaignId,a.id,JSON.stringify(event),stamp,stamp,roomKey(a,d.sessionId),a.campaignId,d.runId).run();
   if(!inserted.meta.changes&&!replay(await prior(a,d.eventId),a,request))throw new HttpError(409,'Spielabend beendet oder Aktion kollidiert.');
   return {ok:true,eventId:d.eventId};
@@ -52,10 +62,13 @@ export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
  const source=await prior(a,d.requestId);if(!source)throw new HttpError(404,'Probenanforderung nicht verfügbar.');
  const issued=JSON.parse(source.body);
  if(issued.kind!=='check'||issued.sessionId!==d.sessionId||issued.runId!==d.runId||issued.hidden||issued.recipients!==null&&!issued.recipients.includes(a.id))throw new HttpError(404,'Probenanforderung nicht verfügbar.');
+ if(Array.isArray(issued.targetCharacterIds)&&!issued.targetCharacterIds.includes(d.characterId))throw new HttpError(400,'Diese Probe gilt einer anderen Figur. Bitte die vorgesehene Figur auswählen.');
  const {row,body}=await previewCharacter(a,userId,d.sessionId,d.characterId);
  if(issued.check.attributeId&&issued.check.attributeId!==d.selection.attributeId||issued.check.abilityId&&issued.check.abilityId!==d.selection.abilityId)throw new HttpError(400,'Bitte die von der SL vorgegebene Kombination wählen.');
  let preview;try{preview=deriveW10Preview(body,d.selection,{baseDifficulty:issued.check.difficulty},row.version);}catch{throw new HttpError(400,'Ungültige Eigenschaftenauswahl.');}
  if(preview.status==='blocked')throw new HttpError(409,'message' in preview&&typeof preview.message==='string'?preview.message:'Diese Probe ist mit dem aktuellen Bogen nicht möglich.');
+ // GE-02: only released register entries may shape the pool; anything else stops the roll instead of silently counting.
+ const unreleased=unreleasedModifiers(preview.provenance);if(unreleased.length)throw new HttpError(409,'Diese Probe enthält noch nicht freigegebene Regeln: '+unreleased.map(p=>registerEntry(p)?.label||p.label||p.id).join(', ')+'.');
  if(preview.pool.effective>30)throw new HttpError(409,'Mehr als 30 Würfel sind in diesem Wurfpfad noch nicht freigegeben.');
  await rateLimit(a);
  const roll=liveRoll(preview.pool.effective,preview.difficulty.effective);

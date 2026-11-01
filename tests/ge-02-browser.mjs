@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import {mkdirSync,writeFileSync} from 'node:fs';
-// GE-01C: real browser walk-through of character checks with SL, player A and player B against the synthetic --ge-01 instance.
+// GE-02 (builds on GE-01C): real browser walk-through of character checks with SL, player A and player B against the synthetic --ge-01 instance.
 // Screenshots come straight from the tested build. Never points at a remote site.
 const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8898';
 assert.match(base,/^http:\/\/127\.0\.0\.1:\d+$/);
-const output=process.env.CVK_SHOTS||'docs/qa/ge-01c';mkdirSync(output,{recursive:true});
+const output=process.env.CVK_SHOTS||'docs/qa/ge-02';mkdirSync(output,{recursive:true});
 const browser=await chromium.launch({headless:true,channel:process.env.CVK_PLAYWRIGHT_CHANNEL||undefined,args:['--enable-unsafe-swiftshader']});
 const errors=[],evidence={base};let phase='login';
 const pass=label=>console.log('PASS '+label);
@@ -30,10 +30,14 @@ try{
  const badge=async()=>{const el=regie.locator('[data-area-button=checks] [class*=areaBadge]');return await el.count()?Number(await el.innerText()):0;};const owedBefore=await badge();
  await probenTab.click();
  const form=regie.getByRole('region',{name:'Neue Probe'});await form.waitFor();
- await form.getByRole('button',{name:'Schlüsselbund stehlen'}).click();
+ const preparedList=form.getByRole('list',{name:'Vorbereitete Proben'});await preparedList.waitFor();
+ const keyRow=preparedList.getByRole('listitem').filter({hasText:'Schlüsselbund stehlen'});
+ assert.match(await keyRow.innerText(),/Geschick \+ Diebstahl · SG 7 · Figur live wählen/,'structured prepared check is listed with its values');
+ assert.match(await preparedList.getByRole('listitem').filter({hasText:'Dienstbuch durchsuchen'}).innerText(),/Wahrnehmung \+ Nachforschungen · SG 6/,'free-text check still readable as fallback');
+ await keyRow.getByRole('button',{name:'Figur wählen'}).click();
  assert.equal(await form.getByLabel('Attribut',{exact:true}).inputValue(),'dexterity');assert.equal(await form.getByLabel('Fähigkeit',{exact:true}).inputValue(),'larceny');assert.equal(await form.getByLabel('SG',{exact:true}).inputValue(),'7');
- pass('prepared check fills Geschick + Diebstahl, SG 7 with one click');
- await form.getByRole('button',{name:/^Demo Spieler A/}).click();
+ pass('prepared check from the scene preparation: values taken over, only the figure is left to choose');
+ await form.getByRole('button',{name:/^SYNTHETISCH – Regiecharakter A/}).click();
  await shot(regie,'01-regie-proben-vorbereitet');
  await form.getByRole('button',{name:'Probe ausgeben'}).click();
  await form.getByText('„Schlüsselbund stehlen“ ist ausgegeben.').waitFor({timeout:15000});
@@ -77,8 +81,10 @@ try{
  await shot(a,'05-spieler-wurf-ergebnis');
  await regie.getByRole('list',{name:'Ausgegebene Proben'}).getByText('Wurf abgeschlossen').first().waitFor({timeout:20000});
  await regie.waitForFunction(n=>{const el=document.querySelector('[data-area-button=checks] [class*=areaBadge]');return (el?Number(el.textContent):0)===n;},owedBefore);
- await shot(regie,'06-regie-wurf-abgeschlossen');
- pass('one roll stored; Regie switches to "Wurf abgeschlossen" without reload');
+ await regie.getByRole('list',{name:'Ausgegebene Proben'}).getByText(/^Folge: /).first().waitFor({timeout:10000});
+ await regie.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();
+ await shot(regie,'06-regie-wurf-abgeschlossen-folge');
+ pass('one roll stored; Regie switches to "Wurf abgeschlossen" and shows the prepared consequence for the outcome');
 
  phase='closed views leave no open hints, also after reload';
  await a.getByRole('button',{name:'Würfelansicht nur für mich schließen'}).click();
@@ -124,6 +130,13 @@ try{
  await shot(gm,'10-tischregie-teilweise-gewuerfelt');
  pass('table Regie shows "1 von 2 gewürfelt" live after B rolled a freely chosen Geschick + Handgemenge');
 
+ phase='simplest spontaneous check: figure + SG, the player picks traits';
+ await tableForm.getByRole('button',{name:/^SYNTHETISCH – Regiecharakter B/}).click();await tableForm.getByLabel('SG',{exact:true}).fill('5');
+ await tableForm.getByRole('button',{name:'Probe ausgeben'}).click();await tableForm.getByText('„Probe“ ist ausgegeben.').waitFor({timeout:15000});
+ await b.locator('[class*=ownHint]').waitFor({timeout:20000});
+ const simplest=(await get(gmC,q)).checks.findLast(c=>c.title==='Probe');assert.equal(simplest.difficulty,5);assert.equal(simplest.attributeId,undefined);assert.equal(simplest.recipients.length,1);
+ await gm.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();await shot(gm,'10b-spontan-figur-und-sg');
+ pass('spontaneous check with only figure B and SG 5 reaches B; traits stay the player's choice');
  phase='mobile 390 × 844';
  const mobile=await context('command-a',{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
  const m=await open(mobile,'A mobil');await m.locator('[class*=ownHint]').waitFor({timeout:20000});await m.locator('[class*=ownHint]').click();
@@ -144,7 +157,7 @@ try{
  pass('knowledge without dots is blocked by the server with a readable V20 reason');
  phase='rights';
  const bStage=await get(bC,q);assert.ok(!bStage.dice.events.some(e=>e.checkRef?.requestId===check.id),'B cannot see A\'s targeted result');
- assert.ok(!JSON.stringify(bStage).includes('Schäfer bemerkt den Griff'),'GM hint of the prepared check stays private');
+ assert.ok(!/Schäfer bemerkt den Griff|Schlüssel zum Keller|Schäfer bleibt arglos/.test(JSON.stringify(await get(aC,q))+JSON.stringify(bStage)),'prepared consequences stay with the GM');
  pass('rights: B sees neither A\'s targeted roll nor the private SL hint');
  assert.deepEqual(errors,[]);
  writeFileSync(output+'/evidence.json',JSON.stringify(evidence,null,1));

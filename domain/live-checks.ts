@@ -60,3 +60,13 @@ export const attributeLabel=(id?:string)=>id?W10_ATTRIBUTE_KEYS[id as keyof type
 export const abilityLabel=(id?:string)=>id?W10_ABILITY_KEYS[id as keyof typeof W10_ABILITY_KEYS]||id:'';
 /** "Geschick + Handgemenge", with "frei" for parts the player chooses. */
 export function traitLine(check:{attributeId?:string;abilityId?:string}){return (attributeLabel(check.attributeId)||'Attribut frei')+' + '+(abilityLabel(check.abilityId)||'Fähigkeit frei');}
+
+/** One check as the Regie issues it, prepared or spontaneous (GE-02). Both ways build this spec and send the same requestCheck. */
+export type CheckSpec={title:string;difficulty:number;attributeId:string;abilityId:string;hints?:string;targetCharacterIds:string[];consequences?:{success:string;failure:string;botch:string};preparedId?:string;sceneId?:string};
+/** A spontaneous check needs no name: it is called after its traits, or simply "Probe". */
+export function defaultCheckTitle(spec:{attributeId?:string;abilityId?:string}){return [attributeLabel(spec.attributeId),abilityLabel(spec.abilityId)].filter(Boolean).join(' + ')||'Probe';}
+/** The requestCheck body. Figures replace the audience: the server derives the players from the characters' owners. */
+export function checkRequestBody(spec:CheckSpec,eventId:string):Record<string,unknown>{
+ const consequences=spec.consequences&&(spec.consequences.success||spec.consequences.failure||spec.consequences.botch)?spec.consequences:undefined;
+ return {action:'requestCheck',eventId,title:spec.title.trim()||defaultCheckTitle(spec),difficulty:spec.difficulty,...(spec.attributeId?{attributeId:spec.attributeId}:{}),...(spec.abilityId?{abilityId:spec.abilityId}:{}),...(spec.hints?.trim()?{gmHints:spec.hints.trim()}:{}),...(spec.sceneId?{sceneId:spec.sceneId}:{}),...(spec.targetCharacterIds.length?{targetCharacterIds:spec.targetCharacterIds}:{}),...(spec.preparedId?{preparedId:spec.preparedId}:{}),...(consequences?{consequences}:{})};
+}

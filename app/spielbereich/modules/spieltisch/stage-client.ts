@@ -16,7 +16,7 @@ const stageUrl=(sessionId:string)=>'/api/live-stage?sessionId='+encodeURICompone
 export async function sendStageCommand({sessionId,runId,peerId,current,recipients,body,retry=false}:{sessionId:string;runId:string;peerId:string;current:Snapshot;recipients:Audience;body:Record<string,unknown>;retry?:boolean}):Promise<Snapshot>{
  const {action,sessionId:_ignored,...extra}=body;void _ignored;
  const audience=recipients===null?{scope:'all'}:{scope:'players',playerIds:recipients};
- if(tableActions.includes(String(action)))await api('/api/live-table','POST',{...extra,action,sessionId,runId,...(action==='rollCheck'?{}:{audience})});
+ if(tableActions.includes(String(action)))await api('/api/live-table','POST',{...extra,action,sessionId,runId,...(action==='rollCheck'||extra.targetCharacterIds?{}:{audience})});
  else if(action==='vitals')return api<Snapshot>('/api/live-vitals','POST',{...extra,sessionId,runId});
  else if(action==='scene'){
   const s=[...current.scenes,...current.moreScenes||[]].find(s=>s.id===extra.id);if(!s)throw Error('Szene nicht verfügbar.');
