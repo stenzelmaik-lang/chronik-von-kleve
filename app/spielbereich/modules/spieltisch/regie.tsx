@@ -9,13 +9,14 @@ import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import type {RegieContext,StageObject} from './types';
 import styles from './regie.module.css';
+import {ThumbImage} from '../file-thumb';
 
 export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],['dialogue','Dialoge'],['interactions','Interaktionen'],['whispers','Visionen & Briefe'],['secrets','Geheimnisse'],['consequences','Folgen'],['notes','SL-Notizen'],['material','Material']] as const;
 export type RegieTab=typeof regieTabs[number][0];
 
 type Props={deliveryBusy:boolean;crew:import('./types').Snapshot['crew'];onCommand:(body:Record<string,unknown>)=>unknown;sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
  onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string,sourceKind?:'entity'|'record')=>void;
- table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};images:{id:string;title:string}[];
+ table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};
  onPlace:(sourceId:string,sourceKind:'entity'|'file'|'record',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
 type Media=RegieContext['media'][number];
 const groups:[string,string,(m:Media)=>boolean,typeof ImageIcon][]=[
@@ -31,18 +32,16 @@ export function tableState(o:StageObject|undefined){if(!o||o.kind==='note')retur
 function Text({value,empty}:{value:string;empty:string}){return value.trim()?<RichTextView value={value} readable flowing className={styles.prose}/>:<p className={styles.empty}>{empty}</p>;}
 
 /** Private direction drawer. Reading never publishes; every release is a separate, labelled action. */
-/** Live backdrop choice: scene images first, every campaign image on demand. Choosing never touches the prepared scene. */
-export function BackdropChoice({current,sceneImages,images,busy,onChoose}:{current:string;sceneImages:{id:string;title:string}[];images:{id:string;title:string}[];busy:boolean;onChoose:(fileId:string)=>void}){
- const [search,setSearch]=useState('');
- const tile=(img:{id:string;title:string})=><li key={img.id}><button type="button" disabled={busy||current===img.id} aria-pressed={current===img.id} aria-label={'Als Hintergrund: '+img.title} onClick={()=>onChoose(img.id)}><img src={'/api/files?id='+encodeURIComponent(img.id)} alt="" loading="lazy"/><span>{current===img.id?'Aktiv · ':''}{img.title}</span></button></li>;
- const others=images.filter(i=>!sceneImages.some(s=>s.id===i.id)&&i.title.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de')));
- return <>
-  {!!sceneImages.length&&<ul className={styles.backdropGrid} aria-label="Bilder dieser Szene">{sceneImages.map(tile)}</ul>}
-  <details className={styles.moreImages}><summary>Anderes Bild wählen ({images.length})</summary><input aria-label="Bilder durchsuchen" placeholder="Bild suchen …" value={search} onChange={e=>setSearch(e.target.value)}/>{others.length?<ul className={styles.backdropGrid}>{others.slice(0,60).map(tile)}</ul>:<p className={styles.empty}>Keine passenden Bilder.</p>}</details>
- </>;
+/**
+ * Live backdrop choice. The stage image always comes from the running scene (its Szenenbild); other gallery images
+ * are never offered. Props like a book or an envelope are display assets of a material and go on the table instead.
+ */
+export function BackdropChoice({current,sceneImages,busy,onChoose}:{current:string;sceneImages:{id:string;title:string}[];busy:boolean;onChoose:(fileId:string)=>void}){
+ const tile=(img:{id:string;title:string})=><li key={img.id}><button type="button" disabled={busy||current===img.id} aria-pressed={current===img.id} aria-label={'Als Hintergrund: '+img.title} onClick={()=>onChoose(img.id)}><ThumbImage id={img.id}/><span>{current===img.id?'Aktiv · ':''}{img.title}</span></button></li>;
+ return sceneImages.length?<ul className={styles.backdropGrid} aria-label="Szenenbild">{sceneImages.map(tile)}</ul>:<p className={styles.empty}>Für diese Szene ist kein Szenenbild vorbereitet. Lege es in der Szene unter Atmosphäre fest.</p>;
 }
 
-export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,images,onPlace,onRemove,onBackdrop,onActivate}:Props){
+export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
  const [preview,setPreview]=useState<Media|null>(null),previewDialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  // Loaded scenes stay cached for the evening: switching back costs no request.
@@ -85,16 +84,15 @@ export function Regie({deliveryBusy,crew,onCommand,sessionId,sceneId,tab,onTab,b
     <section className={styles.backdrop} aria-label="Szenenbild">
      <h3>Szenenbild / Bühnenhintergrund</h3>
      <p className={styles.state} data-placed={!!table.backdropFileId}>Jetzt auf dem Tisch: {table.backdrop||'Standardbühne'}</p>
-     {!context.backdrop&&<p className={styles.empty}>Für diese Szene ist kein Szenenbild vorbereitet (SL-Vorbereitung › Atmosphäre). Du kannst trotzdem jedes Bild wählen.</p>}
-     <BackdropChoice current={table.backdropFileId} busy={busy} onChoose={onBackdrop} images={images}
-      sceneImages={[...(context.backdrop?[{id:context.backdrop.fileId,title:'Szenenbild · '+context.backdrop.name}]:[]),...context.media.filter(m=>m.mime.startsWith('image/')&&m.fileId!==context.backdrop?.fileId).map(m=>({id:m.fileId,title:m.title}))]}/>
+     <BackdropChoice current={table.backdropFileId} busy={busy} onChoose={onBackdrop}
+      sceneImages={context.backdrop?[{id:context.backdrop.fileId,title:'Szenenbild · '+context.backdrop.name}]:[]}/>
      {table.backdropFileId&&<button disabled={busy} onClick={()=>onBackdrop(null)}><RotateCcw/> Standardbühne</button>}
      <small className={styles.empty}>Der Wechsel gilt sofort für die ganze Runde und blendet weich über. Die vorbereitete Szene bleibt unverändert.</small>
     </section>
     <RegieMaterials materials={context.materials||[]} objects={table.objects} crew={crew} busy={busy} run={body=>onCommand(body)}/>
     {!context.media.length&&!context.handouts.length&&!context.materials?.length&&<p className={styles.empty}>Kein weiteres Material mit dieser Szene verknüpft.</p>}
     {groups.map(([title,hint,match,GroupIcon])=>{const items=context.media.filter(match);return items.length?<section key={title} className={styles.group} aria-label={title}><h3><GroupIcon size={16}/> {title}</h3><p className={styles.empty}>{hint}</p><div className={styles.gallery}>{items.map(m=>{const placed=table.objects.find(o=>o.kind!=='note'&&o.sourceKind==='file'&&o.sourceId===m.fileId);return <article key={m.id}>
-     {m.mime.startsWith('image/')?<img src={'/api/files?id='+encodeURIComponent(m.fileId)} alt="" loading="lazy"/>:<div className={styles.fileIcon}><GroupIcon/><small>{m.name}</small></div>}
+     {m.mime.startsWith('image/')?<ThumbImage id={m.fileId}/>:<div className={styles.fileIcon}><GroupIcon/><small>{m.name}</small></div>}
      <h3>{m.title}</h3><p className={styles.state} data-placed={!!placed}>{tableState(placed)}</p>
      <button onClick={()=>setPreview(m)}><Search/> Vorschau (nur SL)</button>
      <button className={placed?undefined:styles.release} disabled={busy} onClick={()=>onPlace(m.fileId,'file',m.title)}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'} · {audience}</button>
