@@ -23,7 +23,7 @@ export type HealthStatus='active'|'torpor'|'final-death';
 /** Generationstabelle V20 S. 270. Dritte Generation ist im Regelwerk unbestimmt („???“). */
 const generationTable:Record<number,{maxTrait:number;bloodMax:number;perTurn:number}>={
  4:{maxTrait:9,bloodMax:50,perTurn:10},5:{maxTrait:8,bloodMax:40,perTurn:8},6:{maxTrait:7,bloodMax:30,perTurn:6},
- 7:{maxTrait:6,bloodMax:20,perTurn:4},8:{maxTrait:5,bloodMax:15,perTurn:3},9:{maxTrait:5,bloodMax:14,perTurn:2},
+ 7:{maxTrait:6,bloodMax:20,perTurn:5},8:{maxTrait:5,bloodMax:15,perTurn:3},9:{maxTrait:5,bloodMax:14,perTurn:2},
  10:{maxTrait:5,bloodMax:13,perTurn:1},11:{maxTrait:5,bloodMax:12,perTurn:1},12:{maxTrait:5,bloodMax:11,perTurn:1},13:{maxTrait:5,bloodMax:10,perTurn:1},
 };
 export function generationLimits(generation:unknown){const g=Number(generation);if(!Number.isInteger(g)||g<4||g>20)return null;return generationTable[Math.min(g,13)];}
