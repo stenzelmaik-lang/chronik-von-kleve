@@ -11,6 +11,7 @@ import {FilePicker,FileThumb,MultiUpload,fileOrigin,fileUrl,type PickerFile} fro
 import {AssetGallery,AssetPreview} from './asset-gallery';
 import {EffectPreview} from './effect-preview';
 import styles from './workbench.module.css';
+import {richTextToPlainText} from '@/domain/location-rich-text';
 const thumb=(src?:string)=>src&&src.startsWith('/api/files?id=')&&!src.includes('&size=')?src+'&size=thumb':src;
 
 type Step='content'|'design'|'behavior'|'preview'|'save';
@@ -18,7 +19,7 @@ const steps:[Step,string,typeof Pencil][]=[['content','Inhalt',Pencil],['design'
 export type SaveState='clean'|'dirty'|'saving'|'saved'|'error';
 const saveText:Record<SaveState,string>={clean:'Alles gespeichert',dirty:'Ungespeicherte Änderungen',saving:'Wird gespeichert …',saved:'Gespeichert · nicht veröffentlicht',error:'Nicht gespeichert – Entwurf bleibt erhalten'};
 const textTypes:MaterialType[]=['letter','dossier','other'];
-const plain=(html:string)=>html.replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+const plain=(value:string)=>richTextToPlainText(value).replace(/\s+/g,' ').trim();
 
 /** Status of one material for the card: missing files or asset, effect fallback, or ready. Never shows ids. */
 function status(e:SceneElement,files:PickerFile[],assets:DisplayAsset[],loadedAssets:boolean){
