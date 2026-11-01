@@ -9,7 +9,9 @@ import {PagerFields} from '../preparation-materials';
 import {MaterialCover,MaterialPresenter,typeIcon,type PresentedMaterial} from './presenter';
 import {FilePicker,FileThumb,MultiUpload,fileOrigin,fileUrl,type PickerFile} from './file-picker';
 import {AssetGallery,AssetPreview} from './asset-gallery';
+import {EffectPreview} from './effect-preview';
 import styles from './workbench.module.css';
+const thumb=(src?:string)=>src&&src.startsWith('/api/files?id=')&&!src.includes('&size=')?src+'&size=thumb':src;
 
 type Step='content'|'design'|'behavior'|'preview'|'save';
 const steps:[Step,string,typeof Pencil][]=[['content','Inhalt',Pencil],['design','Gestaltung',Palette],['behavior','Verhalten & Effekte',Sparkles],['preview','Vorschau',Eye],['save','Speichern',Save]];
@@ -91,7 +93,7 @@ function Section({title,children,open=true}:{title:string;children:ReactNode;ope
 
 /** One material in the common flow: content → design → behaviour/effects → preview → save. Saving never publishes. */
 function Editor({element,files,assets,players,actorId,sceneFileIds,editor,saveState,onChange,onClose,onSave,onFilesChange,onAssetsChange}:{element:SceneElement;files:PickerFile[];assets:DisplayAsset[];players:PreparationRecipient[];actorId:string;sceneFileIds:string[];editor:(value:string,onChange:(value:string)=>void,label:string,key:string)=>ReactNode;saveState:SaveState;onChange:(e:SceneElement)=>void;onClose:()=>void;onSave?:()=>void;onFilesChange:(f:PickerFile[])=>void;onAssetsChange:(a:DisplayAsset[])=>void}){
- const [step,setStep]=useState<Step>('content'),[picker,setPicker]=useState<{replace?:string;sound?:boolean}|null>(null),[gallery,setGallery]=useState(false),[testing,setTesting]=useState(false);
+ const [step,setStep]=useState<Step>('content'),[picker,setPicker]=useState<{replace?:string;sound?:boolean}|null>(null),[gallery,setGallery]=useState(false),[testing,setTesting]=useState(false),[hovered,setHovered]=useState<string|null>(null);
  const m=materialOf(element),info=materialTypeInfo[m.type],asset=assets.find(a=>a.id===m.assetId);
  const setMaterial=(next:SceneMaterial)=>onChange(withMaterial(element,next));
  const states=asset?.states.map(s=>s.key)||[],count=m.files.filter(f=>f.fileId).length;
@@ -103,6 +105,8 @@ function Editor({element,files,assets,players,actorId,sceneFileIds,editor,saveSt
   onChange({...withMaterial(element,{...m,files:list}),title:element.title===info.label&&first?first.name.replace(/\.[^.]+$/,''):element.title});
  }
  const view=presented(element,assets,files);
+ // Pictures for the effect previews: closed and open look of the display, first image page.
+ const closedSrc=view.states.find(s=>s.key==='closed')?.src,openSrc=view.states.find(s=>s.key==='open')?.src,pageSrc=view.pages.find(p=>p.mime.startsWith('image/'))?.src;
  return <section className={styles.editor} aria-label={'Material bearbeiten: '+element.title}>
   <header className={styles.editorHead}>
    <button type="button" onClick={onClose}><ArrowLeft size={16}/> Zur Übersicht</button>
@@ -141,9 +145,12 @@ function Editor({element,files,assets,players,actorId,sceneFileIds,editor,saveSt
     </Section>
     {info.displays.length>1&&<Section title="Anzeigeform"><div className={styles.choiceGrid} role="radiogroup" aria-label="Anzeigeform">{info.displays.map(d=><button type="button" role="radio" key={d} aria-checked={m.display===d} onClick={()=>setMaterial({...m,display:d})}><Layers size={16}/> {materialDisplayLabels[d]}</button>)}</div></Section>}
    </>}
-   {step==='behavior'&&m.type!=='pager'&&<>
+   {step==='behavior'&&m.type!=='pager'&&<div className={styles.behaviorLayout}><div className={styles.behaviorMain}>
     <Section title={m.type==='backdrop'?'Übergang':'Öffnen'}>
-     <div className={styles.choiceGrid} role="radiogroup" aria-label="Öffnungseffekt">{info.effects.map(id=>{const s=effectSupport(id,{states,files:count});return <button type="button" role="radio" key={id} aria-checked={m.effect.open===id} data-needs={!s.ok} onClick={()=>setMaterial({...m,effect:{...m.effect,open:id}})} title={materialEffects[id].hint}><strong>{materialEffects[id].label}</strong><small>{s.ok?materialEffects[id].hint:s.missing.length?'Braucht Zustand '+s.missing.map(k=>displayAssetStateLabels[k]).join(' + '):'Braucht mehrere Inhalte'}</small></button>;})}</div>
+     <p className={styles.muted}>Fahre über einen Effekt, um ihn mit deiner Darstellung zu sehen.</p>
+     <div className={styles.effectGrid} role="radiogroup" aria-label="Öffnungseffekt">{info.effects.map(id=>{const s=effectSupport(id,{states,files:count});return <button type="button" role="radio" key={id} aria-checked={m.effect.open===id} data-needs={!s.ok} onClick={()=>setMaterial({...m,effect:{...m.effect,open:id}})} onMouseEnter={()=>setHovered(id)} onMouseLeave={()=>setHovered(h=>h===id?null:h)} onFocus={()=>setHovered(id)} onBlur={()=>setHovered(h=>h===id?null:h)} title={materialEffects[id].hint}>
+      <EffectPreview closed={thumb(closedSrc)} open={thumb(openSrc)} page={thumb(pageSrc)} effect={s.ok?id:effectiveEffect(id,{states,files:count})} speed={m.effect.speed} close={m.effect.close} playing={hovered===id}/>
+      <strong>{materialEffects[id].label}</strong><small>{s.ok?materialEffects[id].hint:s.missing.length?'Braucht Zustand '+s.missing.map(k=>displayAssetStateLabels[k]).join(' + '):'Braucht mehrere Inhalte'}</small></button>;})}</div>
      {effectProblem(m.effect.open,{states,files:count})&&<p className={styles.hint}><AlertTriangle size={14}/> {effectProblem(m.effect.open,{states,files:count})} <button type="button" className={styles.linkButton} onClick={()=>setMaterial({...m,effect:{...m.effect,open:effectiveEffect(m.effect.open,{states,files:count})}})}>Ersatz übernehmen</button></p>}
     </Section>
     <div className={styles.fieldRow}>
@@ -151,11 +158,18 @@ function Editor({element,files,assets,players,actorId,sceneFileIds,editor,saveSt
      {m.type!=='backdrop'&&<label>Schließen<select value={m.effect.close} onChange={e=>setMaterial({...m,effect:{...m.effect,close:e.target.value as SceneMaterial['effect']['close']}})}>{materialCloseEffects.map(c=><option key={c} value={c}>{materialCloseLabels[c]}</option>)}</select></label>}
      {m.type!=='backdrop'&&<label>Nach dem Schließen<select value={m.effect.afterClose} onChange={e=>setMaterial({...m,effect:{...m.effect,afterClose:e.target.value as SceneMaterial['effect']['afterClose']}})}>{materialAfterClose.map(c=><option key={c} value={c}>{materialAfterCloseLabels[c]}</option>)}</select></label>}
     </div>
+    {m.type!=='backdrop'&&<label className={styles.toggle}><input type="checkbox" checked={m.takeable!==false} onChange={e=>{const {takeable:_old,...rest}=m;void _old;setMaterial(e.target.checked?rest:{...rest,takeable:false});}}/><span><strong>Spieler dürfen es einstecken</strong><small>Wer es am Tisch einsteckt, hat es im Inventar und kann es später selbst wieder auslegen. Es gibt das Material dann nur einmal.</small></span></label>}
     {m.type!=='backdrop'&&<Section title="Effektton (optional)" open={!!m.effect.soundFileId}>
      <p className={styles.muted}>Spielt nur nach dem eigenen Klick auf „Öffnen“. Jede Person kann Effekttöne für sich abschalten.</p>
      <div className={styles.row}>{m.effect.soundFileId?<><FileThumb file={files.find(f=>f.id===m.effect.soundFileId)} size={40}/><span>{files.find(f=>f.id===m.effect.soundFileId)?.name||'Ton nicht verfügbar'}</span><button type="button" onClick={()=>setMaterial({...m,effect:{...m.effect,soundFileId:''}})}>Verknüpfung entfernen</button></>:null}<button type="button" onClick={()=>setPicker({sound:true})}>{m.effect.soundFileId?'Anderen Ton wählen':'Ton wählen'}</button></div>
     </Section>}
-   </>}
+   </div>
+   <aside className={styles.livePreview} aria-label="Live-Vorschau">
+    <h4>Live-Vorschau</h4>
+    <EffectPreview closed={thumb(closedSrc)} open={thumb(openSrc)} page={thumb(pageSrc)} effect={effectiveEffect(m.effect.open,{states,files:count})} speed={m.effect.speed} close={m.effect.close} playing label={'Vorschau: '+materialEffects[effectiveEffect(m.effect.open,{states,files:count})].label}/>
+    <p><strong>{materialEffects[effectiveEffect(m.effect.open,{states,files:count})].label}</strong> · {materialSpeedLabels[m.effect.speed]} · Schließen: {materialCloseLabels[m.effect.close]}</p>
+    <button type="button" disabled={!view.pages.length&&!view.caption} onClick={()=>setTesting(true)}><Eye size={16}/> Groß testen</button>
+   </aside></div>}
    {step==='preview'&&<>
     <p className={styles.muted}>Die Vorschau nutzt die echten Dateien und Darstellungen und bleibt privat. Es wird nichts auf den Tisch gelegt oder freigegeben.</p>
     <div className={styles.previewCard}>{m.type==='pager'?<p>{element.pager?.text||'Noch kein Pager-Text.'}</p>:<MaterialCover material={view}/>}<div><strong>{element.title}</strong><small>{materialSummary(m,count)}</small>{status(element,files,assets,true).map(p=><p key={p} className={styles.cardWarn}><AlertTriangle size={13}/> {p}</p>)}</div></div>

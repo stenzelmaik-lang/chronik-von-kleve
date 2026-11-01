@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- Protected existing file endpoints. */
+ 
 import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {X,Check,Upload,Trash2,FileText,Music,Film,Search,AlertTriangle,Ban} from 'lucide-react';
 import {mimeFits,type MaterialAccept} from '@/domain/material-system';
