@@ -120,6 +120,7 @@ try{
  await gm.getByRole('list',{name:'Ausgegebene Proben'}).getByText('1 von 2 gewürfelt').waitFor({timeout:20000});
  // While B's result is new for the SL, the SL table may show it; close it so the Regie stays readable.
  if(await gm.getByRole('button',{name:'Würfelansicht nur für mich schließen'}).count())await gm.getByRole('button',{name:'Würfelansicht nur für mich schließen'}).click();
+ await gm.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();
  await shot(gm,'10-tischregie-teilweise-gewuerfelt');
  pass('table Regie shows "1 von 2 gewürfelt" live after B rolled a freely chosen Geschick + Handgemenge');
 
@@ -136,7 +137,7 @@ try{
  assert.equal((await gmC.request.post(base+'/api/live-table',{headers:{Origin:base},data:{action:'requestCheck',sessionId:active.sessionId,runId:active.runId,eventId:blockedId,title:'Dienstbuch durchsuchen',attributeId:'perception',abilityId:'investigation',difficulty:6,audience:{scope:'players',playerIds:['command-a']}}})).status(),200);
  await a.locator('[class*=ownHint]').waitFor({timeout:20000});await a.locator('[class*=ownHint]').click();
  const blockPanel=a.getByRole('region',{name:'Charakterprobe'});await blockPanel.waitFor();
- await blockPanel.getByLabel('Charakterprobe').selectOption({label:'Dienstbuch durchsuchen · ausstehend'});
+ await blockPanel.locator('select').first().selectOption({label:'Dienstbuch durchsuchen · ausstehend'});
  await blockPanel.getByRole('button',{name:/^Wahrnehmung \d+, von der Spielleitung vorgegeben/}).click();await blockPanel.getByRole('tab',{name:'Fähigkeiten'}).click();await blockPanel.getByRole('button',{name:/^Nachforschungen \d+, von der Spielleitung vorgegeben/}).click();
  await blockPanel.getByRole('status').filter({hasText:'V20'}).waitFor({timeout:15000});assert.ok(await blockPanel.getByRole('button',{name:'Würfeln',exact:true}).isDisabled());
  await shot(a,'12-v20-sperre-kenntnis-ohne-wert');

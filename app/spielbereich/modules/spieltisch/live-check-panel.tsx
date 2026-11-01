@@ -8,7 +8,7 @@ import {CharacterReadOnly} from './character-readonly';
 import type {DiceEvent,Snapshot} from './types';
 import styles from './live-check-panel.module.css';
 
-type Preview={status:'ready'|'blocked';code?:string;message?:string;pool?:{effective:number};difficulty?:{effective:number;modifiers:{source:string;amount:number}[]};provenance?:{label:string;amount:number}[];specialties?:{id:string;name:string;applicable:boolean}[]};
+type Preview={status:'ready'|'blocked';code?:string;message?:string;pool?:{effective:number};difficulty?:{effective:number};provenance?:{label:string;amount:number}[];specialties?:{id:string;name:string;applicable:boolean}[]};
 type SheetResponse={projection:CharacterDetailProjection|null};
 type Check=NonNullable<Snapshot['checks']>[number];
 const signed=(n:number)=>(n>=0?'+':'')+n;
@@ -46,7 +46,7 @@ export function PlayerCheck({snapshot,send,busy,showRoll,onSeen,fallback}:{snaps
    {checks.length>1&&<label className={styles.checkChoice}><span>Charakterprobe</span><select value={check.id} onChange={e=>setCheckId(e.target.value)}>{[...checks].reverse().map(c=><option key={c.id} value={c.id}>{c.title}{open.some(o=>o.id===c.id)?' · ausstehend':' · abgeschlossen'}</option>)}</select></label>}
    <strong>{check.title}</strong>
    <ol className={styles.steps}>{step('Attribut',attributeLabel(attr),attrConfirmed)}{step('Fähigkeit',abilityLabel(ability)||(attrConfirmed&&!check.abilityId&&!completed?'keine oder im Bogen wählen':''),abilityConfirmed&&!!ability||!!completed)}</ol>
-   <p className={styles.pool}><span>{pool!==undefined?<><b>{pool} W10</b> · SG {target}</>:<>SG {check.difficulty}{ready?' · Pool wird berechnet':''}</>}</span>{!completed&&preview?.status==='ready'&&<small>{preview.provenance?.map(p=>p.label+' '+signed(p.amount)).join(' · ')}{preview.difficulty?.modifiers?.map(m=>' · SG '+m.source+' '+signed(m.amount)).join('')}</small>}{completed&&<small>{rollOutcome(completed)} · {completed.roll.dice.join(' · ')}</small>}</p>
+   <p className={styles.pool}><span>{pool!==undefined?<><b>{pool} W10</b> · SG {target}</>:<>SG {check.difficulty}{ready?' · Pool wird berechnet':''}</>}</span>{!completed&&preview?.status==='ready'&&<small>{preview.provenance?.map(p=>p.label+' '+signed(p.amount)).join(' · ')}</small>}{completed&&<small>{rollOutcome(completed)} · {completed.roll.dice.join(' · ')}</small>}</p>
    {specialties.length>0&&<label className={styles.checkChoice}><span>Spezialisierung</span><select value={selection.specialtyId||''} onChange={e=>setSelection(s=>({...s,specialtyId:e.target.value||undefined}))}><option value="">Keine</option>{specialties.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
    {preview?.status==='blocked'&&<p role="status" className={styles.blocked}>{preview.message||'Mit diesem Bogen ist die Probe so nicht möglich.'}</p>}
    <button className={styles.rollButton} disabled={busy||working||!completed&&(!ready||preview?.status!=='ready')} onClick={()=>completed?showRoll(completed.id):void roll()}>{completed?<><Eye size={16}/> Ergebnis ansehen</>:<><Dices size={16}/> {ready?'Würfeln':'Werte im Bogen wählen'}</>}</button>
