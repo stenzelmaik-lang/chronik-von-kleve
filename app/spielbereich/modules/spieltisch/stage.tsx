@@ -17,6 +17,7 @@ import {Participants} from './participants';
 import {usePresence} from './use-presence';
 import {DialogPortalTarget} from '@/components/ui/dialog';
 import {DiceEffect} from './dice-effect';
+import {LiveCheckPanel} from './live-check-panel';
 import {useSharedDice} from './use-shared-dice';
 import type {Snapshot,StageObject,Rect,TestDocument} from './types';
 import {TableMaterialLibrary} from "../table-material-library";
@@ -217,7 +218,7 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
      onActivate={id=>void startScene(id)}/>}
     {panel==='documents'&&snapshot&&<><TableMaterialLibrary a={a} compact playOnly live={{snapshot,busy,command}}/>{(()=>{const placed=snapshot.objects.filter(o=>o.kind==='document');return placed.length?<><h2>Auf dem Tisch</h2><ul className={styles.placedList}>{placed.map(o=><li key={o.id}><button onClick={()=>void read(o)}><Expand size={14}/>{o.title}</button></li>)}</ul></>:null;})()}</>}
     {panel==='sticky'&&<><p>Neue Zettel sind privat: du &amp; SL. Nur du kannst eigene Zettel bearbeiten, entfernen oder für die Gruppe freigeben.</p><button disabled={busy||!snapshot||!!editing} onClick={()=>void createNote()}><Plus/> Neuer Notizzettel</button><button aria-pressed={hiddenPrivate} disabled={!!editing} onClick={()=>setHiddenPrivate(v=>!v)}>Eigene private Zettel {hiddenPrivate?'einblenden':'ausblenden'}</button>{snapshot?.objects.filter(o=>o.kind==='note').map(o=><section className={styles.noteListItem} key={o.id}><small>{o.kind==='note'?o.ownerName:''} · {o.visibility==='private'?'Privat · SL-Einsicht':'Gruppe'}</small><p>{o.kind==='note'?o.content.slice(0,120)||'Noch unbeschriftet':''}</p></section>)}</>}
-    {panel==='dice'&&<><DicePanel mode="v20-normal" sharedRoll={dice.roll}/><h2>Sitzungsprotokoll</h2>{[...dice.events].reverse().map(e=><button key={e.id} onClick={()=>{dice.show(e.id);closePanel();}}>{e.authorName} · {e.roll.dice.join(', ')} · {e.result.netSuccesses} Erfolge</button>)}</>}
+    {panel==='dice'&&<>{snapshot?.checksEnabled&&<LiveCheckPanel snapshot={snapshot} send={send} busy={busy} showRoll={dice.show}/>}<DicePanel mode="v20-normal" sharedRoll={dice.roll}/><h2>Sitzungsprotokoll</h2>{[...dice.events].reverse().map(e=><button key={e.id} onClick={()=>{dice.show(e.id);closePanel();}}>{e.checkRef?.title?e.checkRef.title+' · ':''}{e.authorName} · {e.roll.dice.join(', ')} · {e.result.netSuccesses} Erfolge</button>)}</>}
     {panel==='context'&&<><h2>{choice?.title||snapshot?.sceneInfo?.title||'Spielbühne'}</h2><p>{choice?.kind==='note'?'Nur die erstellende Person bearbeitet diesen Zettel. Die SL besitzt Leserecht.':'Auflegen bleibt privat, erst die ausdrückliche Freigabe zeigt ein Originalobjekt der Zielgruppe.'}</p>{choice?.kind==='document'&&<button onClick={()=>void read(choice)}>Lesefassung öffnen</button>}<a href="/sl/command-center">{a.gm?'SL-Vorbereitung':''}</a></>}
     {panel==='pocket'&&!a.gm&&<PocketPanel version={pocketVersion} busy={busy} actorId={a.id} onPlay={itemId=>command({action:'play',itemId})}/>}
     {panel==='vitals'&&(snapshot?.vitals?<VitalsPanel vitals={snapshot.vitals} gm={a.gm} busy={busy} run={payload=>command({action:'vitals',...payload})}/>:<p className={styles.hint}>Zustandswerte werden geladen …</p>)}

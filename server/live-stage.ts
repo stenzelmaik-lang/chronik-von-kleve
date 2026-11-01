@@ -11,6 +11,7 @@ import {emptyScenePager,type SceneSummary} from '@/domain/story-scene';
 import {liveSceneChoice} from '@/domain/session-overview';
 import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stageSourceToken,stageMediaOf,startYoutube,youtubePlaylist,type StageCommand,type StageState,type StageObject,type StageBackdrop,type StageMusic} from '@/domain/live-stage';
 import {evaluateNormalV20} from '@/domain/w10';
+import {env} from 'cloudflare:workers';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
 import {materialStageSource,regieMaterials} from './material-stage';
@@ -74,7 +75,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const {row,room}=await stageRoom(a,sessionId),stage=storedStage(room);
  const [events,members,vitals]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room)]);
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
- const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:evaluateNormalV20(e.roll!.dice,e.roll!.target),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
+ const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:e.report||evaluateNormalV20(e.roll!.dice,e.roll!.target),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
+ const checks=events.filter(e=>e.kind==='check'&&e.check&&!e.hidden).map(e=>({id:e.id,...e.check!,recipients:e.recipients,...(a.gm&&'gmHints' in e&&typeof e.gmHints==='string'?{gmHints:e.gmHints}:{})}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
  const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string;mime?:string}[]=[];
  let scenes:{id:string;title:string;image:string;version:number}[]=[],moreScenes:typeof scenes=[];
@@ -86,7 +88,7 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   scenes=split.session.map(card);moreScenes=split.more.map(card);
  }
  const version=stage.version,diceRevision=rolls.length+rolls.reduce((n,e)=>n+(e.revision||1),0);
- return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,
+ return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+checks.length+':'+(checks.at(-1)?.id||'')+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,checks,checksEnabled:(env as unknown as {GE01_CHECKS?:string;AUTH_ACCESS_ENVIRONMENT?:string}).GE01_CHECKS==='local-only'&&(env as unknown as {AUTH_ACCESS_ENVIRONMENT?:string}).AUTH_ACCESS_ENVIRONMENT==='local-test',
   // The backdrop belongs to the whole round; its file is only served through the stage asset route.
   // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
   backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(stage.backdrop.transition?{transition:stage.backdrop.transition}:{}),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,

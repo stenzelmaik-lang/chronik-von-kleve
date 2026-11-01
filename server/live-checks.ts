@@ -1,0 +1,71 @@
+/** GE-01 is an isolated local prototype. No production binding enables these commands. */
+import {env} from 'cloudflare:workers';
+import {z} from 'zod';
+import {database,gmOnly,HttpError,type Actor} from './access';
+import {liveMembers} from './live-game';
+import {stageRoom} from './live-stage';
+import {previewCharacter} from './w10-preview';
+import {readScene} from './story-scenes';
+import {liveAudience,liveRoll} from '@/domain/live-game';
+import {deriveW10Preview} from '@/domain/w10-selection';
+import {resolveC1OrdinaryCheck} from '@/domain/w10-c1-ordinary';
+import {W10_ATTRIBUTE_KEYS,W10_ABILITY_KEYS} from '@/domain/trait-ids';
+
+export function liveChecksEnabled(){const v=env as unknown as {GE01_CHECKS?:string;AUTH_ACCESS_ENVIRONMENT?:string};return v.GE01_CHECKS==='local-only'&&v.AUTH_ACCESS_ENVIRONMENT==='local-test';}
+const uuid=z.string().uuid();
+const common={sessionId:z.string().min(1).max(160),runId:uuid,eventId:uuid};
+const requestSchema=z.object({...common,action:z.literal('requestCheck'),title:z.string().trim().min(1).max(160),attributeId:z.string().min(1).max(40).optional(),abilityId:z.string().min(1).max(80).optional(),difficulty:z.number().int().min(2).max(10),audience:z.union([z.object({scope:z.literal('all')}).strict(),z.object({scope:z.literal('players'),playerIds:z.array(z.string()).min(1).max(30)}).strict()]),sceneId:z.string().min(1).max(100).optional(),gmHints:z.string().max(2000).optional()}).strict();
+const rollSchema=z.object({...common,action:z.literal('rollCheck'),requestId:uuid,characterId:z.string().min(1).max(100),selection:z.object({attributeId:z.string().min(1).max(40),abilityId:z.string().min(1).max(80).optional(),specialtyId:z.string().regex(/^spec_[A-Za-z0-9-]{8,64}$/).optional()}).strict()}).strict();
+const roomKey=(a:Actor,sessionId:string)=>`live-table:${a.campaignId}:${sessionId}`;
+const eventKey=(eventId:string)=>`live-event:${eventId}`;
+type Row={body:string};
+async function prior(a:Actor,eventId:string){return database().prepare('SELECT body FROM records WHERE id=? AND campaign_id=?').bind(eventKey(eventId),a.campaignId).first<Row>();}
+function replay(row:Row|undefined|null,a:Actor,request:string){if(!row)return false;const old=JSON.parse(row.body);if(old.authorId!==a.id||old.request!==request)throw new HttpError(409,'Ereigniskennung bereits anders verwendet.');return true;}
+async function rateLimit(a:Actor){const r=await database().prepare("SELECT count(*) n FROM (SELECT id FROM records WHERE campaign_id=? AND owner_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND created_at>? LIMIT 31)").bind(a.campaignId,a.id,new Date(Date.now()-60000).toISOString()).first<{n:number}>();if((r?.n||0)>=30)throw new HttpError(429,'Zu viele Live-Aktionen. Bitte kurz warten.');}
+
+export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
+ if(!liveChecksEnabled())throw new HttpError(404,'Nicht gefunden.');
+ const action=(raw as {action?:unknown})?.action;
+ if(action!=='requestCheck'&&action!=='rollCheck')throw new HttpError(400,'Unbekannte Probe.');
+ const parsed=(action==='requestCheck'?requestSchema:rollSchema).safeParse(raw);
+ if(!parsed.success)throw new HttpError(400,'Ungültige Probenaktion: '+parsed.error.issues[0].message);
+ const d=parsed.data, {room}=await stageRoom(a,d.sessionId);
+ if(room.runId!==d.runId)throw new HttpError(409,'Spielabend inzwischen gewechselt.');
+ const stamp=new Date().toISOString();
+ if(d.action==='requestCheck'){
+  gmOnly(a);
+  if(d.attributeId&&!Object.hasOwn(W10_ATTRIBUTE_KEYS,d.attributeId)||d.abilityId&&!Object.hasOwn(W10_ABILITY_KEYS,d.abilityId))throw new HttpError(400,'Unbekannte Eigenschaft oder Fähigkeit.');
+  const members=(await liveMembers(a)).map(m=>m.id).filter(id=>room.participants?.includes(id));
+  let recipients:string[]|null;try{recipients=liveAudience(d.audience,members);}catch(e){throw new HttpError(400,(e as Error).message);}
+  if(d.sceneId){const scene=await readScene(database(),a,d.sceneId);if(scene.document.archived)throw new HttpError(409,'Szene archiviert.');}
+  const request=JSON.stringify({action:d.action,runId:d.runId,title:d.title,attributeId:d.attributeId,abilityId:d.abilityId,difficulty:d.difficulty,recipients,sceneId:d.sceneId,gmHints:d.gmHints});
+  if(replay(await prior(a,d.eventId),a,request))return {ok:true,eventId:d.eventId};
+  await rateLimit(a);
+  const event={context:'live-table-event',kind:'check',id:d.eventId,sessionId:d.sessionId,runId:d.runId,authorId:a.id,authorName:a.name,at:stamp,recipients,request,check:{title:d.title,difficulty:d.difficulty,...(d.attributeId?{attributeId:d.attributeId}:{}),...(d.abilityId?{abilityId:d.abilityId}:{}),...(d.sceneId?{sceneId:d.sceneId}:{})},...(d.gmHints?{gmHints:d.gmHints}:{})};
+  const inserted=await database().prepare("INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) SELECT ?,?,?,'notizen','private','Probenanforderung',?,'',?,? WHERE EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1) ON CONFLICT(id) DO NOTHING").bind(eventKey(d.eventId),a.campaignId,a.id,JSON.stringify(event),stamp,stamp,roomKey(a,d.sessionId),a.campaignId,d.runId).run();
+  if(!inserted.meta.changes&&!replay(await prior(a,d.eventId),a,request))throw new HttpError(409,'Spielabend beendet oder Aktion kollidiert.');
+  return {ok:true,eventId:d.eventId};
+ }
+ if(a.gm)throw new HttpError(403,'Die Spielerin oder der Spieler würfelt die eigene Probe.');
+ const request=JSON.stringify({action:d.action,runId:d.runId,requestId:d.requestId,characterId:d.characterId,selection:d.selection});
+ if(replay(await prior(a,d.eventId),a,request))return {ok:true,eventId:d.eventId};
+ const source=await prior(a,d.requestId);if(!source)throw new HttpError(404,'Probenanforderung nicht verfügbar.');
+ const issued=JSON.parse(source.body);
+ if(issued.kind!=='check'||issued.sessionId!==d.sessionId||issued.runId!==d.runId||issued.hidden||issued.recipients!==null&&!issued.recipients.includes(a.id))throw new HttpError(404,'Probenanforderung nicht verfügbar.');
+ const {row,body}=await previewCharacter(a,userId,d.sessionId,d.characterId);
+ if(issued.check.attributeId&&issued.check.attributeId!==d.selection.attributeId||issued.check.abilityId&&issued.check.abilityId!==d.selection.abilityId)throw new HttpError(400,'Bitte die von der SL vorgegebene Kombination wählen.');
+ let preview;try{preview=deriveW10Preview(body,d.selection,{baseDifficulty:issued.check.difficulty},row.version);}catch{throw new HttpError(400,'Ungültige Eigenschaftenauswahl.');}
+ if(preview.status==='blocked')throw new HttpError(409,'message' in preview&&typeof preview.message==='string'?preview.message:'Diese Probe ist mit dem aktuellen Bogen nicht möglich.');
+ if(preview.pool.effective>30)throw new HttpError(409,'Mehr als 30 Würfel sind in diesem Wurfpfad noch nicht freigegeben.');
+ await rateLimit(a);
+ const roll=liveRoll(preview.pool.effective,preview.difficulty.effective);
+ const resolved=resolveC1OrdinaryCheck(body,d.selection,{baseDifficulty:issued.check.difficulty},{rollId:d.eventId,characterVersion:row.version,faces:roll.dice});
+ if(resolved.status!=='resolved'||resolved.costIntentions.length)throw new HttpError(409,'Diese Probe ist für GE-01 nicht freigegeben.');
+ const e=resolved.result.evaluation;
+ const report={rule:'v20-normal',target:roll.target,dice:roll.dice,rawSuccesses:e.rawSuccesses,ones:e.ones,cancelled:e.cancelled,netSuccesses:e.totalSuccesses,outcome:e.outcome,cancelledSuccessIndices:e.cancelledSuccessIndices};
+ const event={context:'live-table-event',kind:'roll',id:d.eventId,sessionId:d.sessionId,runId:d.runId,authorId:a.id,authorName:a.name,at:stamp,recipients:issued.recipients,request,roll,report,animationSeed:Array.from(crypto.getRandomValues(new Uint32Array(4))),revision:1,checkRef:{requestId:d.requestId,characterId:d.characterId,characterVersion:row.version,selection:d.selection,provenance:preview.provenance,title:issued.check.title}};
+ // The INSERT is the linearization point: one roll per request and character, even across concurrent tabs.
+ const inserted=await database().prepare("INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at) SELECT ?,?,?,'notizen','private','Live-Ereignis',json_set(?,'$.sequence',(SELECT COALESCE(MAX(json_extract(body,'$.sequence')),0)+1 FROM records WHERE campaign_id=? AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='roll')),'',?,? WHERE EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1) AND EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='check') AND EXISTS(SELECT 1 FROM records WHERE id=? AND campaign_id=? AND version=? AND owner_id=? AND kind='charaktere') AND EXISTS(SELECT 1 FROM auth_profiles WHERE user_id=? AND json_extract(preferences,?)=?) AND NOT EXISTS(SELECT 1 FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.runId')=? AND json_extract(body,'$.checkRef.requestId')=? AND json_extract(body,'$.checkRef.characterId')=?) AND (SELECT count(*) FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.kind')='roll')<500 ON CONFLICT(id) DO NOTHING").bind(eventKey(d.eventId),a.campaignId,a.id,JSON.stringify(event),a.campaignId,d.sessionId,d.runId,stamp,stamp,roomKey(a,d.sessionId),a.campaignId,d.runId,eventKey(d.requestId),a.campaignId,d.runId,d.characterId,a.campaignId,row.version,a.id,userId,'$.activeCharacters.'+JSON.stringify(a.campaignId),d.characterId,a.campaignId,d.runId,d.requestId,d.characterId,a.campaignId,d.sessionId,d.runId).run();
+ if(!inserted.meta.changes){if(replay(await prior(a,d.eventId),a,request))return {ok:true,eventId:d.eventId};throw new HttpError(409,'Diese Probe wurde bereits gewürfelt oder der Spielabend wurde beendet.');}
+ return {ok:true,eventId:d.eventId};
+}

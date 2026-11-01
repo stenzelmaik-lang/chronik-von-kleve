@@ -1,7 +1,7 @@
 import {rollD10Pool} from './w10.ts';
 export type LiveAudience={scope:'all'}|{scope:'players';playerIds:string[]};
 export type LiveMedia={id:string;name:string;mime:string};
-export type LiveEvent={id:string;runId?:string;kind:'scene'|'media'|'roll';authorId:string;authorName:string;at:string;recipients:string[]|null;hidden?:boolean;sequence?:number;revision?:number;closedShared?:boolean;animationSeed?:number[];scene?:{id:string;title:string;narration:string;imageFileId?:string};files?:LiveMedia[];index?:number;roll?:{pool:number;target:number;dice:number[]}};
+export type LiveEvent={id:string;runId?:string;kind:'scene'|'media'|'roll'|'check';authorId:string;authorName:string;at:string;recipients:string[]|null;hidden?:boolean;sequence?:number;revision?:number;closedShared?:boolean;animationSeed?:number[];scene?:{id:string;title:string;narration:string;imageFileId?:string};files?:LiveMedia[];index?:number;roll?:{pool:number;target:number;dice:number[]};report?:import('./w10').V20Report;check?:{title:string;difficulty:number;attributeId?:string;abilityId?:string;sceneId?:string};checkRef?:{requestId:string;characterId:string;characterVersion:number;selection:{attributeId:string;abilityId?:string;specialtyId?:string};provenance:unknown[];title:string};gmHints?:string};
 export function liveAudience(value:unknown,eligible:string[]):string[]|null {
   if(!value||typeof value!=='object')throw Error('Zielgruppe wählen.');
   const d=value as Record<string,unknown>;
