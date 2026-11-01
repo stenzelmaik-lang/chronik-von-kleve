@@ -22,6 +22,17 @@ try{
  const [gm,a,b]=await Promise.all([open(gmC,'SL'),open(aC,'A'),open(bC,'B')]);
  const rollsBefore=(await get(gmC,q)).dice.events.length;
 
+ phase='scene preparation holds the structured check';
+ const prep=await gmC.newPage();prep.on('pageerror',e=>errors.push('Vorbereitung: '+e.message));await prep.setViewportSize({width:1100,height:1000});
+ await prep.goto(base+'/spielbereich?bereich=vorbereitung');await prep.getByRole('button',{name:'Szenenbausteine'}).click();
+ await prep.getByRole('combobox',{name:/Szene auswählen/}).selectOption({label:'Szene 01 – Spielort Kaserne (Auftakt)'});
+ const block=prep.getByRole('button',{name:/^\d+\. Schlüsselbund stehlen/});await block.waitFor({timeout:20000});
+ assert.match(await block.innerText(),/Geschick \+ Diebstahl · SG 7/);await block.click();
+ const fields=prep.locator('[data-check-fields]');await fields.waitFor();
+ assert.equal(await fields.getByLabel('Attribut').inputValue(),'dexterity');assert.equal(await fields.getByLabel('Schwierigkeit').inputValue(),'7');
+ assert.equal(await fields.getByLabel('Bei Patzer').inputValue(),'Schäfer bemerkt den Griff.');
+ await fields.scrollIntoViewIfNeeded();await shot(prep,'00-szenenvorbereitung-probe');await prep.close();
+ pass('scene preparation shows traits, SG, intended figures and private consequences of the prepared check');
  phase='SL issues a prepared check from the Regie window';
  const popup=gm.waitForEvent('popup');await gm.getByRole('button',{name:'Regie im zweiten Fenster'}).click();const regie=await popup;regie.on('pageerror',e=>errors.push('Regie: '+e.message));
  await regie.setViewportSize({width:1440,height:900});
@@ -161,6 +172,6 @@ try{
  pass('rights: B sees neither A\'s targeted roll nor the private SL hint');
  assert.deepEqual(errors,[]);
  writeFileSync(output+'/evidence.json',JSON.stringify(evidence,null,1));
- console.log('GE-01C BROWSER PASS',JSON.stringify(evidence));
+ console.log('GE-02 BROWSER PASS',JSON.stringify(evidence));
 }catch(e){console.error('FAIL in phase: '+phase);let n=0;for(const c of browser.contexts())for(const page of c.pages())await page.screenshot({path:output+'/fail-'+(n++)+'.jpg',type:'jpeg'}).catch(()=>{});console.error(errors.join('\n'));throw e;}
 finally{await browser.close();}
