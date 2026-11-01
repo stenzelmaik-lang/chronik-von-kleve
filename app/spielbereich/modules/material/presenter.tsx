@@ -1,8 +1,8 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Session-authorized media must bypass public image proxies. */
 import {useEffect,useMemo,useRef,useState,type CSSProperties} from 'react';
-import {X,Minus,Plus,ArrowLeft,ArrowRight,Volume2,VolumeX,Lock,Layers,BookOpen,Image as ImageIcon,Music,Film,Mail,FolderClosed,Package} from 'lucide-react';
-import {effectiveEffect,effectProblem,materialEffects,materialSpeedFactor,materialTypeInfo,type MaterialCloseEffect,type MaterialDisplay,type MaterialEffectId,type MaterialType} from '@/domain/material-system';
+import {X,Minus,Plus,ArrowLeft,ArrowRight,Volume2,VolumeX,Lock,Layers,BookOpen,Info,Backpack,Image as ImageIcon,Music,Film,Mail,FolderClosed,Package} from 'lucide-react';
+import {effectiveEffect,effectProblem,materialSpeedFactor,materialTypeInfo,type MaterialCloseEffect,type MaterialDisplay,type MaterialEffectId,type MaterialType} from '@/domain/material-system';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import {CassettePlayer,RetroScreen} from '../spieltisch/media-objects';
@@ -19,6 +19,8 @@ export type PresentedMaterial={
 const noDrag={onPointerDown:()=>{},onPointerMove:()=>{},onPointerUp:()=>{},onPointerCancel:()=>{}};
 export const typeIcon:Record<MaterialType,typeof ImageIcon>={image:ImageIcon,letter:Mail,dossier:FolderClosed,audio:Music,video:Film,pager:Mail,backdrop:ImageIcon,other:Package};
 const baseDuration:Partial<Record<MaterialEffectId,number>>={instant:0,fade:650,unfold:1100,'open-book':1200,unseal:1400,'slide-out':1100,fan:1100,'page-turn':900,'lay-out':1200};
+/** Duration of an opening or closing effect at a speed, without the reduced-motion rule (the viewer applies that). */
+export function effectDuration(id:MaterialEffectId|MaterialCloseEffect,speed:'slow'|'normal'|'fast'){return Math.round((id==='close'?900:id==='instant'?0:id==='fade'?500:baseDuration[id as MaterialEffectId]??700)*materialSpeedFactor[speed]);}
 
 /** The closed look of a material: its closed state image, otherwise a drawn fallback per type. */
 /** Covers are small: protected library files use their stored preview (see file-thumb.tsx), stage assets stay as they are. */
@@ -41,8 +43,8 @@ export function MaterialCover({material,showOpen=false,className,full=false}:{ma
  * and volume stay with this viewer; nothing here changes the shared table. Effects respect reduced motion and a
  * sound only plays after the viewer's own click and only if they did not switch effect sounds off.
  */
-export function MaterialPresenter({material,personalKey,onClose,badge}:{material:PresentedMaterial;personalKey:string;onClose:()=>void;badge?:string}){
- const dialog=useRef<HTMLDialogElement>(null),timer=useRef(0);
+export function MaterialPresenter({material,personalKey,onClose,badge,onTake}:{material:PresentedMaterial;personalKey:string;onClose:()=>void;badge?:string;onTake?:()=>void}){
+ const dialog=useRef<HTMLDialogElement>(null),timer=useRef(0),swipe=useRef<number|null>(null);
  const [view,setView]=useViewerState(personalKey),[soundOn,toggleSound]=useEffectSound();
  const stateKeys=material.states.map(s=>s.key);
  const effect=effectiveEffect(material.effect.open,{states:stateKeys,files:material.pages.length});
@@ -52,9 +54,8 @@ export function MaterialPresenter({material,personalKey,onClose,badge}:{material
  const [turn,setTurn]=useState(0);
  const pages=material.pages,spread=material.display==='spread',step=spread?2:1;
  const page=Math.min(view.page,Math.max(0,pages.length-1)),shown=spread?page-page%2:page;
- const duration=(id:MaterialEffectId|MaterialCloseEffect)=>prefersReducedMotion()?0:Math.round((id==='close'?900:id==='instant'?0:id==='fade'?500:baseDuration[id as MaterialEffectId]??700)*materialSpeedFactor[material.effect.speed]);
- useEffect(()=>{const d=dialog.current;if(d&&!d.open)d.showModal();return()=>window.clearTimeout(timer.current);},[]);
- useEffect(()=>{if(phase==='open'&&!view.opened)setView({opened:true});},[phase,view.opened,setView]);
+ const duration=(id:MaterialEffectId|MaterialCloseEffect)=>prefersReducedMotion()?0:effectDuration(id,material.effect.speed);
+ useEffect(()=>{const d=dialog.current;if(d&&!d.open)d.showModal();return()=>window.clearTimeout(timer.current);},[]); useEffect(()=>{if(phase==='open'&&!view.opened)setView({opened:true});},[phase,view.opened,setView]);
  // Neighbouring pages are fetched ahead, large media only when shown.
  useEffect(()=>{if(phase!=='open')return;for(const i of [shown-step,shown+step,shown+step+1]){const p=pages[i];if(p?.mime.startsWith('image/')){const img=new Image();img.decoding='async';img.src=p.src;}}},[phase,shown,step,pages]);
  function open(){
@@ -69,6 +70,12 @@ export function MaterialPresenter({material,personalKey,onClose,badge}:{material
  }
  function finish(){if(hasCover&&material.effect.afterClose==='closed'){setPhase('closed');}dialog.current?.close();}
  function go(delta:number){const next=Math.max(0,Math.min(pages.length-1,shown+delta*step));if(next===shown)return;setView({page:next});setTurn(t=>t+1);}
+ // The click on the table already means "open": the closed object appears in the middle and opens by itself.
+ const autoOpen=useRef(open);
+ useEffect(()=>{autoOpen.current=open;});
+ useEffect(()=>{if(!hasCover)return;const t=window.setTimeout(()=>autoOpen.current(),prefersReducedMotion()?0:420);return()=>window.clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the viewer appears
+ },[]);
  const style={'--dur':duration(effect)+'ms','--close':duration(material.effect.close)+'ms'} as CSSProperties;
  const openState=material.states.find(s=>s.key==='open'),closedState=material.states.find(s=>s.key==='closed');
  const single=pages.length===1?pages[0]:undefined;
@@ -85,31 +92,36 @@ export function MaterialPresenter({material,personalKey,onClose,badge}:{material
  },[material,pages,single,page,shown,spread,turn,view.zoom,view.volume,setView,openState,closedState]);
 
  const paged=pages.length>1&&material.display!=='grid'&&material.type!=='audio'&&material.type!=='video';
- return <dialog ref={dialog} className={styles.presenter} aria-label={'Material: '+material.title} onCancel={e=>{if(e.target!==e.currentTarget)return;e.preventDefault();close();}} onClose={ownClose(onClose)} style={style}>
-  <header>
-   <div><small>{badge?<><Lock size={11}/> {badge}</>:materialTypeInfo[material.type].label}</small><h2 title={material.title}>{material.title}</h2></div>
+ // Without a window: the object lies on the darkened table, a click beside it or Escape closes it again.
+ return <dialog ref={dialog} className={styles.presenter} aria-label={'Material: '+material.title} style={style}
+  onCancel={e=>{if(e.target!==e.currentTarget)return;e.preventDefault();close();}} onClose={ownClose(onClose)}
+  onClick={e=>{const t=e.target as HTMLElement;if(phase!=='closing'&&(t===e.currentTarget||t.dataset.backdrop!==undefined))close();}}
+  onKeyDown={e=>{if(phase!=='open'||!paged)return;if(e.key==='ArrowRight'){e.preventDefault();go(1);}else if(e.key==='ArrowLeft'){e.preventDefault();go(-1);}}}
+  onTouchStart={e=>{swipe.current=e.touches[0]?.clientX??null;}} onTouchEnd={e=>{const x=swipe.current;swipe.current=null;const end=e.changedTouches[0]?.clientX;if(x===null||end===undefined||!paged||phase!=='open')return;if(Math.abs(end-x)>60)go(end<x?1:-1);}}>
+  <div className={styles.chrome}>
+   <div className={styles.title}><small>{badge?<><Lock size={11}/> {badge}</>:materialTypeInfo[material.type].label}</small><h2 title={material.title}>{material.title}</h2>
+    {material.caption&&<span className={styles.info}><button type="button" aria-label="Info zum Material" aria-describedby="material-info"><Info/></button><span id="material-info" role="tooltip" className={styles.infoTip}><RichTextView value={material.caption} readable flowing/></span></span>}
+   </div>
    <div className={styles.tools}>
     {phase==='open'&&material.type!=='audio'&&material.type!=='video'&&!!pages.length&&<><button type="button" aria-label="Verkleinern" onClick={()=>setView({zoom:Math.max(.6,Math.round((view.zoom-.2)*10)/10)})}><Minus/></button><span aria-live="polite">{Math.round(view.zoom*100)} %</span><button type="button" aria-label="Vergrößern" onClick={()=>setView({zoom:Math.min(2.4,Math.round((view.zoom+.2)*10)/10)})}><Plus/></button></>}
+    {onTake&&<button type="button" className={styles.take} onClick={onTake}><Backpack/> Einstecken</button>}
     {material.soundSrc&&<button type="button" aria-pressed={soundOn} aria-label={soundOn?'Effektton für mich ausschalten':'Effektton für mich einschalten'} onClick={toggleSound}>{soundOn?<Volume2/>:<VolumeX/>}</button>}
     <button type="button" aria-label="Schließen (nur für mich)" onClick={close}><X/></button>
    </div>
-  </header>
+  </div>
   {problem&&badge&&<p className={styles.notice} role="note">{problem}</p>}
-  <div className={styles.stage} data-phase={phase} data-effect={phase==='closing'?'close-'+material.effect.close:effect}>
-   {(phase==='closed'||phase==='opening'||phase==='closing')&&<div className={styles.coverLayer}>
-    {closedState?<img className={styles.closedImage} src={closedState.src} alt={phase==='closed'?material.title+' (geschlossen)':''} decoding="async"/>:<MaterialCover material={material} className={styles.closedImage} full/>}
+  <div className={styles.stage} data-backdrop="" data-phase={phase} data-effect={phase==='closing'?'close-'+material.effect.close:effect}>
+   {(phase==='closed'||phase==='opening'||phase==='closing')&&<div className={styles.coverLayer} data-backdrop="">
+    {closedState?<img className={styles.closedImage} src={closedState.src} alt={material.title+' (geschlossen)'} decoding="async"/>:<MaterialCover material={material} className={styles.closedImage} full/>}
     {openState&&<img className={styles.openImage} src={openState.src} alt="" decoding="async"/>}
    </div>}
-   {phase==='closed'&&<button type="button" className={styles.openButton} onClick={open} autoFocus><BookOpen size={18}/> Öffnen{effect!=='instant'?' · '+materialEffects[effect].label:''}</button>}
-   {phase!=='closed'&&<div className={styles.content} data-display={material.display}>
-    {content}
-    {material.caption&&<article className={styles.caption}><RichTextView value={material.caption} readable flowing/></article>}
-   </div>}
+   {phase==='closed'&&!hasCover&&<button type="button" className={styles.openButton} onClick={open} autoFocus><BookOpen size={18}/> Öffnen</button>}
+   {phase!=='closed'&&<div className={styles.content} data-display={material.display} data-backdrop="">{content}</div>}
   </div>
-  {phase==='open'&&paged&&<nav className={styles.pager} aria-label="Seiten">
-   <button type="button" disabled={shown===0} aria-label={material.display==='stack'?'Vorheriges Bild':'Vorherige Seite'} onClick={()=>go(-1)}><ArrowLeft/></button>
-   <span aria-live="polite">{spread&&shown+1<pages.length?'Seiten '+(shown+1)+'–'+(shown+2):(material.display==='stack'?'Bild ':'Seite ')+(shown+1)} von {pages.length}</span>
-   <button type="button" disabled={shown+step>=pages.length} aria-label={material.display==='stack'?'Nächstes Bild':'Nächste Seite'} onClick={()=>go(1)}><ArrowRight/></button>
-  </nav>}
+  {phase==='open'&&paged&&<>
+   <button type="button" className={styles.prev} disabled={shown===0} aria-label={material.display==='stack'?'Vorheriges Bild':'Vorherige Seite'} onClick={()=>go(-1)}><ArrowLeft/></button>
+   <button type="button" className={styles.next} disabled={shown+step>=pages.length} aria-label={material.display==='stack'?'Nächstes Bild':'Nächste Seite'} onClick={()=>go(1)}><ArrowRight/></button>
+   <span className={styles.pageCount} aria-live="polite">{spread&&shown+1<pages.length?'Seiten '+(shown+1)+'–'+(shown+2):(material.display==='stack'?'Bild ':'Seite ')+(shown+1)} / {pages.length}</span>
+  </>}
  </dialog>;
 }

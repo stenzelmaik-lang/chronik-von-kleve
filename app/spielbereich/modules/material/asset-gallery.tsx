@@ -1,5 +1,5 @@
 "use client";
-/* eslint-disable @next/next/no-img-element -- Protected existing file endpoints. */
+ 
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {X,Check,Plus,Search,Pencil,Trash2,ImagePlus,Ban} from 'lucide-react';
 import {displayAssetKindLabels,displayAssetKinds,displayAssetStateLabels,displayAssetStateMax,emptyDisplayAsset,type DisplayAsset,type DisplayAssetDraft,type DisplayAssetKind} from '@/domain/material-system';

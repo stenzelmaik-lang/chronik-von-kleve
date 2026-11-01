@@ -69,10 +69,9 @@ try{
   await prep.getByRole('button',{name:/Vorschau/}).first().click();
   await prep.getByRole('button',{name:'Privat testen'}).click();
   const test=prep.getByRole('dialog',{name:'Material: Anselmus-Paket'});
-  await test.getByRole('button',{name:/Öffnen/}).click();
-  await test.getByText('Bild 1 von 6').waitFor();
+  await test.getByText('Bild 1 / 6').waitFor();
   await test.getByRole('button',{name:'Nächstes Bild'}).click();
-  await test.getByText('Bild 2 von 6').waitFor();
+  await test.getByText('Bild 2 / 6').waitFor();
   await noHorizontalScroll(prep,name+' private test');
   await prep.screenshot({path:output+'/'+name+'-private-test.png'});
   await test.getByRole('button',{name:'Schließen (nur für mich)'}).click();
@@ -97,12 +96,10 @@ try{
   await regie.screenshot({path:output+'/'+name+'-regie.png'});
   pass('Regie: private view, then release to Player A');
   // Every other type opens and closes in its own presentation (test 1, 4, 5 and the letter with the reused envelope).
-  for(const [title,selector] of [['Foto: Brücke im Nebel','img'],['Tonband: Verhör','audio'],['Überwachungsband','video'],['Brief an Anselmus','article']]){
+  for(const [title,selector] of [['Foto: Brücke im Nebel','img'],['Tonband: Verhör','audio'],['Überwachungsband','video'],['Brief an Anselmus','[role=tooltip]']]){
    const entry=regie.locator('[data-material]',{hasText:title});
    await entry.getByRole('button',{name:'Privat ansehen',exact:true}).click();
    const d=regie.getByRole('dialog',{name:'Material: '+title});
-   const opener=d.getByRole('button',{name:/Öffnen/});
-   if(await opener.count())await opener.click();
    await d.locator(selector).first().waitFor({state:'attached'});
    await noHorizontalScroll(regie,name+' '+title);
    if(title==='Überwachungsband')await regie.screenshot({path:output+'/'+name+'-video.png'});
@@ -116,10 +113,9 @@ try{
   assert.equal(await pb.getByRole('button',{name:'Anselmus-Paket öffnen'}).count(),0,'Player B sees nothing');
   await tokenA.click();
   const viewA=pa.getByRole('dialog',{name:'Material: Anselmus-Paket'});
-  await viewA.getByRole('button',{name:/Öffnen/}).click();
-  await viewA.getByText('Bild 1 von 6').waitFor();
+  await viewA.getByText('Bild 1 / 6').waitFor();
   await viewA.getByRole('button',{name:'Nächstes Bild'}).click();await viewA.getByRole('button',{name:'Nächstes Bild'}).click();
-  await viewA.getByText('Bild 3 von 6').waitFor();
+  await viewA.getByText('Bild 3 / 6').waitFor();
   await noHorizontalScroll(pa,name+' player view');
   await pa.screenshot({path:output+'/'+name+'-player-a.png'});
   await viewA.getByRole('button',{name:'Schließen (nur für mich)'}).click();
@@ -132,10 +128,9 @@ try{
   const tokenB=pb.getByRole('button',{name:'Anselmus-Paket öffnen'});
   await tokenB.waitFor();await tokenB.click();
   const viewB=pb.getByRole('dialog',{name:'Material: Anselmus-Paket'});
-  await viewB.getByRole('button',{name:/Öffnen/}).click();
-  await viewB.getByText('Bild 1 von 6').waitFor();
-  await tokenA.click();await viewA.getByRole('button',{name:/Öffnen/}).click();
-  await viewA.getByText('Bild 3 von 6').waitFor();
+  await viewB.getByText('Bild 1 / 6').waitFor();
+  await tokenA.click();
+  await viewA.getByText('Bild 3 / 6').waitFor();
   await viewA.getByRole('button',{name:'Schließen (nur für mich)'}).click();
   pass('each player pages independently');
 

@@ -42,7 +42,7 @@ try{
  let state=await (await a.request.get(base+q)).json(),object=state.objects.find(o=>o.sourceKind==='record'&&o.title===title);assert.ok(object);
  const working=pa.locator(`[data-object="${object.id}"]`);await pb.locator(`[data-object="${object.id}"]`).waitFor();pass('Gezielte Spielerfreigabe legt dasselbe Dokument auf beide Tische');
  await pa.getByRole('button',{name:'Werkzeug schließen',exact:true}).click().catch(async()=>{await pa.keyboard.press('Escape');});
- await working.getByRole('button',{name:title+' verschieben',exact:true}).focus();await pa.keyboard.press('ArrowRight');
+ await working.focus();await pa.keyboard.press('ArrowRight');// the object itself takes keyboard moves now (no handle bar)
  await working.getByRole('button',{name:'Lesen',exact:true}).click();const reader=pa.getByRole('dialog',{name:'Persönliche Dokumentansicht'});await reader.getByRole('button',{name:'Dokument ausfüllen',exact:true}).click();await reader.getByRole('textbox',{name:'Arbeitsfassung ausfüllen'}).fill('Name: Spieler A\nBefund: erfolgreich ausgefüllt');await reader.getByRole('button',{name:'Arbeitsfassung speichern',exact:true}).click();await reader.getByText('Befund: erfolgreich ausgefüllt',{exact:false}).waitFor();
  state=await (await b.request.get(base+q)).json();assert.ok(state.objects.find(o=>o.id===object.id).documentContent.includes('erfolgreich'));pass('Dokument ausfüllen und Tastaturposition auf gemeinsamer Bühne speichern');
  await pa.screenshot({path:`${output}/working-document.png`,fullPage:true});await pa.keyboard.press('Escape');

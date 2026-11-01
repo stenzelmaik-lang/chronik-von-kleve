@@ -14,6 +14,7 @@ import {evaluateNormalV20} from '@/domain/w10';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
 import {materialStageSource,regieMaterials} from './material-stage';
+import {archivePocket,pocketHolders,pocketItem,pocketRow,pocketSnapshot,removePocket,restorePocket} from './material-pocket';
 
 export function storedStage(room:{stage?:unknown}):StageState{
  if(room.stage===undefined)return emptyStage();
@@ -101,12 +102,16 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   // Players get only the play state: current track, playlist ids for looping, play/pause and the base volume.
   youtube:stage.youtube?(()=>{const p=youtubePlaylist(stage.youtube);return {videoId:stage.youtube.videoId,title:stage.youtube.title,key:stage.youtube.key,tracks:p.tracks,index:p.index,playing:p.playing,volume:p.volume,label:p.label};})():null,
   // Players learn only whether they themselves read and acknowledged; GMs get recipients, all reads and acknowledgements.
+  notice:stage.notice||null,
   pagers:(stage.pagers||[]).filter(p=>pagerVisible(p,a)).map(p=>a.gm?p:{id:p.id,text:p.text,at:p.at,...(p.title?{title:p.title}:{}),...(p.sender?{sender:p.sender}:{}),...(p.priority?{priority:p.priority}:{}),read:!!p.reads?.some(x=>x.id===a.id)||!!p.acks?.some(x=>x.id===a.id),acknowledged:!!p.acks?.some(x=>x.id===a.id)})};
 }
 export async function stageMutation(a:Actor,sessionId:string,runId:string,expectedVersion:number,c:StageCommand){
  const {row,room}=await stageRoom(a,sessionId),state=storedStage(room);
  if(runId!==room.runId||state.version!==expectedVersion)throw new HttpError(409,'Die Bühne wurde inzwischen geändert. Bitte aktualisieren.');
+ if(c.action==='take'||c.action==='play'||c.action==='reclaim')return pocketMutation(a,row,runId,state,c);
  if(c.action==='add'&&c.sourceId?.startsWith('scene-whisper:'))gmOnly(a);
+ // A prepared material exists once: while a player carries it, it cannot be laid out a second time.
+ if(c.action==='add'&&c.sourceId?.startsWith('scene-material:')){const holder=(await pocketHolders(a,[c.sourceId])).get(c.sourceId);if(holder)throw new HttpError(409,'Dieses Material trägt gerade '+holder.name+' bei sich. Hol es in der Regie zurück, um es neu aufzulegen.');}
  if((c.action==='visibility'||c.action==='add'||c.action==='pager')&&c.recipients?.length){const eligible=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id));if(c.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Zielperson ist nicht in dieser Runde.');}
  const source=c.action==='add'&&c.kind!=='note'?await stageSource(a,c.sourceId||'',c.sourceKind||'entity'):undefined;
  if(c.action==='add'&&source&&'presentation' in source&&source.presentation){
@@ -146,6 +151,39 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
  const whisperBindings=whisperGuard&&source?[source.sourceId.slice(14,source.sourceId.lastIndexOf(':')),a.campaignId,source.sourceVersion!]:[];
  const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1"+sourceGuard+whisperGuard).bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId,...sourceBindings,...whisperBindings).run();
  if(!result.meta.changes)throw new HttpError(409,'Spielstand inzwischen geändert. Deine Änderung wurde nicht überschreibend gespeichert.');
+}
+type StageRow=Awaited<ReturnType<typeof stageRoom>>['row'];
+async function saveStage(a:Actor,row:StageRow,runId:string,next:StageState){
+ const result=await database().prepare("UPDATE records SET body=json_set(body,'$.stage',json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND json_extract(body,'$.runId')=? AND json_extract(body,'$.open')=1").bind(JSON.stringify(next),new Date().toISOString(),row.id,a.campaignId,row.version,runId).run();
+ if(!result.meta.changes)throw new HttpError(409,'Spielstand inzwischen geändert. Deine Änderung wurde nicht überschreibend gespeichert.');
+}
+/**
+ * Pocketing (see material-pocket.ts). take: a player puts a released, pocketable material into their inventory and
+ * it leaves the table. play: the holder lays it on the table again (owned by them, for the whole round). reclaim:
+ * the GM takes a carried material back. Every step undoes its inventory part if the table could not be saved.
+ */
+async function pocketMutation(a:Actor,row:StageRow,runId:string,state:StageState,c:Extract<StageCommand,{action:'take'|'play'|'reclaim'}>){
+ const notice=(text:string)=>({id:crypto.randomUUID().replaceAll('-','').slice(0,16),text:text.slice(0,240),at:new Date().toISOString()});
+ if(c.action==='reclaim'){gmOnly(a);await archivePocket(a,c.itemId);return;}
+ if(c.action==='take'){
+  const o=state.objects.find(x=>x.id===c.id&&stageVisible(x,a));
+  if(!o||o.kind==='note'||!o.material)throw new HttpError(404,'Dieses Material liegt nicht mehr auf dem Tisch.');
+  if(o.material.takeable===false)throw new HttpError(403,'Dieses Material kann man nicht einstecken.');
+  if(o.visibility!=='group')throw new HttpError(403,'Dieses Material ist noch nicht freigegeben.');
+  const {itemId,characterName}=await pocketItem(a,o);
+  const next=stageSchema.parse({...state,version:state.version+1,objects:state.objects.filter(x=>x.id!==o.id),notice:notice(characterName+' hat „'+o.title+'“ eingesteckt.')});
+  try{await saveStage(a,row,runId,next);}catch(e){await removePocket(a,itemId);throw e;}
+  return;
+ }
+ if(a.gm)throw new HttpError(403,'Eingesteckte Gegenstände legt nur ihr Besitzer aus.');
+ const item=await pocketRow(a,c.itemId);
+ if(item.owner_id!==a.id)throw new HttpError(404,'Eingesteckter Gegenstand nicht gefunden.');
+ const s=pocketSnapshot(item)!;
+ const holder=(await database().prepare("SELECT title FROM records WHERE id=json_extract(?,'$.characterId') AND campaign_id=?").bind(item.body,a.campaignId).first<{title:string}>())?.title||'Jemand';
+ const placed={...s,id:crypto.randomUUID(),rect:{x:.39,y:.28,w:.22,h:.36},visibility:'group' as const,recipients:null,ownerId:a.id};
+ const next=stageSchema.parse({...state,version:state.version+1,objects:[...state.objects,placed],notice:notice(holder+' legt „'+s.title+'“ auf den Tisch.')});
+ await archivePocket(a,c.itemId);
+ try{await saveStage(a,row,runId,next);}catch(e){await restorePocket(a,c.itemId);throw e;}
 }
 export async function stageAsset(a:Actor,sessionId:string,objectId:string,catalogId?:string,page?:number,extra:{state?:string;sound?:boolean}={}):Promise<{fileId?:string;path?:string;text?:string;title:string;pages?:{title:string}[]}>{
  const {room}=await stageRoom(a,sessionId);let o:Exclude<StageObject,{kind:'note'}>|undefined;

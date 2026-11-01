@@ -86,6 +86,8 @@ export const sceneMaterialSchema=z.object({
  display:z.enum(materialDisplays).default('single'),
  effect:materialEffectSchema.default({open:'fade',close:'fade',speed:'normal',soundFileId:'',afterClose:'closed'}),
  note:z.string().max(3000).default(''),
+ // Players may pocket a released material into their inventory unless the GM switched it off (stored only when off).
+ takeable:z.literal(false).optional(),
 }).strict();
 export type SceneMaterial=z.infer<typeof sceneMaterialSchema>;
 export type MaterialFile=SceneMaterial['files'][number];

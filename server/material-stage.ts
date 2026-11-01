@@ -1,6 +1,7 @@
 import {database,canRead,HttpError,type Actor} from './access';
 import {liveFile} from './live-game';
 import {displayAssetStates} from './display-assets';
+import {pocketHolders} from './material-pocket';
 import {richTextToPlainText} from '@/domain/location-rich-text';
 import {effectiveEffect,effectProblem,materialTypeInfo,type SceneMaterial} from '@/domain/material-system';
 import type {SceneElement,SceneView} from '@/domain/story-scene';
@@ -33,7 +34,7 @@ export async function materialStageSource(a:Actor,scene:SceneView,element:SceneE
  let soundFileId:string|undefined;
  if(m.effect.soundFileId){try{const f=await liveFile(a,m.effect.soundFileId);if(f.mime.startsWith('audio/'))soundFileId=f.id;}catch{/* a missing sound is simply left out */}}
  const open=effectiveEffect(m.effect.open,{states:states.map(s=>s.key),files:files.length});
- const material:StageMaterial={type:m.type,display:m.display,effect:{open,close:m.effect.close,speed:m.effect.speed,afterClose:m.effect.afterClose,sound:!!soundFileId},states,...(soundFileId?{soundFileId}:{}),...(open!==m.effect.open?{requested:m.effect.open}:{})};
+ const material:StageMaterial={type:m.type,display:m.display,effect:{open,close:m.effect.close,speed:m.effect.speed,afterClose:m.effect.afterClose,sound:!!soundFileId},states,...(soundFileId?{soundFileId}:{}),...(open!==m.effect.open?{requested:m.effect.open}:{}),...(m.takeable===false?{takeable:false as const}:{})};
  const base={title:element.title,kind:'document' as const,sourceId,sourceKind:'record' as const,sourceVersion:scene.version,ownerId:a.id,material,...(text?{documentContent:text}:{})};
  const single=files.length===1?files[0]:undefined;
  // Audio and video use the existing players with their single file; images and pages use the page reader.
@@ -55,7 +56,9 @@ export async function regieMaterials(a:Actor,scene:SceneView){
   const context={states:states.map(s=>s.key),files:files.filter(f=>!f.missing).length};
   out.push({id:'scene-material:'+scene.id+':'+e.id,elementId:e.id,title:e.title,type:m.type,display:m.display,effect:m.effect,effective:effectiveEffect(m.effect.open,context),problem:effectProblem(m.effect.open,context),
    files,asset:asset?{title:asset.title,states}:null,assetMissing:!!m.assetId&&!asset,sound:!!m.effect.soundFileId&&rows.some(r=>r.id===m.effect.soundFileId),
-   caption:textTypes.includes(m.type)?e.text:'',cue:textTypes.includes(m.type)?'':e.text,note:m.note});
+   caption:textTypes.includes(m.type)?e.text:'',cue:textTypes.includes(m.type)?'':e.text,note:m.note,takeable:m.takeable!==false});
  }
- return out;
+ // Who carries a material right now: it cannot be laid out twice, the GM can take it back.
+ const holders=await pocketHolders(a,out.map(x=>x.id));
+ return out.map(x=>({...x,holder:holders.get(x.id)||null}));
 }

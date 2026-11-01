@@ -3,7 +3,9 @@ import {handoutPageSchema,handoutPagesMax} from './table-material.ts';
 import {materialTypes,materialDisplays,materialEffectIds,materialCloseEffects,materialSpeeds,materialAfterClose} from './material-system.ts';
 import type {Actor,Entity} from './types';
 
-const rectSchema=z.object({x:z.number().min(0).max(1),y:z.number().min(0).max(1),w:z.number().min(.1).max(.65),h:z.number().min(.13).max(.85)}).strict().refine(r=>r.x+r.w<=1.00001&&r.y+r.h<=1.00001,'Objekt muss auf der Bühne bleiben.');
+// r: optional tilt in degrees, set by the GM for objects lying on the table (older stages have none).
+export const stageTiltMax=40;
+const rectSchema=z.object({x:z.number().min(0).max(1),y:z.number().min(0).max(1),w:z.number().min(.1).max(.65),h:z.number().min(.13).max(.85),r:z.number().min(-stageTiltMax).max(stageTiltMax).optional()}).strict().refine(r=>r.x+r.w<=1.00001&&r.y+r.h<=1.00001,'Objekt muss auf der Bühne bleiben.');
 const base={id:z.string().min(1).max(160),title:z.string().max(200),rect:rectSchema};
 const note=z.object({...base,kind:z.literal('note'),visibility:z.enum(['private','group']),ownerId:z.string().min(1),ownerName:z.string().max(200),content:z.string().max(3000),revision:z.number().int().positive()}).strict();
 /** How a file-backed table object is staged: photo card, cassette player, screen or paper. */
@@ -18,7 +20,9 @@ export function stageMediaOf(mime:string):StageMedia|undefined{return mime.start
 const stageMaterial=z.object({type:z.enum(materialTypes),display:z.enum(materialDisplays),
  effect:z.object({open:z.enum(materialEffectIds),close:z.enum(materialCloseEffects),speed:z.enum(materialSpeeds),afterClose:z.enum(materialAfterClose),sound:z.boolean()}).strict(),
  states:z.array(z.object({key:z.string().regex(/^[a-z0-9-]{1,30}$/),fileId:z.string().min(1).max(160)}).strict()).max(8),
- soundFileId:z.string().min(1).max(160).optional(),requested:z.enum(materialEffectIds).optional()}).strict();
+ soundFileId:z.string().min(1).max(160).optional(),requested:z.enum(materialEffectIds).optional(),
+ // Pocketing: off only when the GM switched it off for this material.
+ takeable:z.literal(false).optional()}).strict();
 export type StageMaterial=z.infer<typeof stageMaterial>;
 const object=z.object({...base,kind:z.enum(['npc','document']),visibility:z.enum(['sl','group']),sourceId:z.string().min(1).max(160),sourceKind:z.enum(['entity','file','record']),presentation:z.enum(['vision','letter']).optional(),sourceVersion:z.number().int().positive().optional(),sourceToken:z.string().regex(/^[a-f0-9]{64}$/).optional(),media:z.enum(stageMediaKinds).optional(),ownerId:z.string().min(1).optional(),documentContent:z.string().max(50000).optional(),documentRevision:z.number().int().positive().optional(),sourceFileId:z.string().max(160).optional(),pages:z.array(handoutPageSchema).min(1).max(handoutPagesMax).optional(),material:stageMaterial.optional(),recipients:z.array(z.string()).max(30).nullable()}).strict();
 // The scene backdrop is the shared ground of the table for the whole round. It is
@@ -65,7 +69,9 @@ const pager=z.object({id:z.string().min(1).max(160),text:z.string().min(1).max(p
  title:z.string().max(pagerTitleMax).optional(),sender:z.string().max(pagerSenderMax).optional(),priority:z.enum(pagerPriorities).optional(),origin:z.enum(pagerOrigins).optional(),acks:z.array(pagerAck).max(30).optional(),
  // Optional read receipts (opened and shown), per recipient. Older stages without the field stay valid.
  reads:z.array(pagerAck).max(30).optional()}).strict();
-export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional(),youtube:youtube.nullable().optional()}).strict();
+export const stageSchema=z.object({format:z.literal(1),version:z.number().int().nonnegative(),objects:z.array(z.union([note,object])).max(160),backdrop:backdrop.nullable().optional(),sceneId:z.string().max(160).optional(),effects:z.array(z.enum(stageEffects)).max(stageEffects.length).optional(),music:music.nullable().optional(),pagers:z.array(pager).max(pagerKeep).optional(),youtube:youtube.nullable().optional(),
+ // Short table notice for everyone, e.g. "Saskia hat das Anselmus-Paket eingesteckt."
+ notice:z.object({id:z.string().min(1).max(64),text:z.string().max(240),at:z.string().max(40)}).strict().optional()}).strict();
 export type StageYoutube=z.infer<typeof youtube>;
 /** The playlist view of a stored state, also for states from before playlists existed. */
 export function youtubePlaylist(y:StageYoutube){
@@ -89,7 +95,7 @@ export type StageObject=StageState['objects'][number];
 export type Rect=z.infer<typeof rectSchema>;
 export const emptyStage=():StageState=>({format:1,version:0,objects:[]});
 export function stageVisible(o:StageObject,a:Pick<Actor,'id'|'gm'>){return a.gm||(o.kind==='note'?o.ownerId===a.id||o.visibility==='group':o.ownerId===a.id||o.visibility==='group'&&(o.recipients===null||o.recipients.includes(a.id)));}
-export function constrainRect(r:Rect):Rect{const w=Math.max(.1,Math.min(.65,r.w)),h=Math.max(.13,Math.min(.85,r.h));return {x:Math.max(0,Math.min(1-w,r.x)),y:Math.max(0,Math.min(1-h,r.y)),w,h};}
+export function constrainRect(r:Rect):Rect{const w=Math.max(.1,Math.min(.65,r.w)),h=Math.max(.13,Math.min(.85,r.h)),tilt=r.r===undefined?undefined:Math.round(Math.max(-stageTiltMax,Math.min(stageTiltMax,r.r))*10)/10;return {x:Math.max(0,Math.min(1-w,r.x)),y:Math.max(0,Math.min(1-h,r.y)),w,h,...(tilt?{r:tilt}:{})};}
 export function fitNoteRect(r:Rect,b:{w:number;h:number}){return constrainRect({...r,w:Math.max(r.w,200/Math.max(1,b.w)),h:Math.max(r.h,235/Math.max(1,b.h))});}
 export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('add'),kind:z.enum(['note','npc','document']),sourceId:z.string().min(1).max(160).optional(),sourceKind:z.enum(['entity','file','record']).optional(),sourceVersion:z.number().int().positive().optional(),title:z.string().trim().min(1).max(200).optional(),visible:z.boolean().optional(),recipients:z.array(z.string()).max(30).nullable().optional()}).strict(),
@@ -111,6 +117,10 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('pagerAck'),id:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('pagerRead'),id:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('pagerWithdraw'),id:z.string().min(1).max(160)}).strict(),
+ // Inventory: a player pockets a released material, lays a pocketed one on the table again; the GM takes one back.
+ z.object({action:z.literal('take'),id:z.string().min(1).max(160)}).strict(),
+ z.object({action:z.literal('play'),itemId:z.string().startsWith('item.').max(160)}).strict(),
+ z.object({action:z.literal('reclaim'),itemId:z.string().startsWith('item.').max(160)}).strict(),
 ]);
 export type StageCommand=z.infer<typeof stageCommandSchema>;
 export async function stageSourceToken(e:Pick<Entity,'type'|'title'|'content'>){
@@ -174,8 +184,9 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung wechselt den Schauplatz.'),{status:403});
   next.backdrop=resolvedBackdrop??null;
   if(c.action==='activateScene'){
-   // A scene change clears the previous scene's table material. Player notes stay.
-   next.sceneId=c.sceneId;next.objects=next.objects.filter(o=>o.kind==='note'||o.sourceKind==='record'&&!o.sourceId.startsWith('scene-material:')&&!o.presentation);
+   // A scene change clears the previous scene's table material. Player notes and what players laid out from their
+   // own inventory stay (it belongs to them, not to the scene).
+   next.sceneId=c.sceneId;next.objects=next.objects.filter(o=>o.kind==='note'||o.sourceKind==='record'&&!o.sourceId.startsWith('scene-material:')&&!o.presentation||!!o.ownerId&&o.ownerId!==a.id&&!!o.material);
   }
  }else if(c.action==='add'){
   if(c.kind==='note'){
@@ -191,6 +202,9 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
    if(placed.kind!=='note'&&source.sourceKind==='record'){delete placed.media;delete placed.sourceFileId;delete placed.documentContent;delete placed.pages;delete placed.material;Object.assign(placed,source);placed.documentRevision=(placed.documentRevision||0)+1;}
    if(c.visible!==undefined&&placed.kind!=='note'){placed.visibility=c.visible?'group':'sl';placed.recipients=c.recipients??null;}
   }
+ }else if(c.action==='take'||c.action==='play'||c.action==='reclaim'){
+  // Pocketing touches the inventory as well and is handled by the server (server/live-stage.ts pocketMutation).
+  throw Object.assign(Error('Diese Aktion läuft über das Inventar.'),{status:400});
  }else{
   const o=next.objects.find(o=>o.id===c.id);
   if(!o)throw Object.assign(Error('Bühnenobjekt nicht verfügbar.'),{status:404});

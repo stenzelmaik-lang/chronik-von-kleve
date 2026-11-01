@@ -110,3 +110,19 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .drawerBody{overflow-x:hidden;overflow-wrap:anywhere}
 .placedList{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .drawerBody .placedList button{width:100%;justify-content:flex-start;text-align:left}
+
+/* Table objects without a handle bar: pressed and dragged directly; only the GM (or the owner) arranges them. */
+.object[data-material]{border-color:transparent;background:transparent;box-shadow:none;transform-origin:50% 50%}
+.object.selected{border-color:transparent;outline:1px dashed #d6b36fb3;outline-offset:6px}
+.object:focus-visible{outline:2px solid #d6b36f;outline-offset:6px}
+.slBadge{position:absolute;left:6px;top:6px;z-index:3;display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;background:#0d171ad9;color:#e7dac1;font-size:10px;pointer-events:none}
+.resize{width:18px;height:18px;right:-12px;bottom:-12px;border-radius:50%;background:#d6b36f;color:transparent;border:2px solid #10191d;box-shadow:0 1px 4px #0009}
+.resize svg{display:none}
+.rotate{position:absolute;right:-14px;top:-14px;width:26px;height:26px;display:grid;place-items:center;border:2px solid #10191d;border-radius:50%;background:#d6b36f;color:#10191d;cursor:grab;touch-action:none;box-shadow:0 1px 4px #0009;z-index:3}
+.rotate:active{cursor:grabbing}
+.selectionHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.selectionHead button{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--line);border-radius:5px;background:#182125;color:#e7dac1}
+.selectionHead svg{width:15px;height:15px}/* Short notice for the whole table, e.g. when someone pocketed a material. */
+.tableNotice{position:absolute;left:50%;top:18px;z-index:9;transform:translateX(-50%);display:inline-flex;align-items:center;gap:8px;max-width:calc(100% - 40px);padding:9px 16px;border:1px solid #d6b36f88;border-radius:999px;background:#0d171af2;color:#f1e3c4;font:15px Georgia,serif;box-shadow:0 10px 26px #000a;animation:noticeIn .35s cubic-bezier(.2,.8,.2,1) both}
+@keyframes noticeIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.tableNotice{animation:none}}
