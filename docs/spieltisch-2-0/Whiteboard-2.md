@@ -120,4 +120,24 @@ In `tests/live-game-integration.mjs` erwartete die Prüfung, dass Spieler B Obje
 - **Handy:** Die Werkzeugleiste scrollt waagerecht. Rückgängig und Wiederholen liegen rechts außerhalb und sind erst nach Wischen sichtbar.
 - **Bühnenbildwechsel:** Die Skizze bleibt stehen; die SL leert sie bei Bedarf. Eine Skizze je Szene gibt es nicht.
 - **Alter Whiteboard-Bereich:** `live-table.tsx` bindet den `BoardEditor` in der Panel-Variante ein. Er wurde mitgebaut, aber nicht eigens im Browser geprüft.
-- Kein Push, kein PR, kein Deployment.
+- Live seit 01.11.2026 (siehe unten).
+
+## Live-Release 01.11.2026
+
+- Freigegeben durch den Projektinhaber („live push und merge“). PR #67 ist als `c768189` gemergt.
+- **CI:** „Project CI and W10 checks“ grün. Das umfasst eingefrorene Installation, Typecheck, Lint, Tests, Build, die Integrationstests und den Windows-Würfeltest.
+- **Worker:** `2371bc92-e0a5-459a-90f2-e7d5cd4ab995`, Tag `c768189-Whiteboard-2`, 100 % Verkehr. Bindings unverändert.
+- **Rückfallversion:** `190dac20-993c-49f4-9adc-c15702ae27ba` (Tooltip-Nachbesserung). Die neuen Felder `width` und `room.boardLocked` ignoriert der ältere Build.
+- **Sicherung vorab:**
+  - 32 Tabellen, 33.125 Zeilen, `integrity_check ok`.
+  - Der erste Export brach mit dem Cloudflare-Anmeldefehler 10000 ab, der zweite Versuch lief durch.
+  - Ablage: privat unter `.local-work/release-whiteboard/`.
+- **Live-Prüfung ohne Anmeldung:**
+  - `/anmelden` antwortet mit 200.
+  - Spielbereich und Regie leiten mit 307 weiter.
+  - Bühne und Spieltisch antworten mit 401.
+- **Live-Prüfung mit dem SL-Konto:**
+  - Der Zeichenmodus öffnet die neue Werkzeugspalte mit Farben und Strichstärken.
+  - Oben stehen „Meine löschen“, „Sperren“ und „Für alle löschen“.
+  - Vorhandene Striche liegen unverändert auf dem Tisch.
+  - Keine Fehlermeldungen. Danach wurde der Zeichenmodus wieder geschlossen.
