@@ -5,6 +5,7 @@ import type {StageObject} from '../spieltisch/types';
 import {MaterialCover,type PresentedMaterial} from './presenter';
 import {wasOpened} from './viewer-state';
 import styles from './stage-material.module.css';
+import {richTextToPlainText} from '@/domain/location-rich-text';
 
 type TableObject=Exclude<StageObject,{kind:'note'}>;
 type Drag={onPointerDown:(e:PE<HTMLElement>)=>void;onPointerMove:(e:PE<HTMLElement>)=>void;onPointerUp:(e:PE<HTMLElement>)=>void;onPointerCancel:()=>void};
@@ -44,4 +45,4 @@ export function MaterialToken({o,asset,onOpen,drag,arrange,onAspect,onTake}:{o:T
   <span id={'tip-'+o.id} role="tooltip" className={styles.tip}><strong>{o.title}</strong>{hint&&<small>{hint.length>220?hint.slice(0,220)+' …':hint}</small>}</span>
  </div>;
 }
-const plainText=(html:string)=>html.replace(/^cvk-html-v1:/,'').replace(/<[^>]*>/g,' ').replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();
+const plainText=(value:string)=>richTextToPlainText(value).replace(/\s+/g,' ').trim();

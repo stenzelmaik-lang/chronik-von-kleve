@@ -6,17 +6,19 @@ import {materialEffects,materialSummary,materialTypeInfo} from '@/domain/materia
 import type {RegieMaterial,Snapshot,StageObject} from '../spieltisch/types';
 import {MaterialCover,MaterialPresenter,type PresentedMaterial} from './presenter';
 import styles from './regie-materials.module.css';
+import {richTextToPlainText} from '@/domain/location-rich-text';
 
 type Audience=string[]|null;
 type Crew=Snapshot['crew'];
 const fileUrl=(id:string)=>'/api/files?id='+encodeURIComponent(id);
+const plain=(value:string)=>richTextToPlainText(value).replace(/\s+/g,' ').trim();
 
 /** GM preview data: the GM's own file access, never a stage object, so a private look never publishes anything. */
 export function previewOf(m:Pick<RegieMaterial,'title'|'type'|'display'|'effect'|'files'|'caption'>&{states:{key:string;fileId:string}[];soundFileId?:string}):PresentedMaterial{
  return {title:m.title,type:m.type,display:m.display,effect:{open:m.effect.open,close:m.effect.close,speed:m.effect.speed,afterClose:m.effect.afterClose},
   states:m.states.filter(s=>s.fileId).map(s=>({key:s.key,src:fileUrl(s.fileId)})),
   pages:m.files.filter(f=>f.fileId&&!('missing' in f&&f.missing)).map(f=>({title:f.title,src:fileUrl(f.fileId),mime:f.mime||'image/*'})),
-  ...(m.caption&&m.caption.replace(/<[^>]*>/g,'').trim()?{caption:m.caption}:{}),...(m.soundFileId?{soundSrc:fileUrl(m.soundFileId)}:{})};
+  ...(m.caption&&plain(m.caption)?{caption:m.caption}:{}),...(m.soundFileId?{soundSrc:fileUrl(m.soundFileId)}:{})};
 }
 function tableText(o:Exclude<StageObject,{kind:'note'}>|undefined,crew:Crew){
  if(!o)return 'Vorbereitet · nicht auf dem Tisch';
@@ -67,7 +69,7 @@ export function RegieMaterials({materials,objects,crew,busy,run,heading=true}:{m
        {placed&&<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},'„'+m.title+'“ vom Tisch genommen.')}><EyeOff/> Vom Tisch nehmen</button>}
       </>}
      </div>
-     {m.cue&&m.cue.replace(/<[^>]*>/g,'').trim()&&<details className={styles.cue}><summary>Einsatz (nur SL)</summary>{m.cue.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()}</details>}
+     {m.cue&&plain(m.cue)&&<details className={styles.cue}><summary>Einsatz (nur SL)</summary>{plain(m.cue)}</details>}
      {m.note.trim()&&<details className={styles.cue}><summary>SL-Notiz</summary>{m.note}</details>}
     </div>
    </article>;
