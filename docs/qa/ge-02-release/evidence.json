@@ -1,0 +1,12 @@
+{
+ "base": "http://127.0.0.1:8898",
+ "pool": 3,
+ "difficulty": 8,
+ "faces": [
+  9,
+  8,
+  3
+ ],
+ "outcome": "success",
+ "net": 2
+}
