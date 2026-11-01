@@ -111,3 +111,19 @@ export const sceneCommandSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('withdraw'), ...base, target: sceneTargetSchema }).strict(),
 ]);
 export type SceneCommand = z.infer<typeof sceneCommandSchema>;
+
+/** Rollback aid (GE-02 release): turns structured checks back into the free text an older build understands.
+ * Nothing is lost: traits, SG, intended figure ids and consequences are appended to the element text. Pure and idempotent. */
+export function sceneWithoutStructuredChecks(document:Record<string,unknown>):{document:Record<string,unknown>;changed:number}{
+  const elements=Array.isArray(document.elements)?document.elements as Record<string,unknown>[]:[];let changed=0;
+  const esc=(v:unknown)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const next=elements.map(e=>{
+    if(!e||typeof e!=='object'||(e as {check?:unknown}).check==null)return e;
+    const {check,...rest}=e as Record<string,unknown>&{check?:Partial<SceneCheck>};changed++;
+    const c=check||{},parts=[c.attributeId&&'Attribut '+esc(W10_ATTRIBUTE_KEYS[c.attributeId as keyof typeof W10_ATTRIBUTE_KEYS]||c.attributeId),c.abilityId&&'Fähigkeit '+esc(W10_ABILITY_KEYS[c.abilityId as keyof typeof W10_ABILITY_KEYS]||c.abilityId),c.difficulty&&'SG '+esc(c.difficulty),c.targetCharacterIds?.length&&'Figuren '+esc(c.targetCharacterIds.join(', '))].filter(Boolean);
+    const follow=(['success','failure','botch'] as const).flatMap(k=>c.consequences?.[k]?[{success:'Erfolg',failure:'Fehlschlag',botch:'Patzer'}[k]+': '+esc(c.consequences[k])]:[]);
+    const note='<p>Probe (strukturiert, zurückgeführt): '+(parts.join(' · ')||'ohne Werte')+'</p>'+(follow.length?'<p>Folgen: '+follow.join(' · ')+'</p>':'');
+    return {...rest,text:String(rest.text||'')+note};
+  });
+  return {document:changed?{...document,elements:next}:document,changed};
+}
