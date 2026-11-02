@@ -186,7 +186,7 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
   if(c.action==='activateScene'){
    // A scene change clears the previous scene's table material. Player notes and what players laid out from their
    // own inventory stay (it belongs to them, not to the scene).
-   next.sceneId=c.sceneId;next.objects=next.objects.filter(o=>o.kind==='note'||o.sourceKind==='record'&&!o.sourceId.startsWith('scene-material:')&&!o.presentation||!!o.ownerId&&o.ownerId!==a.id&&!!o.material);
+   next.sceneId=c.sceneId;next.objects=next.objects.filter(o=>o.kind==='note'||o.sourceKind==='record'&&!o.sourceId.startsWith('scene-material:')&&!o.sourceId.startsWith('standard-figure:')&&!o.presentation||!!o.ownerId&&o.ownerId!==a.id&&!!o.material);
   }
  }else if(c.action==='add'){
   if(c.kind==='note'){

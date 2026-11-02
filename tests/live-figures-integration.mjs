@@ -58,6 +58,24 @@ export async function liveFiguresIntegration({req,check,base,testPassword,localS
  check(playerStage.s===200,'FIGURES invited player reaches the stage');
  const stage=JSON.stringify(playerStage.d);
  check(!stage.includes('Türsteher')&&!stage.includes('SYNTHETIC note')&&!stage.includes('statblock')&&!stage.includes(fileId),'FIGURES no figure data in the player stage snapshot');
+
+ // Table presentation: a figure with a picture goes on the stage like an NPC; without a picture it is refused; players see only the released object.
+ const sid=id=>'standard-figure:'+sessionId+':'+id,stageUrl='/api/live-stage?sessionId='+sessionId;
+ const gmStage=async()=>(await req(stageUrl,'gm')).d;
+ const gmCommand=async command=>{const s=await gmStage();return req('/api/live-stage','gm','POST',{sessionId,runId:s.runId,expectedVersion:s.version,command});};
+ check((await gmCommand({action:'add',kind:'npc',sourceId:sid(two.id),sourceKind:'record'})).s===400,'FIGURES a figure without a picture cannot go on the table');
+ const addSl=await gmCommand({action:'add',kind:'npc',sourceId:sid(one.id),sourceKind:'record'});
+ const placedObject=((await gmStage()).objects||[]).find(o=>o.sourceId===sid(one.id));
+ check(addSl.s===200&&placedObject&&placedObject.kind==='npc'&&placedObject.visibility==='sl','FIGURES figure is placed on the table for the GM only ('+addSl.s+' '+JSON.stringify(addSl.d).slice(0,200)+' '+JSON.stringify(placedObject||null).slice(0,200)+')');
+ const playerSees=async()=>((await call(stageUrl,players[0])).d.objects||[]).find(o=>o.sourceId===sid(one.id));
+ check(!(await playerSees()),'FIGURES SL-only figure is invisible to players');
+ const runState=await gmStage();
+ check([403,404].includes((await call('/api/live-stage',players[0],'POST',{sessionId,runId:runState.runId,expectedVersion:runState.version,command:{action:'add',kind:'npc',sourceId:sid(three.id),sourceKind:'record'}})).s),'FIGURES a player cannot place a figure');
+ const shown=await gmCommand({action:'visibility',id:placedObject.id,visible:true,recipients:null});
+ const seen=await playerSees();
+ check(shown.s===200&&seen&&seen.title==='Türsteher 1','FIGURES released figure appears for players with its name');
+ const playerView=JSON.stringify(seen||{});
+ check(!playerView.includes('"stats"')&&!playerView.includes('hurt')&&!playerView.includes('SYNTHETIC note'),'FIGURES players get no values or notes of the figure');
  // Retire only removes the chosen instance.
  const gone=await req('/api/live-figures','gm','POST',{action:'retire',sessionId,id:three.id});
  check(gone.s===200&&!gone.d.figures.some(f=>f.id===three.id)&&gone.d.figures.some(f=>f.id===one.id),'FIGURES retire removes only that instance');

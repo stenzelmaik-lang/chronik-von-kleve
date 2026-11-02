@@ -106,3 +106,11 @@ export async function changeFigures(a:Actor,c:FigureCommand){
  const next=await mutate(ak,parseAssets,list=>list.filter(x=>x.id!==c.assetId));
  return {assets:next};
 }
+
+/** One live figure for the table (GM only); used to put it on the stage like an NPC. */
+export async function readFigure(a:Actor,sessionId:string,figureId:string){
+ await gate(a,sessionId);
+ const figure=parseState(await readRaw(figuresKey(a.campaignId,sessionId))).figures.find(f=>f.id===figureId);
+ if(!figure)throw new HttpError(404,'Figur nicht gefunden.');
+ return figure;
+}

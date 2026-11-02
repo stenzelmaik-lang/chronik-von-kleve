@@ -162,4 +162,4 @@ export const nextLabel = (name: string, existing: readonly { label: string }[]):
 };
 
 /** Prepared selection of a scene (scene document field `standardFigures`). */
-export type PreparedFigure = { id: string; typeId: string; tierId: TierId; count: number };
+export type PreparedFigure = { id: string; typeId: string; tierId: TierId; count: number; imageFileId?: string };

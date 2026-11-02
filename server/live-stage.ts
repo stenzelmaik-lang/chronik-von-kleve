@@ -16,6 +16,7 @@ import {env} from 'cloudflare:workers';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
 import {materialStageSource,regieMaterials} from './material-stage';
+import {readFigure} from './live-figures';
 import {archivePocket,pocketHolders,pocketItem,pocketRow,pocketSnapshot,removePocket,restorePocket} from './material-pocket';
 
 export function storedStage(room:{stage?:unknown}):StageState{
@@ -33,6 +34,13 @@ export async function stageSource(a:Actor,id:string,kind:'entity'|'file'|'record
   await validatePreparationMedia(database(),a,[w.text],imageIds.map(id=>({id,kind:'image'})));
   return {title:w.title,kind:'document' as const,sourceId:id,sourceKind:kind,sourceVersion:scene.version,ownerId:a.id,documentContent:w.text,presentation:w.kind,recipients:w.recipientIds,
    ...(imageIds.length?{media:'pages' as const,pages:imageIds.map((fileId,i)=>({id:crypto.randomUUID(),fileId,title:'Bild '+(i+1)}))}:{})};
+ }
+  // Standard figures (live instances) appear on the table like an NPC; the picture is the file chosen for that instance.
+ if(kind==='record'&&id.startsWith('standard-figure:')){
+  gmOnly(a);const split=id.lastIndexOf(':'),figure=await readFigure(a,id.slice(16,split),id.slice(split+1));
+  if(!figure.imageFileId)throw new HttpError(400,'Wähle zuerst ein Bild für diese Figur.');
+  const f=await liveFile(a,figure.imageFileId);if(!f.mime.startsWith('image/'))throw new HttpError(400,'Das Figurenbild muss ein Bild sein.');
+  return {title:figure.label,kind:'npc' as const,sourceId:id,sourceKind:kind,ownerId:a.id,sourceFileId:f.id,media:stageMediaOf(f.mime)};
  }
  if(kind==='record'&&id.startsWith('scene-material:')){gmOnly(a);const split=id.lastIndexOf(':'),scene=await readScene(database(),a,id.slice(15,split)),material=scene.document.elements.find(e=>e.id===id.slice(split+1)&&e.material);
   // Spielmaterial 3.0: one table object with all files, the display asset states and the effect.
@@ -153,7 +161,7 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
  let next:StageState;try{next=changeStageObjects(state,a,c,source,backdrop,music);}catch(e){if(e instanceof Error&&'status' in e)throw new HttpError(Number(e.status),e.message);throw new HttpError(400,'Ungültige Bühnenaktion.');}
  // Starting a scene with a prepared playlist starts it for everyone (it loops); without one the current music keeps playing.
  if(c.action==='activateScene'&&scenePlaylist)next=startYoutube(next,scenePlaylist.tracks,{label:scenePlaylist.label,sceneId:c.sceneId});
- const sourceGuard=source?.sourceKind==='record'&&!source.sourceId.startsWith('scene-material:')&&!source.sourceId.startsWith('scene-whisper:')?" AND EXISTS (SELECT 1 FROM records prepared WHERE prepared.id=? AND prepared.campaign_id=? AND prepared.owner_id=? AND prepared.version=?)":"";
+ const sourceGuard=source?.sourceKind==='record'&&!source.sourceId.startsWith('scene-material:')&&!source.sourceId.startsWith('scene-whisper:')&&!source.sourceId.startsWith('standard-figure:')?" AND EXISTS (SELECT 1 FROM records prepared WHERE prepared.id=? AND prepared.campaign_id=? AND prepared.owner_id=? AND prepared.version=?)":"";
  const sourceBindings=sourceGuard&&source?[source.sourceId,a.campaignId,a.id,source.sourceVersion!]:[];
  const whisperGuard=source&&'presentation' in source&&source.presentation?" AND EXISTS (SELECT 1 FROM entities prepared WHERE prepared.id=? AND prepared.campaign_id=? AND prepared.version=?)":'';
  const whisperBindings=whisperGuard&&source?[source.sourceId.slice(14,source.sourceId.lastIndexOf(':')),a.campaignId,source.sourceVersion!]:[];

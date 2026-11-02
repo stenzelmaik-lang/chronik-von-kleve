@@ -55,7 +55,7 @@ export const sceneDocumentSchema = z.object({
   whispers:z.array(sceneWhisperSchema).max(100).default([]).refine(v=>new Set(v.map(w=>w.id)).size===v.length,'Botschaften benötigen eindeutige IDs.'),
   youtube: z.array(sceneYoutubeSchema).max(sceneYoutubeMax).refine(v=>new Set(v.map(t=>t.id)).size===v.length,'Titel dürfen nicht doppelt sein.').optional(),
   npcIds: ids, clueIds: ids,
-  standardFigures: z.array(z.object({ id: z.string().uuid(), typeId: z.string().min(1).max(60), tierId: z.enum(['easy','standard','hard','very_hard','extreme']), count: z.number().int().min(1).max(10) }).strict()).max(30).default([]),
+  standardFigures: z.array(z.object({ id: z.string().uuid(), typeId: z.string().min(1).max(60), tierId: z.enum(['easy','standard','hard','very_hard','extreme']), count: z.number().int().min(1).max(10), imageFileId: z.string().max(160).optional() }).strict()).max(30).default([]),
   possibilities: z.array(z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(200), text: z.string().max(3000) }).strict()).max(50)
     .refine(v => new Set(v.map(p => p.id)).size === v.length, 'Möglichkeiten dürfen nicht doppelt sein.'),
 }).strict();
