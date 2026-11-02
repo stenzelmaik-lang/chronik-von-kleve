@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-html-link-for-pages -- Crossing player and SL surfaces deliberately clears client context. */
-import { Clapperboard, Users, MapPin, Play, Images, FolderOpen, LayoutDashboard, Download } from 'lucide-react';
+import { Clapperboard, Users, MapPin, Play, Images, FolderOpen, Download } from 'lucide-react';
 import type { Actor } from '@/domain/types';
 import { Toaster } from '@/components/ui/sonner';
 import {MessageCenter} from './message-center';
@@ -11,7 +11,6 @@ const preparationTools = [
   { name: 'Spieler & Charaktere', description: 'Die Charaktere deiner Spielrunde einsehen', section: 'charaktere', icon: Users },
   { name: 'Galerie', description: 'Bilder und Dateien finden, sortieren und verwalten', section: 'galerie', icon: Images },
   { name: 'Material', description: 'Dokumente und Unterlagen zum Ausspielen vorbereiten', section: 'vorbereitung', icon: FolderOpen },
-  { name: 'Chronik-CMS', description: 'Inhalte der Kampagne kuratieren und freigeben', section: 'cms', icon: LayoutDashboard },
   { name: 'Orte', description: 'Schauplätze, Bereiche und Räume verwalten', section: 'ortscms', icon: MapPin },
 ];
 
