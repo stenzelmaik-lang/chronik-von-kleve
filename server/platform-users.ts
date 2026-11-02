@@ -9,7 +9,7 @@ type AccountRow = {
   verifiedAt: string | null;
 };
 type PlatformRoleRow = { accountId: string; role: string };
-type CampaignRoleRow = { accountId: string; campaignId: string; campaignName: string; role: string; status: string };
+type CampaignRoleRow = { accountId: string; campaignId: string; campaignName: string; role: string; status: string; version: number };
 
 export async function platformUserOverview(memberId: string) {
   if (!(await accountRoles(memberId)).includes("platform_admin"))
@@ -26,7 +26,7 @@ export async function platformUserOverview(memberId: string) {
     db.prepare(`SELECT l.auth_user_id AS accountId,p.role
       FROM platform_roles p JOIN auth_member_links l ON l.member_id=p.user_id
       WHERE p.status='active' ORDER BY p.role`).all<PlatformRoleRow>(),
-    db.prepare(`SELECT l.auth_user_id AS accountId,c.id AS campaignId,c.name AS campaignName,cm.role,cm.status
+    db.prepare(`SELECT l.auth_user_id AS accountId,c.id AS campaignId,c.name AS campaignName,cm.role,cm.status,cm.version
       FROM campaign_memberships cm
       JOIN auth_member_links l ON l.member_id=cm.user_id
       JOIN campaigns c ON c.id=cm.campaign_id
@@ -41,7 +41,7 @@ export async function platformUserOverview(memberId: string) {
     verified: Boolean(account.verifiedAt),
     platformRoles: platformRoles.results.filter(row => row.accountId === account.id).map(row => row.role),
     campaigns: campaignRoles.results.filter(row => row.accountId === account.id).map(row => ({
-      id: row.campaignId, name: row.campaignName, role: row.role, status: row.status,
+      id: row.campaignId, name: row.campaignName, role: row.role, status: row.status, version: row.version,
     })),
   }));
 }
