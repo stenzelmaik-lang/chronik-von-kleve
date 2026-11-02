@@ -17,6 +17,7 @@ import { npcCardData } from './npc-card-data';
 import cards from './npc-cards.module.css';
 
 export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) {
+  const listPath=npcListPath(gm);
   const [entities, setEntities] = useState<NPCListEntry[] | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [refresh, setRefresh] = useState(0);
@@ -41,16 +42,16 @@ export function NPCPanel({ dataScope, gm }: { dataScope: string; gm: boolean }) 
   function saved(id:string,title:string){
     setEditing(null);pendingScroll.current=0;
     setFrames(previous=>previous.length?previous.map((f,i)=>i===previous.length-1?{id,title,scroll:0}:f):[{id,title,scroll:0}]);
-    setDetailRevision(n=>n+1);invalidatePlayerData(dataScope,npcListPath);setRefreshing(true);setRefresh(n=>n+1);
+    setDetailRevision(n=>n+1);invalidatePlayerData(dataScope,listPath);setRefreshing(true);setRefresh(n=>n+1);
   }
   useEffect(() => {
     let alive = true;
-    requestPlayerData(dataScope, npcListPath, () => loadNPCList(api), { force: refresh > 0 })
+    requestPlayerData(dataScope, listPath, () => loadNPCList(api,gm), { force: refresh > 0 })
       .then(value => { if (alive) { setEntities(value); setError(null); } })
       .catch(e => { if (alive) { setError(e); if (describeDataError(e).permission) { setEntities(null); setFrames([]); } } })
       .finally(() => { if (alive) setRefreshing(false); });
     return () => { alive = false; };
-  }, [dataScope, refresh]);
+  }, [dataScope, listPath, gm, refresh]);
   const list = (entities ?? []).filter(e => (e.title + ' ' + JSON.stringify(e.content)).toLowerCase().includes(search.toLowerCase()));
   return <>
     {gm&&<button type="button" className="button" onClick={event=>{opener.current=event.currentTarget;overviewScroll.current=window.scrollY;pendingScroll.current=0;setEditing({});}}>NPC anlegen</button>}

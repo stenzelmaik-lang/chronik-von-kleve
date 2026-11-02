@@ -13,30 +13,31 @@ import { entityTypeSchema, canonStatusSchema, playStateSchema, legacyCanonStatus
 import { loadEntities, grantsFor, projectEntity } from "@/server/entities";
 import { characterKnowledgeContext } from '@/server/character-knowledge';
 import {npcRedactedCards} from '@/server/npc-redacted-cards';
+import {readViewer} from '@/server/read-view';
 export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
-    const a = await actor(),
-      id = new URL(req.url).searchParams.get("id") || undefined,
-      db = database();
-    const characterId = new URL(req.url).searchParams.get('characterId');
-    const requestedType = new URL(req.url).searchParams.get('type');
+    const a = await actor(), query = new URL(req.url).searchParams,
+      id = query.get("id") || undefined, db = database();
+    const viewer = readViewer(a, query.get('view'));
+    const characterId = query.get('characterId');
+    const requestedType = query.get('type');
     const type = requestedType === null ? undefined : entityTypeSchema.safeParse(requestedType);
     if (type && !type.success) throw new HttpError(400, "Ungültiger Entity-Typ.");
-    const includeRedacted=new URL(req.url).searchParams.get('includeRedacted')==='1';
+    const includeRedacted=query.get('includeRedacted')==='1';
     if(includeRedacted&&(id||!type?.success||type.data!=='NPC'))throw new HttpError(400,'Anonyme Karten sind nur in der NPC-Übersicht verfügbar.');
     const character = characterId ? await characterKnowledgeContext(db, a, characterId) : undefined;
     const [entities, grants] = await Promise.all([
       loadEntities(db, a.campaignId, id),
-      grantsFor(db, a, character),
+      grantsFor(db, viewer, character),
     ]);
     const result = entities
       .filter((e) => !type || (type.success && e.type === type.data))
-      .map((e) => projectEntity(a, e, grants, character))
+      .map((e) => projectEntity(viewer, e, grants, character))
       .filter((e) => e !== null);
     if (id && !result.length)
       throw new HttpError(404, "Entität nicht gefunden.");
-    return json({ entities: result,...(includeRedacted?{redactedNPCs:await npcRedactedCards(a,entities,grants,character)}:{}) });
+    return json({ entities: result,...(includeRedacted?{redactedNPCs:await npcRedactedCards(viewer,entities,grants,character)}:{}) });
   } catch (e) {
     return failure(e, req);
   }

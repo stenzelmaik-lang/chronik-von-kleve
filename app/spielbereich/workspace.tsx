@@ -328,7 +328,7 @@ export default function Workspace({
           <button className="button" onClick={reload}>Erneut versuchen</button>
         </section>
       ) : section === "nscs" ? (
-        <NPCPanel key={dataScope} dataScope={dataScope} gm={a.gm} />
+        <NPCPanel key={dataScope} dataScope={dataScope} gm={surface === "sl" && a.gm} />
       ) : section === "charaktere" ? (
         <>{surface === "sl" ? <PlayerCharacterManagement a={a} inspection key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} /> : <CharacterDetail a={a} inspection={false} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />}</>
       ) : section === "inventar" ? (

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { actor,database,sameOrigin,input,json,failure,HttpError } from '@/server/access';
 import { relationshipInputSchema } from '@/domain/relationships';
 import { RelationshipError,createRelationship,readRelationships,deleteRelationship } from '@/server/relationships';
+import { readViewer } from '@/server/read-view';
 
 export const dynamic='force-dynamic';
 const idSchema=z.string().trim().min(1).max(200);
@@ -10,7 +11,7 @@ export async function GET(req:Request) {
   try {
     const q=new URL(req.url).searchParams,entity=idSchema.safeParse(q.get('entityId')),id=q.get('id');
     if(!entity.success || (id!==null && !idSchema.safeParse(id).success)) throw new HttpError(400,'Ungültige ID.');
-    return json({relationships:await readRelationships(database(),await actor(),entity.data,id??undefined)});
+    return json({relationships:await readRelationships(database(),readViewer(await actor(),q.get('view')),entity.data,id??undefined)});
   } catch(e) { return fail(e,req); }
 }
 export async function POST(req:Request) {
