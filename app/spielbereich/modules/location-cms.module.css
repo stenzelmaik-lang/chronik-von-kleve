@@ -128,6 +128,7 @@
 .directorySearch input { width: 100%; min-width: 0; border: 0; outline: 0; color: #e9e3d7; background: transparent; }
 .directorySearch input::placeholder { color: #838883; }
 .directoryActions { display: flex; flex-wrap: wrap; gap: 7px; }
+.creationSteps { margin: 0; padding: 10px 12px; border-left: 2px solid #d6b36f; color: #d3d1c7; background: rgba(205, 166, 107, .08); font-size: 12px; line-height: 1.5; }
 .chapterComposer { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
 .chapterComposer > label { flex: 1 1 260px; min-width: 0; margin: 0; }
 .chapterComposer :global(.button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; }
