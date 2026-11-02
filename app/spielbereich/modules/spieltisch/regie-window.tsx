@@ -9,6 +9,8 @@ import {api,ApiError} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import {BackdropChoice,tableState} from './regie';
+import {RegieFigures} from './regie-figures';
+import type {PreparedFigure} from '@/domain/standard-figures';
 import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
 import {TableMaterialLibrary} from '../table-material-library';
@@ -51,7 +53,7 @@ function Block({title,children,open=true,area}:{title:string;children:ReactNode;
  * the other areas live in their own columns and are scrolled into view (and opened) on choice.
  */
 const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['checks','Proben','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
- ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
+ ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['figures','Figuren','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
 type RegieArea=typeof regieAreas[number][0];
 const areaKey=(actorId:string)=>'chroniplay:regie-bereich:'+actorId;
 const effectIcons:Record<StageEffect,typeof CloudRain>={rain:CloudRain,fog:CloudFog,storm:CloudLightning,snow:Snowflake,embers:Flame,darkness:Moon,flicker:Lightbulb};
@@ -224,6 +226,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     <span id="regie-bereich-material" data-area="material" className={styles.anchor} tabIndex={-1}/>
     {!!context.materials?.length&&<Block title="Szenenmaterial"><RegieMaterials heading={false} materials={context.materials} objects={snapshot?.objects||[]} crew={crew} busy={busy} run={(body,done)=>run(body,null,done)}/></Block>}
     {snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}
+    <Block title="Standardfiguren" area="figures"><RegieFigures sessionId={room!.sessionId} prepared={(context.scene.standardFigures||[]) as PreparedFigure[]} busy={busy} dice={snapshot?.dice?.events||[]} actorId={a.id} run={(body,recipients,done)=>run(body,recipients,done)}/></Block>
     {!!sceneMedia.filter(m=>m.mime.startsWith('image/')).length&&<Block title="Bilder · Polaroids">{sceneMedia.filter(m=>m.mime.startsWith('image/')).map(m=>media(m,ImageIcon,'image'))}</Block>}
     {!!sceneMedia.filter(m=>m.mime==='application/pdf').length&&<Block title="Dokumente · PDF">{sceneMedia.filter(m=>m.mime==='application/pdf').map(m=>media(m,FileText,'pdf'))}</Block>}
     {!!context.handouts.length&&<Block title="Handout-Akten">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,h.sourceKind||'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:h.sourceKind||'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}

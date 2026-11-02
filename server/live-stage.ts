@@ -56,7 +56,7 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
  const npcIds=[...new Set([...d.npcIds,...d.elements.filter(e=>e.kind==='person'&&entity(e.referenceId)?.type==='NPC').map(e=>e.referenceId)])];
  const handoutIds=[...new Set([...d.clueIds,...d.elements.filter(e=>e.kind==='handout'&&e.referenceId).map(e=>e.referenceId)])];
  return {
-  scene:{id:scene.id,version:scene.version,title:d.title,narration:d.narration,atmosphere:d.atmosphere,dialogueNotes:d.dialogueNotes,interactions:d.interactions,secrets:d.secrets,visions:d.visions,possibleConsequences:d.possibleConsequences,gmNotes:d.gmNotes,possibilities:d.possibilities},
+  scene:{id:scene.id,version:scene.version,title:d.title,standardFigures:d.standardFigures,narration:d.narration,atmosphere:d.atmosphere,dialogueNotes:d.dialogueNotes,interactions:d.interactions,secrets:d.secrets,visions:d.visions,possibleConsequences:d.possibleConsequences,gmNotes:d.gmNotes,possibilities:d.possibilities},
   place:entity(d.placeId)?{id:d.placeId,title:entity(d.placeId)!.title}:null,
   backdrop:files.results.filter(f=>f.id===d.backdropFileId&&f.mime.startsWith('image/')).map(f=>({fileId:f.id,name:f.name}))[0]||null,
   npcs:npcIds.flatMap(id=>{const e=entity(id);return e&&e.type==='NPC'?[{id,title:e.title,summary:text(e.content.text),gmBody:e.gmBody||'',image:'/api/live-stage/asset?sessionId='+encodeURIComponent(sessionId)+'&catalogId='+encodeURIComponent(id),cue:d.elements.filter(x=>x.referenceId===id).map(x=>x.text).join('')}]:[];}),
