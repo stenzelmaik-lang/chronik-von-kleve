@@ -1,7 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {database,HttpError,canRead,type Actor} from './access';
 import {stageRoom} from './live-stage';
-import {liveMembers} from './live-game';
+import {liveMembers,roomCrew} from './live-game';
 import {characterDetailProjection} from './character-projection';
 import {characterRecord,itemRows,parseItem} from './inventory';
 import {publicCharacterCard} from '@/domain/live-participants';
@@ -9,7 +9,7 @@ import type {LegacyRecordRow} from '@/domain/legacy';
 
 export async function participantContext(a:Actor,sessionId:string,memberId:string){
  const {room}=await stageRoom(a,sessionId);
- const member=(await liveMembers(a)).find(m=>m.id===memberId&&room.participants?.includes(m.id));
+ const member=roomCrew(room,await liveMembers(a)).find(m=>m.id===memberId);
  if(!member)throw new HttpError(404,'Teilnehmer ist nicht in dieser Spielrunde.');
  return member;
 }

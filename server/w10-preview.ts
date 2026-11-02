@@ -32,7 +32,7 @@ export async function previewCharacter(a: Actor, userId: string, sessionId: stri
   const { room } = await stageRoom(a, sessionId);
   if (a.gm) {
     const { row, body } = await editableCharacter(a, id);
-    const participants = (await liveMembers(a)).map(m => m.id).filter(m => !room.participants || room.participants.includes(m));
+    const participants = (await liveMembers(a)).map(m => m.id);
     if (!activeCharacterBody(body) || !participants.includes(row.owner_id)) throw new HttpError(404, "Charakter nicht an diesem Spielabend.");
     if (!playable(body)) throw new HttpError(409, "Dieser Charakter ist noch nicht spielbereit (Entwurf oder in Prüfung).");
     return { row, body };

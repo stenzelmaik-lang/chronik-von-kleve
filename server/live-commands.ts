@@ -1,5 +1,5 @@
 import {database,HttpError,gmOnly,canRead,type Actor} from '@/server/access';
-import {liveMembers,readLiveRoom,liveFile,type LiveRoom} from './live-game';
+import {liveMembers,readLiveRoom,liveFile,roomCrew,type LiveRoom} from './live-game';
 import {liveAudience,liveRoll,LIVE_MEDIA_TYPES,type LiveEvent} from '@/domain/live-game';
 import {readScene} from './story-scenes';
 export const LIVE_ACTIONS=['start','end','showScene','hideScene','showMedia','mediaIndex','hideMedia','roll','closeRoll'];
@@ -74,7 +74,7 @@ export async function liveCommand(a:Actor,d:Command){
   const result=await db.prepare("UPDATE records SET body=json_set(body,'$.closedShared',json('true'),'$.revision',?),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=? AND EXISTS(SELECT 1 FROM records r WHERE r.id=? AND r.campaign_id=? AND json_extract(r.body,'$.runId')=? AND json_extract(r.body,'$.open')=1)").bind((roll.revision||1)+1,stamp,eventId,a.campaignId,current.version,id,a.campaignId,room.runId).run();
   if(!result.meta.changes)throw new HttpError(409,'Wurf oder Sitzung inzwischen geändert.');return {ok:true};
  }
- const eligible=(await liveMembers(a)).map(m=>m.id).filter(id=>room.participants?.includes(id));let recipients;
+ const eligible=roomCrew(room,await liveMembers(a)).map(m=>m.id);let recipients;
  try{recipients=liveAudience(d.audience,eligible);}catch(e){throw new HttpError(400,(e as Error).message);}
  if(d.action!=='roll')gmOnly(a);
  const request=JSON.stringify({action:d.action,runId:d.runId,recipients,sceneId:d.sceneId,sceneVersion:d.sceneVersion,fileIds:d.fileIds,pool:d.pool,target:d.target});

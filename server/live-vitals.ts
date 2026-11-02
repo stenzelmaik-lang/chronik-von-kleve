@@ -21,7 +21,7 @@ type TableCharacter={row:LegacyRecordRow;body:Record<string,unknown>};
  * Hat eine Person eine aktive Figur gewählt, zählt nur diese.
  */
 async function tableCharacters(a:Actor,room:LiveRoom):Promise<TableCharacter[]>{
- const db=database(),members=await liveMembers(a),participants=members.map(m=>m.id).filter(id=>!room.participants||room.participants.includes(id));
+ const db=database(),members=await liveMembers(a),participants=members.map(m=>m.id);
  if(!participants.length)return [];
  const marks=participants.map(()=>'?').join(',');
  const [rows,preferences]=await Promise.all([
