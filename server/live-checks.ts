@@ -3,7 +3,7 @@
 import {env} from 'cloudflare:workers';
 import {z} from 'zod';
 import {database,gmOnly,HttpError,type Actor} from './access';
-import {liveMembers,isGmMembership} from './live-game';
+import {liveMembers,isGmMembership,roomCrew} from './live-game';
 import {stageRoom} from './live-stage';
 import {previewCharacter,w10Preview} from './w10-preview';
 import {readScene} from './story-scenes';
@@ -79,7 +79,7 @@ export async function liveCheckCommand(a:Actor,userId:string,raw:unknown){
   gmOnly(a);
   if(d.attributeId&&!Object.hasOwn(W10_ATTRIBUTE_KEYS,d.attributeId)||d.abilityId&&!Object.hasOwn(W10_ABILITY_KEYS,d.abilityId))throw new HttpError(400,'Unbekannte Eigenschaft oder Fähigkeit.');
   // Only players at the table can be addressed; a second GM never becomes a target (the roll would be refused anyway).
-  const members=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id)&&!isGmMembership(m.membershipRole)&&m.id!==a.id).map(m=>m.id);
+  const members=roomCrew(room,await liveMembers(a)).filter(m=>!isGmMembership(m.membershipRole)&&m.id!==a.id).map(m=>m.id);
   let recipients:string[]|null;
   if(d.targetCharacterIds){
    const rows=(await database().prepare(`SELECT id,owner_id FROM records WHERE campaign_id=? AND kind='charaktere' AND id IN (${d.targetCharacterIds.map(()=>'?').join(',')})`).bind(a.campaignId,...d.targetCharacterIds).all<{id:string;owner_id:string}>()).results;

@@ -2,7 +2,7 @@ import {richTextFileIds,richTextToPlainText} from '@/domain/location-rich-text';
 import {validatePreparationMedia} from './preparation-media';
 import {readMaterial} from './table-materials';
 import {database,gmOnly,HttpError,type Actor} from './access';
-import {readLiveRoom,liveMembers,liveFile,isGmMembership} from './live-game';
+import {readLiveRoom,liveMembers,liveFile,isGmMembership,roomCrew} from './live-game';
 import {checksActive,checksAvailable,type ChecksGateEnv} from '@/domain/live-checks';
 import {liveEvents} from './live-commands';
 import {loadEntities,loadEntitiesForIds} from './entities';
@@ -99,7 +99,7 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
   backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(stage.backdrop.transition?{transition:stage.backdrop.transition}:{}),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,boardLocked:!!room.boardLocked,
-  crew:members.filter(m=>room.participants?.includes(m.id)).map(({membershipRole,...m})=>({...m,...(a.gm&&isGmMembership(membershipRole)?{gm:true}:{}),avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
+  crew:roomCrew(room,members).map(({membershipRole,...m})=>({...m,...(a.gm&&isGmMembership(membershipRole)?{gm:true}:{}),avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
   // Character condition values: own and explicitly released characters only; GM sees the whole table.
   vitals,
@@ -120,12 +120,12 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
  if(c.action==='add'&&c.sourceId?.startsWith('scene-whisper:'))gmOnly(a);
  // A prepared material exists once: while a player carries it, it cannot be laid out a second time.
  if(c.action==='add'&&c.sourceId?.startsWith('scene-material:')){const holder=(await pocketHolders(a,[c.sourceId])).get(c.sourceId);if(holder)throw new HttpError(409,'Dieses Material trägt gerade '+holder.name+' bei sich. Hol es in der Regie zurück, um es neu aufzulegen.');}
- if((c.action==='visibility'||c.action==='add'||c.action==='pager')&&c.recipients?.length){const eligible=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id));if(c.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Zielperson ist nicht in dieser Runde.');}
+ if((c.action==='visibility'||c.action==='add'||c.action==='pager')&&c.recipients?.length){const eligible=roomCrew(room,await liveMembers(a));if(c.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Zielperson ist nicht in dieser Runde.');}
  const source=c.action==='add'&&c.kind!=='note'?await stageSource(a,c.sourceId||'',c.sourceKind||'entity'):undefined;
  if(c.action==='add'&&source&&'presentation' in source&&source.presentation){
   if(c.sourceVersion!==source.sourceVersion)throw new HttpError(409,'Die Vorbereitung wurde geaendert. Lade die Regie neu.');
   c={...c,visible:true,recipients:source.recipients};
-  const eligible=(await liveMembers(a)).filter(m=>room.participants?.includes(m.id));
+  const eligible=roomCrew(room,await liveMembers(a));
   if(source.recipients.some(id=>!eligible.some(m=>m.id===id)))throw new HttpError(400,'Ein vorbereiteter Empfänger nimmt nicht an dieser Runde teil. Passe die Vorbereitung an.');
  }
  if(c.action==='add'&&source&&source.kind!==c.kind)throw new HttpError(400,'Objekttyp passt nicht zur Quelle.');
