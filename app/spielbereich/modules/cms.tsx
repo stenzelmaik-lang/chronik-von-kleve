@@ -114,7 +114,7 @@ export function CMSPanel({
       Promise.all(
         cmsKinds.map(
           async (k) =>
-            [k.id, (await api("/api/records?kind=" + k.id)).records || []] as [
+            [k.id, (await api("/api/records?kind=" + k.id + "&view=sl")).records || []] as [
               string,
               Entry[],
             ],

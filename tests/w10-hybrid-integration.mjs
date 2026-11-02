@@ -111,7 +111,7 @@ console.log('PASS read-only: no record writes');
 const engineView=async(c,id)=>JSON.parse((await c.get('/api/character-engine?id='+encodeURIComponent(id))).text);
 const editSheet=async(c,id,patch)=>{const v=await version(c,id);return c.post('/api/character-engine',{id,version:v,action:'edit_sheet',patch,reason:'Synthetische K4-Abnahme'});};
 const specB={id:'spec_'+crypto.randomUUID(),target:{kind:'ability',id:'firearms'},name:'Pistolen',scope:'Kurze Distanz'};
-const skillsB=(await engineView(gm,charB.id)).sheet?.skills??JSON.parse((await gm.get('/api/records?kind=charaktere')).text).records.find(r=>r.id===charB.id).body.skills;
+const skillsB=(await engineView(gm,charB.id)).sheet?.skills??JSON.parse((await gm.get('/api/records?kind=charaktere&view=sl')).text).records.find(r=>r.id===charB.id).body.skills;
 assert.equal(skillsB.Schusswaffen,3,'Fixture: Schusswaffen 3');
 const tooLow=await editSheet(gm,charB.id,{specialties:[specB]});
 assert.equal(tooLow.status,400,'Rating below 4 refused: '+tooLow.text);assert.match(tooLow.text,/mindestens 4/);

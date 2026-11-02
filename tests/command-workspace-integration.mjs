@@ -64,15 +64,15 @@ export async function commandWorkspaceIntegration({ req, check, localSql, sqlQuo
   const eventId = actual.d.moments.find(m => m.text === moment.text).id;
   check((await req('/api/entities?id=' + eventId, 'b')).s === 404, 'CC2 actual private events are not player handouts');
   check(!JSON.stringify((await req(prefix + '?view=player', 'gm')).d).includes('CC2_ACTUAL_PRIVATE_EVENT'), 'CC2 group preview cannot leak actual SL notes');
-  const noteBase = (await req('/api/records?kind=sitzungen', 'gm')).d.records.find(row => row.id === session.id);
+  const noteBase = (await req('/api/records?kind=sitzungen&view=sl', 'gm')).d.records.find(row => row.id === session.id);
   const concurrentScene = await req('/api/records', 'gm', 'POST', { id: noteBase.id, version: noteBase.version, kind: 'sitzungen', title: noteBase.title, visibility: noteBase.visibility, body: { ...noteBase.body, scene: 'CC2_CONCURRENT_SCENE' }, gmBody: noteBase.gmBody });
   check(concurrentScene.s === 200, 'CC2 scene update establishes a new session revision');
   const staleNote = await req('/api/records', 'gm', 'POST', { id: noteBase.id, version: noteBase.version, kind: 'sitzungen', title: noteBase.title, visibility: noteBase.visibility, body: noteBase.body, gmBody: 'CC2_STALE_PRIVATE_NOTE' });
   check(staleNote.s === 409, 'CC2 notes from an old session revision cannot silently overwrite a concurrent scene change');
-  const noteCurrent = (await req('/api/records?kind=sitzungen', 'gm')).d.records.find(row => row.id === session.id);
+  const noteCurrent = (await req('/api/records?kind=sitzungen&view=sl', 'gm')).d.records.find(row => row.id === session.id);
   check(noteCurrent.body.scene === 'CC2_CONCURRENT_SCENE' && noteCurrent.gmBody !== 'CC2_STALE_PRIVATE_NOTE', 'CC2 rejected stale notes leave the scene and original notes intact');
   const freshNote = await req('/api/records', 'gm', 'POST', { id: noteCurrent.id, version: noteCurrent.version, kind: 'sitzungen', title: noteCurrent.title, visibility: noteCurrent.visibility, body: noteCurrent.body, gmBody: 'CC2_CURRENT_PRIVATE_NOTE' });
-  check(freshNote.s === 200 && (await req('/api/records?kind=sitzungen', 'gm')).d.records.find(row => row.id === session.id).body.scene === 'CC2_CONCURRENT_SCENE', 'CC2 consciously rebased private note saves preserve the latest scene');
+  check(freshNote.s === 200 && (await req('/api/records?kind=sitzungen&view=sl', 'gm')).d.records.find(row => row.id === session.id).body.scene === 'CC2_CONCURRENT_SCENE', 'CC2 consciously rebased private note saves preserve the latest scene');
   check(!JSON.stringify((await req('/api/records?kind=sitzungen', 'a')).d).includes('CC2_CURRENT_PRIVATE_NOTE'), 'CC2 private session notes remain absent from the actual player projection');
   const publicSnapshot = await req(prefix + '?view=player', 'gm');
   check(!['stories', 'moments', 'references'].some(key => key in publicSnapshot.d), 'CC2 group projection excludes private tool collections entirely');

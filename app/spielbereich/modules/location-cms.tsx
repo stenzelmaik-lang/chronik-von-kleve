@@ -75,6 +75,11 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const node=nodes.find(item=>item.id===nodeId)||null;
   const areaParent=locationCreationParent("area",nodes,placeId,nodeId);
   const roomParent=locationCreationParent("room",nodes,placeId,nodeId);
+  const creationParents=newNode?.level==="area"
+    ?nodes.filter(item=>item.id===placeId&&item.level==="location"&&item.lifecycle==="active")
+    :newNode?.level==="room"
+      ?nodes.filter(item=>item.locationId===placeId&&item.level==="area"&&item.lifecycle==="active")
+      :[];
   const selectedDraft=drafts.find(item=>item.id===draftId&&item.entity_id===nodeId&&item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerId))||null;
   const isRoot=node?.level==="location";
   const editable=selectedDraft?.status==="draft";
@@ -131,7 +136,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
 
   async function submitNodeCreation(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
-    if(!newNode||!newNode.title.trim()||!publisher)return;
+    if(!newNode||!newNode.title.trim()||!publisher||(newNode.level!=="location"&&!newNode.parentId))return;
     setBusy(true);
     try{
       const created=await api<{id:string;locationId:string;level:NewNodeDraft["level"]}>('/api/cms/locations','POST',{
@@ -304,6 +309,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         <div className={cmsStyles.directoryHead}><div><p className="eyebrow">BESTAND</p><h2>Ortsverzeichnis</h2></div><button type="button" className="button" aria-label="Ortsverzeichnis aktualisieren" onClick={()=>{if(canLeaveEditor())void loadCatalog();}} disabled={loading}><RefreshCw size={15}/></button></div>
         <label className={"field "+cmsStyles.locationSelect}><span>Hauptort</span><select value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
         <label className={cmsStyles.directorySearch}><Search size={15}/><span className="sr-only">Orte, Bereiche und Räume suchen</span><input value={directorySearch} onChange={event=>setDirectorySearch(event.target.value)} placeholder="Im Bestand suchen"/></label>
+        {publisher&&<p className={cmsStyles.creationSteps}>Hauptort auswählen → Bereich hinzufügen. Bereich auswählen → Raum hinzufügen.</p>}
         {publisher&&<div className={cmsStyles.directoryActions} role="group" aria-label="Ortseinträge hinzufügen">
           {areaParent&&<button type="button" className={`button ${cmsStyles.childCreateAction}`} onClick={()=>beginNodeCreation("area")} disabled={busy||loading}><Plus size={16} aria-hidden="true"/><span>Bereich hinzufügen<small>Hauptort: {areaParent.title}</small></span></button>}
           {roomParent&&<button type="button" className={`button ${cmsStyles.childCreateAction}`} onClick={()=>beginNodeCreation("room")} disabled={busy||loading}><Plus size={16} aria-hidden="true"/><span>Raum hinzufügen<small>Bereich: {roomParent.title}</small></span></button>}
@@ -312,8 +318,10 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         </div>}
         {newNode&&<form className={cmsStyles.createNodeForm} onSubmit={event=>void submitNodeCreation(event)}>
           <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":newNode.level==="area"?"Zum Beispiel: Empfangshalle":newNode.level==="room"?"Zum Beispiel: Warteraum":"Zum Beispiel: Beobachtung"}/></label>
-          <p><strong>{newNode.level==="location"?"Neuer eigenständiger Hauptort.":`${newNode.level==="room"?"Bereich":"Hauptort"}: „${nodes.find(item=>item.id===newNode.parentId)?.title||newNode.parentId}“.`}</strong> Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</p>
-          <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()}><Plus size={14}/> {newNode.level==="location"?"Hauptort":newNode.level==="area"?"Bereich":newNode.level==="room"?"Raum":"Erkenntnis"} anlegen</button></div>
+          {newNode.level!=="information"&&<label className="field"><span>Ortstyp</span><select value={newNode.level} onChange={event=>{const level=event.target.value as "location"|"area"|"room";setNewNode(current=>current?{...current,level,parentId:locationCreationParent(level,nodes,placeId,nodeId)?.id??null}:current);}}><option value="location">Hauptort</option>{areaParent&&<option value="area">Bereich</option>}{nodes.some(item=>item.level==="area"&&item.locationId===placeId&&item.lifecycle==="active")&&<option value="room">Raum</option>}</select></label>}
+          {(newNode.level==="area"||newNode.level==="room")&&<label className="field"><span>{newNode.level==="area"?"Hauptort auswählen":"Bereich auswählen"}</span><select required value={newNode.parentId??""} onChange={event=>setNewNode(current=>current?{...current,parentId:event.target.value||null}:current)}><option value="">Bitte auswählen …</option>{creationParents.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
+          <p>{newNode.level==="information"?<><strong>Hauptort: „{nodes.find(item=>item.id===newNode.parentId)?.title||newNode.parentId}“.</strong> Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</>:"Weitere Details bearbeitest du nach dem Anlegen im Ortsdossier. Der erste Entwurf bleibt unveröffentlicht."}</p>
+          <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()||(newNode.level!=="location"&&!newNode.parentId)}><Plus size={14}/> {newNode.level==="location"?"Hauptort":newNode.level==="area"?"Bereich":newNode.level==="room"?"Raum":"Erkenntnis"} anlegen</button></div>
         </form>}
         <div className={cmsStyles.directoryScroll}>
           {loading&&!nodes.length?<p className="muted">Ortsbestand wird geladen …</p>:!filteredNodes.length?<p className="muted">Keine passenden Einträge.</p>:<nav className={cmsStyles.nodeTree} aria-label="Bereiche, Räume und Informationen">

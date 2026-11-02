@@ -1,6 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rollD10Pool,evaluateNormalV20,recordNormalV20,W10_ACCEPTED_WORDS} from '../../domain/w10.ts';
+import {rollD10Pool,evaluateNormalV20,recordNormalV20,reportForStoredV20Roll,W10_ACCEPTED_WORDS} from '../../domain/w10.ts';
+
+test('stored original interpretation wins over the current normal evaluator',()=>{
+  const roll={dice:[10,10],target:6};
+  // A stored specialty interpretation deliberately differs from the current free-roll result.
+  const original=Object.freeze({...evaluateNormalV20(roll.dice,roll.target),rawSuccesses:4,netSuccesses:4});
+  assert.equal(evaluateNormalV20(roll.dice,roll.target).netSuccesses,2);
+  assert.strictEqual(reportForStoredV20Roll(roll,original),original);
+  assert.equal(reportForStoredV20Roll(roll,original).netSuccesses,4);
+});
+
+test('legacy rolls without reports remain readable without inventing stored metadata',()=>{
+  const legacy={id:'legacy',roll:{dice:[10,6,1],target:6}};
+  const before=JSON.stringify(legacy);
+  assert.equal(reportForStoredV20Roll(legacy.roll).netSuccesses,1);
+  assert.equal(JSON.stringify(legacy),before);
+  assert.equal(Object.hasOwn(legacy,'report'),false);
+  assert.equal(Object.hasOwn(legacy,'rulesVersion'),false);
+});
 
 test('rejection sampling accepts exactly an equal number of uint32 words per W10 face',()=>{
   assert.equal(W10_ACCEPTED_WORDS%10,0);assert.equal(W10_ACCEPTED_WORDS/10,429496729);

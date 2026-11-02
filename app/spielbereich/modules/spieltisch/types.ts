@@ -3,7 +3,7 @@ export type {Rect};
 export type Viewer=string;
 export type NoteObject=Extract<StoredObject,{kind:'note'}>;
 export type StageObject=StoredObject;
-export type DiceEvent={id:string;sessionId:string;sequence:number;revision:number;kind:'roll';authorId:string;authorName:string;at:string;status:'settled_open'|'closed_shared';roll:{pool:number;target:number;dice:number[]};result:import('@/domain/w10').V20Report;animationSeed:number[];checkRef?:{requestId:string;characterId:string;characterVersion:number;selection:{attributeId:string;abilityId?:string;specialtyId?:string};provenance:unknown[];title:string}};
+export type DiceEvent={id:string;sessionId:string;sequence:number;revision:number;kind:'roll';authorId:string;authorName:string;at:string;status:'settled_open'|'closed_shared';roll:{pool:number;target:number;dice:number[]};result:import('@/domain/w10').V20Report;rulesVersion?:string;animationSeed:number[];checkRef?:{requestId:string;characterId:string;characterVersion:number;selection:{attributeId:string;abilityId?:string;specialtyId?:string};provenance:unknown[];title:string}};
 export type DiceJournal={sessionId:string;revision:number;events:DiceEvent[]};
 export type VitalsSnapshot=Awaited<ReturnType<typeof import('@/server/live-vitals').vitalsSnapshot>>;
 export type TableCharacter=VitalsSnapshot['characters'][number];

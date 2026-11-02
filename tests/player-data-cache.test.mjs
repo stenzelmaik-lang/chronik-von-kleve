@@ -38,6 +38,19 @@ test("identical in-flight requests are combined and cached", async () => {
   clearPlayerDataScope(scope);
 });
 
+test("player and explicit SL record responses have separate query and surface keys", () => {
+  const playerScope = "campaign:member:gm:player";
+  const slScope = "campaign:member:gm:sl";
+  const playerKey = "/api/records?kind=sitzungen";
+  const slKey = "/api/records?kind=sitzungen&view=sl";
+  storePlayerData(slScope, slKey, { gmBody: "private" });
+  assert.equal(readPlayerData(slScope, playerKey), undefined);
+  activatePlayerDataScope(playerScope);
+  assert.equal(readPlayerData(playerScope, slKey), undefined);
+  assert.equal(readPlayerData(playerScope, playerKey), undefined);
+  clearPlayerDataScope(playerScope);
+});
+
 test("expired entries remain readable but are marked stale", () => {
   const scope = "campaign:expiry:gm";
   const originalNow = Date.now;

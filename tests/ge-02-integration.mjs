@@ -1,5 +1,6 @@
 // GE-02 against the synthetic --ge-01 instance only: figures as targets, private consequences, one path for both ways.
 import assert from 'node:assert/strict';
+import {C1_ORDINARY_RULES_VERSION} from '../domain/w10-c1-ordinary.ts';
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8898';
 assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/);
 async function login(id){const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},body:JSON.stringify({email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'})});assert.equal(r.status,200,id);return r.headers.get('set-cookie').split(';')[0];}
@@ -40,6 +41,10 @@ assert.equal((await a.post('/api/live-table',{action:'rollCheck',sessionId,runId
 const rolledP=await b.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:prepared.eventId,characterId:charB.id,selection:{attributeId:'dexterity',abilityId:'brawl'}});assert.equal(rolledP.status,200,JSON.stringify(rolledP.body));
 const rolledS=await b.post('/api/live-table',{action:'rollCheck',sessionId,runId,eventId:crypto.randomUUID(),requestId:spontaneous.eventId,characterId:charB.id,selection:{attributeId:'dexterity',abilityId:'brawl'}});assert.equal(rolledS.status,200);
 const after=(await stage(gm)).dice.events,rp=after.find(e=>e.id===rolledP.body.eventId),rs=after.find(e=>e.id===rolledS.body.eventId);
+const storedP=(await gm.get('/api/live-table?sessionId='+encodeURIComponent(sessionId))).body.events.find(e=>e.id===rolledP.body.eventId);
+assert.equal(storedP.rulesVersion,C1_ORDINARY_RULES_VERSION,'persisted character check names its released live evaluation');
+assert.equal(rp.rulesVersion,C1_ORDINARY_RULES_VERSION);assert.equal(rs.rulesVersion,C1_ORDINARY_RULES_VERSION);
+assert.deepEqual(rp.result,storedP.report,'stage preserves the original character-check interpretation');
 assert.equal(rp.roll.pool,previewB.body.pool.effective,'roll pool equals the preview pool');
 assert.equal(rp.roll.pool,rs.roll.pool,'same pool from both ways');assert.equal(rp.roll.target,rs.roll.target);
 assert.deepEqual(Object.keys(rp).sort(),Object.keys(rs).sort(),'same event structure');

@@ -28,7 +28,7 @@ export function WorkspaceShell({a,section,navigate,children}:{a:Actor;section:st
   </header>
   {world&&<nav className={styles.world} aria-label="Spielwelt-Navigation">{[{id:'schauplaetze',label:'Orte',icon:Compass},{id:'chronik',label:'Chronik',icon:BookOpen},{id:'nscs',label:'Persönlichkeiten',icon:Users},{id:'regelwerk',label:'Codex Noctis',icon:BookOpen}].map(({id,label,icon:Icon})=><button key={id} type="button" aria-current={section===id?'page':undefined} onClick={()=>navigate(id)}><Icon size={16} aria-hidden="true"/>{label}</button>)}</nav>}
   <main className="workspace-main">{children}</main>
-  <footer className="player-footer"><span>{a.gm?'Spielleitung':'Spieler'} · {campaignName}</span><span className="player-footer-links">{a.gm&&<a href="/api/export?scope=campaign"><Download size={14}/>Kampagne sichern</a>}<a href="/api/export"><Download size={14}/>Meine Daten sichern</a></span></footer>
+   <footer className="player-footer"><span>Spieler · {campaignName}</span><span className="player-footer-links"><a href="/api/export"><Download size={14}/>Meine Daten sichern</a></span></footer>
   <Toaster position="bottom-right" theme="dark"/>
  </div>;
 }

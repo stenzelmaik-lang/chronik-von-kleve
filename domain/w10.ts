@@ -1,5 +1,7 @@
 /** Normal V20 checks only. No specialties, automatic successes, damage/soak or house rules. */
 import { evaluateV20 } from './w10-core.ts';
+/** Version of the live normal-check evaluation. Bump when its interpretation changes. */
+export const V20_NORMAL_RULES_VERSION = 'v20-normal-1';
 export const W10_ACCEPTED_WORDS=4294967290; // 10 * 429496729, exactly divisible by ten.
 export type V20Outcome='success'|'failure'|'botch';
 export type V20Report=Readonly<{rule:'v20-normal';target:number;dice:readonly number[];rawSuccesses:number;ones:number;cancelled:number;netSuccesses:number;outcome:V20Outcome;cancelledSuccessIndices:readonly number[]}>;
@@ -26,5 +28,9 @@ export function evaluateNormalV20(values:readonly number[],target:number):V20Rep
 }
 export function recordNormalV20(values:readonly number[],target:number):W10LogEntry{
   return Object.freeze({id:globalThis.crypto.randomUUID(),at:new Date().toISOString(),report:evaluateNormalV20(values,target)});
+}
+/** Old events without a report remain readable; never replace a stored original evaluation. */
+export function reportForStoredV20Roll(roll:{dice:readonly number[];target:number},report?:V20Report):V20Report{
+  return report??evaluateNormalV20(roll.dice,roll.target);
 }
 export const v20OutcomeLabel:Record<V20Outcome,string>={success:'Erfolg',failure:'Fehlschlag',botch:'Patzer'};

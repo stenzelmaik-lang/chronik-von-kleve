@@ -11,7 +11,7 @@ import {preparedSession} from './story-preparation';
 import {emptyScenePager,type SceneSummary} from '@/domain/story-scene';
 import {liveSceneChoice} from '@/domain/session-overview';
 import {stageSchema,emptyStage,stageVisible,pagerVisible,changeStageObjects,stageSourceToken,stageMediaOf,startYoutube,youtubePlaylist,type StageCommand,type StageState,type StageObject,type StageBackdrop,type StageMusic} from '@/domain/live-stage';
-import {evaluateNormalV20} from '@/domain/w10';
+import {reportForStoredV20Roll} from '@/domain/w10';
 import {env} from 'cloudflare:workers';
 import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
@@ -76,7 +76,7 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  const {row,room}=await stageRoom(a,sessionId),stage=storedStage(room);
  const [events,members,vitals]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room)]);
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
- const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:e.report||evaluateNormalV20(e.roll!.dice,e.roll!.target),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
+ const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:reportForStoredV20Roll(e.roll!,e.report),...(e.rulesVersion?{rulesVersion:e.rulesVersion}:{}),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
  // Consequences, intended figures and the prepared origin are GM-only; liveEvents already strips them for players.
  const checksOn=checksActive(env as unknown as ChecksGateEnv,a.campaignId,room);
  // Switched off: no open checks are shown; stored rolls stay in the dice journal unchanged.

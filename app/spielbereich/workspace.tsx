@@ -121,10 +121,10 @@ export default function Workspace({
     setEdit(null);
   }, []);
   const { section, navigate } = useNavigation(
-    a.gm,
+    surface === "sl" && a.gm,
     initialSection,
     resetEditor,
-    a.status === "active" && ["campaign_owner", "campaign_gm", "campaign_editor"].includes(a.role),
+    surface === "sl" && a.status === "active" && ["campaign_owner", "campaign_gm", "campaign_editor"].includes(a.role),
   );
   const { entries, files, members, catalog, loading, refreshing, hasData, error, reload } =
     useWorkspaceData(section, active, dataScope, surface === "sl");
@@ -271,7 +271,7 @@ export default function Workspace({
       {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && section !== "galerie" && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
         <div>
           <p className="eyebrow">
-            {a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
+            {surface === "sl" && a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
           </p>
           <h1>{current.name}</h1>
           <p className="muted">{current.desc}</p>
@@ -292,7 +292,7 @@ export default function Workspace({
           "nscs",
           "termine",
         ].includes(section) &&
-          (a.gm || personal.includes(section)) && (
+          (surface === "sl" && a.gm || personal.includes(section)) && (
             <button className="button primary" onClick={() => create()}>
               <Plus size={18} />{" "}
               {section === "charaktere"
@@ -328,7 +328,7 @@ export default function Workspace({
           <button className="button" onClick={reload}>Erneut versuchen</button>
         </section>
       ) : section === "nscs" ? (
-        <NPCPanel key={dataScope} dataScope={dataScope} gm={a.gm} />
+        <NPCPanel key={dataScope} dataScope={dataScope} gm={surface === "sl" && a.gm} />
       ) : section === "charaktere" ? (
         <>{surface === "sl" ? <PlayerCharacterManagement a={a} inspection key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} /> : <CharacterDetail a={a} inspection={false} key={dataScope} entries={entries} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} onCreate={() => create()} onEdit={(r) => setEdit(structuredClone(r))} onRefresh={reload} />}</>
       ) : section === "inventar" ? (
@@ -489,7 +489,7 @@ export default function Workspace({
                 <EmptyDescription>
                   {search
                     ? "Versuche einen anderen Suchbegriff."
-                    : a.gm && !personal.includes(section)
+                    : surface === "sl" && a.gm && !personal.includes(section)
                       ? "Erstelle einen Eintrag oder übernimm die bestehende Chronik im Spielleiterbereich."
                       : personal.includes(section)
                         ? "Lege deinen ersten Eintrag an. Du entscheidest, wer ihn sehen darf."
