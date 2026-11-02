@@ -6,6 +6,9 @@ import { readVitals } from './character-vitals.ts';
 import { deriveW10Preview, type W10Declared, type W10Selection } from './w10-selection.ts';
 import { resolveDraftRoll, W10RuleError } from './w10-hybrid-draft.ts';
 
+/** Version of the released character-check derivation and evaluation, not the hybrid draft profile. */
+export const C1_ORDINARY_RULES_VERSION = 'v20-c1-ordinary-1';
+
 export type C1OrdinaryContext = Readonly<{
   rollId: string;
   characterVersion: number;

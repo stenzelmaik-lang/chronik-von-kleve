@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';import {emptyScene} from '../domain/story-scene.ts';
+import {evaluateNormalV20,V20_NORMAL_RULES_VERSION} from '../domain/w10.ts';
 export async function liveGameIntegration({req,check,base,ids}){
  const before=(await req('/api/command-center','gm')).d;
  const original=await req('/api/records','gm','POST',{kind:'sitzungen',title:'INTERNAL SESSION TITLE',visibility:'sl',body:{scene:'NEVER_AUTO_PUBLISH_BODY'},gmBody:'NEVER_AUTO_PUBLISH_GM'});
@@ -22,8 +23,13 @@ export async function liveGameIntegration({req,check,base,ids}){
  const rollId=randomUUID();const roll=await post('a','roll',{eventId:rollId,pool:5,target:6,dice:[10,10,10],authorName:'FORGED',audience:aOnly});
  check(roll.s===200,'LIVE player rolls with explicit audience');
  const event=(await get('a')).d.events.find(e=>e.id===rollId);check(event.roll.dice.length===5&&event.authorId==='sprint1-a'&&event.authorName!=='FORGED','LIVE server owns result and identity');
+ check(event.rulesVersion===V20_NORMAL_RULES_VERSION&&JSON.stringify(event.report)===JSON.stringify(evaluateNormalV20(event.roll.dice,event.roll.target)),'LIVE free roll persists original evaluation and actual live rules version');
+ const staged=(await req('/api/live-stage?sessionId='+sessionId,'a')).d.dice.events.find(e=>e.id===rollId);
+ check(staged.rulesVersion===event.rulesVersion&&JSON.stringify(staged.result)===JSON.stringify(event.report),'LIVE stage delivers stored free-roll report and version');
  check(!(await get('b')).d.events.some(e=>e.id===rollId),'LIVE targeted roll invisible to other player');
  check((await post('a','roll',{eventId:rollId,pool:5,target:6,audience:aOnly})).s===200&&JSON.stringify((await get('a')).d.events.find(e=>e.id===rollId).roll)===JSON.stringify(event.roll),'LIVE retry preserves one original roll');
+ const replay=(await get('a')).d.events.find(e=>e.id===rollId);
+ check(JSON.stringify(replay.report)===JSON.stringify(event.report)&&replay.rulesVersion===event.rulesVersion,'LIVE retry preserves the stored interpretation and its version');
  check((await post('a','roll',{eventId:rollId,pool:6,target:6,audience:aOnly})).s===409,'LIVE conflicting retry cannot rewrite a roll');
  const blindId=randomUUID(),blind=await post('a','roll',{eventId:blindId,pool:2,target:6,audience:{scope:'players',playerIds:['sprint1-b']}});
  check(blind.s===200&&!blind.d.roll&&!(await get('a')).d.events.some(e=>e.id===blindId)&&(await get('b')).d.events.some(e=>e.id===blindId),'LIVE a nonrecipient receives no result even when sending the roll');
