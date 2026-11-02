@@ -45,7 +45,7 @@ export async function liveTableIntegration({req,check}) {
   check((await read('a')).d.room.elements.length===0,'TABLE closed room does not expose saved drawing');
   check((await post('a','draw',{element:{...element,id:randomUUID()},epoch:1})).s===409,'TABLE closed room rejects drawing');
   check((await post('gm','open')).s===200&&(await read('a')).d.room.elements.length===1,'TABLE reopening preserves original shared board');
-  check((await req('/api/records?kind=sitzungen','gm')).d.records.find(item=>item.id===sessionId).version===1,'TABLE original session stays unchanged');
+  check((await req('/api/records?kind=sitzungen&view=sl','gm')).d.records.find(item=>item.id===sessionId).version===1,'TABLE original session stays unchanged');
   const after=(await req('/api/command-center','gm')).d;
   for(const key of ['characters','stories','scenes'])check(JSON.stringify(before[key])===JSON.stringify(after[key]),'TABLE preserves existing '+key);
 }

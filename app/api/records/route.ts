@@ -88,6 +88,7 @@ export async function GET(req: Request) {
       throw new HttpError(400, "Unbekannter Bereich.");
     const inspection = url.searchParams.get("view") === "sl";
     if (inspection) gmOnly(a);
+    const viewer = inspection ? a : { ...a, gm: false, role: "player" as const };
     const db = database();
     const [rows, grants] = await Promise.all([
       db
@@ -104,9 +105,10 @@ export async function GET(req: Request) {
       if (["table-material", "sl-message", "appointment-vote", "live-table", "live-table-signal", "live-table-event"].includes(String(legacyBody(r.body).context))) return [];
       const entity = index.get(r.id);
       if (!entity) return [];
-      if (a.gm && !canRead(a, r)) return [];
+      if (!inspection && campaignKinds.includes(kind) && r.visibility === "sl") return [];
+      if (!canRead(viewer, r)) return [];
       if (!inspection && kind === "charaktere" && r.owner_id !== a.id) return [];
-      const safe = projectEntity(!inspection && kind === "charaktere" ? { ...a, gm: false, role: "player" } : a, entity, grants);
+      const safe = projectEntity(viewer, entity, grants);
       if (!safe) return [];
       return [
         {
@@ -120,7 +122,7 @@ export async function GET(req: Request) {
           gmBody: safe.gmBody,
           version: r.version,
           updated_at: r.updated_at,
-          canEdit: canEdit(a, r),
+          canEdit: inspection ? canEdit(a, r) : personalKinds.includes(kind) && canEdit(viewer, r),
         },
       ];
     });

@@ -1,5 +1,5 @@
 import type { LegacyRecordRow, Entry } from "@/domain/legacy";
-import { actor, database, json, failure, canRead, HttpError } from "@/server/access";
+import { actor, database, json, failure, canRead, campaignKinds, HttpError } from "@/server/access";
 import { loadEntitiesForIds, grantsFor, projectEntity } from "@/server/entities";
 import { projectMedia } from "@/server/character-projection";
 import { GET as messagesGET } from "../messages/route";
@@ -20,6 +20,7 @@ function dateOf(entry: Entry) {
 export async function GET(req: Request) {
   try {
     const a = await actor();
+    const viewer = { ...a, gm: false, role: "player" as const };
     const url = new URL(req.url);
     const requestedCharacterId = url.searchParams.get("characterId") || await persistedSelection(a,(await currentUserFromContext())!.id);
     const db = database();
@@ -32,14 +33,15 @@ export async function GET(req: Request) {
 
     // Only hydrate entities that can contribute to this dashboard response.
     const eligibleRows = rows.results.filter((row) =>
-      canRead(a, row) && (row.kind !== "charaktere" || row.owner_id === a.id),
+      !(campaignKinds.includes(row.kind) && row.visibility === "sl") &&
+      canRead(viewer, row) && (row.kind !== "charaktere" || row.owner_id === a.id),
     );
     const entities = await loadEntitiesForIds(db, a.campaignId, eligibleRows.map((row) => row.id));
     const index = new Map(entities.map((entity) => [entity.id, entity]));
     const records = eligibleRows.flatMap((row) => {
       const entity = index.get(row.id);
       if (!entity) return [];
-      const safe = projectEntity(a, entity, grants);
+      const safe = projectEntity(viewer, entity, grants);
       if (!safe) return [];
       return [{
         id: row.id,
@@ -79,7 +81,7 @@ export async function GET(req: Request) {
       .sort((left, right) => (dateOf(left) || 0) - (dateOf(right) || 0))[0] || null;
 
     const [media, inboxResponse] = await Promise.all([
-      selectedCharacter ? projectMedia(db, a, selectedCharacter.body) : null,
+      selectedCharacter ? projectMedia(db, viewer, selectedCharacter.body) : null,
       messagesGET(new Request(new URL('/api/messages', req.url), { headers: req.headers })),
     ]);
     if (!inboxResponse.ok) throw new HttpError(inboxResponse.status, 'Das persönliche Postfach konnte nicht geladen werden.');

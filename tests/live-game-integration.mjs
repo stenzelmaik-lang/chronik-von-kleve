@@ -82,6 +82,6 @@ export async function liveGameIntegration({req,check,base,ids}){
  check((await fetch(base+'/api/live-table/media?sessionId='+sessionId+'&elementId='+elementId,{headers:ids.b})).status===404,'LIVE ended night blocks contextual image URLs');
  check((await start('gm')).s===200&&(await get('a')).d.events.length===0,'LIVE restarting night does not replay old events');
  check((await post('gm','roll',{pool:1,target:6,audience:{scope:'all'}})).s===409,'LIVE stale previous-night command denied');
- const originalAfter=(await req('/api/records?kind=sitzungen','gm')).d.records.find(s=>s.id===sessionId);check(originalAfter.visibility==='sl'&&originalAfter.version===1&&originalAfter.body.scene==='NEVER_AUTO_PUBLISH_BODY','LIVE start does not rewrite private original session');
+ const originalAfter=(await req('/api/records?kind=sitzungen&view=sl','gm')).d.records.find(s=>s.id===sessionId);check(originalAfter.visibility==='sl'&&originalAfter.version===1&&originalAfter.body.scene==='NEVER_AUTO_PUBLISH_BODY','LIVE start does not rewrite private original session');
  const after=(await req('/api/command-center','gm')).d;check(JSON.stringify(before.characters)===JSON.stringify(after.characters),'LIVE no existing character values changed');
 }

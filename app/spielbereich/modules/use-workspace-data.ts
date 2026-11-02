@@ -37,7 +37,7 @@ function pathFor(section: string, inspection = false) {
       : section === "sitzung"
         ? "sitzungen"
         : section;
-  return `/api/records?kind=${encodeURIComponent(kind)}${inspection && kind === "charaktere" ? "&view=sl" : ""}`;
+  return `/api/records?kind=${encodeURIComponent(kind)}${inspection ? "&view=sl" : ""}`;
 }
 
 async function fetchSection(section: string, inspection = false): Promise<Data> {

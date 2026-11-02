@@ -160,7 +160,7 @@ export async function storyPreparationIntegration({
   );
 
   const existing = (
-    await req("/api/records?kind=sitzungen", "gm")
+    await req("/api/records?kind=sitzungen&view=sl", "gm")
   ).d.records.find((r) => r.id === session.id);
   const adapted = await req(root + "/preparation", "gm", "POST", {
     action: "save",
@@ -172,7 +172,7 @@ export async function storyPreparationIntegration({
     }),
   });
   check(adapted.s === 200, "P2A existing session gains private preparation");
-  const after = (await req("/api/records?kind=sitzungen", "gm")).d.records.find(
+  const after = (await req("/api/records?kind=sitzungen&view=sl", "gm")).d.records.find(
     (r) => r.id === existing.id,
   );
   check(
