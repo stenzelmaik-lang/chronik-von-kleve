@@ -14,8 +14,8 @@
 .central .tools{display:block;position:static;border:0;padding:12px;background:#101b29}
 .central .tools nav{display:flex;flex-wrap:wrap;gap:12px}
 .central .tools>p:first-child{display:none}
-.managementNav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #695b3e}
-.managementNav>button,.managementNav>a{display:flex;align-items:center;gap:12px;flex:1 1 210px;text-align:left;text-decoration:none;padding:12px 14px;color:#d4dce1;background:transparent;border:1px solid transparent;border-radius:6px;cursor:pointer;min-width:0}
+.managementNav{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid #695b3e}
+.managementNav>button,.managementNav>a{display:flex;align-items:center;gap:12px;text-align:left;text-decoration:none;padding:12px 14px;color:#d4dce1;background:transparent;border:1px solid transparent;border-radius:6px;cursor:pointer;min-width:0}
 .managementNav [aria-current=page]{color:#f2d096;background:#202b39;border-color:#827047}
 .managementNav>button:hover:not(:disabled),.managementNav>a:hover{background:#182635;color:#f2d096}
 .managementNav>button:disabled{opacity:.5;cursor:default}
@@ -23,6 +23,6 @@
 .managementNav strong{font-size:15px;font-weight:600;display:block}
 .managementNav small{display:block;font-size:12px;line-height:1.4;color:#b5c1c9;margin-top:4px}
 .unsavedNotice{color:#e4c589;margin:0 0 16px}
-@media(max-width:760px){.managementNav{gap:6px}.managementNav>button,.managementNav>a{flex-basis:calc(50% - 6px);padding:10px;gap:8px}.managementNav small{font-size:11px}.managementNav strong{font-size:13px}}
+@media(max-width:760px){.managementNav{gap:6px;grid-template-columns:repeat(2,minmax(0,1fr))}.managementNav>button,.managementNav>a{padding:10px;gap:8px}.managementNav small{font-size:11px}.managementNav strong{font-size:13px}}
 .tools details{margin-top:16px;color:#b5c1c9;font-size:12px}.tools summary{cursor:pointer;padding:12px 0}.shell :is(button,a,summary):focus-visible{outline:2px solid #e4c589;outline-offset:2px}
 @media(max-width:760px){.shell{height:auto;min-height:100dvh;display:flex;flex-direction:column;overflow:visible}.header{min-height:48px;flex-wrap:wrap;padding:12px;gap:12px}.header>strong{font-size:11px}.mobileMenu{display:block;background:#101b29;color:#e4c589;border:1px solid #695b3e;padding:12px;margin:8px 12px;min-height:44px}.tools{display:none;border-right:0}.toolsOpen{display:block}.content{overflow:visible;padding:12px;width:100%}.inspection{flex-wrap:wrap}.shell button,.liveLink{min-height:44px}.content input,.content select,.content textarea{max-width:100%}}
