@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated private image endpoints. */
 import {useEffect,useMemo,useRef,useState,type DragEvent} from 'react';
-import {Images,Search,Upload,Trash2,X,FileText,Music,Film,Image as ImageIcon,Lock,Users,ShieldCheck,Link2,Loader2,Eye} from 'lucide-react';
+import {Images,Search,Upload,Trash2,X,FileText,Music,Film,Image as ImageIcon,Lock,Users,ShieldCheck,Link2,Loader2,Eye,CloudFog,Mail,FolderOpen} from 'lucide-react';
 import type {Actor} from '@/domain/types';
 import type {Upload as StoredFile} from '@/domain/legacy';
 import {api} from './api-client';
@@ -9,7 +9,10 @@ import {LivePdf} from './live-pdf';
 import {ThumbImage} from './file-thumb';
 import s from './material-library.module.css';
 
-type File_=StoredFile&{created_at?:string};
+type File_=StoredFile&{created_at?:string;section?:string|null};
+/** Own sections for visions and messages (GM only); everything else is the general gallery. */
+type Section='all'|'general'|'visionen'|'botschaften';
+const sections:{id:Section;label:string;icon:typeof Images}[]=[{id:'all',label:'Alle Bereiche',icon:Images},{id:'general',label:'Allgemein',icon:FolderOpen},{id:'visionen',label:'Visionen',icon:CloudFog},{id:'botschaften',label:'Botschaften',icon:Mail}];
 type Usage={kind:string;label:string;title:string|null};
 type UsageReport={usages:Usage[];history:number};
 type Kind='all'|'image'|'pdf'|'audio'|'video';
@@ -24,7 +27,7 @@ const date=(iso?:string)=>iso?new Date(iso).toLocaleDateString('de',{day:'2-digi
 /** Campaign gallery for the SL and the player's own files. Deletion is checked against current uses first. */
 export function MediaLibrary({a,files,onRefresh,title='Galerie',intro}:{a:Actor;files:StoredFile[];onRefresh:()=>void;title?:string;intro?:string}){
  const all=files as File_[];
- const [search,setSearch]=useState(''),[sort,setSort]=useState('newest'),[kind,setKind]=useState<Kind>('all'),[scope,setScope]=useState<'all'|'mine'|'private'|'sl'|'group'>('all');
+ const [search,setSearch]=useState(''),[sort,setSort]=useState('newest'),[kind,setKind]=useState<Kind>('all'),[scope,setScope]=useState<'all'|'mine'|'private'|'sl'|'group'>('all'),[section,setSection]=useState<Section>('all');
  const [busy,setBusy]=useState(false),[progress,setProgress]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[visibility,setVisibility]=useState(a.gm?'sl':'private'),[dragging,setDragging]=useState(false);
  const [open,setOpen]=useState<File_|null>(null),[usage,setUsage]=useState<UsageReport|null>(null),[usageError,setUsageError]=useState(''),[confirming,setConfirming]=useState(false);
  const root=useRef<HTMLElement>(null),dialog=useRef<HTMLDialogElement>(null),picker=useRef<HTMLInputElement>(null);
@@ -32,16 +35,18 @@ export function MediaLibrary({a,files,onRefresh,title='Galerie',intro}:{a:Actor;
  useEffect(()=>{if(open&&!dialog.current?.open)dialog.current?.showModal();},[open]);
  const manageable=(f:File_)=>f.owner_id===a.id||(a.gm&&f.visibility!=='private');
  const counts=useMemo(()=>{const c:Record<Kind,number>={all:all.length,image:0,pdf:0,audio:0,video:0};for(const f of all){const k=kindOf(f.mime);if(k!=='all')c[k]++;}return c;},[all]);
- const items=useMemo(()=>{const q=search.trim().toLocaleLowerCase('de');return all.filter(f=>(kind==='all'||kindOf(f.mime)===kind)&&(scope==='all'||(scope==='mine'?f.owner_id===a.id:f.visibility===scope))&&(!q||f.name.toLocaleLowerCase('de').includes(q))).sort((x,y)=>sort==='name'?x.name.localeCompare(y.name,'de',{numeric:true}):sort==='size'?y.size-x.size:sort==='oldest'?all.indexOf(y)-all.indexOf(x):all.indexOf(x)-all.indexOf(y));},[all,kind,scope,search,sort,a.id]);
+ const sectionCounts=useMemo(()=>{const c:Record<Section,number>={all:all.length,general:0,visionen:0,botschaften:0};for(const f of all)c[(f.section==='visionen'||f.section==='botschaften')?f.section:'general']++;return c;},[all]);
+ const uploadSection=a.gm&&(section==='visionen'||section==='botschaften')?section:'';
+ const items=useMemo(()=>{const q=search.trim().toLocaleLowerCase('de');return all.filter(f=>(kind==='all'||kindOf(f.mime)===kind)&&(scope==='all'||(scope==='mine'?f.owner_id===a.id:f.visibility===scope))&&(section==='all'||(section==='general'?!f.section:f.section===section))&&(!q||f.name.toLocaleLowerCase('de').includes(q))).sort((x,y)=>sort==='name'?x.name.localeCompare(y.name,'de',{numeric:true}):sort==='size'?y.size-x.size:sort==='oldest'?all.indexOf(y)-all.indexOf(x):all.indexOf(x)-all.indexOf(y));},[all,kind,scope,section,search,sort,a.id]);
  const url=(f:File_)=>'/api/files?id='+encodeURIComponent(f.id);
 
  async function upload(selected:File[]){
   const usable=selected.filter(f=>accept.split(',').includes(f.type));
   if(!usable.length){setError('Erlaubt sind Bilder, PDF, MP3/OGG/WAV/M4A und MP4/WebM bis 10 MB.');return;}
   setBusy(true);setError('');setNotice('');let done=0;const failed:string[]=[];
-  for(const file of usable){setProgress(`Lade ${done+1} von ${usable.length} hoch …`);try{if(file.size>10*1024*1024)throw new Error('größer als 10 MB');const form=new FormData();form.set('file',file);form.set('visibility',visibility);await api('/api/files','POST',form);done++;}catch(e){failed.push(file.name+' ('+(e as Error).message+')');}}
+  for(const file of usable){setProgress(`Lade ${done+1} von ${usable.length} hoch …`);try{if(file.size>10*1024*1024)throw new Error('größer als 10 MB');if(uploadSection&&!(file.type.startsWith('image/')||file.type.startsWith('audio/')))throw new Error('hier nur Bilder und Töne');const form=new FormData();form.set('file',file);form.set('visibility',visibility);if(uploadSection)form.set('section',uploadSection);await api('/api/files','POST',form);done++;}catch(e){failed.push(file.name+' ('+(e as Error).message+')');}}
   setProgress('');setBusy(false);onRefresh();
-  if(done)setNotice(`${done} ${done===1?'Datei':'Dateien'} gespeichert · ${visibilityText[visibility as keyof typeof visibilityText]}.`);
+  if(done)setNotice(`${done} ${done===1?'Datei':'Dateien'} gespeichert · ${uploadSection?'Galerie '+(uploadSection==='visionen'?'Visionen':'Botschaften')+' · SL-intern':visibilityText[visibility as keyof typeof visibilityText]}.`);
   if(failed.length||selected.length>usable.length)setError([failed.length?'Nicht hochgeladen: '+failed.join(', '):'',selected.length>usable.length?(selected.length-usable.length)+' Datei(en) mit nicht unterstütztem Format übersprungen.':''].filter(Boolean).join(' '));
  }
  function drop(e:DragEvent){e.preventDefault();setDragging(false);if(!busy)void upload([...e.dataTransfer.files]);}
@@ -56,12 +61,13 @@ export function MediaLibrary({a,files,onRefresh,title='Galerie',intro}:{a:Actor;
   <header className={s.header}><div><h1><Images aria-hidden="true"/> {title}</h1><p>{intro||(a.gm?'Alle Bilder, PDFs, Töne und Videos der Kampagne. Vor dem Löschen siehst du, wo eine Datei noch verwendet wird.':'Deine hochgeladenen Bilder und Dateien sowie alles, was mit der Gruppe geteilt ist.')}</p></div></header>
   <div className={`${s.dropzone} ${dragging?s.dropActive:''}`}>
    <Upload size={22} aria-hidden="true"/><div><strong>{busy?progress||'Wird gespeichert …':'Dateien hierher ziehen'}</strong><small>oder auswählen · mehrere gleichzeitig · bis 10 MB je Datei</small></div>
-   <label className={s.inline}>Sichtbar für<select aria-label="Sichtbarkeit neuer Dateien" value={visibility} disabled={busy} onChange={e=>setVisibility(e.target.value)}><option value="private">Nur mich</option>{a.gm&&<option value="sl">SL-intern</option>}<option value="group">Die Gruppe</option></select></label>
+   {uploadSection?<span className={s.inline}>Landet in „{uploadSection==='visionen'?'Visionen':'Botschaften'}“ · SL-intern</span>:<label className={s.inline}>Sichtbar für<select aria-label="Sichtbarkeit neuer Dateien" value={visibility} disabled={busy} onChange={e=>setVisibility(e.target.value)}><option value="private">Nur mich</option>{a.gm&&<option value="sl">SL-intern</option>}<option value="group">Die Gruppe</option></select></label>}
    <button className={s.primary} disabled={busy} onClick={()=>picker.current?.click()}>{busy?<Loader2 size={17} className={s.spin}/>:<Upload size={17}/>}Hochladen</button>
    <input ref={picker} hidden aria-label="Datei hochladen" type="file" multiple accept={accept} onChange={e=>{const list=[...(e.target.files||[])];e.target.value='';if(list.length)void upload(list);}}/>
   </div>
   {error&&<p className={s.error} role="alert">{error}<button aria-label="Hinweis schließen" onClick={()=>setError('')}><X size={15}/></button></p>}{notice&&<p className={s.notice} role="status">{notice}</p>}
   <div className={s.chips} role="group" aria-label="Dateiart">{kinds.map(k=><button key={k.id} aria-pressed={kind===k.id} onClick={()=>setKind(k.id)}><k.icon size={15} aria-hidden="true"/>{k.label}<span>{counts[k.id]}</span></button>)}</div>
+  {a.gm&&<div className={s.chips} role="group" aria-label="Galeriebereich">{sections.map(k=><button key={k.id} aria-pressed={section===k.id} onClick={()=>setSection(k.id)}><k.icon size={15} aria-hidden="true"/>{k.label}<span>{sectionCounts[k.id]}</span></button>)}</div>}
   <div className={s.toolbar}><label className={s.search}><Search size={18} aria-hidden="true"/><input aria-label="Galerie durchsuchen" placeholder="Name suchen …" value={search} onChange={e=>setSearch(e.target.value)}/></label>
    <label>Zeigen<select value={scope} onChange={e=>setScope(e.target.value as typeof scope)}><option value="all">Alle zugänglichen</option><option value="mine">Nur meine</option><option value="private">Privat</option>{a.gm&&<option value="sl">SL-intern</option>}<option value="group">Gruppe</option></select></label>
    <label>Sortieren<select value={sort} onChange={e=>setSort(e.target.value)}><option value="newest">Neueste zuerst</option><option value="oldest">Älteste zuerst</option><option value="name">Name A–Z</option><option value="size">Größte zuerst</option></select></label>

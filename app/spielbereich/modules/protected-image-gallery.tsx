@@ -6,7 +6,7 @@ import {PreparationPanel} from './preparation-panel';
 import s from './rich-text.module.css';
 import {ThumbImage} from './file-thumb';
 
-export type PreparationFile={id:string;name:string;mime:string};
+export type PreparationFile={id:string;name:string;mime:string;section?:string|null};
 export function ProtectedImageGallery({files,onSelect,label='Galerie',selected='',disabled=false,onOpen}:{files:PreparationFile[];onSelect:(id:string)=>void;label?:string;selected?:string;disabled?:boolean;onOpen?:(event:MouseEvent)=>void}) {
   const [open,setOpen]=useState(false),[search,setSearch]=useState('');
   const images=files.filter(file=>file.mime.startsWith('image/')&&file.name.toLocaleLowerCase('de').includes(search.toLocaleLowerCase('de')));

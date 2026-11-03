@@ -1,0 +1,208 @@
+/* Visions & personal messages, Alpha 2.0.
+   A preset only sets tokens and a few preset-specific layers; the player structure is shared.
+   No strobe: every light change is slower than 0.3 Hz. Reduced effects keep the content and drop the motion. */
+
+.host { position: fixed; inset: 0; z-index: 2147483000; }
+.messageHost { position: fixed; z-index: 2147482000; top: 0; right: 0; width: 0; height: 0; }
+
+/* ---------------------------------------------------------------- vision: shared structure */
+.vision {
+  --veilCenter: rgba(26, 28, 34, .86); --veilEdge: rgba(6, 7, 10, .97);
+  --fogFilter: grayscale(1) brightness(1.25) sepia(.25); --fogBlend: screen; --fogOpacity: .55;
+  --text: #f3efe4; --glow: 0 0 18px rgba(255, 236, 190, .35), 0 0 2px rgba(0, 0, 0, .9);
+  --accent: #d9c08a; --mote: rgba(255, 236, 190, .55); --size: clamp(1.35rem, 2.3vw, 2.25rem);
+  position: fixed; inset: 0; display: grid; place-items: center; overflow: hidden; isolation: isolate; outline: none;
+  color: var(--text); font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; cursor: default;
+  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+.veil, .fog, .light, .motes, .grain, .apparitions, .tentacles { position: absolute; pointer-events: none; }
+.veil { inset: 0; background: radial-gradient(ellipse 70% 60% at 50% 52%, var(--veilCenter) 0%, var(--veilEdge) 78%); opacity: 0; animation: veilIn var(--enter) cubic-bezier(.45, 0, .2, 1) forwards; }
+.fog { inset: -25%; background: url("/images/personal-delivery/mist-v2.webp") center / 70% auto repeat; filter: var(--fogFilter); mix-blend-mode: var(--fogBlend); opacity: 0; will-change: transform, opacity; }
+.fogBack { transform: scale(1.5); animation: fogRise var(--enter) cubic-bezier(.3, 0, .2, 1) forwards, driftA 70s ease-in-out var(--enter) infinite alternate; }
+.fogMid { background-size: 55% auto; animation: fogRise calc(var(--enter) * 1.15) cubic-bezier(.3, 0, .2, 1) forwards, driftB 52s ease-in-out var(--enter) infinite alternate; }
+/* the front layer frames the scene but keeps the reading column clear */
+.fogFront { background-size: 85% auto; -webkit-mask-image: radial-gradient(ellipse 46% 40% at 50% 50%, transparent 0 45%, #000 85%); mask-image: radial-gradient(ellipse 46% 40% at 50% 50%, transparent 0 45%, #000 85%); animation: fogRise calc(var(--enter) * .9) cubic-bezier(.3, 0, .2, 1) forwards, driftC 44s ease-in-out var(--enter) infinite alternate; }
+.light { inset: 0; opacity: 0; animation: fadeIn 3s ease var(--enter) forwards; }
+.motes { inset: -10%; opacity: 0; background-image: radial-gradient(circle at 23% 31%, var(--mote) 0 1.1px, transparent 1.9px), radial-gradient(circle at 71% 64%, var(--mote) 0 .8px, transparent 1.5px), radial-gradient(circle at 46% 87%, var(--mote) 0 1.4px, transparent 2.3px); background-size: 337px 291px, 463px 419px, 571px 523px; background-position: 0 0, 131px 77px, 263px 199px; animation: fadeIn 4s ease var(--enter) forwards, motes 70s linear infinite; }
+.grain { inset: 0; display: none; }
+
+.apparitions { inset: 0; z-index: 2; }
+.apparitions img {
+  position: absolute; width: min(30vw, 400px); max-height: 46vh; object-fit: cover; border-radius: 4px; opacity: 0;
+  pointer-events: none; user-select: none; -webkit-user-drag: none;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 45%, transparent 72%); mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, #000 45%, transparent 72%);
+  transition: opacity 2.6s ease, filter 2.6s ease;
+}
+.apparitions img[data-on] { opacity: .8; }
+.apparitions img[data-motion="float"] { animation: float 13s ease-in-out infinite alternate; }
+.apparitions img[data-motion="drift"] { animation: drift 17s ease-in-out infinite alternate; filter: blur(.6px) saturate(.85); }
+.apparitions img[data-motion="surface"] { filter: brightness(.25) blur(5px); }
+.apparitions img[data-motion="surface"][data-on] { filter: brightness(.85) blur(0); transition-duration: 5s; animation: float 18s ease-in-out infinite alternate; }
+.apparitions img[data-motion="pulse"] { animation: pulse 8s ease-in-out infinite; filter: contrast(1.15) saturate(.7) drop-shadow(0 0 18px rgba(160, 0, 20, .45)); }
+.apparitions img[data-motion="reveal"] { transform: scale(.9); transition: opacity 2s ease, transform 4s cubic-bezier(.2, .7, .2, 1), filter 2s ease; filter: brightness(1.5) sepia(.3); }
+.apparitions img[data-motion="reveal"][data-on] { transform: scale(1); filter: brightness(1) sepia(0); }
+.apparitions img[data-motion="fade"] { filter: sepia(.85) contrast(.85) brightness(.9); animation: float 20s ease-in-out infinite alternate; }
+
+.words { position: relative; z-index: 5; width: min(42rem, 86vw); min-height: 9em; display: grid; place-items: center; text-align: center; }
+/* soft scrim: contrast for the text without a box */
+.words::before { content: ""; position: absolute; inset: -30% -18%; z-index: -1; background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0, 0, 0, .55), transparent 72%); }
+.fragment {
+  margin: 0; font-size: var(--size); line-height: 1.45; letter-spacing: .01em; text-shadow: var(--glow); text-wrap: balance;
+  animation: fragIn var(--in) cubic-bezier(.2, .7, .2, 1) both, fragOut var(--out) ease-in calc(var(--in) + var(--hold)) forwards;
+}
+.fragment[data-last] { animation: fragIn var(--in) cubic-bezier(.2, .7, .2, 1) both; }
+.fullText { max-height: 58vh; overflow: auto; text-align: left; font-size: 1.15rem; line-height: 1.6; padding: 1.4rem 1.6rem; background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .12); border-radius: 6px; animation: fadeIn .6s ease both; }
+.fullText p { margin: 0 0 .9em; text-shadow: none; }
+
+.closing { position: absolute; z-index: 6; bottom: max(11vh, 72px); left: 50%; translate: -50% 0; display: flex; gap: 12px; align-items: center; animation: fadeIn 1.6s ease both; }
+.seen { padding: .95rem 1.7rem; color: var(--text); background: rgba(0, 0, 0, .28); border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent); border-radius: 2px; font: inherit; font-size: .95rem; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 30px color-mix(in srgb, var(--accent) 25%, transparent); }
+.seen:hover, .seen:focus-visible { background: color-mix(in srgb, var(--accent) 22%, rgba(0, 0, 0, .35)); }
+.tools { position: absolute; z-index: 6; left: max(16px, env(safe-area-inset-left, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 8px; opacity: .6; transition: opacity .3s; }
+.tools:hover, .tools:focus-within { opacity: 1; }
+.quiet { padding: 6px 12px; color: rgba(255, 255, 255, .8); background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .2); border-radius: 999px; font: 12px/1.2 system-ui, sans-serif; letter-spacing: .02em; cursor: pointer; }
+.quiet[aria-pressed="true"] { border-color: var(--accent); color: var(--text); }
+.vision :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.previewBadge { position: absolute; z-index: 7; top: max(14px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); margin: 0; padding: 6px 12px; border-radius: 999px; background: rgba(0, 0, 0, .55); border: 1px dashed rgba(255, 255, 255, .45); color: #fff; font: 12px/1.2 system-ui, sans-serif; letter-spacing: .04em; }
+
+/* leaving the vision: the fog clears, the table returns */
+.vision[data-phase="exit"] .veil { animation: veilOut 1.5s ease forwards; }
+.vision[data-phase="exit"] .fog { animation: dissolve 1.4s ease forwards; }
+.vision[data-phase="exit"] .words, .vision[data-phase="exit"] .apparitions, .vision[data-phase="exit"] .light, .vision[data-phase="exit"] .motes, .vision[data-phase="exit"] .tentacles, .vision[data-phase="exit"] .grain { animation: fadeOut 1s ease forwards; }
+
+/* ---------------------------------------------------------------- presets */
+.vision[data-preset="classic"] .light { background: linear-gradient(104deg, transparent 38%, rgba(255, 240, 205, .1) 46%, transparent 55%), linear-gradient(76deg, transparent 52%, rgba(220, 225, 235, .07) 60%, transparent 68%); animation: fadeIn 3s ease var(--enter) forwards, sway 22s ease-in-out infinite alternate; transform-origin: 50% -20%; }
+
+.vision[data-preset="dream"] { --veilCenter: rgba(8, 36, 52, .82); --veilEdge: rgba(2, 10, 20, .97); --fogFilter: sepia(1) saturate(3.2) hue-rotate(155deg) brightness(.95); --text: #e4f7ff; --glow: 0 0 22px rgba(120, 220, 255, .45), 0 0 2px rgba(0, 20, 40, .9); --accent: #8fe3ef; --mote: rgba(150, 235, 255, .5); }
+.vision[data-preset="dream"] .light { background: radial-gradient(circle at 30% 35%, rgba(120, 230, 255, .14), transparent 28%), radial-gradient(circle at 72% 62%, rgba(80, 160, 255, .12), transparent 30%); animation: fadeIn 3s ease var(--enter) forwards, wander 26s ease-in-out infinite alternate; }
+.vision[data-preset="dream"] .fogMid { animation: fogRise calc(var(--enter) * 1.15) ease forwards, dreamwave 19s ease-in-out var(--enter) infinite alternate; }
+.vision[data-preset="dream"] .fragment { animation-name: dreamIn, fragOut; }
+
+/* dark: hardly any motes, the darkness is the effect */
+.vision[data-preset="dark"] .motes { opacity: 0 !important; animation: none; }
+.vision[data-preset="dark"] { --veilCenter: rgba(14, 14, 16, .92); --veilEdge: #000; --fogFilter: grayscale(1) brightness(.42) contrast(1.15); --fogBlend: normal; --fogOpacity: .8; --text: #d9d9dc; --glow: 0 0 12px #000, 0 0 30px rgba(180, 185, 200, .14); --accent: #9aa0aa; --mote: rgba(170, 175, 190, .25); }
+.vision[data-preset="dark"] .light { background: radial-gradient(ellipse 40% 30% at 50% -6%, rgba(200, 210, 230, .12), transparent 70%); animation: fadeIn 4s ease var(--enter) forwards, dim 14s ease-in-out infinite alternate; }
+.vision[data-preset="dark"] .fragment { animation-name: darkIn, fragOut; }
+
+.vision[data-preset="threat"] { --veilCenter: rgba(30, 5, 8, .9); --veilEdge: #000; --fogFilter: sepia(1) saturate(5) hue-rotate(-38deg) brightness(.42) contrast(1.25); --fogBlend: screen; --fogOpacity: .7; --text: #f4e5e5; --glow: 0 0 16px rgba(170, 0, 20, .6), 0 0 2px #000; --accent: #c0303c; --mote: rgba(190, 30, 40, .3); }
+.vision[data-preset="threat"] .light { background: radial-gradient(ellipse 55% 45% at 6% 100%, rgba(170, 0, 20, .5), transparent 70%), radial-gradient(ellipse 50% 40% at 96% 96%, rgba(150, 0, 16, .45), transparent 70%), radial-gradient(ellipse 60% 30% at 50% 110%, rgba(120, 0, 12, .4), transparent 75%); animation: fadeIn 2s ease var(--enter) forwards, unease 9s ease-in-out infinite; }
+.vision[data-preset="threat"] .fragment { animation-name: threatIn, fragOut; }
+.tentacles { inset: 0; width: 100%; height: 100%; z-index: 1; opacity: 0; animation: fadeIn 4s ease var(--enter) forwards; -webkit-mask-image: radial-gradient(ellipse 38% 34% at 50% 50%, transparent 0 55%, #000 90%); mask-image: radial-gradient(ellipse 38% 34% at 50% 50%, transparent 0 55%, #000 90%); filter: blur(1px) drop-shadow(0 0 7px rgba(170, 10, 30, .55)); }
+.tentacles path { fill: none; stroke: rgba(3, 1, 2, .96); stroke-width: 30; stroke-linecap: round; stroke-dasharray: 1400; stroke-dashoffset: 1400; transform-box: fill-box; transform-origin: 0% 100%; animation: grow 7s cubic-bezier(.3, 0, .2, 1) calc(var(--enter) + var(--i) * .9s) forwards, writhe calc(15s + var(--i) * 3s) ease-in-out calc(var(--enter) + 7s) infinite alternate; }
+.tentacles path:nth-child(even) { stroke-width: 18; stroke: rgba(10, 2, 4, .88); }
+
+.vision[data-preset="drama"] { --veilCenter: rgba(42, 8, 50, .88); --veilEdge: rgba(8, 0, 12, .98); --fogFilter: sepia(1) saturate(4) hue-rotate(245deg) brightness(.7); --text: #fff4dc; --glow: 0 0 26px rgba(255, 190, 90, .55), 0 0 2px #200; --accent: #f0b14a; --mote: rgba(255, 200, 120, .55); --size: clamp(1.5rem, 2.8vw, 2.7rem); }
+.vision[data-preset="drama"] .light { background: conic-gradient(from 200deg at 50% 46%, transparent 0 8%, rgba(255, 190, 80, .18) 10%, transparent 13% 30%, rgba(220, 60, 40, .16) 33%, transparent 36% 58%, rgba(255, 210, 120, .14) 61%, transparent 64%); animation: fadeIn 2.4s ease var(--enter) forwards, turn 80s linear infinite, burst 11s ease-in-out infinite; }
+.vision[data-preset="drama"] .fragment { letter-spacing: .03em; animation-name: dramaIn, fragOut; }
+
+.vision[data-preset="echo"] { --veilCenter: rgba(52, 44, 34, .88); --veilEdge: rgba(14, 12, 10, .97); --fogFilter: sepia(.9) brightness(.85) contrast(.9) saturate(.6); --text: #efe3cc; --glow: 0 0 1px rgba(0, 0, 0, .8), 4px 3px 0 rgba(239, 227, 204, .1), -3px -2px 0 rgba(239, 227, 204, .07); --accent: #c8b38f; --mote: rgba(239, 227, 204, .3); }
+.vision[data-preset="echo"] .grain { display: block; opacity: .2; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>"); animation: grainShift 1.6s steps(4) infinite; }
+.vision[data-preset="echo"] .light { background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, .55) 100%); }
+.vision[data-preset="echo"] .fragment { animation-name: echoIn, fragOut; }
+
+/* ---------------------------------------------------------------- reduced effects: same content, calm presentation */
+.vision[data-reduced] .fog { animation: fadeIn .6s ease forwards !important; transform: none; }
+.vision[data-reduced] .motes, .vision[data-reduced] .grain, .vision[data-reduced] .tentacles { display: none; }
+.vision[data-reduced] .light { animation: fadeIn .6s ease forwards !important; }
+.vision[data-reduced] .apparitions img { animation: none !important; transition: opacity .6s ease; }
+.vision[data-reduced] .fragment { animation: plainIn var(--in) ease both, fadeOut var(--out) ease calc(var(--in) + var(--hold)) forwards !important; }
+.vision[data-reduced] .fragment[data-last] { animation: plainIn var(--in) ease both !important; }
+.vision[data-reduced] .veil { animation-duration: .5s; }
+
+/* ---------------------------------------------------------------- personal message: fax / letter */
+.message { position: fixed; z-index: 2000; top: max(9vh, 56px); right: max(2vw, 16px); width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 12vh); display: grid; pointer-events: auto; perspective: 1400px; }
+.faxSlot { position: relative; z-index: 2; height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-radius: 9px 9px 3px 3px; background: linear-gradient(#30353c, #17191d); box-shadow: 0 8px 20px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .08); color: #9fb6a8; font: 600 10.5px/1 "Courier New", ui-monospace, monospace; letter-spacing: .24em; animation: slotIn .45s ease-out both; }
+.faxSlot::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 5px; height: 3px; border-radius: 2px; background: #07080a; }
+.led { width: 8px; height: 8px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 8px #3ddc84; animation: led 1.4s ease-in-out infinite; }
+.message[data-phase="read"] .led, .message[data-phase="leave"] .led { animation: none; opacity: .5; }
+.sheet {
+  position: relative; overflow: auto; max-height: calc(100vh - 12vh - 34px); padding: 22px 26px 18px; color: #1f1c17;
+  background: #f3eee2 url("/images/personal-delivery/paper-v2.webp") center / cover; border-radius: 1px;
+  box-shadow: 0 22px 44px rgba(0, 0, 0, .5), 0 2px 0 rgba(0, 0, 0, .06), inset 0 0 40px rgba(120, 90, 40, .12);
+  transform-origin: 50% 0;
+}
+.message[data-layout="fax"] .sheet { margin: -8px 14px 0; transform: rotate(-.6deg); animation: feed 3.1s linear both; font-family: "Courier New", ui-monospace, monospace; }
+.message[data-layout="letter"] .sheet { transform: rotate(-1deg); animation: slideIn 1.3s cubic-bezier(.2, .8, .2, 1) both; font-family: "Iowan Old Style", Georgia, serif; }
+.message[data-phase="leave"] { animation: leave .9s cubic-bezier(.5, 0, .7, .4) forwards; }
+.faxHeader { display: grid; gap: 6px; padding-bottom: 12px; margin-bottom: 14px; border-bottom: 2px dashed rgba(0, 0, 0, .35); font-size: 12.5px; letter-spacing: .06em; }
+.faxHeader > div { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.faxHeader strong { font-size: 15px; letter-spacing: .3em; }
+.faxHeader dl { display: grid; grid-template-columns: 3.5rem 1fr; gap: 2px 8px; margin: 4px 0 0; }
+.faxHeader dt { font-weight: 700; }
+.faxHeader dd { margin: 0; }
+.letterHeader { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; font-style: italic; color: #4a3f2e; font-size: 14px; }
+.sheetBody { font-size: 15.5px; line-height: 1.6; }
+.message[data-layout="fax"] .sheetBody { text-shadow: .3px .2px 0 rgba(0, 0, 0, .35); }
+.attachments { display: flex; flex-wrap: wrap; gap: 14px; margin: 16px 0 6px; }
+.attachments img { width: 130px; height: 96px; object-fit: cover; border: 6px solid #fbfaf6; box-shadow: 0 6px 14px rgba(0, 0, 0, .3); pointer-events: none; user-select: none; }
+.attachments img:nth-child(odd) { transform: rotate(-2deg); }
+.attachments img:nth-child(even) { transform: rotate(1.6deg); }
+.sheet footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+.read { padding: 9px 15px; color: #1f1c17; background: rgba(255, 255, 255, .6); border: 1px solid #1f1c17; border-radius: 1px; font: 600 12.5px/1 "Courier New", ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+.read:hover, .read:focus-visible { background: #1f1c17; color: #f3eee2; outline: none; }
+.message .previewBadge { position: static; display: inline-block; margin: 0 0 10px; background: #1f1c17; border-color: #1f1c17; }
+.message[data-reduced] .sheet, .message[data-reduced] .faxSlot { animation: fadeIn .3s ease both !important; }
+.message[data-reduced][data-phase="leave"] { animation: fadeOut .25s ease forwards; }
+@media (max-width: 600px) { .message { right: 12px; top: 8vh; width: calc(100vw - 24px); } .sheet { padding: 18px 16px 14px; } }
+
+/* ---------------------------------------------------------------- keyframes */
+@keyframes veilIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes veilOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes fogRise { from { opacity: 0; translate: 0 38%; } to { opacity: var(--fogOpacity); translate: 0 0; } }
+@keyframes driftA { from { transform: scale(1.5) translate3d(-3%, 1%, 0); } to { transform: scale(1.6) translate3d(4%, -2%, 0); } }
+@keyframes driftB { from { transform: translate3d(3%, 2%, 0); } to { transform: translate3d(-5%, -1%, 0); } }
+@keyframes driftC { from { transform: translate3d(-2%, -2%, 0) scale(1.05); } to { transform: translate3d(3%, 2%, 0) scale(1.12); } }
+@keyframes dissolve { from { opacity: var(--fogOpacity); } to { opacity: 0; transform: scale(1.35); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeOut { to { opacity: 0; } }
+@keyframes motes { to { background-position: 0 -873px, 131px -1180px, 263px -1370px; } }
+@keyframes fragIn { from { opacity: 0; filter: blur(10px); transform: translateY(26px) scale(.97); letter-spacing: .08em; } to { opacity: 1; filter: blur(0); transform: none; } }
+@keyframes fragOut { to { opacity: 0; filter: blur(8px); transform: translateY(-20px) scale(1.01); } }
+@keyframes plainIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dreamIn { from { opacity: 0; filter: blur(14px); transform: translate(-18px, 10px) skewX(-4deg); } 60% { filter: blur(2px); } to { opacity: 1; filter: blur(0); transform: none; } }
+@keyframes darkIn { 0% { opacity: 0; filter: blur(6px); } 35% { opacity: .55; } 50% { opacity: .3; } 100% { opacity: 1; filter: blur(0); } }
+@keyframes threatIn { 0% { opacity: 0; transform: scale(1.08); filter: blur(6px); letter-spacing: .12em; } 70% { opacity: 1; transform: scale(.995); filter: blur(0); } 80% { transform: translateX(2px); } 90% { transform: translateX(-2px); } 100% { transform: none; letter-spacing: .01em; } }
+@keyframes dramaIn { from { opacity: 0; transform: scale(1.22); filter: blur(10px) brightness(1.8); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes echoIn { 0% { opacity: 0; filter: blur(3px); } 30% { opacity: .5; } 45% { opacity: .2; } 70% { opacity: .75; } 100% { opacity: 1; filter: blur(0); } }
+@keyframes float { from { transform: translate3d(0, 8px, 0) rotate(-1.2deg); } to { transform: translate3d(0, -12px, 0) rotate(1.4deg); } }
+@keyframes drift { from { transform: translate3d(-18px, 6px, 0) scale(.98); } to { transform: translate3d(22px, -8px, 0) scale(1.03); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+@keyframes sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+@keyframes wander { from { transform: translate3d(-4%, 2%, 0); } to { transform: translate3d(5%, -3%, 0); } }
+@keyframes dreamwave { from { transform: translate3d(2%, 0, 0) skewX(-2deg) scale(1.02); } to { transform: translate3d(-3%, 1%, 0) skewX(2deg) scale(1.08); } }
+@keyframes dim { from { opacity: 1; } to { opacity: .45; } }
+/* slow, irregular unease: under 0.3 Hz, never a flash */
+@keyframes unease { 0% { opacity: .55; } 22% { opacity: .8; } 31% { opacity: .62; } 58% { opacity: .9; } 74% { opacity: .58; } 100% { opacity: .55; } }
+@keyframes turn { to { rotate: 360deg; } }
+@keyframes burst { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@keyframes grainShift { 0% { background-position: 0 0; } 25% { background-position: -40px 20px; } 50% { background-position: 30px -30px; } 75% { background-position: -20px -40px; } }
+@keyframes grow { to { stroke-dashoffset: 0; } }
+@keyframes writhe { from { transform: rotate(-2.5deg) scale(1); } to { transform: rotate(3deg) scale(1.04); } }
+@keyframes slotIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes led { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+/* the sheet comes out of the slot in pauses, like a fax printing line by line */
+@keyframes feed {
+  0% { clip-path: inset(0 0 100% 0); transform: translateY(-26px) rotate(0); }
+  14% { clip-path: inset(0 0 84% 0); transform: translateY(-20px) rotate(0); }
+  20% { clip-path: inset(0 0 84% 0); }
+  40% { clip-path: inset(0 0 52% 0); transform: translateY(-10px) rotate(-.2deg); }
+  47% { clip-path: inset(0 0 52% 0); }
+  72% { clip-path: inset(0 0 16% 0); transform: translateY(-3px) rotate(-.4deg); }
+  80% { clip-path: inset(0 0 16% 0); }
+  100% { clip-path: inset(0 0 0 0); transform: rotate(-.6deg); }
+}
+@keyframes slideIn { from { opacity: 0; transform: translateX(110%) rotate(7deg); } to { opacity: 1; transform: rotate(-1deg); } }
+@keyframes leave { to { opacity: 0; transform: translateX(115%) rotate(5deg); } }
+
+/* "Weiter": always clearly readable; on the first fragment it glows briefly so fast readers know they may skip ahead */
+.next { color: var(--text, #fff); background: rgba(0, 0, 0, .5); border-color: rgba(255, 255, 255, .45); font-weight: 600; font-size: 13px; padding: 7px 16px; }
+.tools:has(.next[data-hint]) { opacity: 1; }
+.next[data-hint] { border-color: var(--accent); animation: nextHint 1.5s ease-in-out .9s 3; }
+@keyframes nextHint {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 20px 3px color-mix(in srgb, var(--accent) 55%, transparent); transform: scale(1.07); }
+}
+.vision[data-reduced] .next[data-hint] { animation: none; box-shadow: 0 0 0 2px var(--accent); }
+
+/* message: replay the arrival sound when the browser blocked it */
+.soundButton { margin-right: auto; padding: 8px 12px; color: #1f1c17; background: transparent; border: 1px dashed rgba(31, 28, 23, .5); border-radius: 1px; font: 12px/1 "Courier New", ui-monospace, monospace; letter-spacing: .08em; cursor: pointer; }
+.soundButton:hover, .soundButton:focus-visible { border-style: solid; outline: none; }

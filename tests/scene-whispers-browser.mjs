@@ -4,7 +4,7 @@ const {chromium}=await import(process.env.CVK_PLAYWRIGHT_MODULE||'playwright');
 const f=JSON.parse(readFileSync('.local-work/whispers/fixture.json','utf8')),base=f.base;
 assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/);
 const out='.local-work/whispers/browser';mkdirSync(out,{recursive:true});
-const browser=await chromium.launch({headless:true}),errors=[];
+const browser=await chromium.launch({headless:true,...(process.env.CVK_BROWSER_CHANNEL?{channel:process.env.CVK_BROWSER_CHANNEL}:{})}),errors=[];
 async function account(id){const c=await browser.newContext({viewport:{width:1440,height:900}});const r=await c.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:id+'@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal(r.status(),200);return c;}
 async function settled(p){await p.locator('dialog[open]').evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished)));}
 async function table(c){const p=await c.newPage();p.on('pageerror',e=>errors.push(e.message));await p.goto(base+'/spielbereich?bereich=sitzung');
@@ -72,16 +72,21 @@ try{
  await gm.setViewportSize({width:390,height:844});await gm.screenshot({path:out+'/preparation-mobile.png',fullPage:true});
  assert.equal(await gm.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),true,'no editor page overflow');
  await gm.setViewportSize({width:1440,height:900});await gm.goto(base+'/sl/regie?sessionId='+f.sessionId);
- await gm.getByRole('button',{name:'Visionen & Briefe',exact:true}).click();
- const releases=gm.getByRole('region',{name:'Vorbereitete Visionen und Botschaften'});await releases.waitFor();
- await b.keyboard.press('Escape');
- const preparedVision=releases.getByRole('article').filter({has:gm.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true})});
- await preparedVision.getByRole('button',{name:'Vision ausspielen',exact:true}).click();await b.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true}).waitFor();
- const longBody=b.locator('dialog[open] article');assert.ok(await longBody.evaluate(el=>el.scrollHeight>el.clientHeight),'long centered visions remain scrollable');await longBody.evaluate(el=>{el.scrollTop=el.scrollHeight;});assert.ok(await longBody.evaluate(el=>el.scrollTop>0));
- assert.equal(await a.getByText('Eine weitere unabhängig vorbereitete Vision.',{exact:true}).count(),0);
- const preparedLetter=releases.getByRole('article').filter({has:gm.getByRole('heading',{name:'Zweiter Brief für Spieler A',exact:true})});
- await preparedLetter.getByRole('button',{name:'Brief zustellen',exact:true}).click();await a.keyboard.press('Escape');
- await a.getByRole('button',{name:'Brief öffnen: Zweiter Brief für Spieler A',exact:true}).click();await a.getByText('Ein zweiter persönlicher Brief.',{exact:true}).waitFor();
+ // Alpha 2.0: the Regie triggers prepared items through the delivery desk; players get the fullscreen vision or the fax.
+ const releases=gm.getByRole('region',{name:'Visionen und persönliche Botschaften'});await releases.waitFor({timeout:30000});
+ await b.keyboard.press('Escape');await a.keyboard.press('Escape');
+ const preparedVision=releases.getByRole('group',{name:'Vorbereitet in dieser Szene'}).locator('article').filter({has:gm.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true})});
+ await preparedVision.getByRole('button',{name:'Aufklappen: Zweite Vision für Spieler B'}).click();await preparedVision.getByRole('button',{name:'Vision auslösen',exact:true}).click();
+ const visionB=b.getByRole('dialog',{name:'Eine Vision'});await visionB.waitFor({timeout:15000});
+ await b.getByRole('button',{name:'Text vollständig anzeigen'}).click();
+ const longBody=visionB.locator('p').filter({hasText:'Eine weitere unabhängig vorbereitete Vision.'}).first().locator('xpath=..');
+ assert.ok(await longBody.evaluate(el=>el.scrollHeight>el.clientHeight),'long visions remain scrollable');await longBody.evaluate(el=>{el.scrollTop=el.scrollHeight;});assert.ok(await longBody.evaluate(el=>el.scrollTop>0));
+ assert.equal(await a.getByText('Eine weitere unabhängig vorbereitete Vision.').count(),0);
+ await b.getByRole('button',{name:'Ich habe alles gesehen'}).click();await visionB.waitFor({state:'detached',timeout:8000});
+ const preparedLetter=releases.getByRole('group',{name:'Vorbereitet in dieser Szene'}).locator('article').filter({has:gm.getByRole('heading',{name:'Zweiter Brief für Spieler A',exact:true})});
+ await preparedLetter.getByRole('button',{name:'Aufklappen: Zweiter Brief für Spieler A'}).click();await preparedLetter.getByRole('button',{name:'Botschaft zustellen',exact:true}).click();
+ const letterA=a.getByRole('dialog',{name:'Persönliche Botschaft'});await letterA.waitFor({timeout:15000});await letterA.getByText('Ein zweiter persönlicher Brief.',{exact:true}).waitFor();
  await gm.screenshot({path:out+'/regie-release.png',fullPage:true});
- assert.deepEqual(errors,[]);console.log('PASS: A/B isolation, automatic vision, private Escape/close, keyboard letter, reconnect, mobile, reduced motion, multiple independent prepared items.');
+ await letterA.getByRole('button',{name:/^Gelesen/}).click();await letterA.waitFor({state:'detached',timeout:8000});
+ assert.deepEqual(errors,[]);console.log('PASS: A/B isolation, automatic legacy vision, private Escape/close, keyboard letter, reconnect, mobile, reduced motion, multiple independent prepared items, delivery desk with fullscreen vision and fax.');
 }finally{await browser.close();}

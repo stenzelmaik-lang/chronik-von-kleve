@@ -41,6 +41,16 @@ export type SceneYoutube=z.infer<typeof sceneYoutubeSchema>;
 export const sceneWhisperSchema=z.object({id:z.string().uuid(),kind:z.enum(['vision','letter']),title:z.string().trim().min(1).max(160),text,
   recipientIds:z.array(id).max(20).refine(v=>new Set(v).size===v.length,'Empfänger dürfen nicht doppelt sein.'),
   fileIds:z.array(id).max(20).refine(v=>new Set(v).size===v.length,'Bilder dürfen nicht doppelt sein.'),
+  // Alpha 2.0 (all optional, old entries stay valid): vision look, text sections, sound, letter layout and sender, internal note.
+  preset:z.enum(['classic','dream','dark','threat','drama','echo']).optional(),
+  fragments:z.array(z.string().max(600)).max(20).optional(),
+  audioFileId:id.optional(),
+  layout:z.enum(['fax','letter']).optional(),
+  sender:z.string().max(120).optional(),
+  note:z.string().max(2000).optional(),
+  // reading tempo of a vision; arrival sound of a message (built-in fax/letter sound unless switched off or replaced)
+  tempo:z.enum(['calm','normal','brisk']).optional(),
+  sound:z.enum(['builtin','none']).optional(),
 }).strict();
 export type SceneWhisper=z.infer<typeof sceneWhisperSchema>;
 // Preparation has no execution flags. Only an explicit SL command creates a run.

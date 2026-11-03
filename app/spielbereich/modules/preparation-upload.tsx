@@ -10,14 +10,15 @@ import s from './story-workspace.module.css';
 
 const accepts:Record<string,string>={image:'image/jpeg,image/png,image/webp,image/gif',audio:'audio/mpeg,audio/ogg,audio/wav,audio/mp4',video:'video/mp4,video/webm',handout:'application/pdf,image/jpeg,image/png,image/webp'};
 
-/** Uploads into the existing private SL file store. The file is only linked, never published. */
-export function PreparationUpload({kind,onUploaded,label}:{kind:keyof typeof accepts;onUploaded:(file:PreparationFile)=>void;label?:string}){
+/** Uploads into the existing private SL file store. The file is only linked, never published. A `section` (visions,
+ * messages) keeps the file in its own gallery section instead of the general gallery. */
+export function PreparationUpload({kind,onUploaded,label,section}:{kind:keyof typeof accepts;onUploaded:(file:PreparationFile)=>void;label?:string;section?:string}){
  const id=useId(),[busy,setBusy]=useState(false),[error,setError]=useState('');
- async function send(file:File){setBusy(true);setError('');try{const form=new FormData();form.set('file',file);form.set('visibility','sl');const r=await api<{id:string}>('/api/files','POST',form);onUploaded({id:r.id,name:file.name,mime:file.type});}catch(issue){setError((issue as Error).message);}finally{setBusy(false);}}
+ async function send(file:File){setBusy(true);setError('');try{const form=new FormData();form.set('file',file);form.set('visibility','sl');if(section)form.set('section',section);const r=await api<{id:string;section?:string}>('/api/files','POST',form);onUploaded({id:r.id,name:file.name,mime:file.type,section:r.section??null});}catch(issue){setError((issue as Error).message);}finally{setBusy(false);}}
  return <div className={s.uploadField}>
   <label htmlFor={id} className={s.uploadButton} aria-disabled={busy}><Upload size={16} aria-hidden="true"/>{busy?'Wird hochgeladen …':label||'Neue Datei hochladen'}</label>
   <input id={id} type="file" accept={accepts[kind]} disabled={busy} className={s.uploadInput} onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void send(file);}}/>
-  <small>Privat für die SL · wird nur verknüpft, nicht veröffentlicht.</small>
+  <small>{section?'Eigener Galerieabschnitt · nur für die SL, Spieler sehen es erst beim Zustellen.':'Privat für die SL · wird nur verknüpft, nicht veröffentlicht.'}</small>
   {error&&<p role="alert">{error}</p>}
  </div>;
 }
