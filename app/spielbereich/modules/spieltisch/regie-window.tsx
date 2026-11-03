@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {PreparedWhisperReleases} from './prepared-whisper-releases';
-import {useCallback,useEffect,useMemo,useRef,useState,type ReactNode} from 'react';
+import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen} from 'lucide-react';
 import type {Actor} from '@/domain/types';
 import {pagerTextMax,pagerTitleMax,pagerSenderMax,stageEffects,type StageEffect} from '@/domain/live-stage';
@@ -10,6 +10,7 @@ import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import {BackdropChoice,tableState} from './regie';
 import {RegieFigures} from './regie-figures';
+import {Block,RegieTiles,useRegieLayout} from './regie-tiles';
 import type {PreparedFigure} from '@/domain/standard-figures';
 import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
@@ -43,15 +44,6 @@ function AudiencePicker({value,onChange,crew,label}:{value:Audience;onChange:(v:
 const pagerTime=(at:string)=>new Date(at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 const audienceText=(v:Audience,crew:Crew)=>v===null?'alle':v.map(id=>crew.find(m=>m.id===id)?.name||'?').join(', ')||'niemand';
 
-function Column({title,icon,children,id}:{title:string;icon:ReactNode;children:ReactNode;id:string}){
- return <section className={styles.column} aria-labelledby={id}><h2 id={id}>{icon} {title}</h2><div className={styles.columnBody}>{children}</div></section>;
-}
-function Block({title,children,open=true,area}:{title:string;children:ReactNode;open?:boolean;area?:RegieArea}){return <details className={styles.block} open={open} id={area?'regie-bereich-'+area:undefined} data-area={area}><summary>{title}</summary><div>{children}</div></details>;}
-
-/**
- * Every area of a scene, always reachable from one menu. Text areas replace each other in the reading column;
- * the other areas live in their own columns and are scrolled into view (and opened) on choice.
- */
 const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['checks','Proben','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
  ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['figures','Figuren','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
 type RegieArea=typeof regieAreas[number][0];
@@ -69,7 +61,9 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [contexts,setContexts]=useState<Record<string,RegieContext>>({}),[contextError,setContextError]=useState<{id:string;message:string}|null>(null);
  const [chosenScene,setChosenScene]=useState(''),[audiences,setAudiences]=useState<Record<string,Audience>>({});
- const [area,setArea]=useState<RegieArea>('narration'),[textArea,setTextArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
+ const layout=useRegieLayout('chroniplay:regie-layout:'+a.campaignId+':'+a.id);
+ const revealTile=layout.reveal;
+ const [area,setArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
  const [pagerTest,setPagerTest]=useState<PagerMessage|null>(null);
  const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null);
  const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),previewDialog=useRef<HTMLDialogElement>(null);
@@ -124,23 +118,22 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  },[room,sceneId,known]);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  useEffect(()=>{try{const v=Number(window.localStorage.getItem('chroniplay:regie-textgroesse:'+a.id));if([.9,1,1.15,1.3,1.5].includes(v))queueMicrotask(()=>setTextSize(v));}catch{/* storage unavailable */}},[a.id]);
- useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));const known=regieAreas.find(([id])=>id===saved);if(known)queueMicrotask(()=>{setArea(known[0]);if(known[2]==='text')setTextArea(known[0]);});}catch{/* storage unavailable */}},[a.id]);
+ useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));const known=regieAreas.find(([id])=>id===saved);if(known)queueMicrotask(()=>{setArea(known[0]);});}catch{/* storage unavailable */}},[a.id]);
  /** Opens one area: a text area in the reading column, any other area by scrolling its block into view. */
  const checksOn=!!snapshot?.checksEnabled,checksShown=checksOn||!!snapshot?.checksSwitch;
  const visibleAreas=useMemo(()=>regieAreas.filter(([id])=>id!=='checks'||checksShown),[checksShown]);
  const openTargets=checksOn?pendingTargets(snapshot?.checks||[],snapshot?.dice.events||[],(snapshot?.crew||[]).filter(isTablePlayer).map(m=>m.id)):0;
  const chooseArea=useCallback((id:RegieArea,scroll=true)=>{
   setArea(id);try{window.localStorage.setItem(areaKey(a.id),id);}catch{/* storage unavailable */}
-  const kind=regieAreas.find(([x])=>x===id)?.[2];
-  if(kind==='text'){setTextArea(id);if(scroll)queueMicrotask(()=>window.document.getElementById('col-text')?.scrollIntoView({block:'nearest'}));return;}
+  revealTile(id);
   if(!scroll)return;
-  queueMicrotask(()=>{const el=window.document.getElementById('regie-bereich-'+id);if(!el)return;if(el instanceof HTMLDetailsElement)el.open=true;
+  requestAnimationFrame(()=>{const el=window.document.getElementById('regie-bereich-'+id);if(!el)return;const details=el.querySelector('details');if(details)details.open=true;
    // Jump without smooth scrolling: live updates re-render the columns several times a second and would cancel it.
    el.scrollIntoView({block:'start',behavior:'auto'});
-   el.dataset.flash='true';window.setTimeout(()=>{delete el.dataset.flash;},1400);el.querySelector<HTMLElement>('summary')?.focus({preventScroll:true});});
- },[a.id]);
+   el.dataset.flash='true';window.setTimeout(()=>{delete el.dataset.flash;},1400);el.querySelector<HTMLElement>('header button')?.focus({preventScroll:true});});
+ },[a.id,revealTile]);
  // Alt+1 … Alt+9 jump to the first nine areas without leaving the keyboard.
- useEffect(()=>{const keys=(e:KeyboardEvent)=>{if(!e.altKey||e.ctrlKey||e.metaKey)return;const n=Number(e.key);if(!Number.isInteger(n)||n<1||n>9)return;e.preventDefault();chooseArea(visibleAreas[n-1][0]);};window.addEventListener('keydown',keys);return()=>window.removeEventListener('keydown',keys);},[chooseArea,visibleAreas]);
+ useEffect(()=>{const keys=(e:KeyboardEvent)=>{if(!e.altKey||e.ctrlKey||e.metaKey)return;const n=Number(e.key);if(!Number.isInteger(n)||n<1||n>9)return;e.preventDefault();const selected=visibleAreas[n-1];if(selected)chooseArea(selected[0]);};window.addEventListener('keydown',keys);return()=>window.removeEventListener('keydown',keys);},[chooseArea,visibleAreas]);
  const resize=(d:number)=>{const steps=[.9,1,1.15,1.3,1.5],next=steps[Math.max(0,Math.min(steps.length-1,steps.indexOf(textSize)+d))];setTextSize(next);try{window.localStorage.setItem('chroniplay:regie-textgroesse:'+a.id,String(next));}catch{/* storage unavailable */}};
 
  /** Runs one existing stage/table command; outdated versions are retried once, nothing else is guessed. */
@@ -214,47 +207,41 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     {!allScenes.some(x=>x.id===sceneId)&&<option value={sceneId}>{s?.title||'Szene'}</option>}
    </select></label>
    <div className={styles.sceneState}>{s&&(running?<span className={styles.live}><Clapperboard size={14}/> Läuft auf dem Tisch</span>:<button type="button" className={styles.primary} disabled={busy} onClick={()=>void activate(s.id)}><Clapperboard/> Szene starten</button>)}</div>
-   <ul className={styles.crew} aria-label="Runde">{crew.map(m=><li key={m.id} data-presence={m.presence}>{m.name}</li>)}</ul>
+   <ul className={styles.crew} aria-label="Runde">{crew.filter(m=>m.presence!=='disconnected').map(m=><li key={m.id} data-presence={m.presence}>{m.name}</li>)}</ul>
    <p className={styles.sync} role="status" data-fresh={!!snapshot&&!offline}><Radio size={13}/> {offline?'Verbindung gestört – versuche erneut':snapshot?'Live verbunden':'Verbinde …'}</p>
    <button type="button" className={styles.tableLink} onClick={()=>{if(window.opener&&!window.opener.closed)window.opener.focus();else window.open('/spielbereich?bereich=sitzung','_blank');}}><BookOpen size={15}/> Zum Spieltisch</button>
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
-  <nav className={styles.areas} aria-label="Bereiche der Szene">{visibleAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id),waiting=id==='checks'?openTargets:0;return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} data-attention={waiting>0||undefined} aria-current={(kind==='text'?textArea===id&&area===id:area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{label}{waiting>0&&<span className={styles.areaBadge} aria-label={waiting+' Würfe ausstehend'}>{waiting}</span>}</button>;})}</nav>
+  <nav className={styles.areas} aria-label="Bereiche der Szene">{visibleAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id),waiting=id==='checks'?openTargets:0;return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} data-attention={waiting>0||undefined} aria-current={(area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{label}{waiting>0&&<span className={styles.areaBadge} aria-label={waiting+' Würfe ausstehend'}>{waiting}</span>}</button>;})}</nav>
   {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
-  <main className={styles.grid} data-scene={s!.id}>
-   <Column id="col-material" title="Material" icon={<ImageIcon size={17}/>}>
-    <span id="regie-bereich-material" data-area="material" className={styles.anchor} tabIndex={-1}/>
+  <main className={styles.grid} data-scene={s!.id}><RegieTiles state={layout}>
+
     {!!context.materials?.length&&<Block title="Szenenmaterial"><RegieMaterials heading={false} materials={context.materials} objects={snapshot?.objects||[]} crew={crew} busy={busy} run={(body,done)=>run(body,null,done)}/></Block>}
-    {snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}
+    {snapshot&&<Block title="Materialbibliothek" area="material"><TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/></Block>}
     <Block title="Standardfiguren" area="figures"><RegieFigures sessionId={room!.sessionId} prepared={(context.scene.standardFigures||[]) as PreparedFigure[]} busy={busy} dice={snapshot?.dice?.events||[]} actorId={a.id} run={(body,recipients,done)=>run(body,recipients,done)} table={f=>{const sid='standard-figure:'+room!.sessionId+':'+f.id,placed=objects.find(o=>o.kind==='npc'&&o.sourceId===sid),key='npc:'+sid,target=audienceOf(key),onTable=placed&&placed.visibility==='group';return <div style={{display:'grid',gap:6}} data-figure-table={f.id}><p className={regieStyles.state} data-placed={!!onTable}>{tableState(placed)}</p>{!f.imageFileId&&<p className={regieStyles.empty}>Wähle unter „Werte, Verhalten, Bild“ zuerst ein Bild, um die Figur auf den Tisch zu spielen.</p>}<AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={f.label}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)||!f.imageFileId} onClick={()=>void place(key,sid,'record',undefined,'npc')}><UserPlus/> {onTable?'Freigabe ändern':'Auftreten lassen'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,f.label+' tritt ab.')}><UserMinus/> Abtreten</button>:<button type="button" disabled={busy||!f.imageFileId} onClick={()=>void run({action:'add',kind:'npc',sourceId:sid,sourceKind:'record'},null,f.label+' liegt nur für dich auf dem Tisch.')}><Lock/> Nur SL auflegen</button>}</div></div>;}}/></Block>
     {!!sceneMedia.filter(m=>m.mime.startsWith('image/')).length&&<Block title="Bilder · Polaroids">{sceneMedia.filter(m=>m.mime.startsWith('image/')).map(m=>media(m,ImageIcon,'image'))}</Block>}
     {!!sceneMedia.filter(m=>m.mime==='application/pdf').length&&<Block title="Dokumente · PDF">{sceneMedia.filter(m=>m.mime==='application/pdf').map(m=>media(m,FileText,'pdf'))}</Block>}
     {!!context.handouts.length&&<Block title="Handout-Akten">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,h.sourceKind||'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:h.sourceKind||'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}
-    {!sceneMedia.some(m=>m.mime.startsWith('image/')||m.mime==='application/pdf')&&!context.handouts.length&&<p className={regieStyles.empty}>Kein Bild- oder Dokumentmaterial mit dieser Szene verknüpft.</p>}
 
-   </Column>
 
-   <Column id="col-text" title="Texte zum Vorlesen" icon={<BookOpen size={17}/>}>
-    <div className={styles.textTools}><h3 className={styles.sceneTitle}>{s!.title}</h3>{context.place&&<small>Schauplatz: {context.place.title}</small>}
+
+    <div className={styles.textTools}><h2>Texte zum Vorlesen</h2><h3 className={styles.sceneTitle}>{s!.title}</h3>{context.place&&<small>Schauplatz: {context.place.title}</small>}
      <div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div></div>
-    <div className={styles.texts} style={{fontSize:textSize+'em'}} data-text-area={textArea}>
-     {textArea==='narration'&&<section className={styles.narration} aria-label="Erzählung">
+
+     <Block title="Erzählung" area="narration"><div style={{fontSize:textSize+'em'}} data-text-area="narration"><section className={styles.narration} aria-label="Erzählung">
       <header><h3>Erzählung</h3><p className={regieStyles.state} data-placed={shared}>{shared?'Für die Runde freigegeben':'Noch nicht freigegeben'}</p></header>
       <Text value={s!.narration} empty="Kein Erzähltext vorbereitet."/>
-      {s!.narration.trim()&&<div className={styles.releaseBar}><AudiencePicker value={audienceOf('narration:'+s!.id)} onChange={setAudience('narration:'+s!.id)} crew={crew} label="Erzählung"/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(audienceOf('narration:'+s!.id))} onClick={()=>void release(s!.id)}><Eye/> {shared?'Erneut freigeben':'Erzählung freigeben'}</button>{snapshot?.sceneEventId&&<button type="button" disabled={busy} onClick={()=>void run({action:'hideScene',eventId:snapshot.sceneEventId},null,'Erzählung zurückgezogen.')}><EyeOff/> Erzählung zurückziehen</button>}</div></div>}
-     </section>}
-     {textArea==='atmosphere'&&<section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section>}
-     {textArea==='dialogue'&&<section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section>}
-     {textArea==='interactions'&&<section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}{snapshot?.checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.primary} onClick={()=>chooseArea('checks')}>Vorbereitete Proben ausgeben</button>}</section>}
-     {textArea==='checks'&&<section className={styles.textArea} aria-label="Proben"><h3>Proben</h3>{snapshot?.checksSwitch&&<ChecksSwitch on={snapshot.checksSwitch.on} busy={busy} onSwitch={(body,target)=>run(body,target,snapshot.checksSwitch?.on?'Charakterproben ausgeschaltet.':'Charakterproben eingeschaltet.')}/>}<CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?.dice.events||[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section>}
-     {textArea==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s!.id} version={s!.version} crew={crew} objects={objects} busy={busy} onCommand={body=>run(body,null)}/>}
-     {textArea==='secrets'&&<section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section>}
-     {textArea==='consequences'&&<section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section>}
-     {textArea==='notes'&&<section className={styles.textArea} aria-label="SL-Notizen"><h3>SL-Notizen</h3><Text value={s!.gmNotes} empty="Keine SL-Notizen."/></section>}
-    </div>
-   </Column>
+      {s!.narration.trim()&&<div className={styles.releaseBar}><AudiencePicker value={audienceOf('narration:'+s!.id)} onChange={setAudience('narration:'+s!.id)} crew={crew} label="Erzählung"/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(audienceOf('narration:'+s!.id))} onClick={()=>void release(s!.id)}><Eye/> {shared?'Erneut freigeben':'Erzählung freigeben'}</button>{snapshot?.sceneEventId&&<button type="button" disabled={busy} onClick={()=>void run({action:'hideScene',eventId:snapshot.sceneEventId},null,'Erzählung zurückgezogen.')}><EyeOff/> Erzählung zurückziehen</button>}</div></div>}</section></div></Block>
+     <Block title="Atmosphäre" area="atmosphere"><div style={{fontSize:textSize+'em'}} data-text-area="atmosphere"><section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section></div></Block>
+     <Block title="Dialoge" area="dialogue"><div style={{fontSize:textSize+'em'}} data-text-area="dialogue"><section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section></div></Block>
+     <Block title="Interaktion" area="interactions"><div style={{fontSize:textSize+'em'}} data-text-area="interactions"><section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}{snapshot?.checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.primary} onClick={()=>chooseArea('checks')}>Vorbereitete Proben ausgeben</button>}</section></div></Block>
+     {checksShown&&<Block title="Proben" area="checks"><div style={{fontSize:textSize+'em'}} data-text-area="checks"><section className={styles.textArea} aria-label="Proben"><h3>Proben</h3>{snapshot?.checksSwitch&&<ChecksSwitch on={snapshot.checksSwitch.on} busy={busy} onSwitch={(body,target)=>run(body,target,snapshot.checksSwitch?.on?'Charakterproben ausgeschaltet.':'Charakterproben eingeschaltet.')}/>}<CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?.dice.events||[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section></div></Block>}
+     <Block title="Visionen & Briefe" area="whispers"><div style={{fontSize:textSize+'em'}} data-text-area="whispers"><PreparedWhisperReleases items={context.whispers||[]} sceneId={s!.id} version={s!.version} crew={crew} objects={objects} busy={busy} onCommand={body=>run(body,null)}/></div></Block>
+     <Block title="Geheimnisse" area="secrets"><div style={{fontSize:textSize+'em'}} data-text-area="secrets"><section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section></div></Block>
+     <Block title="Folgen" area="consequences"><div style={{fontSize:textSize+'em'}} data-text-area="consequences"><section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section></div></Block>
+     <Block title="SL-Notizen" area="notes"><div style={{fontSize:textSize+'em'}} data-text-area="notes"><section className={styles.textArea} aria-label="SL-Notizen"><h3>SL-Notizen</h3><Text value={s!.gmNotes} empty="Keine SL-Notizen."/></section></div></Block>
 
-   <Column id="col-media" title="Ton & Video" icon={<Music size={17}/>}>
+
     <Block title="Tonaufnahmen · Kassette">{sceneAudio.length?sceneAudio.map(m=>media(m,Music,'audio')):<p className={regieStyles.empty}>Keine Tonaufnahme mit dieser Szene verknüpft.</p>}</Block>
     <Block title="Video · Röhrenbildschirm">{sceneVideo.length?sceneVideo.map(m=>media(m,Film,'video')):<p className={regieStyles.empty}>Kein Video mit dieser Szene verknüpft.</p>}</Block>
     <Block title="Hintergrundmusik">
@@ -266,9 +253,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     <Block title="Ambiente · YouTube" area="sound">
      <RegieAmbience youtube={snapshot?.youtube} sceneTracks={context.youtube||[]} sceneTitle={s!.title} actorId={a.id} busy={busy} run={(body,done)=>run(body,null,done||'')}/>
     </Block>
-   </Column>
 
-   <Column id="col-play" title="Spielfeld & Effekte" icon={<Clapperboard size={17}/>}>
+
     <Block title="Zustände der Runde" area="vitals">{snapshot?.vitals?<RegieVitals vitals={snapshot.vitals} crew={snapshot.crew} busy={busy} run={(body,done)=>run(body,null,done||'')}/>:<p className={regieStyles.empty}>Zustandswerte werden geladen …</p>}</Block>
     <Block title="Atmosphäre auf dem Tisch" area="effects">
      <div className={styles.effects}>{stageEffects.map(e=>{const Icon=effectIcons[e];return <button type="button" key={e} aria-pressed={effects.includes(e)} disabled={busy} onClick={()=>void toggleEffect(e)}><Icon/> {effectLabels[e]}</button>;})}</div>
@@ -312,8 +298,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      {!!sentPagers.length&&<ul className={styles.compact} aria-label="Gesendete Pager">{[...sentPagers].reverse().map(p=><li key={p.id}><span>{p.priority==='hoch'&&<b>Dringend · </b>}{p.title&&<b>{p.title}: </b>}{p.text}<small>{p.origin==='vorbereitet'?'vorbereitet · ':''}{p.sender?'von '+p.sender+' · ':''}an {audienceText(p.recipients??null,crew)} · {pagerTime(p.at)}</small><small data-pager-acks="">{ackText(p)}</small></span><button type="button" aria-label="Pager zurückziehen" disabled={busy} onClick={()=>void run({action:'pagerWithdraw',id:p.id},null,'Pager zurückgezogen.')}><Undo2/></button></li>)}</ul>}
     </Block>
     <Block title={'Auf dem Tisch ('+objects.length+')'} open={false} area="table">{objects.length?<ul className={styles.compact}>{objects.map(o=><li key={o.id}><span>{o.title}<small>{tableState(o)}</small></span><button type="button" aria-label={o.title+' vom Tisch nehmen'} disabled={busy} onClick={()=>void run({action:'remove',id:o.id})}><EyeOff/></button></li>)}</ul>:<p className={regieStyles.empty}>Der Tisch ist leer.</p>}</Block>
-   </Column>
-  </main>}
+
+  </RegieTiles></main>}
   <dialog ref={previewDialog} className={regieStyles.preview} aria-label="Private Vorschau" onClose={()=>setPreview(null)}>{preview&&<><header><div><small>PRIVATE VORSCHAU · NUR SL</small><h2>{preview.title}</h2></div><button aria-label="Vorschau schließen" onClick={()=>previewDialog.current?.close()}><X/></button></header>
    <div>{preview.mime.startsWith('image/')?<img src={fileUrl(preview.fileId)} alt={preview.title}/>:preview.mime.startsWith('audio/')?<audio controls src={fileUrl(preview.fileId)}/>:preview.mime.startsWith('video/')?<video controls playsInline src={fileUrl(preview.fileId)}/>:<LivePdf url={fileUrl(preview.fileId)} name={preview.name}/>}
    {preview.text.trim()&&<Text value={preview.text} empty=""/>}</div></>}</dialog>

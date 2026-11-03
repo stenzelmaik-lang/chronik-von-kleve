@@ -138,3 +138,9 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .diceLog span{display:grid;gap:1px;min-width:0}.diceLog strong{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.diceLog small{color:#a59d8c;font-size:11px}
 .diceLog b{flex:none;font-size:12px;font-weight:600;color:#d9cfbd}.diceLog b[data-outcome=success]{color:#9fc3a5}.diceLog b[data-outcome=botch]{color:#e59b8a}
 .diceLogEmpty{color:#a59d8c;font-size:13px}
+
+.mapLink{display:grid;place-items:center;width:48px;height:44px;border:1px solid var(--line);border-radius:6px;color:var(--accent);background:#182528}
+.mapLink:hover,.mapLink:focus-visible{background:#283735;color:#f0d69e}
+.brand>svg,.simulation svg{color:var(--accent);flex:none}
+.simulation>button{display:inline-flex;align-items:center;gap:5px}
+@media(max-width:600px){.brand>svg{width:16px;margin-right:5px}.simulation>button>svg{display:none}}

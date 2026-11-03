@@ -34,9 +34,9 @@ try{
   await regie.waitForURL(/\/sl\/regie/);await regie.getByRole('heading',{name:/Texte zum Vorlesen/}).waitFor();
   await sl.getByRole('button',{name:'Regie im zweiten Fenster'}).click();await regie.waitForTimeout(400);
   assert.equal(gm.pages().length,2,'The remembered Regie tab is reused');
-  for(const column of ['Material','Texte zum Vorlesen','Ton & Video','Spielfeld & Effekte'])assert.ok(await regie.getByRole('heading',{name:column,exact:true}).isVisible(),name+': column '+column);
+  for(const column of ['Materialbibliothek','Texte zum Vorlesen','Tonaufnahmen · Kassette','NPCs der Szene'])assert.ok(await regie.getByRole('heading',{name:column,exact:true}).isVisible(),name+': column '+column);
   await noHorizontalScroll(regie,name+' Regie');
-  pass(name+': Regie opens from the table in a remembered tab, four areas visible');
+  pass(name+': Regie opens from the table in a remembered tab, live tiles visible');
 
   // Pager to A only: A sees it float in, B does not.
   const text='Ruf an, '+name+' – '+Date.now();
