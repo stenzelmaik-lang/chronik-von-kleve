@@ -62,7 +62,7 @@ try{
   await menu.getByRole('button',{name:'Pager',exact:true}).click();await regie.waitForTimeout(900);
   const pagerBlock=await regie.locator('#regie-bereich-pager').boundingBox();const vp=regie.viewportSize();
   assert.ok(pagerBlock&&pagerBlock.y>=0&&pagerBlock.y<vp.height,name+': Pager area scrolled into view');
-  for(const column of ['Material','Texte zum Vorlesen','Ton & Video','Spielfeld & Effekte'])assert.ok(await regie.getByRole('heading',{name:column,exact:true}).isVisible(),name+': column '+column);
+  for(const column of ['Materialbibliothek','Texte zum Vorlesen','Tonaufnahmen · Kassette','NPCs der Szene'])assert.ok(await regie.getByRole('heading',{name:column,exact:true}).isVisible(),name+': column '+column);
   await noHorizontalScroll(regie,name+' Regie');
   await menu.getByRole('button',{name:'Erzählung',exact:true}).click();await regie.getByRole('region',{name:'Erzählung'}).waitFor();
   await regie.screenshot({path:output+'/'+name+'-regie.png'});

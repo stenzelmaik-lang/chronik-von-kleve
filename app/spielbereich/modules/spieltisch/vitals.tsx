@@ -136,8 +136,8 @@ function BodyHud({vitals,gm,crew,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot
   <span className={styles.hudTitle}><Heart size={15} className={styles.heart}/><span className={styles.hudName}>{c.title}</span><ChevronRight size={14}/></span>
   <span className={styles.condition} data-tone={tone}><b>{conditionLabel(h)}</b>{h.status==='active'&&<small>{penaltyText(h.penalty)}</small>}</span>
   <HealthBar h={h}/>
-  <span className={styles.bodyRow}><Droplets size={14}/><BloodBar b={b}/><small>{b.current??'–'}/{b.max??'–'}</small></span>
-  <span className={styles.bodyRow}><Flame size={14}/><WillDots w={w}/><small>{w.temporary??'–'}/{w.permanent??'–'}</small></span>
+  <span className={styles.bodyRow}><Droplets size={14} aria-hidden="true"/><span className={styles.resourceName}>Blut</span><BloodBar b={b}/><small>{b.current??'–'}/{b.max??'–'}</small></span>
+  <span className={styles.bodyRow}><Flame size={14} aria-hidden="true"/><span className={styles.resourceName}>Willenskraft</span><WillDots w={w}/><small>{w.temporary??'–'}/{w.permanent??'–'}</small></span>
   {!!others.length&&<span className={styles.roundBlock} role="group" aria-label="Am Tisch"><RoundRows round={others} crew={crew} hits={hits} limit={5}/></span>}
  </button>;
 }

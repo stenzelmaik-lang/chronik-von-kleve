@@ -9,7 +9,7 @@
 
 /* Auf der Bühne: zwei getrennte Teile, Körper (unten links) und Druck (unten rechts). */
 .hudBox{pointer-events:auto;position:absolute;bottom:18px;z-index:6;display:grid;gap:7px;padding:11px 13px 12px;border:1px solid #c5a46a55;border-radius:10px;background:linear-gradient(180deg,#121f22f5,#0b1416f5);color:#eee8dc;text-align:left;box-shadow:0 10px 28px #0006;font-size:12px;transition:border-color .3s,box-shadow .3s}
-.hudBox:hover{border-color:#d6b36f99}.hudBox[data-hidden=true]{display:none}
+.hudBox:hover{border-color:#d6b36f99;background:linear-gradient(180deg,#1a2b2df5,#101a1cf5)}.hudBox:focus-visible{outline:2px solid #e4c789;outline-offset:3px}.hudBox[data-hidden=true]{display:none}
 .bodyHud{left:12px;width:min(290px,calc(50% - 70px))}.pressureHud{right:12px;width:min(270px,calc(50% - 70px))}
 .hudTitle{display:flex;align-items:center;gap:7px;min-width:0;font:15px/1.2 Georgia,serif;color:#eee8dc}.hudTitle>svg{flex-shrink:0;color:#c5a46a}.hudTitle>svg:last-child{margin-left:auto}
 .hudName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -35,7 +35,9 @@
 @keyframes ember{50%{box-shadow:0 0 12px #ff6a3dcc}}
 .healthBar[data-size=small]{gap:2px}.healthBar[data-size=small]>i{height:12px;font-size:9px;border-radius:2px}
 
-.bodyRow{display:grid;grid-template-columns:16px minmax(0,1fr) auto;align-items:center;gap:8px;color:#c5a46a}.bodyRow small{color:#e5ddcb;font-size:11px;font-variant-numeric:tabular-nums}
+.bodyRow{display:grid;grid-template-columns:14px minmax(0,1fr) auto;align-items:center;gap:3px 6px;padding:3px 0;color:#c5a46a}.bodyRow small{grid-column:3;grid-row:1;color:#e5ddcb;font-size:11px;font-variant-numeric:tabular-nums}
+.resourceName{font-size:11px;font-weight:600;color:#dddbc9;overflow-wrap:anywhere}
+.bodyRow>[role=img],.bodyRow>.missing{grid-column:2/-1;grid-row:2}
 .bodyRow>svg:first-child{color:#c4505b}.bodyRow:last-child>svg:first-child{color:#87a9c6}
 /* Blutvorrat als Phiole mit Teilstrichen je Blutpunkt. */
 .bloodBar{position:relative;display:block;height:12px;border:1px solid #c4505b88;border-radius:6px;background:#1a0d10;overflow:hidden}

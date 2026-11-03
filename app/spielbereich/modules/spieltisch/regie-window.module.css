@@ -155,3 +155,25 @@
 .areas button[data-area-button=checks]{border-color:#d6b36f88;color:#f0dcae}
 .areas button[data-attention=true]{box-shadow:0 0 0 1px #d6b36f66}
 .areaBadge{display:inline-grid;place-items:center;min-width:19px;height:19px;margin-left:7px;padding:0 5px;border-radius:10px;background:#d6b36f;color:#1a1408;font-size:11px;font-weight:700}
+
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:none;align-content:start;align-items:start;overflow:auto}
+.layoutTools,.grid>.textTools{grid-column:1/-1}
+.layoutTools{display:flex;align-items:flex-start;flex-wrap:wrap;gap:8px}
+.layoutTools button,.layoutTools summary,.tileHeader button{min-height:34px;padding:5px 9px;border:1px solid var(--line);border-radius:5px;background:#1b292b;color:#eee8dc}
+.layoutTools details button{margin:4px 4px 0 0}
+.tile{position:relative;inset:auto;box-sizing:border-box;min-width:0;width:100%;max-width:none;margin:0;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit;scroll-margin-top:10px}
+.tile[hidden]{display:none}
+.tile[data-wide=true]{grid-column:span 2}
+.tile[data-flash=true]{outline:2px solid var(--accent)}
+.tileHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--line)}
+.tileHeader h3{font:normal 17px Georgia,serif;color:#f0dcae;margin:0}
+.tileHeader>div{display:flex;gap:4px;flex-wrap:wrap}
+.tileHeader button{display:inline-grid;place-items:center;min-width:34px}
+.tileHeader button[draggable=true]{cursor:grab}
+.tileBody{box-sizing:border-box;padding:12px;min-height:74px;max-height:65dvh;overflow:auto;resize:vertical;overflow-wrap:anywhere}
+.tile:modal{position:fixed;inset:0;width:100%;height:100%;max-height:none;margin:0;border:0;border-radius:0;display:flex;flex-direction:column}
+.tile::backdrop{background:#0a1114e8}
+.tile:modal .tileBody{flex:1;max-height:none;resize:none;padding:clamp(16px,4vw,48px)}
+.tile:modal [data-text-area]{max-width:78ch;margin-inline:auto;font-size:1.25em}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.grid{grid-template-columns:minmax(0,1fr)}.tile[data-wide=true]{grid-column:span 1}}
