@@ -76,3 +76,9 @@
 .mediaPick img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
 .group { display: grid; gap: 8px; min-width: 0; }
+
+/* delete with confirmation */
+.confirm { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 8px 10px; border: 1px solid #8a5a62; border-radius: 4px; background: rgba(180, 80, 93, .1); color: #f0cdd2; font-size: 13px; }
+.confirm button, .inline { display: inline-flex; gap: 5px; align-items: center; padding: 5px 10px; color: #e8edf0; background: #182635; border: 1px solid #4a5a68; border-radius: 4px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.confirm .danger { background: #4a1d24; border-color: #b4505d; color: #ffd9de; }
+.inline { margin-left: 6px; padding: 2px 8px; }

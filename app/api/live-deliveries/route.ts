@@ -15,6 +15,9 @@ const body=z.discriminatedUnion('action',[
  // spontaneous from the Regie: the full entry is checked like a prepared one; `save` keeps it in the scene
  session.extend({action:z.literal('compose'),requestId:z.string().uuid(),sceneId:z.string().min(1).max(160),entry:sceneWhisperSchema,recipients,save:z.boolean()}).strict(),
  session.extend({action:z.literal('save-entry'),sceneId:z.string().min(1).max(160),entry:sceneWhisperSchema}).strict(),
+ session.extend({action:z.literal('remove-entry'),sceneId:z.string().min(1).max(160),whisperId:z.string().uuid()}).strict(),
+ // GM preview on the own table: never a delivery, never in a player's view
+ session.extend({action:z.literal('preview'),previewId:z.string().uuid(),entry:sceneWhisperSchema,recipientName:z.string().max(400)}).strict(),
  session.extend({action:z.literal('withdraw'),runId:z.string().uuid()}).strict(),
  session.extend({action:z.literal('seen'),runId:z.string().uuid()}).strict(),
  session.extend({action:z.literal('ack'),runId:z.string().uuid()}).strict(),

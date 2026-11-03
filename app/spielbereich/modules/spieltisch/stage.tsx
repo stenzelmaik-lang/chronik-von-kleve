@@ -202,7 +202,7 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
    {/* The scene backdrop is the only full-stage image. Released photos stay table objects or personal views. */}
    <div className={styles.background} data-layer="background"/><div className={styles.scene} data-layer="scene"><StageBackdrop className={mediaStyles.backdropLayer} image={backdropImage}/><div className={styles.scrim}/><StageEffects effects={snapshot?.effects||[]}/></div>
    {/* Only released narration lives on the shared stage. Private reading happens in the Regie drawer. */}
-   {a.gm&&<TablePreview sessionId={sessionId}/>}
+   {a.gm&&<TablePreview sessionId={sessionId} relay={snapshot?.tablePreview}/>}
    {!a.gm&&snapshot&&<DeliveryStage key={'deliveries:'+a.id+':'+runId} deliveries={snapshot.deliveries||[]} sessionId={sessionId} recipientName={snapshot.crew.find(m=>m.id===a.id)?.name||a.name}/>}
    <PersonalDeliveryReader autoOpen={!a.gm} key={a.id+':'+runId} objects={snapshot?.objects||[]} viewer={a.id+':'+runId} activeId={personalId} onSelect={setPersonalId} asset={asset}/>
    {snapshot?.sceneInfo&&snapshot.sceneEventId&&<StageNarration gm={a.gm} actorId={a.id} runId={runId} eventId={snapshot.sceneEventId} title={snapshot.sceneInfo.title} narration={snapshot.sceneInfo.narration||''} busy={busy} onHide={()=>void command({action:'hideScene',eventId:snapshot.sceneEventId})} onReading={setReading}/>}

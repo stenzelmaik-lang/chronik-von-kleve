@@ -1,6 +1,6 @@
 "use client";
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {CloudFog,Mail,Eye,Send,EyeOff,RotateCcw,ChevronDown,Pencil,Plus,Save} from 'lucide-react';
+import {CloudFog,Mail,Eye,Send,EyeOff,RotateCcw,ChevronDown,Pencil,Plus,Save,Trash2} from 'lucide-react';
 import {api} from '../api-client';
 import type {SceneWhisper} from '@/domain/story-scene';
 import {deliveryStatus,statusLabel,presetById,MESSAGE_LAYOUTS,type DeliveryRun,type DeliveryStatus,type RecipientChoice} from '@/domain/personal-delivery';
@@ -45,7 +45,8 @@ function RunList({list,title,busy,name,canResend,onAgain,onWithdraw}:{list:Deliv
 export function DeliveryDesk({items:prepared,sceneId,version:preparedVersion,sessionId,crew,objects,onCommand}:Props){
  const [runs,setRuns]=useState<DeliveryRun[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [choices,setChoices]=useState<Record<string,Choice>>({}),[preview,setPreview]=useState<{entry:SceneWhisper;names:string}|null>(null);
- const [open,setOpen]=useState<string[]>([]),[composer,setComposer]=useState<Composer|null>(null);
+ const [open,setOpen]=useState<string[]>([]),[composer,setComposer]=useState<Composer|null>(null),[removing,setRemoving]=useState('');
+ const [offer,setOffer]=useState<{entry:SceneWhisper;names:string}|null>(null);
  // entries saved from the Regie: newer than the scene context the Regie loaded at the start
  const [local,setLocal]=useState<{sceneId:string;version:number;whispers:SceneWhisper[]}|null>(null);
  const fresh=local&&local.sceneId===sceneId&&local.version>=preparedVersion?local:null;
@@ -75,12 +76,17 @@ export function DeliveryDesk({items:prepared,sceneId,version:preparedVersion,ses
   if(await once(key,{action:'deliver',sceneId,whisperId:w.id,sceneVersion:version,recipients},done))fold(w.id);
  }
  const resendLoose=(r:DeliveryRun,id:string)=>once(r.whisperId+':again:'+r.id+':'+id,{action:'compose',sceneId,entry:entryOf(r),recipients:{mode:'players',playerIds:[id]},save:false},'Erneut an '+name(id)+' gesendet.');
- // preview on the GM's own table (same browser); only without an open table it plays here in the Regie
+ // preview on the GM's own table: instantly in the same browser, otherwise via the GM-only preview value on the next poll
  async function showPreview(entry:SceneWhisper,names:string){
-  setError('');
-  if(await previewOnTable(sessionId,previewDelivery(entry),names||'Empfänger (Vorschau)'))setNotice('Vorschau läuft auf deinem Spieltisch. Niemand sonst sieht sie, nichts wird zugestellt.');
-  else{setNotice('Kein Spieltisch in diesem Browser geöffnet – die Vorschau läuft hier in der Regie.');setPreview({entry,names});}
+  setError('');setOffer(null);
+  const id=crypto.randomUUID(),recipientName=names||'Empfänger (Vorschau)';
+  const relayed=api('/api/live-deliveries','POST',{action:'preview',sessionId,previewId:id,entry,recipientName}).then(()=>true,(e:Error)=>{setError(e.message);return false;});
+  if(await previewOnTable(sessionId,previewDelivery(entry),recipientName,id)){setNotice('Vorschau läuft auf deinem Spieltisch. Niemand sonst sieht sie, nichts wird zugestellt.');return;}
+  if(await relayed){setNotice('Vorschau an deinen Spieltisch geschickt – sie erscheint dort in ein bis zwei Sekunden. Niemand sonst sieht sie, nichts wird zugestellt.');setOffer({entry,names});}
+  else setPreview({entry,names});
  }
+ async function remove(id:string,done:string){if(await post({action:'remove-entry',sceneId,whisperId:id},done)){setRemoving('');fold(id);}}
+ const confirmRemove=(id:string,question:string,label:string)=>removing===id&&<div className={styles.confirm} role="group" aria-label="Löschen bestätigen"><span>{question}</span><button type="button" className={styles.danger} disabled={busy} onClick={()=>void remove(id,'Gelöscht.')}><Trash2 size={14}/> {label}</button><button type="button" onClick={()=>setRemoving('')}>Behalten</button></div>;
  const choiceOf=(w:SceneWhisper):Choice=>choices[w.id]||{mode:w.recipientIds.length?'prepared':'all',ids:[]};
  const setChoice=(w:SceneWhisper,c:Choice)=>setChoices(old=>({...old,[w.id]:c}));
  const toChoice=(c:Choice):RecipientChoice=>c.mode==='players'?{mode:'players',playerIds:c.ids}:{mode:c.mode};
@@ -102,7 +108,7 @@ export function DeliveryDesk({items:prepared,sceneId,version:preparedVersion,ses
    <div className={styles.actions}><button type="button" onClick={()=>setComposer({mode:'new',entry:blankEntry('vision')})}><Plus size={15}/> Neue Vision</button><button type="button" onClick={()=>setComposer({mode:'new',entry:blankEntry('letter')})}><Plus size={15}/> Neue Botschaft</button></div>
   </div>
   {error&&<p className={styles.error} role="alert">{error}</p>}
-  {notice&&!error&&<p className={styles.notice} role="status">{notice}</p>}
+  {notice&&!error&&<p className={styles.notice} role="status">{notice}{offer&&<> <button type="button" className={styles.inline} onClick={()=>{setPreview(offer);setOffer(null);}}>Stattdessen hier ansehen</button></>}</p>}
   {composer?.mode==='new'&&composerFor(composer)}
   {!items.length&&!loose.length&&<p className={styles.empty}>Noch nichts vorbereitet. Lege spontan etwas an oder bereite es in Szenenschritt 6 vor.</p>}
   {!!items.length&&<div className={styles.group} role="group" aria-label="Vorbereitet in dieser Szene">{items.map(w=>{
@@ -121,11 +127,13 @@ export function DeliveryDesk({items:prepared,sceneId,version:preparedVersion,ses
       <label><input type="radio" name={'to-'+w.id} checked={c.mode==='players'} onChange={()=>setChoice(w,{...c,mode:'players'})}/> Auswahl</label>
       {c.mode==='players'&&<div className={styles.players}>{players.map(p=><label key={p.id}><input type="checkbox" checked={c.ids.includes(p.id)} onChange={()=>setChoice(w,{...c,ids:c.ids.includes(p.id)?c.ids.filter(x=>x!==p.id):[...c.ids,p.id]})}/> {p.name}</label>)}{!players.length&&<span>Keine Spieler am Tisch.</span>}</div>}
      </fieldset>
+     {confirmRemove(w.id,'Diesen Eintrag löschen? Er verschwindet aus der Szene und aus dieser Liste. Noch offene Zustellungen enden bei den Spielern.','Endgültig löschen')}
      {c.mode==='prepared'&&!!missing.length&&<p className={styles.error}>Nicht in dieser Runde: {missing.length} vorgesehene Person(en). Wähle „Auswahl“ oder passe die Vorbereitung an.</p>}
      <div className={styles.actions}>
       <button type="button" onClick={()=>void showPreview(w,namesOf(c,w))}><Eye size={15}/> Vorschau</button>
       <button type="button" className={styles.primary} disabled={busy||!ready} onClick={()=>void deliver(w,toChoice(c),w.id+':'+JSON.stringify(c),w.kind==='vision'?'Vision ausgelöst.':'Botschaft zugestellt.')}><Send size={15}/> {w.kind==='vision'?'Vision auslösen':'Botschaft zustellen'}</button>
       <button type="button" onClick={()=>setComposer({mode:'edit',entry:w})}><Pencil size={15}/> Bearbeiten</button>
+      <button type="button" onClick={()=>setRemoving(w.id)}><Trash2 size={15}/> Löschen</button>
       {legacy&&<button type="button" disabled={busy} onClick={()=>onCommand({action:'remove',id:legacy.id})}><EyeOff size={15}/> Ältere Tisch-Zustellung zurückziehen</button>}
      </div>
      <RunList list={own} title={w.title} busy={busy} name={name} canResend={canResend} onWithdraw={withdraw} onAgain={(r,id)=>void deliver(w,{mode:'players',playerIds:[id]},w.id+':again:'+r.id+':'+id,'Erneut an '+name(id)+' gesendet.')}/>
@@ -139,7 +147,9 @@ export function DeliveryDesk({items:prepared,sceneId,version:preparedVersion,ses
     <div className={styles.actions}>
      <button type="button" onClick={()=>void showPreview(entryOf(r),r.recipients.map(name).join(', '))}><Eye size={15}/> Vorschau</button>
      <button type="button" disabled={busy} onClick={()=>void post({action:'save-entry',sceneId,entry:entryOf(r)},'Gespeichert. Der Eintrag steht in dieser Szene bereit.')}><Save size={15}/> In der Szene speichern</button>
+     <button type="button" onClick={()=>setRemoving(id)}><Trash2 size={15}/> Entfernen</button>
     </div>
+    {confirmRemove(id,'Aus der Liste entfernen? Noch offene Zustellungen enden bei den Spielern.','Entfernen')}
     <RunList list={list} title={r.title} busy={busy} name={name} canResend={canResend} onWithdraw={withdraw} onAgain={(run,pid)=>void resendLoose(run,pid)}/>
    </div>}
   </article>;})}</div>}

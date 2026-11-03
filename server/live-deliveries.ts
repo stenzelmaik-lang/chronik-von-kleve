@@ -5,7 +5,7 @@ import {sceneCommandSchema,type SceneWhisper} from '@/domain/story-scene';
 import {validatePreparationMedia} from './preparation-media';
 import {readSetting,mutateSetting} from './settings-store';
 import {richTextFileIds,richTextToPlainText} from '@/domain/location-rich-text';
-import {visionFragments,resolveRecipients,playerDeliveries,presetById,tempoById,type DeliveryRun,type RecipientChoice,type MessageLayoutId} from '@/domain/personal-delivery';
+import {visionFragments,resolveRecipients,playerDeliveries,presetById,tempoById,arrivalSoundOf,type DeliveryRun,type RecipientChoice,type MessageLayoutId,type PlayerDelivery} from '@/domain/personal-delivery';
 
 /**
  * Delivery runs of one evening (visions & personal messages). Preparation stays in the scene; a trigger copies the
@@ -34,12 +34,34 @@ export async function deliveriesForViewer(a:Actor,sessionId:string){
  return playerDeliveries(await runs(a,sessionId),a.id);
 }
 
+/**
+ * GM preview relay: the Regie leaves the entry for the GM's own table, which plays it with the player's presentation.
+ * Separate from delivery: no run, no receipt, never in a player's snapshot; one short-lived value per GM and evening.
+ */
+export type TablePreview={id:string;delivery:PlayerDelivery;recipientName:string;createdAt:string};
+const previewKey=(campaignId:string,sessionId:string,memberId:string)=>`live-preview:${campaignId}:${sessionId}:${memberId}`;
+const PREVIEW_MS=60_000;
+function previewOf(w:SceneWhisper,id:string,createdAt:string):PlayerDelivery{
+ const images=[...new Set([...w.fileIds,...richTextFileIds(w.text)])].slice(0,20);
+ return {id,kind:w.kind,preset:presetById(w.preset).id,layout:(w.layout||'fax') as MessageLayoutId,sender:w.sender||'',
+  fragments:w.kind==='vision'?visionFragments(w.fragments,richTextToPlainText(w.text)):[],html:w.text,images,audio:!!w.audioFileId,audioFileId:w.audioFileId||null,
+  tempo:tempoById(w.tempo).id,arrivalSound:arrivalSoundOf(w.kind,w.layout||'fax',w.sound,w.audioFileId),createdAt,seen:true};
+}
+export async function previewForViewer(a:Actor,sessionId:string):Promise<TablePreview|undefined>{
+ if(!a.gm)return undefined;
+ try{const p=JSON.parse(await readSetting(previewKey(a.campaignId,sessionId,a.id))||'null') as TablePreview|null;return p&&Date.now()-Date.parse(p.createdAt)<PREVIEW_MS?p:undefined;}catch{return undefined;}
+}
+
 export type DeliveryCommand=
  |{action:'deliver';sessionId:string;requestId:string;sceneId:string;whisperId:string;sceneVersion?:number;recipients:RecipientChoice}
  /** spontaneous entry from the Regie: delivered right away, optionally kept in the scene for later */
  |{action:'compose';sessionId:string;requestId:string;sceneId:string;entry:SceneWhisper;recipients:RecipientChoice;save:boolean}
  /** create or edit an entry of the scene from the Regie, without delivering it */
  |{action:'save-entry';sessionId:string;sceneId:string;entry:SceneWhisper}
+ /** delete an entry: out of the scene (if it is there) and its runs out of the list; open runs end for the players */
+ |{action:'remove-entry';sessionId:string;sceneId:string;whisperId:string}
+ /** play an entry on the GM's own table only */
+ |{action:'preview';sessionId:string;previewId:string;entry:SceneWhisper;recipientName:string}
  |{action:'withdraw';sessionId:string;runId:string}
  |{action:'seen'|'ack';sessionId:string;runId:string};
 
@@ -59,6 +81,25 @@ export async function changeDeliveries(a:Actor,c:DeliveryCommand){
  if(c.action==='save-entry'){
   gmOnly(a);await readLiveRoom(a,c.sessionId);
   return {scene:sceneView(await saveEntry(a,c.sceneId,c.entry))};
+ }
+ if(c.action==='preview'){
+  gmOnly(a);await readLiveRoom(a,c.sessionId);
+  const stamp=new Date().toISOString();
+  const preview:TablePreview={id:c.previewId,delivery:previewOf(c.entry,c.previewId,stamp),recipientName:c.recipientName,createdAt:stamp};
+  await mutateSetting<TablePreview|null>(previewKey(a.campaignId,c.sessionId,a.id),()=>null,()=>preview);
+  return {preview:{id:preview.id}};
+ }
+ if(c.action==='remove-entry'){
+  gmOnly(a);await readLiveRoom(a,c.sessionId);
+  const db=database(),scene=await readScene(db,a,c.sceneId);
+  let saved:Awaited<ReturnType<typeof readScene>>|null=null;
+  if(scene.document.whispers.some(w=>w.id===c.whisperId)){
+   const command=sceneCommandSchema.safeParse({action:'save',id:scene.id,version:scene.version,document:{...scene.document,whispers:scene.document.whispers.filter(w=>w.id!==c.whisperId)}});
+   if(!command.success)throw new HttpError(400,'Dieser Eintrag kann so nicht gelöscht werden.');
+   saved=await executeScene(db,a,command.data);
+  }
+  const state=await mutate(k,s=>s.runs.some(r=>r.whisperId===c.whisperId)?{...s,rev:s.rev+1,runs:s.runs.filter(r=>r.whisperId!==c.whisperId)}:s);
+  return {runs:state.runs,...(saved?{scene:sceneView(saved)}:{})};
  }
  if(c.action==='deliver'||c.action==='compose'){
   gmOnly(a);

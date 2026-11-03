@@ -132,6 +132,29 @@ const after=(await req('/api/command-center/scenes?id='+sceneId,gm)).data.scene;
 check(edited.status===200&&edited.data.scene.version===after.version&&after.document.whispers.filter(w=>w.id===keep.id).length===1&&after.document.whispers.find(w=>w.id===keep.id).preset==='echo'&&await whisperCount()===countBefore+1,'editing in the Regie replaces the entry and returns the new scene version');
 check((await deliver(gm,{...keep},{mode:'all'},uuid(),after.version)).status===200,'the edited entry can be triggered with the version the Regie got back');
 
+// GM preview on the own table: a separate, GM-only value; no run, no receipt, never in a player's view.
+const runsBefore=(await req('/api/live-deliveries?sessionId='+sessionId,gm)).data.runs.length;
+const pid=uuid(),previewEntry={id:uuid(),kind:'letter',title:'PREVIEW_INTERN',text:'PREVIEW_ONLY_GM',recipientIds:[],fileIds:[],layout:'letter'};
+check((await post(a,{action:'preview',previewId:uuid(),entry:previewEntry,recipientName:'x'})).status===403,'players cannot send a table preview');
+check((await post(gm,{action:'preview',previewId:pid,entry:previewEntry,recipientName:'Demo Spieler A'})).status===200,'the GM sends a preview to the own table');
+const gmStage=await stage(gm);
+check(gmStage.tablePreview?.id===pid&&gmStage.tablePreview.delivery.html==='PREVIEW_ONLY_GM'&&gmStage.tablePreview.delivery.arrivalSound==='letter','the GM table receives it with the player presentation (letter sound)');
+check(!JSON.stringify(await stage(a)).includes('PREVIEW_ONLY_GM')&&!JSON.stringify(await stage(b)).includes('PREVIEW_ONLY_GM'),'players never see the preview');
+check((await req('/api/live-deliveries?sessionId='+sessionId,gm)).data.runs.length===runsBefore,'a preview creates no delivery and no receipt');
+
+// Delete: out of the scene and out of the list; an open delivery ends for the player.
+const doomed={id:uuid(),kind:'vision',title:'Wird gelöscht',text:'DOOMED_TEXT',recipientIds:['command-a'],fileIds:[],preset:'dark'};
+const withDoomed=await compose(gm,doomed,{mode:'prepared'},true);
+check(withDoomed.status===200&&(await stage(a)).deliveries.some(d=>d.fragments.includes('DOOMED_TEXT')),'an entry kept in the scene is open for A');
+check((await post(a,{action:'remove-entry',sceneId,whisperId:doomed.id})).status===403,'players cannot delete entries');
+const removed=await post(gm,{action:'remove-entry',sceneId,whisperId:doomed.id});
+check(removed.status===200&&!removed.data.runs.some(r=>r.whisperId===doomed.id)&&!removed.data.scene.whispers.some(w=>w.id===doomed.id)&&!(await req('/api/command-center/scenes?id='+sceneId,gm)).data.scene.document.whispers.some(w=>w.id===doomed.id),'deleting removes the entry from the scene and its runs from the list');
+check(!(await stage(a)).deliveries.some(d=>d.fragments.includes('DOOMED_TEXT')),'the open delivery ends for the player');
+const looseOne={id:uuid(),kind:'letter',title:'Nur spontan',text:'LOOSE_TEXT',recipientIds:[],fileIds:[]};
+await compose(gm,looseOne,{mode:'players',playerIds:['command-b']});
+const looseGone=await post(gm,{action:'remove-entry',sceneId,whisperId:looseOne.id});
+check(looseGone.status===200&&!looseGone.data.runs.some(r=>r.whisperId===looseOne.id)&&!looseGone.data.scene,'an unsaved spontaneous entry can be removed from the list without touching the scene');
+
 // Clean up this run's deliveries so the fixture stays tidy.
 for(const r of (await req('/api/live-deliveries?sessionId='+sessionId,gm)).data.runs)if(!r.withdrawnAt)await post(gm,{action:'withdraw',runId:r.id});
 console.log(checks+' delivery checks passed.');

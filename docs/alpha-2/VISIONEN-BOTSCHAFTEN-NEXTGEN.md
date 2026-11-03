@@ -316,7 +316,37 @@ Abgedeckt in der Browserprüfung:
 
 **Prüfgrenze:** Die Tisch-Vorschau braucht Regie und Spieltisch im selben Browser, was der übliche Aufbau mit dem zweiten Fenster ist. Auf einem anderen Gerät läuft sie stattdessen in der Regie.
 
-## 11. Ausdrücklich nicht getan
+## 11. Nachbesserung: Vorschau sicher auf den Tisch, Löschen (Branch `claude/regie-vorschau-loeschen`)
+
+**Befund aus dem Praxistest:**
+- Die Vorschau erschien in der Regie, nicht auf dem offenen Tisch. Wahrscheinlichste Ursache: Das Tischfenster war vor dem Deployment geöffnet und lief noch mit altem Code ohne Vorschau-Empfang.
+- Zusätzlich hing die Übergabe nur am Browser-Kanal. Der erreicht pausierte Fenster und andere Geräte nicht.
+
+**Behoben:**
+- **Vorschau zusätzlich über den Server:**
+  - `preview` legt pro SL und Abend einen kurzlebigen Wert ab (60 s, Schlüssel `live-preview:<Kampagne>:<Abend>:<SL>`).
+  - Nur der Tisch-Snapshot der SL enthält ihn (`tablePreview`). Kein Lauf, keine Quittung, nie bei Spielern.
+  - Der Tisch spielt ihn bei der nächsten Abfrage ab (≤ 1,5 s), auch in einem anderen Fenster oder auf einem anderen Gerät.
+  - Browser-Kanal und Server tragen dieselbe ID. Die Vorschau läuft genau einmal, auch nach einem Neuladen nicht erneut.
+  - Ohne offenen Tisch bietet die Regie „Stattdessen hier ansehen“.
+- **Löschen:**
+  - Gespeicherte Einträge: „Löschen“ mit Rückfrage. Der Eintrag verschwindet aus der Szene, seine Zustellungen aus der Liste.
+  - Spontane Einträge: „Entfernen“ mit Rückfrage.
+  - Noch offene Zustellungen enden dabei bei den Spielern.
+  - Serverbefehl `remove-entry`, nur für die SL.
+
+**Prüfungen:**
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Unit-Tests | 359/359 |
+| Integration Visionen | 57/57. Neu: Vorschau nur für die SL, nie bei Spielern, ohne Zustellung; Löschen aus Szene und Liste; offene Zustellung endet beim Spieler; Spieler-Sperren |
+| Browser | 26 Schritte. Neu: Vorschau erreicht einen SL-Tisch in einem anderen Fenster ohne gemeinsamen Browser-Kanal, genau einmal; Entfernen und Löschen mit Rückfrage |
+| Alte Visions- und Brief-Prüfungen, volle Integration (2046 + 46), Story-Editor-Prüfungen | bestanden |
+
+**Hinweis für den Betrieb:** Nach jedem Deployment Tisch und Regie einmal neu laden. Offene Fenster behalten sonst den alten Code.
+
+## 12. Ausdrücklich nicht getan
 
 - Kein Deployment, keine Migration, keine Schreibzugriffe auf Produktion (D1/R2).
 - Keine Änderung an bestehenden Kampagnendaten oder Rechten.

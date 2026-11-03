@@ -67,6 +67,8 @@ try{
  step='GM preview never delivers';
  assert.ok(await folded('Klassisch')&&await folded('Fax intern'),'entries start folded');ok('entries start folded to one line');
  await (await expand('Klassisch')).getByRole('button',{name:'Vorschau'}).click();
+ // no GM table open yet: the preview waits for the table; the Regie offers to show it right here
+ await gm.getByText(/an deinen Spieltisch geschickt/).waitFor({timeout:8000});await gm.getByRole('button',{name:'Stattdessen hier ansehen'}).click();
  const preview=gm.getByRole('dialog',{name:'Vorschau einer Vision'});await preview.waitFor();await gm.getByText('Vorschau · nichts wird zugestellt').waitFor();
  await gm.waitForTimeout(3600);await gm.screenshot({path:out+'/preset-classic.png'});
  await gm.getByRole('button',{name:'Text vollständig anzeigen'}).click();await gm.getByRole('button',{name:'Ich habe alles gesehen'}).click();await preview.waitFor({state:'detached',timeout:8000});
@@ -109,7 +111,7 @@ try{
 
  step='remaining looks in the GM preview';
  for(const [title,file] of [['Offenbarung','preset-drama.png'],['Echo','preset-echo.png']]){
-  await (await expand(title)).getByRole('button',{name:'Vorschau'}).click();const p=gm.getByRole('dialog',{name:'Vorschau einer Vision'});await p.waitFor();await gm.waitForTimeout(3600);await gm.screenshot({path:out+'/'+file});
+  await (await expand(title)).getByRole('button',{name:'Vorschau'}).click();await gm.getByRole('button',{name:'Stattdessen hier ansehen'}).click();const p=gm.getByRole('dialog',{name:'Vorschau einer Vision'});await p.waitFor();await gm.waitForTimeout(3600);await gm.screenshot({path:out+'/'+file});
   await gm.getByRole('button',{name:'Text vollständig anzeigen'}).click();await gm.getByRole('button',{name:'Ich habe alles gesehen'}).click();await p.waitFor({state:'detached',timeout:8000});
  }
  ok('six vision looks captured for comparison');
@@ -164,6 +166,30 @@ try{
  await tableFax.getByRole('button',{name:/^Gelesen/}).click();await tableFax.waitFor({state:'detached',timeout:6000});await draft.getByRole('button',{name:'Abbrechen'}).click();
  assert.equal(await runsCount(),count,'previews create no delivery and no receipt');
  ok('previews from the Regie play on the GM table only, can be repeated and deliver nothing');
- assert.deepEqual(errors,[],'no page errors');ok('no page errors in GM, GM table, A or B');
+
+ step='preview reaches a table in another window or device';
+ await gmTable.close();
+ const gmc2=await account('command-gm'),otherTable=await table(gmc2,'GM-Tisch (anderes Fenster)');
+ count=await runsCount();
+ await item('Echo').getByRole('button',{name:'Vorschau'}).click();
+ await gm.getByText(/an deinen Spieltisch geschickt/).waitFor({timeout:8000});await gm.getByRole('button',{name:'Stattdessen hier ansehen'}).waitFor();
+ const relayed=otherTable.getByRole('dialog',{name:'Vorschau einer Vision'});await relayed.waitFor({timeout:10000});
+ assert.equal(await visionOn(a).count()+await visionOn(b).count(),0,'players see nothing');
+ await otherTable.getByRole('button',{name:'Text vollständig anzeigen'}).click();await otherTable.getByRole('button',{name:'Ich habe alles gesehen'}).click();await relayed.waitFor({state:'detached',timeout:8000});
+ await otherTable.reload();await otherTable.locator('[data-layer="stage_objects"]').waitFor({timeout:30000});await otherTable.waitForTimeout(3500);
+ assert.equal(await relayed.count(),0,'a preview never plays twice');assert.equal(await runsCount(),count,'no delivery');
+ ok('a preview reaches the GM table in another window without the browser channel, once, and delivers nothing');
+
+ step='delete spontaneous and saved entries';
+ const looseRow=looseItem('Hafen-Fax');await looseRow.getByRole('button',{name:'Aufklappen: Hafen-Fax'}).click();
+ await looseRow.getByRole('button',{name:'Entfernen'}).first().click();
+ await looseRow.getByRole('group',{name:'Löschen bestätigen'}).getByRole('button',{name:'Entfernen'}).click();
+ await looseRow.waitFor({state:'detached',timeout:8000});
+ const kept=await expand('Spontaner Schatten');await kept.getByRole('button',{name:'Löschen'}).click();
+ await kept.getByRole('group',{name:'Löschen bestätigen'}).getByRole('button',{name:'Endgültig löschen'}).click();
+ await item('Spontaner Schatten').waitFor({state:'detached',timeout:8000});
+ assert.ok(!(await api(gmc,'/api/command-center/scenes?id='+sceneId)).data.scene.document.whispers.some(w=>w.title==='Spontaner Schatten'),'gone from the scene');
+ ok('spontaneous rows can be removed and saved entries deleted, each after a confirmation');
+ assert.deepEqual(errors,[],'no page errors');ok('no page errors in GM, GM tables, A or B');
  console.log('PASS live deliveries browser');
 }catch(error){console.error('FAIL at '+step,error);process.exitCode=1;}finally{await browser.close();}
