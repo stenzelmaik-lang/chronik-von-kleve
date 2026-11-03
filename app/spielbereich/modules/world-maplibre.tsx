@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import type { WorldMapMarker } from "./world-map-contract";
 import styles from "./world-experience.module.css";
 
+const OPENFREEMAP_ATLAS_STYLE = "https://tiles.openfreemap.org/styles/fiord";
 const OPENFREEMAP_DARK_STYLE = "https://tiles.openfreemap.org/styles/dark";
 const CHRONICLE_REGION_BOUNDS: [[number, number], [number, number]] = [
   [6.03, 51.65], // Goch / A57 side of the regional starting frame.
@@ -93,12 +94,12 @@ export function WorldMapLibre({
     try {
       instance = new MapLibreMap({
       container,
-      style: OPENFREEMAP_DARK_STYLE,
+      style: compact ? OPENFREEMAP_ATLAS_STYLE : OPENFREEMAP_DARK_STYLE,
       center: [6.18, 51.78],
       zoom: 9,
       minZoom: 5,
       maxZoom: 19,
-      attributionControl: { compact: false },
+      attributionControl: compact ? false : { compact: false },
       dragPan: true,
       touchZoomRotate: true,
       dragRotate: false,
@@ -217,7 +218,7 @@ export function WorldMapLibre({
   return (
     <>
       <div ref={host} className={styles.mapLibreCanvas} aria-label="Interaktive OpenStreetMap der Chronikregion" />
-      <div className={styles.mapLibreControls} aria-label="Kartensteuerung">
+      <div className={styles.mapLibreControls} data-compact={compact||undefined} aria-label="Kartensteuerung">
         <button type="button" aria-label="Hineinzoomen" title="Hineinzoomen" onClick={() => changeZoom(1)}><Plus size={17} /></button>
         <button type="button" aria-label="Herauszoomen" title="Herauszoomen" onClick={() => changeZoom(-1)}><Minus size={17} /></button>
         <button type="button" aria-label="Zur Chronikregion" title="Zur Chronikregion" onClick={returnToRegion}><Compass size={17} /></button>
