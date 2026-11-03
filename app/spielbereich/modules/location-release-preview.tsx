@@ -16,11 +16,12 @@ function entryAt(projection:PlaceProjection|null,entityId:string){
  if(!location)return null;
  if(entityId===location.id)return {title:location.title,image:location.image,texts:[location.summary,location.atmosphere],media:location.media};
  const key=locationPublicKey(entityId);
- const area=location.areas.find(area=>area.viewKey===key);
+ const matches=(item:{dossierHref?:string})=>!!item.dossierHref&&new URL(item.dossierHref,"https://chroniplay.invalid").searchParams.get("eintrag")===key;
+ const area=location.areas.find(matches);
  if(area&&!area.redacted)return {title:area.title,image:area.image,texts:[area.playerHint],media:area.media};
- const room=location.areas.flatMap(area=>area.rooms).find(room=>room.viewKey===key);
+ const room=location.areas.flatMap(area=>area.rooms).find(matches);
  if(room)return {title:room.title,image:undefined,texts:[room.short],media:room.media};
- const note=location.knownInformation.find(item=>item.id===key);
+ const note=location.knownInformation.find(matches);
  return note?{title:note.title,image:undefined,texts:[note.text],media:note.media}:null;
 }
 

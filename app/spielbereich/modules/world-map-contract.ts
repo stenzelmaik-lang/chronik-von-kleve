@@ -2,10 +2,10 @@ import type { DiscoveryState, PlaceGeography, ProjectedPlace } from "@/domain/lo
 
 export type WorldHubPlace = Pick<
   ProjectedPlace,
-  "id" | "title" | "subtitle" | "district" | "image" | "summary" | "discovery" | "worldState"
+  "id" | "title" | "subtitle" | "district" | "image" | "summary" | "discovery" | "worldState" | "mapRisk"
 > & { geography: PlaceGeography };
 
-export type WorldMapPlace = Pick<WorldHubPlace, "id" | "title" | "discovery" | "worldState">;
+export type WorldMapPlace = Pick<WorldHubPlace, "id" | "title" | "discovery" | "worldState" | "mapRisk">;
 
 export type WorldMapMarker = WorldMapPlace & {
   coordinates: [longitude: number, latitude: number];
@@ -23,6 +23,7 @@ export const mapDiscoveryLabels: Record<DiscoveryState, string> = {
   investigated: "Untersucht",
 };
 
+const isCoarseRumor=(place:WorldHubPlace)=>place.discovery==="rumored"&&place.geography.status==="approximate"&&place.geography.accuracyMeters>=50000;
 const MAP_KNOWLEDGE = new Set<DiscoveryState>(["known", "visited", "investigated"]);
 
 /** The exact same released collection feeds player search, place tiles, previews,
@@ -35,17 +36,18 @@ export function visibleWorldPlaces(places: readonly WorldHubPlace[], gmView = fa
 /** The hub response is already server-projected; this function deliberately
  * copies only the safe tile fields and never adds information from detail data. */
 export function playerMapPlaces(places: readonly WorldHubPlace[]): WorldHubPlace[] {
-  return places.filter((place) => place.id && place.title.trim() && MAP_KNOWLEDGE.has(place.discovery));
+  return places.filter((place) => place.id && place.title.trim() && (MAP_KNOWLEDGE.has(place.discovery)||isCoarseRumor(place)));
 }
 
 export function mapMarkersForPlaces(places: readonly WorldHubPlace[], includeUnrevealed = false): WorldMapMarker[] {
   return places.flatMap((place) => {
-    if ((!includeUnrevealed && !MAP_KNOWLEDGE.has(place.discovery)) || place.geography.status === "unknown") return [];
+    if ((!includeUnrevealed && !MAP_KNOWLEDGE.has(place.discovery)&&!isCoarseRumor(place)) || place.geography.status === "unknown") return [];
     return [{
       id: place.id,
       title: place.title,
       discovery: place.discovery,
       worldState: place.worldState,
+      ...(place.mapRisk?{mapRisk:place.mapRisk}:{}),
       coordinates: place.geography.coordinates,
       precision: place.geography.status,
       source: place.geography.source,

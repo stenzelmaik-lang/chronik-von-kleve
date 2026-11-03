@@ -26,6 +26,7 @@ function summary(projection: PlaceProjection) {
     summary: place.summary,
     discovery: place.discovery,
     worldState: place.worldState,
+    mapRisk: place.mapRisk,
     geography: place.geography ?? { status: "unknown" as const },
   };
 }
@@ -38,6 +39,7 @@ function mapMarker(projection: PlaceProjection) {
     title: projection.location.title,
     discovery: projection.location.discovery,
     worldState: projection.location.worldState,
+    mapRisk: projection.location.mapRisk,
     coordinates: geography.coordinates,
     precision: geography.status,
     ...(geography.status === "approximate" ? { accuracyMeters: geography.accuracyMeters } : {}),

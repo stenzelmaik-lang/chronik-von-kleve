@@ -663,3 +663,11 @@
 .releaseComparison h5{font-size:16px;color:var(--world-brass)}
 .releaseComparison img{display:block;width:100%;max-height:200px;object-fit:contain}
 .releaseComparison>button,.releaseComparison>p{grid-column:1/-1;justify-self:start}
+.noteKind{display:grid;gap:5px;margin:8px 0;color:var(--world-muted);font-size:13px}
+.noteKind select{width:100%;min-height:40px;border:1px solid var(--world-line);background:var(--world-ink);color:var(--world-bone);border-radius:5px;padding:6px}
+#eigene-ortsnotizen{scroll-margin-top:24px}
+
+.mapLibreMarker[data-map-risk=peaceful],.atlasMarker[data-map-risk=peaceful]{color:#8fd6ac}
+.mapLibreMarker[data-map-risk=neutral],.atlasMarker[data-map-risk=neutral]{color:#f2cd85}
+.mapLibreMarker[data-map-risk=dangerous],.atlasMarker[data-map-risk=dangerous]{color:#ffad61}
+.mapLibreMarker[data-map-risk=hostile],.atlasMarker[data-map-risk=hostile]{color:#ff737a}

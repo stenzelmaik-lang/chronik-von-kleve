@@ -55,7 +55,7 @@ const discoveryGlyphs = {
 };
 
 function WorldMapLegend({includeInternal,compact}: {includeInternal: boolean;compact:boolean}) {
-  const states = includeInternal ? (["known","visited","investigated","rumored","hidden"] as const) : (["known","visited","investigated"] as const);
+  const states = includeInternal ? (["known","visited","investigated","rumored","hidden"] as const) : (["known","visited","investigated","rumored"] as const);
   return <ul className={styles.mapDiscoveryLegend} data-compact={compact||undefined} aria-label="Kartenzeichen">
     {states.map(state=><li key={state} data-discovery={state}>
       <svg aria-hidden="true" viewBox="0 0 20 26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" dangerouslySetInnerHTML={{__html:discoveryGlyphs[state]}}/>
@@ -70,7 +70,11 @@ function updateMarkerElement(button: HTMLButtonElement, place: WorldMapMarker) {
     : place.precision === "approximate"
     ? `ungefähre Position, Genauigkeit etwa ${place.accuracyMeters ?? 0} Meter`
     : "geprüfte genaue Position";
-  const description = `${place.title} · ${mapDiscoveryLabels[place.discovery]} · ${positionText}`;
+  const riskLabels={peaceful:"Friedlich",neutral:"Neutral",dangerous:"Gefährlich",hostile:"Feindesgebiet"};
+  if(place.mapRisk)button.dataset.mapRisk=place.mapRisk;
+  else delete button.dataset.mapRisk;
+  const risk=place.mapRisk?" · "+riskLabels[place.mapRisk]:"";
+  const description = `${place.title} · ${mapDiscoveryLabels[place.discovery]} · ${positionText}${risk}`;
   button.setAttribute("aria-label", `${description}. Vorschau anzeigen.`);
   button.title = description;
   if (button.dataset.discovery === place.discovery) return;

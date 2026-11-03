@@ -350,7 +350,7 @@ export async function transitionLocationDraft(db:D1Database,actor:Actor,input:{r
   return {ok:true,status:to,version:next};
 }
 
-export async function publishLocationRevision(db:D1Database,actor:Actor,input:{entityId:string;scope:"public"|"group"|"player";playerId?:string;revisionId?:string;expectedReleaseVersion:number;action:"publish"|"revoke"|"block";discoveryState?:"rumored"|"known"|"visited"|"investigated";grantDiscovery?:boolean;reason:string}){
+async function prepareLocationRelease(db:D1Database,actor:Actor,input:{entityId:string;scope:"public"|"group"|"player";playerId?:string;revisionId?:string;expectedReleaseVersion:number;action:"publish"|"revoke"|"block";discoveryState?:"rumored"|"known"|"visited"|"investigated";grantDiscovery?:boolean;reason:string}){
   requireCmsPublisher(actor);
   const node=await getLocationNode(db,actor,input.entityId,true);
   const target=await getTarget(db,actor,input.scope,input.playerId);
@@ -387,8 +387,27 @@ export async function publishLocationRevision(db:D1Database,actor:Actor,input:{e
       discovery_state=CASE WHEN excluded.discovery_state='investigated' OR knowledge.discovery_state='investigated' THEN 'investigated' WHEN excluded.discovery_state='visited' OR knowledge.discovery_state='visited' THEN 'visited' WHEN excluded.discovery_state='known' OR knowledge.discovery_state='known' THEN 'known' WHEN excluded.discovery_state='rumored' OR knowledge.discovery_state='rumored' THEN 'rumored' ELSE knowledge.discovery_state END,
       version=knowledge.version+1,granted_by=excluded.granted_by,updated_at=excluded.updated_at`).bind(crypto.randomUUID(),actor.campaignId,input.entityId,knowledgeAudience,subject,mapped,discovery,(prior?.version??0)+1,actor.id,now,now));
   }
+  return {stmts,result:{ok:true,releaseId:id,releaseVersion,transition:input.action,entityId:input.entityId,audienceScope:target.scope,audienceKey:target.key}};
+}
+
+export async function publishLocationRevision(db:D1Database,actor:Actor,input:{entityId:string;scope:"public"|"group"|"player";playerId?:string;revisionId?:string;expectedReleaseVersion:number;action:"publish"|"revoke"|"block";discoveryState?:"rumored"|"known"|"visited"|"investigated";grantDiscovery?:boolean;reason:string}){
+  const {stmts,result}=await prepareLocationRelease(db,actor,input);
   try{await db.batch(stmts);}catch(error){throw conflictError(error);}
-  return {ok:true,releaseId:id,releaseVersion,transition:input.action,entityId:input.entityId,audienceScope:target.scope,audienceKey:target.key};
+  return result;
+}
+
+export async function publishLocationTree(db:D1Database,actor:Actor,placeId:string,entries:{entityId:string;revisionId:string;expectedReleaseVersion:number}[],discoveryState:"rumored"|"known"|"visited"|"investigated"){
+  requireCmsPublisher(actor);
+  const selected=new Set(entries.map(entry=>entry.entityId));
+  if(selected.size!==entries.length||!selected.has(placeId))throw new HttpError(400,"Wähle den Hauptort genau einmal aus.");
+  const prepared=await Promise.all(entries.map(async entry=>{
+    const node=await getLocationNode(db,actor,entry.entityId,true);
+    if(node.location_id!==placeId||!["location","area","room"].includes(node.level)||(node.parent_id&&!selected.has(node.parent_id)))
+      throw new HttpError(400,"Wähle zu jedem Bereich oder Raum auch seinen übergeordneten Eintrag.");
+    return prepareLocationRelease(db,actor,{...entry,scope:"group",action:"publish",discoveryState,reason:"Gemeinsame Ortsfreigabe im Command Center"});
+  }));
+  try{await db.batch(prepared.flatMap(item=>item.stmts));}catch(error){throw conflictError(error);}
+  return {ok:true,count:prepared.length};
 }
 
 export async function readReleaseState(db:D1Database,actor:Actor,input:{entityId:string;scope:"public"|"group"|"player";playerId?:string}){

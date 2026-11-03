@@ -15,6 +15,8 @@ export const worldStateIds = [
   "destroyed",
   "abandoned",
 ] as const;
+export const locationRiskLevels = ["peaceful","neutral","dangerous","hostile"] as const;
+export type LocationRisk = (typeof locationRiskLevels)[number];
 export type WorldStateId = (typeof worldStateIds)[number];
 
 export const stateMarkerIds = [
@@ -130,6 +132,7 @@ export type PlaceModel = {
   subtitle: string;
   district: string;
   address: string;
+  mapRisk?: LocationRisk;
   image: string;
   summary: string;
   atmosphere: string;

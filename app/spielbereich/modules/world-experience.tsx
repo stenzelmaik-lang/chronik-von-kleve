@@ -115,6 +115,7 @@ export function WorldExperience({
   const [overlay, setOverlay] = useState<WorldOverlay>(null);
   const [noteState, setNoteState] = useState<NoteState | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [noteType, setNoteType] = useState("note");
   const [busy, setBusy] = useState(false);
   const [mapStatus, setMapStatus] = useState<"loading" | "ready" | "error">("loading");
   const [WorldMapView, setWorldMapView] = useState<ComponentType<WorldMapViewProps> | null>(null);
@@ -219,7 +220,7 @@ export function WorldExperience({
     return safeMapPlaces.filter((place) => !needle || `${place.title} ${place.district} ${place.summary}`.toLocaleLowerCase("de-DE").includes(needle));
   }, [query, safeMapPlaces]);
   const matchingPlaces = matchingMapPlaces;
-  const selected = matchingPlaces.find((place) => place.id === selectedId) ?? matchingPlaces[0] ?? null;
+  const selected = matchingPlaces.find((place) => place.id === selectedId) ?? null;
   const mapMarkers = useMemo(
     () => mapMarkersForPlaces(matchingMapPlaces, view === "sl"),
     [matchingMapPlaces, view],
@@ -369,7 +370,7 @@ export function WorldExperience({
           summary: `Mit ${location.title} verknüpft`,
           locationId: location.id,
           targetId: location.id,
-          noteType: "note",
+          noteType,
           pinned: false,
         },
       });
@@ -519,11 +520,11 @@ export function WorldExperience({
               : "OpenFreeMap wird geladen. Die schematische Chronikkarte bleibt eingeblendet."}
           </span>}
           <div className={styles.mapCoordinates} aria-hidden="true"><span>DOMÄNE · KLEVE</span><span>NACHTATLAS · ILLUSTRATION</span><span>SCHEMATISCH · NICHT NAVIGIERBAR</span></div>
-          <div className={styles.mapLegend} aria-live="polite">
-            {selected && mapMarkers.some(marker=>marker.id===selected.id)
+          {selected&&<div className={styles.mapLegend} aria-live="polite">
+            {mapMarkers.some(marker=>marker.id===selected.id)
               ? <><span className={styles.legendDot} />Aktive Markierung · {selected.title}</>
               : <>Keine bestätigte Position für den ausgewählten Ort</>}
-          </div>
+          </div>}
           {mapPreviewPlace && <aside className={`${styles.mapPreview} ${mapPreviewPlace.image ? "" : styles.mapPreviewNoImage}`} aria-live="polite">
             {mapPreviewPlace.image && <div className={styles.previewImage}><img src={mapPreviewPlace.image} alt="" loading="lazy" /></div>}
           <div className={styles.previewBody}><div className={styles.previewTopline}><span className={styles.statePip} />{discoveryLabel(mapPreviewPlace.discovery)} <span className={styles.previewDistrict}>{mapPreviewPlace.district}</span></div><h2>{mapPreviewPlace.title}</h2><p>{richTextToPlainText(mapPreviewPlace.summary)}</p><button type="button" className={styles.textAction} onClick={() => openPlace(mapPreviewPlace.id)}>Ort öffnen <ArrowRight size={15} /></button></div>
@@ -538,13 +539,9 @@ export function WorldExperience({
         <div className={styles.placeGrid}>
           {matchingPlaces.map((place) => <button
             type="button"
-            className={`${styles.placeCard} ${!place.image ? styles.placeCardNoImage : ""} ${selected?.id === place.id || hoveredId === place.id ? styles.placeCardActive : ""}`}
+            className={`${styles.placeCard} ${!place.image ? styles.placeCardNoImage : ""} ${selected?.id === place.id ? styles.placeCardActive : ""}`}
             aria-label={`${place.title} öffnen`}
             key={place.id}
-            onMouseEnter={() => { setHoveredId(place.id); setSelectedId(place.id); }}
-            onMouseLeave={() => setHoveredId(null)}
-            onFocus={() => { setHoveredId(place.id); setSelectedId(place.id); }}
-            onBlur={() => setHoveredId(null)}
             onClick={() => openPlace(place.id)}
           >
             {place.image && <span className={styles.cardImage}><img src={place.image} alt="" loading="lazy" /><span className={styles.cardShade} /><span className={styles.cardStatus}><span className={styles.statePip} />{discoveryLabel(place.discovery)}</span><span className={styles.cardArrow}><ArrowUpRight size={18} /></span></span>}
@@ -566,7 +563,7 @@ export function WorldExperience({
           {location.image && <img className={styles.locationHeroImage} src={location.image} alt={`${location.title} in der Spielwelt`} fetchPriority="high" />}
           <div className={styles.heroVeil} />
           <div className={styles.heroTopline}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} />{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button>{location.district && <span className={styles.heroLocation}><MapPin size={14} />{location.district}</span>}</div>
-          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <div className={styles.heroSummary}><RichTextView value={location.summary}/></div>}<div className={styles.heroActions}>{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { if(areaList[0])chooseArea(areaList[0].viewKey); document.getElementById("known-areas")?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "instant" : "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={event=>openImage(event,location.image!,location.title)}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
+          <div className={styles.heroContent}><div><p className={styles.kicker}>{location.subtitle && <>{location.subtitle} <span>·</span> </>}{discoveryLabel(location.discovery).toUpperCase()}</p><h1 id="location-title">{location.title}</h1>{location.summary && <div className={styles.heroSummary}><RichTextView value={location.summary}/></div>}<div className={styles.heroActions}>{!embeddedDossier&&<a className={styles.imageAction} href="#eigene-ortsnotizen"><NotebookPen size={15}/> Eigene Erkenntnis notieren</a>}{areaList.length > 0 && <button type="button" className={styles.primaryAction} onClick={() => { if(areaList[0])chooseArea(areaList[0].viewKey); document.getElementById("known-areas")?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? "instant" : "smooth", block: "start" }); }}><Compass size={16} />Bekannte Bereiche <ArrowDownRight size={15} /></button>}{location.image && <button type="button" className={styles.imageAction} onClick={event=>openImage(event,location.image!,location.title)}><Maximize2 size={15} />Bild ansehen</button>}</div></div><div className={styles.heroAside}><span className={styles.statePip} />{discoveryLabel(location.discovery)}<small>{stateLabel(location.worldState)}</small></div></div>
           <span className={styles.heroIndex} aria-hidden="true">01 <i>/</i> ORT</span>
         </section>
 
@@ -632,7 +629,7 @@ export function WorldExperience({
             {location.image && <button type="button" className={styles.photoCard} onClick={event=>openImage(event,location.image!,location.title)}><span className={styles.photoImage}><img src={location.image} alt="" loading="lazy" /><span><ImageIcon size={15} />Bild öffnen</span></span><span className={styles.photoCaption}>{location.title}{location.district && <> <i>·</i> {location.district}</>}</span></button>}
             {(location.district || location.address || location.worldState !== "active") && <section className={styles.factCard}><p className={styles.kicker}>EINORDNUNG</p>{location.district && <div className={styles.factRow}><span>Gebiet</span><strong>{location.district}</strong></div>}{location.address && <div className={styles.factRow}><span>Adresse</span><strong>{location.address}</strong></div>}{location.worldState !== "active" && <div className={styles.factRow}><span>Ortszustand</span><strong>{stateLabel(location.worldState)}</strong></div>}</section>}
             {location.knownInformation.some((info) => info.title === "Atmosphäre") && <section className={styles.knownNote}><span><FileText size={16} /></span><div><p className={styles.kicker}>BEKANNTE ATMOSPHÄRE</p><RichTextView value={location.knownInformation.find((info) => info.title === "Atmosphäre")?.text||""} className={styles.richProse}/></div></section>}
-            {!embeddedDossier && <section className={styles.notesSection}><header><span><NotebookPen size={16} />Deine Notizen</span><small>privat</small></header><label className={styles.srOnly} htmlFor="world-note">Private Notiz zu {location.title}</label><textarea id="world-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Ein Gedanke, den nur du siehst …" rows={3} maxLength={2500} /><button type="button" className={styles.noteSave} disabled={busy || !noteDraft.trim()} onClick={saveNote}>{busy ? "Speichert …" : "Private Notiz sichern"}<ArrowRight size={14} /></button><div className={styles.savedNotes}>{relatedNotes.length ? relatedNotes.slice(0, 3).map((note) => <article key={note.id}><Check size={13} /><div><strong>{note.title}</strong><p>{String(note.body.text ?? "")}</p></div></article>) : <p>Noch keine eigenen Ortsnotizen.</p>}</div></section>}
+            {!embeddedDossier && <section className={styles.notesSection} id="eigene-ortsnotizen"><header><span><NotebookPen size={16} />Deine Erkenntnisse</span><small>privat</small></header><label className={styles.noteKind}>Art der Notiz<select value={noteType} onChange={event=>setNoteType(event.target.value)}><option value="note">Notiz</option><option value="suspicion">Verdacht</option><option value="insight">Erkenntnis</option><option value="memory">Erinnerung</option><option value="theory">Theorie</option></select></label><label className={styles.srOnly} htmlFor="world-note">Private Notiz zu {location.title}</label><textarea id="world-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Ein Gedanke, den nur du siehst …" rows={3} maxLength={2500} /><button type="button" className={styles.noteSave} disabled={busy || !noteDraft.trim()} onClick={saveNote}>{busy ? "Speichert …" : "Private Notiz sichern"}<ArrowRight size={14} /></button><div className={styles.savedNotes}>{relatedNotes.length ? relatedNotes.slice(0, 3).map((note) => <article key={note.id}><Check size={13} /><div><strong>{note.title}</strong><p>{String(note.body.text ?? "")}</p></div></article>) : <p>Noch keine eigenen Ortsnotizen.</p>}</div></section>}
           </aside>
         </section>
 

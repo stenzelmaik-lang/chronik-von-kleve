@@ -1,3 +1,4 @@
+import {locationRiskLevels} from "@/domain/location-types";
 import {locationPublicKey} from '@/domain/location-public-key';
 import { discoveryOrder, validDiscovery, locationIsSecret } from "@/domain/location-discovery";
 import type {
@@ -167,6 +168,7 @@ function buildPersistedProjection(
     legacyEntityId: String(rootAttrs.legacyEntityId || ""),
     title: String(rootAttrs.title || root.entity_title || ""),
     subtitle: String(rootAttrs.subtitle || ""), district: String(rootAttrs.district || ""), address: String(rootAttrs.address || ""),
+    mapRisk: locationRiskLevels.find(value=>value===rootAttrs.mapRisk),
     image: heroFileId && rootRevisionId
       ? `/api/cms/media?id=${encodeURIComponent(heroFileId)}&entityId=${encodeURIComponent(placeId)}&revisionId=${encodeURIComponent(rootRevisionId)}${overlay?.previewRevisionIds.has(rootRevisionId) ? "&preview=1" : ""}`
       : safeLocationImage(rootAttrs.image),
@@ -194,10 +196,19 @@ function buildPersistedProjection(
   const hero=model.media?.find(item=>item.hero&&item.mime.startsWith('image/'));if(hero)model.image=hero.url;
   for(const area of model.areas){const hero=area.media?.find(item=>item.hero&&item.mime.startsWith('image/'));if(hero)area.image=hero.url;}
   if (sl) return projectLocationForSl(Object.fromEntries(model.preparedActions.map(action => [action.id, action.status])), model);
+  if(model.geography?.status==='approximate'){
+    model.address='';
+    model.geography={status:'approximate',coordinates:model.geography.coordinates,accuracyMeters:model.geography.accuracyMeters,source:'Freigegebenes Suchgebiet',reviewedAt:model.geography.reviewedAt};
+  }
+  if(model.discovery==='rumored'){
+    const coarse=model.geography?.status==='approximate'&&model.geography.accuracyMeters>=50000;
+    if(coarse)Object.assign(model,{title:'Unbekannter Ort',subtitle:'Suchgebiet',district:'',image:'',summary:'',atmosphere:'',media:[],mapRisk:undefined,areas:[],knownInformation:[],activity:[],factionSignals:[],markers:[]});
+    else model.geography={status:'unknown'};
+  }
   // A known child may supply a navigation path, never the undiscovered parent's
   // name, description, image, coordinates or private information.
   if(model.discovery==='hidden'&&model.areas.some(area=>area.discovery!=='hidden'||area.rooms.some(room=>room.discovery!=='hidden'))||model.discovery==='hidden'&&model.knownInformation.length){
-    Object.assign(model,{title:'Übergeordneter Ort',subtitle:'Zugang zu entdecktem Ortswissen',district:'',address:'',image:'',summary:'',atmosphere:'',geography:{status:'unknown'},discovery:'known',media:[],factionSignals:[],activity:[],navigationOnly:true});
+    Object.assign(model,{mapRisk:undefined,title:'Übergeordneter Ort',subtitle:'Zugang zu entdecktem Ortswissen',district:'',address:'',image:'',summary:'',atmosphere:'',geography:{status:'unknown'},discovery:'known',media:[],factionSignals:[],activity:[],navigationOnly:true});
   }
   return projectLocationForPlayer("player", target, model);
 }

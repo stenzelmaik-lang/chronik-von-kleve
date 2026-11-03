@@ -1,3 +1,4 @@
+import {locationRiskLevels} from "./location-types";
 import { z } from "zod";
 import { isRichTextWithinLimit, sanitizeRichTextInput } from "./location-rich-text.ts";
 
@@ -40,6 +41,7 @@ const rootPayload = z.object({
   subtitle: cleanText(160).optional(),
   district: cleanText(120).optional(),
   address: cleanText(240).optional(),
+  mapRisk: z.enum(locationRiskLevels).optional(),
   summary: richText(1600).optional(),
   atmosphere: richText(25000).optional(),
   image: z.string().regex(/^\/images\/[a-zA-Z0-9_.-]+$/).optional(),

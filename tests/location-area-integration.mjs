@@ -10,12 +10,12 @@ export async function locationAreaIntegration({req,check,base,ids}) {
     check(result.s===201,'AREA creates a new synthetic '+level+' without changing any existing place');return result.d;
   };
   const save=(node,payload,extra={})=>req('/api/cms/drafts','gm','PATCH',{revisionId:node.revisionId,expectedVersion:1,payload,...extra});
-  const publish=async(node,version)=>{
+  const publish=async(node,version,discoveryState="known")=>{
     const review=await req('/api/cms/transitions','gm','POST',{action:'submit',revisionId:node.revisionId,expectedVersion:version});
     check(review.s===200,'AREA synthetic revision enters existing review');
     const approved=await req('/api/cms/transitions','gm','POST',{action:'approve',revisionId:node.revisionId,expectedVersion:review.d.version});
     check(approved.s===200,'AREA synthetic revision uses existing approval');
-    const release=await req('/api/cms/releases','gm','POST',{action:'publish',entityId:node.id,scope:'group',revisionId:node.revisionId,expectedReleaseVersion:0,discoveryState:'known',reason:'Isolated area HTML acceptance'});
+    const release=await req('/api/cms/releases','gm','POST',{action:'publish',entityId:node.id,scope:'group',revisionId:node.revisionId,expectedReleaseVersion:0,discoveryState,reason:'Isolated area HTML acceptance'});
     check(release.s===200,'AREA explicit group release succeeds');
   };
   const root=await create('location','AREA_QA – Testdossier');
@@ -79,6 +79,27 @@ export async function locationAreaIntegration({req,check,base,ids}) {
   const blocked=await req('/api/cms/releases','gm','POST',{action:'block',entityId:area.id,scope:'group',expectedReleaseVersion:1,reason:'Area QA block'});
   check(blocked.s===200&&!JSON.stringify((await req('/api/locations?place='+root.id+'&view=player&target=player','a')).d).includes('AREA_QA beschriebener Bereich'),'AREA existing group block still removes the formatted description');
   check((await fetch(base+playerArea.image,{headers:ids.a})).status===404,'AREA blocked image is inaccessible even with the previous lightbox URL');
+  const tree={action:'publish-tree',placeId:root.id,discoveryState:'visited',entries:[
+    {entityId:root.id,revisionId:root.revisionId,expectedReleaseVersion:1},
+    {entityId:area.id,revisionId:approved.id,expectedReleaseVersion:2},
+  ]};
+  check((await req('/api/cms/releases','a','POST',tree)).s===403,'AREA tree release is SL only');
+  const stale={...tree,entries:[tree.entries[0],{...tree.entries[1],expectedReleaseVersion:1}]};
+  check((await req('/api/cms/releases','gm','POST',stale)).s===409,'AREA stale child rejects the entire location release');
+  const rootState=await req('/api/cms/releases?scope=group&entityId='+root.id,'gm');
+  check(rootState.d.currentVersion===1,'AREA rejected tree leaves root version unchanged');
+  const releasedTree=await req('/api/cms/releases','gm','POST',tree);
+  const treePlayer=(await req('/api/locations?place='+root.id+'&view=player&target=player','a')).d.projection.location;
+  check(releasedTree.s===200&&releasedTree.d.count===2&&treePlayer.discovery==='visited'&&treePlayer.areas.some(item=>item.title===area.title),'AREA tree releases exactly selected root and child together');
+  check(!JSON.stringify(treePlayer).includes('AREA_DIRECT_EDIT_DRAFT')&&!JSON.stringify(treePlayer).includes('AREA_QA_SL_SECRET'),'AREA tree never publishes drafts or confidential text');
+  const rumor=await create('location','AREA_QA vertraulicher Name');
+  const rumorSave=await save(rumor,{title:rumor.title,address:'AREA_QA genaue Adresse',mapRisk:'hostile'},{
+    geography:{status:'approximate',coordinates:[6.25,51.875],accuracyMeters:50000,source:'AREA_QA private Herkunft',reference:'https://example.test/exakt',reviewedAt:new Date().toISOString()},
+  });
+  check(rumorSave.s===200,'AREA saves a coarse 50km search area');
+  await publish(rumor,rumorSave.d.version,'rumored');
+  const rumorPlayer=(await req('/api/locations?place='+rumor.id+'&view=player&target=player','a')).d.projection.location;
+  check(rumorPlayer.title==='Unbekannter Ort'&&rumorPlayer.geography?.accuracyMeters===50000&&!rumorPlayer.mapRisk&&!JSON.stringify(rumorPlayer).includes('AREA_QA'),'AREA coarse rumor exposes a search radius without name, address, risk or source details');
   const entitiesAfter=(await req('/api/entities','gm')).d.entities;
   check(existingEntities.every(before=>JSON.stringify(entitiesAfter.find(after=>after.id===before.id))===JSON.stringify(before)),'AREA existing entities and their versions are unchanged');
   check(JSON.stringify((await req('/api/members','gm')).d.members)===JSON.stringify(membersBefore),'AREA existing member accounts and roles remain unchanged');
