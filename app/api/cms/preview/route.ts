@@ -3,7 +3,7 @@ import { actor,database,failure,HttpError,input,json,sameOrigin } from "@/server
 import { loadPersistedLocation } from "@/server/location-repository";
 import { getLocationNode,requireActivePlayer,requireCmsEditor,requireCmsRevisionAudience } from "@/server/location-cms-service";
 export const dynamic="force-dynamic";
-const schema=z.object({revisionId:z.string().uuid(),viewerId:z.string().min(1).max(180).optional()}).strict();
+const schema=z.object({revisionId:z.string().uuid(),viewerId:z.string().min(1).max(180).optional(),discoveryState:z.enum(["rumored","known","visited","investigated"]).optional()}).strict();
 export async function POST(req:Request){
   try{
     sameOrigin(req);const a=await actor();requireCmsEditor(a);const parsed=schema.safeParse(await input(req));if(!parsed.success)throw new HttpError(400,"Ungültige Vorschau.");
@@ -21,7 +21,7 @@ export async function POST(req:Request){
       if(parsed.data.viewerId && parsed.data.viewerId!==a.id){await requireActivePlayer(db,a.campaignId,parsed.data.viewerId);viewerId=parsed.data.viewerId;}
       target="group";
     }else target="player";
-    const projection=await loadPersistedLocation(db,a,node.location_id,"player",target,{viewerId,preview:{entityId:revision.entity_id,revisionId:revision.id,scope:revision.audience_scope as "public"|"group"|"player",key:revision.audience_key,discoveryState:revision.audience_scope==="public"?undefined:"known"}});
+    const projection=await loadPersistedLocation(db,a,node.location_id,"player",target,{viewerId,preview:{entityId:revision.entity_id,revisionId:revision.id,scope:revision.audience_scope as "public"|"group"|"player",key:revision.audience_key,discoveryState:revision.audience_scope==="public"?undefined:parsed.data.discoveryState??"known"}});
     if(!projection)throw new HttpError(404,"Für dieses Ziel ist keine Vorschau verfügbar.");
     return json({projection,preview:{scope:revision.audience_scope,viewerId}});
   }catch(error){return failure(error,req);}

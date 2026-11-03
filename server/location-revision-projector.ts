@@ -150,7 +150,7 @@ export async function loadRevisionOverlay(
  * merged into player payloads or used to infer discovery. */
 export async function loadSlDossierExtras(db: D1Database, actor: Actor, entityIds: string[]) {
   const slNotes: {entityId:string;text:string;source:string;image?:string}[] = [];
-  const slGroupReleases: {entityId:string;version:number;transition:string;lastPublishedRevisionId:string|null;discoveryState:DiscoveryState;discoveryVersion:number;secret:boolean}[] = [];
+  const slGroupReleases: {entityId:string;version:number;transition:string;lastPublishedRevisionId:string|null;discoveryState:DiscoveryState;discoveryVersion:number;secret:boolean;approvedRevisionId:string|null}[] = [];
   if (actor.status !== "active" || !["campaign_owner", "campaign_gm"].includes(actor.role)) return {slNotes,slGroupReleases};
   for (let start=0;start<entityIds.length;start+=70) {
     const ids=entityIds.slice(start,start+70); const placeholders=ids.map(()=>"?").join(",");
@@ -173,11 +173,16 @@ export async function loadSlDossierExtras(db: D1Database, actor: Actor, entityId
       WHERE n.campaign_id=? AND n.entity_id IN (${placeholders})`)
       .bind(actor.campaignId,actor.campaignId,...ids).all<{entity_id:string;discovery_state:DiscoveryState|null;version:number|null;attributes:string;canon_status:string;content:string}>();
     const groupKnowledge=new Map(knowledge.results.map(row=>[row.entity_id,row]));
+    const approved=await db.prepare(`SELECT entity_id,id FROM (
+      SELECT entity_id,id,ROW_NUMBER() OVER(PARTITION BY entity_id ORDER BY revision_no DESC,id DESC) AS position
+      FROM entity_revisions WHERE campaign_id=? AND entity_id IN (${placeholders}) AND audience_scope='group' AND audience_key='@group' AND status='approved'
+    ) WHERE position=1`).bind(actor.campaignId,...ids).all<{entity_id:string;id:string}>();
+    const approvedByEntity=new Map(approved.results.map(row=>[row.entity_id,row.id]));
     for(const entityId of ids) {
       const discovery=groupKnowledge.get(entityId);
       const history=releases.results.filter(row=>row.entity_id===entityId);
       const lastPublish=history.find(row=>row.transition==='publish'&&row.revision_id);
-      slGroupReleases.push({entityId,version:history[0]?.release_version??0,transition:history[0]?.transition??'none',lastPublishedRevisionId:lastPublish?.revision_id??null,discoveryState:discovery?.discovery_state??'hidden',discoveryVersion:discovery?.version??0,secret:!!discovery&&locationIsSecret(discovery.canon_status,parseObject(discovery.content),parseObject(discovery.attributes))});
+      slGroupReleases.push({entityId,version:history[0]?.release_version??0,transition:history[0]?.transition??'none',lastPublishedRevisionId:lastPublish?.revision_id??null,discoveryState:discovery?.discovery_state??'hidden',discoveryVersion:discovery?.version??0,approvedRevisionId:approvedByEntity.get(entityId)??null,secret:!!discovery&&locationIsSecret(discovery.canon_status,parseObject(discovery.content),parseObject(discovery.attributes))});
     }
   }
   return {slNotes,slGroupReleases};

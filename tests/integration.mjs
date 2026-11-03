@@ -957,6 +957,11 @@ const hideArea=await cmsRelease('gm','block',areaControl.entityId,'group',areaCo
 check(hideArea.s===200,'SL quick control can block the area');
 check(!JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d).includes('TEST_DATA freigegebener Bereichshinweis'),'Blocked area content disappears from real player dossier');
 check((await fetch(base+playerAreaProjection.image,{headers:ids.a})).status===404,'Blocked area image disappears with its content');
+check(areaControl.approvedRevisionId===areaGroupDraft.d.id,'SL quick comparison selects the latest approved group revision');
+const blockedAreaPreview=await req('/api/cms/preview','gm','POST',{revisionId:areaControl.approvedRevisionId,discoveryState:'visited'});
+check(blockedAreaPreview.s===200&&JSON.stringify(blockedAreaPreview.d).includes('TEST_DATA freigegebener Bereichshinweis')&&!JSON.stringify(blockedAreaPreview.d).includes('TEST_DATA_CONFIDENTIAL_'),'SL exact entry preview shows the approved public payload without confidential text');
+check(!JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d).includes('TEST_DATA freigegebener Bereichshinweis'),'SL quick preview does not change the live player projection');
+
 check((await cmsRelease('gm','publish',areaControl.entityId,'group',areaControl.version,areaControl.lastPublishedRevisionId,{discoveryState:areaControl.discoveryState})).s===409,'Stale quick-control version is rejected');
 const restoreArea=await cmsRelease('gm','publish',areaControl.entityId,'group',2,areaControl.lastPublishedRevisionId,{discoveryState:areaControl.discoveryState});
 check(restoreArea.s===200&&JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d).includes('TEST_DATA freigegebener Bereichshinweis'),'Reactivation restores only the approved group content');

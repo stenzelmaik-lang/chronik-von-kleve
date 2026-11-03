@@ -1,11 +1,12 @@
 "use client";
 
-import { Map as MapLibreMap, Marker, setWorkerUrl } from "maplibre-gl";
+import { Map as MapLibreMap, Marker, setWorkerUrl, type GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { Compass, LocateFixed, Minus, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 
+import { locationSearchRing } from "@/domain/location-map-area";
 import { mapDiscoveryLabels, type WorldMapMarker } from "./world-map-contract";
 import styles from "./world-experience.module.css";
 
@@ -29,6 +30,20 @@ function fitChronicleRegion(map: MapLibreMap, compact = false) {
     maxZoom: 11.5,
     duration: 350,
   });
+}
+
+function focusMapMarker(map: MapLibreMap, coordinates: [number, number], accuracyMeters?: number) {
+  if (!accuracyMeters) {
+    map.flyTo({ center: coordinates, zoom: Math.max(map.getZoom(), 16), essential: true });
+    return;
+  }
+  const ring = locationSearchRing(coordinates, accuracyMeters);
+  const longitudes = ring.map(point => point[0]);
+  const latitudes = ring.map(point => point[1]);
+  map.fitBounds([
+    [Math.min(...longitudes), Math.min(...latitudes)],
+    [Math.max(...longitudes), Math.max(...latitudes)],
+  ], { padding: 40, maxZoom: 16, duration: 350 });
 }
 
 const discoveryGlyphs = {
@@ -101,7 +116,8 @@ export function WorldMapLibre({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
-  const markers = useRef(new Map<string, { marker: Marker; element: HTMLButtonElement; coordinates: [number, number] }>());
+  const styleReady = useRef(false);
+  const markers = useRef(new Map<string, { marker: Marker; element: HTMLButtonElement; coordinates: [number, number]; accuracyMeters?: number }>());
   const callbacks = useRef({ onSelect, onHover, onFocusPlace, onMapClick });
 
   useEffect(() => {
@@ -145,6 +161,7 @@ export function WorldMapLibre({
     const handleLoad = () => {
       if (!active) return;
       mapReady = true;
+      styleReady.current = true;
       window.clearTimeout(loadTimeout);
       fitChronicleRegion(instance, compact);
       onStateChange("ready");
@@ -174,6 +191,7 @@ export function WorldMapLibre({
       markerRegistry.clear();
       instance.remove();
       map.current = null;
+      styleReady.current = false;
     };
     // Keep one map instance for this component lifetime; callbacks and markers
     // update independently so editor clicks never restart the map.
@@ -193,8 +211,10 @@ export function WorldMapLibre({
     for (const place of places) {
       const [longitude, latitude] = place.coordinates;
       const existing = markers.current.get(place.id);
+      const accuracyMeters = place.precision === "approximate" ? place.accuracyMeters : undefined;
       if (existing) {
         updateMarkerElement(existing.element, place);
+        existing.accuracyMeters = accuracyMeters;
         if (existing.coordinates[0] !== longitude || existing.coordinates[1] !== latitude) {
           existing.marker.setLngLat([longitude, latitude]);
           existing.coordinates = [longitude, latitude];
@@ -212,9 +232,10 @@ export function WorldMapLibre({
       element.addEventListener("click", (event) => {
         event.stopPropagation();
         callbacks.current.onSelect(place.id);
-        if (!compact) instance.flyTo({ center: marker.getLngLat(), zoom: Math.max(instance.getZoom(), 16), essential: true });
+        const current = markers.current.get(place.id);
+        if (!compact && current) focusMapMarker(instance, current.coordinates, current.accuracyMeters);
       });
-      markers.current.set(place.id, { marker, element, coordinates: [longitude, latitude] });
+      markers.current.set(place.id, { marker, element, coordinates: [longitude, latitude], accuracyMeters });
     }
   }, [places, compact]);
 
@@ -230,6 +251,43 @@ export function WorldMapLibre({
     }
   }, [selectedId, hoveredId, visibleIds]);
 
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance) return;
+    const visible = new Set(visibleIds);
+    const data = {
+      type: "FeatureCollection" as const,
+      features: places.flatMap(place =>
+        place.precision === "approximate" && place.accuracyMeters && visible.has(place.id)
+          ? [{
+            type: "Feature" as const,
+            properties: { active: place.id === selectedId || place.id === hoveredId },
+            geometry: { type: "Polygon" as const, coordinates: [locationSearchRing(place.coordinates, place.accuracyMeters)] },
+          }]
+          : []),
+    };
+    const sourceId = "chroniplay-search-areas";
+    const render = () => {
+      const source = instance.getSource<GeoJSONSource>(sourceId);
+      if (source) {
+        void source.setData(data);
+      } else if (data.features.length) {
+        instance.addSource(sourceId, { type: "geojson", data });
+        instance.addLayer({
+          id: sourceId + "-fill", type: "fill", source: sourceId,
+          paint: { "fill-color": "#e9b66a", "fill-opacity": ["case", ["boolean", ["get", "active"], false], 0.18, 0.08] },
+        });
+        instance.addLayer({
+          id: sourceId + "-outline", type: "line", source: sourceId,
+          paint: { "line-color": "#e9b66a", "line-opacity": 0.8, "line-width": 2, "line-dasharray": [3, 2] },
+        });
+      }
+    };
+    if (styleReady.current) render();
+    else instance.once("load", render);
+    return () => { instance.off("load", render); };
+  }, [places, visibleIds, selectedId, hoveredId]);
+
   function changeZoom(delta: number) {
     if (delta > 0) map.current?.zoomIn();
     else map.current?.zoomOut();
@@ -243,7 +301,7 @@ export function WorldMapLibre({
     const entry = markers.current.get(selectedId);
     if (!entry || !visibleIds.includes(selectedId) || !map.current) return;
     callbacks.current.onFocusPlace(selectedId);
-    map.current.flyTo({ center: entry.coordinates, zoom: Math.max(map.current.getZoom(), 16), essential: true });
+    focusMapMarker(map.current, entry.coordinates, entry.accuracyMeters);
   }
 
   return (

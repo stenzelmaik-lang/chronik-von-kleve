@@ -11,12 +11,15 @@ const Inventory=lazy(()=>import('../inventory').then(m=>({default:m.InventoryPan
 const Messages=lazy(()=>import('../message-center').then(m=>({default:m.MessageCenter})));
 type Data={member?:{id:string;name:string;avatar:string|null;presentation?:{pronouns?:string;banner?:string;introduction?:string;playStyles?:string[]}|null};own?:boolean;characters:{id:string;name:string}[];character?:{id:string;name:string;portrait:string|null;descriptions:{kind:string;content:string}[];tagline?:string;introduction?:string;gallery?:{url:string;caption?:string}[]}|null;selectedCharacter?:string|null;projection?:CharacterDetailProjection};
 export type ParticipantAction='profile'|'sheet'|'inventory'|'messages';
-export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessionId:string;memberId:string;action:ParticipantAction}){
+export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessionId?:string;memberId:string;action:ParticipantAction}){
  const [data,setData]=useState<Data|null>(null),[characterId,setCharacterId]=useState<string|null>(null),[tab,setTab]=useState<'human'|'character'>('character'),[error,setError]=useState(''),[reload,setReload]=useState(0);
  const select=useCallback((id:string|null)=>setCharacterId(id),[]);
  useEffect(()=>{
   if(action==='messages')return;let active=true;queueMicrotask(()=>{if(active){setData(null);setError('');}});
-  const path='/api/live-participants?sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId)+'&view='+action+(characterId?'&characterId='+encodeURIComponent(characterId):'');
+  const query=new URLSearchParams({memberId,view:action});
+  if(sessionId)query.set('sessionId',sessionId);
+  if(characterId)query.set('characterId',characterId);
+  const path=(sessionId?'/api/live-participants':'/api/campaign-profiles')+'?'+query;
   api<Data>(path).then(next=>{if(active)setData(next);}).catch(e=>{if(active){setData(null);setError(e.message);}});return()=>{active=false;};
  },[action,memberId,sessionId,characterId,reload]);
  if(action==='messages')return <Suspense fallback={<p role="status">Nachrichten werden geladen …</p>}><Messages a={a} embedded initialRecipient={memberId===a.id?undefined:memberId}/></Suspense>;

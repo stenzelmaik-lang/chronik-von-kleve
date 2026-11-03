@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- The preview uses temporary local blobs or an authenticated revision endpoint. */
 "use client";
 import type { Actor } from "@/domain/types";
 import type { DiscoveryState,PlaceProjection } from "@/domain/location-types";
@@ -70,7 +71,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const [publishedProjection,setPublishedProjection]=useState<PlaceProjection|null>(null);
   const [previewMode,setPreviewMode]=useState<"draft"|"published"|null>(null);
   const [reason,setReason]=useState("");
-  const [activeSection,setActiveSection]=useState<"content"|"media"|"map"|"release">("content");
+  const [activeSection,setActiveSection]=useState<"content"|"map"|"release">("content");
   const [directorySearch,setDirectorySearch]=useState("");
   const [newNode,setNewNode]=useState<NewNodeDraft|null>(null);
   const [loading,setLoading]=useState(true);
@@ -96,7 +97,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   useEffect(()=>()=>{if(pendingImageUrl)URL.revokeObjectURL(pendingImageUrl);},[pendingImageUrl]);
   const dirty=useMemo(()=>{
     if(!editable)return false;
-    if(!selectedDraft)return Boolean(baseline&&stable({payload,geography:geo})!==stable(baseline));
+    if(!selectedDraft)return Boolean(baseline&&(heroFileId!==null||stable({payload,geography:geo})!==stable(baseline)));
     return stable({payload,gmSecret,geography:geo,heroFileId})!==stable({
       payload:parse(selectedDraft.player_payload_json),
       gmSecret:parse(selectedDraft.gm_secret_json||"{}"),
@@ -126,8 +127,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     return orderedNodes.filter(item=>matches.has(item.id));
   },[directorySearch,orderedNodes,collapsed]);
   const sections=[
-    {id:"content" as const,label:isRoot?"Grunddaten":node?.level==="information"?"Erkenntnisse":"Inhalt"},
-
+    {id:"content" as const,label:isRoot?"Grunddaten":node?.level==="information"?"Hinweis":"Inhalt"},
     ...(isRoot?[{id:"map" as const,label:"Karte & Geodaten"}]:[]),
     {id:"release" as const,label:"Vorschau & Freigabe"},
   ];
@@ -200,7 +200,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     const result=await api<{drafts:Draft[];baseline:DraftBaseline|null}>(`/api/cms/drafts?${query}`);
     if(!isCurrent())return;
     const scoped=result.drafts.filter(item=>item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerTarget));
-    setDrafts(result.drafts);setBaseline(result.baseline);setLoadedEditor(editorKey);
+    setDrafts(result.drafts);setBaseline(result.baseline);setPendingImageUrl(null);setLoadedEditor(editorKey);
     const current=selectNewest?"":draftIdRef.current;
     const selected=scoped.find(item=>item.id===current)||scoped[0]||null;
     setDraftId(selected?.id||"");
@@ -242,12 +242,24 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
 
   function clearDossierViews(){setPreview(null);setPublishedProjection(null);setPreviewMode(null);}
   function setField(key:string,value:unknown){setPayload(current=>({...current,[key]:value}));clearDossierViews();}
+  async function uploadTitleImage(file:File|undefined){
+    if(!file||!editable||busy)return;
+    setBusy(true);
+    try{
+      const form=new FormData();form.set("file",file);
+      const response=await fetch("/api/cms/media",{method:"POST",body:form});
+      const uploaded=await response.json() as {id?:string;error?:string};
+      if(!response.ok||!uploaded.id)throw new Error(uploaded.error||"Bild konnte nicht hochgeladen werden.");
+      setHeroFileId(uploaded.id);setPendingImageUrl(URL.createObjectURL(file));clearDossierViews();
+      toast.success("Bild ausgewählt. Speichern übernimmt es in den Entwurf.");
+    }catch(error){toast.error((error as Error).message);}finally{setBusy(false);}
+  }
   async function saveDraft(){
     if(!node||!editable||!dirty)return;
     if(isRoot&&!geographyValid){toast.error("Ergänze die Quelle und bei einem ungefähren Gebiet die Genauigkeit in Metern.");return;}
     setBusy(true);
     try{
-      const content={payload,gmSecret,...(isRoot?{geography:geo}:{})};
+      const content={payload,gmSecret,...(heroFileId!==(selectedDraft?.hero_file_id??null)?{heroFileId}:{}),...(isRoot?{geography:geo}:{})};
       if(selectedDraft?.status==="draft"){
         await api('/api/cms/drafts','PATCH',{revisionId:selectedDraft.id,expectedVersion:selectedDraft.version,...content});
       }else{
@@ -310,7 +322,6 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const visibleDrafts=drafts.filter(item=>item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerTarget));
 
   return <div className={cmsStyles.cmsWorkspace} data-location-cms="phase-c">
-    <header className={cmsStyles.cmsHero}><div><p className="eyebrow">CHRONIK VON KLEVE · SPIELLEITUNG · SL-CMS</p><h1>Ortsredaktion</h1><p>Orte, Bereiche und Freigaben in einer nachvollziehbaren Redaktion. Entwürfe werden erst nach Prüfung und gezielter Freigabe im aktuellen Spielbereich sichtbar.</p></div><span className={cmsStyles.campaignSeal}>AKTIVE CHRONIK<strong>DOMÄNE KLEVE</strong></span></header>
 
     <div className={cmsStyles.redactionLayout}>
       <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis" data-creating={Boolean(newNode)}>
@@ -327,9 +338,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         </details>}
         {newNode&&<form className={cmsStyles.createNodeForm} onSubmit={event=>void submitNodeCreation(event)}>
           <label className="field"><span>{newNode.level==="location"?"Name des Hauptorts":newNode.level==="area"?"Name des Bereichs":newNode.level==="information"?"Titel der Erkenntnis":"Name des Raums"}</span><input autoFocus required maxLength={160} value={newNode.title} onChange={event=>setNewNode(current=>current?{...current,title:event.target.value}:current)} placeholder={newNode.level==="location"?"Zum Beispiel: Testort":newNode.level==="area"?"Zum Beispiel: Empfangshalle":newNode.level==="room"?"Zum Beispiel: Warteraum":"Zum Beispiel: Beobachtung"}/></label>
-          {newNode.level!=="information"&&<label className="field"><span>Ortstyp</span><select value={newNode.level} onChange={event=>{const level=event.target.value as "location"|"area"|"room";setNewNode(current=>current?{...current,level,parentId:locationCreationParent(level,nodes,placeId,nodeId)?.id??null}:current);}}><option value="location">Hauptort</option>{areaParent&&<option value="area">Bereich</option>}{nodes.some(item=>item.level==="area"&&item.locationId===placeId&&item.lifecycle==="active")&&<option value="room">Raum</option>}</select></label>}
           {(newNode.level==="area"||newNode.level==="room")&&<label className="field"><span>{newNode.level==="area"?"Hauptort auswählen":"Bereich auswählen"}</span><select required value={newNode.parentId??""} onChange={event=>setNewNode(current=>current?{...current,parentId:event.target.value||null}:current)}><option value="">Bitte auswählen …</option>{creationParents.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
-          <p>{newNode.level==="information"?<><strong>Hauptort: „{nodes.find(item=>item.id===newNode.parentId)?.title||newNode.parentId}“.</strong> Der erste Entwurf bleibt unveröffentlicht und erscheint erst nach der bestehenden Freigabe für Spieler.</>:"Weitere Details bearbeitest du nach dem Anlegen im Ortsdossier. Der erste Entwurf bleibt unveröffentlicht."}</p>
+          <p>{newNode.level==="information"?<><strong>Unter „{nodes.find(item=>item.id===newNode.parentId)?.title||newNode.parentId}“.</strong> Dieser Hinweis bleibt verborgen, bis du ihn für Spieler freigibst.</>:"Weitere Details bearbeitest du nach dem Anlegen im Ortsdossier. Der erste Entwurf bleibt unveröffentlicht."}</p>
           <div><button type="button" className="button" onClick={()=>setNewNode(null)} disabled={busy}>Abbrechen</button><button type="submit" className="button primary" disabled={busy||!newNode.title.trim()||(newNode.level!=="location"&&!newNode.parentId)}><Plus size={14}/> {newNode.level==="location"?"Hauptort":newNode.level==="area"?"Bereich":newNode.level==="room"?"Raum":"Erkenntnis"} anlegen</button></div>
         </form>}
         <div className={cmsStyles.directoryScroll}>
@@ -359,12 +369,13 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
           </details>
 
           {publisher&&scope==="gm"&&<LocationChapters key={node.id} entityId={node.id} onDirty={setChapterDirty}/>}
-          {publisher&&<details className={"panel "+cmsStyles.editorControlPanel}><summary>Struktur, Medien &amp; Verknüpfungen</summary><div className={cmsStyles.supportTools}>
+          {publisher&&<details className={"panel "+cmsStyles.editorControlPanel}><summary>Weitere Werkzeuge und Archiv</summary><div className={cmsStyles.supportTools}>
           <details className={libraryStyles.chapter}><summary>Dauerhafte Verknüpfungen</summary><div className={libraryStyles.body}><LocationConnections key={node.id+":relations"} entityId={node.id} view="sl" editable/></div></details>
-          <details className={libraryStyles.chapter}><summary>Medien dieses Eintrags</summary><div className={libraryStyles.body}><LocationMediaManager key={node.id} entityId={node.id} onDirty={setMediaDirty}/></div></details>
+          <details className={libraryStyles.chapter}><summary>Medienbestand dieses Eintrags</summary><div className={libraryStyles.body}><LocationMediaManager key={node.id} entityId={node.id} onDirty={setMediaDirty}/></div></details>
           <details className={libraryStyles.chapter}><summary>Ortswissen durchsuchen</summary><div className={libraryStyles.body}><LocationKnowledgeSearch placeId={placeId} view="sl"/></div></details>
-          <LocationStructureControls disabled={dirty||chapterDirty||mediaDirty} key={node.id+":"+node.revision} node={node} nodes={nodes} locations={catalog.locations} onChanged={async next=>{setPlaceId(next.locationId);const result=await api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(next.locationId)}`);setNodes(result.nodes);setNodeId(next.entityId);await loadCatalog();}}/>
+
           </div></details>}
+          {publisher&&<LocationStructureControls disabled={dirty||chapterDirty||mediaDirty} key={node.id+":"+node.revision} node={node} nodes={nodes} locations={catalog.locations} onChanged={async next=>{setPlaceId(next.locationId);const result=await api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(next.locationId)}`);setNodes(result.nodes);setNodeId(next.entityId);await loadCatalog();}}/>}
           {hasWork&&["public","group","player"].includes(scope)&&<>
             <nav className={cmsStyles.sectionTabs} aria-label="Redaktionsbereiche" role="tablist">
               {sections.map((section,index)=><button key={section.id} type="button" role="tab" aria-selected={activeSection===section.id} className={activeSection===section.id?cmsStyles.sectionTabActive:cmsStyles.sectionTab} onClick={()=>setActiveSection(section.id)}><span>{String(index+1).padStart(2,"0")}</span>{section.label}</button>)}
@@ -376,15 +387,21 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
                 {scope==="gm"?<p>SL-Kapitel werden unabhängig von redaktionellen Revisionen gespeichert. Spieler können sie niemals freigeschaltet bekommen.</p>:node.level==="location"?<div className={cmsStyles.fieldStack}>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label><label className="field"><span>Untertitel</span><input value={String(payload.subtitle||"")} onChange={event=>setField("subtitle",event.target.value)} placeholder="Kurze Einordnung für die Ortsseite"/></label></div>
                   <div className={cmsStyles.fieldGrid}><label className="field"><span>Stadtteil</span><input value={String(payload.district||"")} onChange={event=>setField("district",event.target.value)}/></label><label className="field"><span>Freigegebene Adresse</span><input value={String(payload.address||"")} onChange={event=>setField("address",event.target.value)}/></label></div>
-                  <RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
-                  <RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Ortsbeschreibung und Atmosphäre" maximumPlainLength={25000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
+                  <RichTextEditor htmlSource sourceOnly disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:summary`} value={String(payload.summary||"")} onChange={value=>setField("summary",value)} label="Kurze Beschreibung" maximumPlainLength={1600} placeholder="Was soll die Gruppe über diesen Ort wissen?"/>
+                  <RichTextEditor htmlSource sourceOnly disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:atmosphere`} value={String(payload.atmosphere||"")} onChange={value=>setField("atmosphere",value)} label="Ortsbeschreibung und Atmosphäre" maximumPlainLength={25000} placeholder="Wie wirkt dieser Ort auf die Sinne?"/>
                 </div>:<div className={cmsStyles.fieldStack}>
                   <label className="field"><span>Name</span><input value={String(payload.title||"")} onChange={event=>setField("title",event.target.value)}/></label>
-                  {node.level==="area"&&<RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Beschreibung des Bereichs" maximumPlainLength={25000} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
-                  {node.level==="room"&&<RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Raumbeschreibung" maximumPlainLength={25000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
-                  {node.level==="information"&&<><RichTextEditor htmlSource disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={25000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Jede Erkenntnis erhält einen eigenen Titel und Text. Sie bleibt bis zur gezielten Veröffentlichung ein Entwurf.</p></>}
+                  {node.level==="area"&&<RichTextEditor htmlSource sourceOnly disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:playerHint`} value={String(payload.playerHint||"")} onChange={value=>setField("playerHint",value)} label="Beschreibung des Bereichs" maximumPlainLength={25000} placeholder="Ein freigegebener Eindruck oder Hinweis für diesen Bereich"/>}
+                  {node.level==="room"&&<RichTextEditor htmlSource sourceOnly disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:short`} value={String(payload.short||"")} onChange={value=>setField("short",value)} label="Raumbeschreibung" maximumPlainLength={25000} placeholder="Was ist in diesem Raum bereits bekannt?"/>}
+                  {node.level==="information"&&<><RichTextEditor htmlSource sourceOnly disabled={!editable||busy} key={`${selectedDraft?.id??editorKey}:${selectedDraft?.version??0}:text`} value={String(payload.text||"")} onChange={value=>setField("text",value)} label="Freigegebener Text" maximumPlainLength={25000} placeholder="Inhalt des freigegebenen Hinweises"/><label className="field"><span>Hinweistyp</span><select value={String(payload.noteType||"note")} onChange={event=>setField("noteType",event.target.value)}>{[["note","Hinweis"],["suspicion","Verdacht"],["insight","Erkenntnis"],["question","Frage"],["task","Aufgabe"],["memory","Erinnerung"],["theory","Theorie"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label><label className="field"><span><input type="checkbox" checked={payload.pinned===true} onChange={event=>setField("pinned",event.target.checked)}/> Als wichtig markieren</span></label><p className="muted">Diesen Hinweis legst du als Spielleitung an. Die privaten Notizen der Spieler bleiben im eigenen Spielerbereich.</p></>}
                 </div>}
               </fieldset>
+              {(isRoot||node.level==="area")&&<section className={cmsStyles.titleImage} aria-label="Titelbild">
+                <h4>{isRoot?"Ortsbild":"Titelbild des Bereichs"}</h4>
+                {heroFileId&&(pendingImageUrl||selectedDraft)&&<img alt="Vorschau des Titelbildes" src={pendingImageUrl??('/api/cms/media?'+new URLSearchParams({id:heroFileId,entityId:node.id,revisionId:selectedDraft!.id,preview:"1"}))}/>}
+                <label className="field"><span>{heroFileId?"Bild ersetzen":"Bild hochladen"}</span><input type="file" accept="image/png,image/jpeg,image/webp" disabled={!editable||busy} onChange={event=>{const file=event.target.files?.[0];event.target.value="";void uploadTitleImage(file);}}/></label>
+                <small>JPG, PNG oder WebP bis 10 MB. Das Bild wird mit dieser Arbeitsfassung gespeichert.</small>
+              </section>}
               {!editable&&<p className={cmsStyles.readOnlyNote}>Dieser Stand ist {selectedDraft?.status==="approved"?"genehmigt":"nicht mehr bearbeitbar"}. Wähle den neuesten Stand im Versionsverlauf, um Änderungen zu speichern.</p>}
             </section>}
 

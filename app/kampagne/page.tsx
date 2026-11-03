@@ -6,6 +6,9 @@ import { actor } from "@/server/access";
 import { HttpError } from "@/server/database";
 import { currentUserFromContext } from "@/server/platform-auth";
 
+import {campaignRoster} from '@/server/live-participants';
+import {CampaignRound} from './campaign-round';
+
 export const dynamic = "force-dynamic";
 
 type EntryPreview = { title: string; body: Record<string, unknown> };
@@ -32,6 +35,8 @@ export default async function KampagnePage() {
     if (!response.ok) throw new Error("Die Kampagnenübersicht konnte nicht geladen werden.");
     preview = await response.json() as CampaignPreview;
   }
+  const roster=member&&admitted?await campaignRoster(member):[];
+  const showRound=member&&roster.some(person=>person.id===member.id);
   const dateValue = preview?.nextSession?.body.date ?? preview?.nextSession?.body.datetime ?? preview?.nextSession?.body.start;
   const nextDate = typeof dateValue === "string" && Number.isFinite(Date.parse(dateValue)) ? dateValue : null;
   return <main className="campaign-page">
@@ -48,12 +53,13 @@ export default async function KampagnePage() {
             <section><h2>Mein Charakter</h2><p>{preview.character?.title ?? (preview.characterCount ? "Noch kein aktiver Charakter gewählt. Wähle ihn im Spielerbereich." : "Noch kein eigener Charakter vorhanden. Du kannst ihn im Spielerbereich anlegen.")}</p></section>
             <section><h2>Nächster Spielabend</h2>{nextDate ? <p><strong>{preview.nextSession?.title}</strong><br /><time dateTime={nextDate}>{new Date(nextDate).toLocaleString("de-DE", { timeZone: "Europe/Berlin", dateStyle: "full", timeStyle: "short" })} Uhr</time></p> : <p>Noch kein Spielabend festgelegt. Termine findest du im Spielerbereich.</p>}</section>
           </div>
-          <div className="campaign-page__actions"><Link className="button button--primary" href="/spielbereich">Mein Spielerbereich</Link>{member?.gm && <Link className="button" href="/sl/command-center?bereich=sitzung">Vorbereiten</Link>}</div>
+          <div className="campaign-page__actions"><Link className="button button--primary" href="/spielbereich">Mein Spielerbereich</Link>{showRound&&<Link className="button" href="#deine-runde">Deine Runde</Link>}{member?.gm && <Link className="button" href="/sl/command-center?bereich=sitzung">Vorbereiten</Link>}</div>
         </> : <>
           <p>Vampire: The Masquerade V20 bildet den Rahmen der ersten Kampagne. Die Chronik befindet sich in geschlossener Alpha; der Spielbereich ist nur für freigegebene Konten vorgesehen.</p>
           <div className="campaign-page__actions"><Link className="button button--primary" href={user ? "/profil" : "/anmelden"}>{user ? "Kontostatus ansehen" : "Zur geschlossenen Alpha"}</Link><Link className="button" href="/#start">Zur ChroniPlay-Startseite</Link></div>
         </>}
       </div>
     </section>
+    {member&&showRound&&<CampaignRound actor={member} members={roster}/>}
   </main>;
 }

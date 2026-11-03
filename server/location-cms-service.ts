@@ -211,8 +211,13 @@ export async function locationDraftBaseline(db:D1Database,actor:Actor,entityId:s
   };
 }
 
+async function requireLocationHeroFile(db:D1Database,actor:Actor,fileId:string){
+    const file=await db.prepare("SELECT owner_id,visibility,mime FROM files WHERE campaign_id=? AND id=?").bind(actor.campaignId,fileId).first<{owner_id:string;visibility:string;mime:string}>();
+    if (!file || file.visibility!=="sl" || !["image/jpeg","image/png","image/webp"].includes(file.mime) || (file.owner_id!==actor.id && !cmsPublisher(actor))) throw new HttpError(404,"Das Bild wurde nicht gefunden.");
+}
+
 export async function createLocationDraft(db: D1Database, actor: Actor, input: {
-  entityId: string; audience: unknown; playerId?: unknown; payload?: unknown; geography?: unknown; gmSecret?: unknown; sourceRevisionId?:string; expectedLatest?:string;
+  entityId: string; audience: unknown; playerId?: unknown; payload?: unknown; geography?: unknown; gmSecret?: unknown; sourceRevisionId?:string; expectedLatest?:string; heroFileId?:string|null;
 }) {
   requireCmsEditor(actor);
   const node = await getLocationNode(db, actor, input.entityId,true);
@@ -243,7 +248,8 @@ export async function createLocationDraft(db: D1Database, actor: Actor, input: {
     .bind(actor.campaignId,input.entityId).first<{n:number}>();
   const id=crypto.randomUUID(), now=new Date().toISOString(), version=Number(revisionNo?.n ?? 1);
   const parentRevisionId = source?.id??(target.scope === "gm" ? previous?.id ?? null : publishedSeed?.id ?? null);
-  const publishedHero = publishedSeed ? await db.prepare(`SELECT m.file_id,m.alt_text,m.position FROM entity_revision_media m
+  if(input.heroFileId)await requireLocationHeroFile(db,actor,input.heroFileId);
+  const publishedHero = input.heroFileId!==undefined ? (input.heroFileId?{file_id:input.heroFileId,alt_text:"",position:0}:null) : publishedSeed ? await db.prepare(`SELECT m.file_id,m.alt_text,m.position FROM entity_revision_media m
     JOIN files f ON f.id=m.file_id AND f.campaign_id=m.campaign_id
     WHERE m.campaign_id=? AND m.entity_id=? AND m.revision_id=? AND m.purpose='hero' AND f.visibility='sl'
     ORDER BY m.position LIMIT 1`).bind(actor.campaignId,input.entityId,publishedSeed.id)
@@ -295,10 +301,7 @@ export async function saveLocationDraft(db: D1Database, actor: Actor, input: {
   }
   const geography=node.level === "location" ? parseGeography(input.geography ?? object(String(revision.geography_json))) : {status:"unknown" as const};
   if (!payload || !gmSecret || !geography) throw new HttpError(400,"Ungültige Entwurfsdaten.");
-  if (input.heroFileId) {
-    const file=await db.prepare("SELECT owner_id,visibility,mime FROM files WHERE campaign_id=? AND id=?").bind(actor.campaignId,input.heroFileId).first<{owner_id:string;visibility:string;mime:string}>();
-    if (!file || file.visibility!=="sl" || !["image/jpeg","image/png","image/webp"].includes(file.mime) || (file.owner_id!==actor.id && !cmsPublisher(actor))) throw new HttpError(404,"Das Bild wurde nicht gefunden.");
-  }
+  if(input.heroFileId)await requireLocationHeroFile(db,actor,input.heroFileId);
   const now=new Date().toISOString(), next=input.expectedVersion+1;
   const eventId=crypto.randomUUID();
   const statements=[

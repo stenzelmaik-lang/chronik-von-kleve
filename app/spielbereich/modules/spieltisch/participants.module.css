@@ -53,7 +53,7 @@
 .figureCard>header{position:relative;isolation:isolate;display:flex;align-items:end;gap:12px;min-height:125px;padding:18px;background:#262321}
 .figureCard>header:has(.figureHero){min-height:250px}
 .figureCard>header:has(.figureHero)::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,#100e10 2%,#100e1000 75%)}
-.figureHero{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:center 32%}
+.figureHero{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:center top}
 .figureCard>header h3{margin:5px 0;color:#f1dbad;font:clamp(25px,5vw,38px)/1.1 Georgia,serif}
 .figureCard>header p{margin:0;white-space:pre-wrap}
 .figureCard>header[data-banner=fog]{background:linear-gradient(115deg,#142126,#354745,#17242a)}

@@ -38,6 +38,7 @@ import { LocationMediaGallery } from "./location-media-gallery";
 import { LocationKnowledgeSearch } from "./location-knowledge-search";
 import { LocationConnections } from "./location-connections";
 import { RichTextView, richTextToPlainText } from "./rich-text";
+import { LocationReleasePreview } from "./location-release-preview";
 import { LocationSLDossier } from "./location-sl-dossier";
 import { mapMarkersForPlaces, visibleWorldPlaces, type WorldHubPlace, type WorldMapMarker } from "./world-map-contract";
 import {
@@ -401,18 +402,18 @@ export function WorldExperience({
   }
 
 
-  async function changeGroupVisibility(entityId: string, reopen: boolean) {
+  async function changeGroupVisibility(entityId: string, revisionId?: string) {
     const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
     if(!a.gm||view!=="sl"||busy||!state||embeddedDossier)return;
-    if(!state.lastPublishedRevisionId){toast.error("Für diesen Eintrag gibt es noch keinen genehmigten Gruppenstand. Bitte zuerst im SL-CMS veröffentlichen.");return;}
-    if(!window.confirm(reopen?"Den zuletzt genehmigten Gruppenstand wieder anzeigen? Ungespeicherte und unveröffentlichte Entwürfe bleiben verborgen.":"Diesen Eintrag für die aktive Spielgruppe sperren? Untergeordnete Inhalte bleiben ebenfalls verborgen. Das bereits erworbene Wissen wird nicht zurückgestuft."))return;
+    if(revisionId&&revisionId!==state.approvedRevisionId)return;
+    if(!revisionId&&!window.confirm("Diesen Eintrag für die Runde sperren? Untergeordnete Inhalte werden ebenfalls ausgeblendet."))return;
     setBusy(true);
     try{
-      await api("/api/cms/releases","POST",{action:reopen?"publish":"block",entityId,scope:"group",expectedReleaseVersion:state.version,...(reopen?{revisionId:state.lastPublishedRevisionId,grantDiscovery:false}:{}),reason:reopen?"Gruppenstand am SL-Spieltisch reaktiviert":"Gruppensicht am SL-Spieltisch gesperrt"});
+      await api("/api/cms/releases","POST",{action:revisionId?"publish":"block",entityId,scope:"group",expectedReleaseVersion:state.version,...(revisionId?{revisionId,discoveryState:state.discoveryState==="hidden"?"known":state.discoveryState}:{}),reason:revisionId?"Gruppenstand am SL-Spieltisch reaktiviert":"Gruppensicht am SL-Spieltisch gesperrt"});
       invalidatePlayerData(dataScope);
       const updated=await requestPlayerData(dataScope,projectionKey,()=>api<Payload>(projectionKey),{force:true});
       setResult({key:scopedProjectionKey,projection:updated.projection});
-      toast.success(reopen?"Genehmigter Gruppenstand wieder sichtbar":"Für die aktive Spielgruppe gesperrt");
+      toast.success(revisionId?"Genehmigter Gruppenstand wieder sichtbar":"Für die aktive Spielgruppe gesperrt");
     }catch(reason){toast.error(reason instanceof Error?reason.message:"Die Freigabe konnte nicht geändert werden.");}
     finally{setBusy(false);}
   }
@@ -439,9 +440,11 @@ export function WorldExperience({
       <div><strong>Wissen der Runde</strong><span>{discoveryLabel(state.discoveryState)}</span></div>
       <div className={styles.slVisibilityActions}>
         {!state.secret&&released&&next&&<button type="button" className={styles.secondaryButton} disabled={busy} onClick={()=>void advanceGroupKnowledge(entityId,next,state.discoveryVersion)}>Als {discoveryLabel(next).toLocaleLowerCase('de-DE')} markieren</button>}
-        {state.lastPublishedRevisionId&&(!state.secret||released)&&<button type="button" className={styles.secondaryButton} disabled={busy} onClick={()=>void changeGroupVisibility(entityId,!released)}>{released?'Für Gruppe sperren':'Gruppenstand aktivieren'}</button>}
+        {released&&<button type="button" className={styles.secondaryButton} disabled={busy} onClick={()=>void changeGroupVisibility(entityId)}>Für Gruppe sperren</button>}
       </div>
-      {!state.secret&&!state.lastPublishedRevisionId&&<small>Die erste Freigabe eines neuen Gruppenstands erfolgt in der Ortsredaktion.</small>}
+      {!state.secret&&location&&<LocationReleasePreview key={entityId+':'+state.version+':'+state.discoveryVersion} placeId={location.id} entityId={entityId}
+        approvedRevisionId={state.approvedRevisionId} canPublish={!!state.approvedRevisionId&&(!released||state.approvedRevisionId!==state.lastPublishedRevisionId)}
+        discovery={state.discoveryState} busy={busy} onPublish={revisionId=>changeGroupVisibility(entityId,revisionId)}/>}
     </section>;
   }
 

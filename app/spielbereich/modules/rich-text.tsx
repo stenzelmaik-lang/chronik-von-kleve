@@ -80,6 +80,7 @@ export function RichTextEditor({
   placeholder,
   advanced = false,
   htmlSource = false,
+  sourceOnly = false,
   files = [],
   compactTools = false,
   preparationTools = false,
@@ -95,6 +96,7 @@ export function RichTextEditor({
   placeholder: string;
   advanced?:boolean;
   htmlSource?: boolean;
+  sourceOnly?: boolean;
   files?:{id:string;name:string;mime:string;visibility?:string}[];
   compactTools?: boolean;
   preparationTools?: boolean;
@@ -105,7 +107,7 @@ export function RichTextEditor({
   disabled?: boolean;
 }) {
   const [initialSource]=useState(()=>value.startsWith(richHtmlPrefix)?{raw:value.slice(richHtmlPrefix.length),...inspectRichTextSource(value.slice(richHtmlPrefix.length),maximumPlainLength)}:null);
-  const [htmlMode,setHtmlMode]=useState(initialSource!==null),[htmlDraft,setHtmlDraft]=useState(initialSource?.raw??''),[htmlError,setHtmlError]=useState(initialSource?.error??''),[imageId,setImageId]=useState('');
+  const [htmlMode,setHtmlMode]=useState(sourceOnly||initialSource!==null),[htmlDraft,setHtmlDraft]=useState(initialSource?.raw??(sourceOnly?richTextToHtml(value):'')),[htmlError,setHtmlError]=useState(initialSource?.error??''),[imageId,setImageId]=useState('');
   const [preview, setPreview] = useState(false);
   const helpId = useId();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -212,15 +214,15 @@ export function RichTextEditor({
     {htmlSource&&!preparationTools&&<strong className={styles.editorLabel}>{label}</strong>}
     {compactTools&&!preparationTools&&<div className={styles.toolbar}><button type="button" aria-expanded={linkOpen} onMouseDown={preserveSelection} onClick={()=>setLinkOpen(!linkOpen)}>Link</button>{advanced&&<button type="button" aria-expanded={imageOpen} onMouseDown={preserveSelection} onClick={()=>setImageOpen(!imageOpen)}>Bild</button>}<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button></div>}
     {(htmlSource||advanced&&extraTools)&&<div className={styles.toolbar} aria-label={`${label} Ansicht`}>
-      <button type="button" aria-pressed={!htmlMode&&!preview} disabled={htmlMode&&!!htmlError} onClick={()=>{setPreview(false);setHtmlMode(false);}}>Visuell</button>
+      {!sourceOnly&&<button type="button" aria-pressed={!htmlMode&&!preview} disabled={htmlMode&&!!htmlError} onClick={()=>{setPreview(false);setHtmlMode(false);}}>Visuell</button>}
       <button type="button" aria-pressed={htmlMode&&!preview} onClick={()=>{if(!htmlMode)setHtmlDraft(value.startsWith(richHtmlPrefix)?value.slice(richHtmlPrefix.length):richTextToHtml(value));setPreview(false);setHtmlMode(true);}}>{htmlSource?'HTML-Quelltext':'HTML · Expertenansicht'}</button>
       {htmlSource&&<button type="button" aria-pressed={preview} disabled={!!htmlError} onClick={()=>setPreview(true)}>Vorschau</button>}
       {!preparationTools&&<small>{htmlSource?'Vorschau veröffentlicht nichts.':'Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.'}</small>}
     </div>}
     {preparationTools&&inlineGallery&&<div className={styles.preparationTools}><ProtectedImageGallery files={files} disabled={disabled||!!htmlError||preview} onOpen={preserveSelection} onSelect={id=>{const markup='<img src="/api/files?id='+id.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="Szenenbild"><p><br></p>';if(htmlMode)sourceChange(htmlDraft+markup);else command('insertHTML',markup);}}/>{!htmlMode&&!preview&&<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button>}</div>}
     {preview?<section className={styles.preview} data-custom-prose={proseClassName ? true : undefined} aria-label={`${label} Vorschau`}><RichTextView value={previewValue ?? value} readable flowing={Boolean(proseClassName)} className={proseClassName}/></section>:htmlMode?<>
-      <textarea disabled={disabled} aria-label={label+' HTML'} aria-describedby={preparationTools?undefined:helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>
-      {htmlSource&&!preparationTools&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: Überschriften, Absätze, Hervorhebungen, Listen, Zitate, Links, Trennlinien, Tabellen mit Kopfzeilen und aufklappbare Abschnitte. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
+      <textarea disabled={disabled} aria-label={label+' HTML'} aria-describedby={preparationTools?undefined:helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={sourceOnly?7:16}/>
+      {sourceOnly?<p className={styles.sourceHelp} id={helpId}>HTML für Absätze, Überschriften, Listen und Tabellen. Die Vorschau veröffentlicht nichts.</p>:htmlSource&&!preparationTools&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: Überschriften, Absätze, Hervorhebungen, Listen, Zitate, Links, Trennlinien, Tabellen mit Kopfzeilen und aufklappbare Abschnitte. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
     </>:<>
     <div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h2>")} aria-label="Überschrift groß">H2</button>
@@ -236,7 +238,7 @@ export function RichTextEditor({
       <label className={styles.colorControl}><span>Textfarbe</span><select aria-label="Textfarbe" defaultValue="#d6b36f" onMouseDown={()=>{const selection=window.getSelection();if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange();}} onChange={event => command("foreColor", event.target.value)}>{richTextColors.map(color => <option key={color} value={color}>{color === "#d6b36f" ? "Gold" : color === "#eee6d6" ? "Elfenbein" : color === "#a9c3cf" ? "Nebelblau" : "Rostrot"}</option>)}</select></label>
     </div>
     {htmlSource&&(!preparationTools||extraTools)&&!htmlMode&&!preview&&<div className={styles.toolbar} aria-label="Tabelle bearbeiten">{([['row','Zeile +'],['column','Spalte +'],['removeRow','Zeile entfernen'],['removeColumn','Spalte entfernen'],['header','Kopfzeile']] as const).map(([action,title])=><button type="button" key={action} onMouseDown={preserveSelection} onClick={()=>tableEdit(action)}>{title}</button>)}</div>}
-    {!preparationTools&&linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
+    {!preparationTools&&!sourceOnly&&linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
     {!preparationTools&&advanced&&imageOpen&&<div className={styles.linkRow}><label>Geschütztes Bild<input aria-label={label+' Bilder suchen'} placeholder="Dateiname oder ID …" value={imageSearch} onChange={e=>setImageSearch(e.target.value)}/><select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')&&(f.name+' '+f.id).toLowerCase().includes(imageSearch.toLowerCase())).map(f=><option key={f.id} value={f.id}>{f.name} · {f.id}{f.visibility ? ` · Dateiregel: ${f.visibility==='group'?'Gruppe':f.visibility==='sl'?'SL':'Eigentümer'}` : ''}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
     {!preparationTools&&advanced&&imageOpen&&imageId&&<figure><img src={'/api/files?id='+encodeURIComponent(imageId)} alt="Vorschau des ausgewählten geschützten Bildes" style={{maxWidth:180,maxHeight:140,objectFit:'contain'}}/><figcaption>Geschützter Dateispeicher · Dateiregel: {files.find(file=>file.id===imageId)?.visibility==='group'?'Gruppe':files.find(file=>file.id===imageId)?.visibility==='sl'?'SL':files.find(file=>file.id===imageId)?.visibility==='private'?'Eigentümer':'nicht angegeben'}. Auswahl veröffentlicht nichts; der Server prüft den tatsächlichen Zugriff.</figcaption></figure>}
     <div

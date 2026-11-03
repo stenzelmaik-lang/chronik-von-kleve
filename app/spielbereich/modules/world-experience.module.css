@@ -655,3 +655,11 @@
 .slVisibilityActions,.slVisibility>small{grid-column:1/-1}
 .slVisibilityActions{display:flex;gap:8px;flex-wrap:wrap}
 .gmActions>summary{cursor:pointer;color:#edc7a5;font:20px Georgia,serif}
+.releasePreview{grid-column:1/-1;min-width:0;border-top:1px solid var(--world-line);padding-top:12px}
+.releasePreview>p,.releaseComparison p{margin:8px 0;color:var(--world-muted)}
+.releaseComparison{display:grid;gap:10px;margin-top:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.releaseComparison>article{min-width:0;padding:12px;border:1px solid var(--world-line);border-radius:5px;background:var(--world-ink)}
+.releaseComparison h4,.releaseComparison h5{margin:0 0 8px;color:var(--world-bone);font:18px Georgia,serif}
+.releaseComparison h5{font-size:16px;color:var(--world-brass)}
+.releaseComparison img{display:block;width:100%;max-height:200px;object-fit:contain}
+.releaseComparison>button,.releaseComparison>p{grid-column:1/-1;justify-self:start}

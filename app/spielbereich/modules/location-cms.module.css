@@ -3,51 +3,10 @@
   gap: clamp(16px, 2vw, 26px);
   width: min(100%, 1500px);
   margin-inline: auto;
+  color:#ece5d7;
 }
 
-.cmsHero {
-  position: relative;
-  display: flex;
-  min-height: 0;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
-  overflow: hidden;
-  padding: clamp(14px, 2vw, 22px);
-  border: 1px solid rgba(205, 166, 107, .4);
-  background:
-    linear-gradient(90deg, rgba(10, 15, 17, .98) 0%, rgba(10, 15, 17, .87) 48%, rgba(10, 15, 17, .48) 100%),
-    url("/images/chronik-stadtkarte-schematisch.svg") center 48% / cover,
-    #101719;
-  box-shadow: inset 0 1px rgba(245, 227, 188, .06), 0 18px 48px rgba(0, 0, 0, .2);
-}
 
-.cmsHero::after {
-  position: absolute;
-  inset: auto 0 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #d6b36f 18%, rgba(214, 179, 111, .3) 74%, transparent);
-  content: "";
-}
-
-.cmsHero > div { position: relative; z-index: 1; max-width: 760px; }
-.cmsHero h1 { margin: 8px 0 9px; color: #f2eadb; font: normal clamp(26px, 3vw, 34px)/1 Georgia, "Times New Roman", serif; letter-spacing: -.035em; }
-.cmsHero p:not(.eyebrow) { max-width: 68ch; margin: 0; color: #c0c2b9; font-size: 14px; line-height: 1.5; }
-
-.campaignSeal {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 5px;
-  flex: 0 0 auto;
-  padding: 10px 14px;
-  border-left: 1px solid rgba(212, 182, 120, .5);
-  color: #c8b88f;
-  font-size: 9px;
-  letter-spacing: .18em;
-  text-align: right;
-}
-.campaignSeal strong { color: #e2d4b6; font: normal 13px Georgia, serif; letter-spacing: .12em; }
 .cmsPanel { width: 100%; }
 
 .editorMapStage {
@@ -191,7 +150,7 @@
 .sectionTab > span, .sectionTabActive > span { color: #8c7953; font-size: 9px; letter-spacing: .13em; }
 .sectionTab:hover, .sectionTab:focus-visible { color: #efe5d3; outline: none; }
 .sectionTabActive { border-color: rgba(205, 166, 107, .18); border-bottom-color: #d6b36f; color: #f0e6d2; background: rgba(207, 171, 107, .08); }
-.editorPanel { display: grid; gap: 22px; min-width: 0; padding: clamp(19px, 3vw, 30px); border-color: rgba(205, 166, 107, .24); background: linear-gradient(160deg, rgba(17, 25, 27, .97), rgba(11, 17, 19, .98)); }
+.editorPanel { display: grid; gap: 22px; min-width: 0; padding: clamp(19px, 3vw, 30px); border-color: rgba(205, 166, 107, .24); background: #101b29; }
 .panelIntro { max-width: 760px; }
 .panelIntro h3 { margin: 6px 0 7px; color: #efe7d8; font: normal clamp(22px, 2.3vw, 28px) Georgia, serif; }
 .panelIntro > p:last-child { margin: 0; color: #a7ada6; font-size: 12px; line-height: 1.65; }
@@ -240,10 +199,6 @@
 }
 
 @media (max-width: 700px) {
-  .cmsHero { min-height: 145px; align-items: start; padding: 22px 19px; }
-  .cmsHero h1 { font-size: 36px; }
-  .cmsHero p:not(.eyebrow) { font-size: 12px; }
-  .campaignSeal { display: none; }
   .editorMapStage { height: 360px; min-height: 320px; }
   .editorMapStage :global(.mapLibreControls) { top: 10px; right: 10px; grid-template-columns: repeat(3, 40px); }
   .editorMapStage :global(.mapLibreControls button) { width: 40px; height: 40px; }
@@ -263,6 +218,14 @@
   .candidatePosition button { margin-left: 0; }
 }
 .creationMenu>summary,.editorControlPanel>summary{cursor:pointer;color:#e4c88d;font-weight:600}
-.creationMenu>summary{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #b99c6166;border-radius:5px;background:#1c2728}
+.creationMenu>summary{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #b99c6166;border-radius:5px;background:#182635}
 .creationMenu .directoryActions,.editorControlPanel .controlRow,.supportTools{margin-top:12px}
 .supportTools{display:grid;gap:8px}
+
+.titleImage{display:grid;gap:9px;padding-block:14px;border-top:1px solid #b79e6340}
+.titleImage h4{margin:0;font:20px Georgia,serif}
+.titleImage img{display:block;max-width:100%;max-height:230px;object-fit:contain;object-position:left center;border-radius:5px}
+.titleImage small{color:#b8bbb3}
+
+.directoryPanel,.editorControlPanel{background:#101b29;border-color:#695b3e}
+.sectionTabActive{background:#202b39;border-color:#827047;color:#f2d096}

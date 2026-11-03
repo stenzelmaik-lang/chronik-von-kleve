@@ -2,7 +2,7 @@ import { z } from "zod";
 import { actor,database,failure,HttpError,input,json,sameOrigin } from "@/server/access";
 import { createLocationDraft,listLocationDrafts,locationDraftBaseline,requireCmsEditor,saveLocationDraft } from "@/server/location-cms-service";
 export const dynamic="force-dynamic";
-const createSchema=z.object({entityId:z.string().min(1).max(160),audience:z.enum(["gm","public","group","player"]),playerId:z.string().min(1).max(180).optional(),payload:z.unknown().optional(),geography:z.unknown().optional(),gmSecret:z.unknown().optional(),sourceRevisionId:z.string().uuid().optional(),expectedLatest:z.string().max(80).optional()}).strict();
+const createSchema=z.object({entityId:z.string().min(1).max(160),audience:z.enum(["gm","public","group","player"]),playerId:z.string().min(1).max(180).optional(),payload:z.unknown().optional(),geography:z.unknown().optional(),gmSecret:z.unknown().optional(),sourceRevisionId:z.string().uuid().optional(),expectedLatest:z.string().max(80).optional(),heroFileId:z.union([z.string().uuid(),z.null()]).optional()}).strict();
 const saveSchema=z.object({revisionId:z.string().uuid(),expectedVersion:z.number().int().nonnegative(),payload:z.unknown().optional(),geography:z.unknown().optional(),gmSecret:z.unknown().optional(),heroFileId:z.union([z.string().uuid(),z.null()]).optional()}).strict();
 export async function GET(req:Request){
   try{
