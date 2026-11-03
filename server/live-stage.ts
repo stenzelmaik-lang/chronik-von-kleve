@@ -17,6 +17,7 @@ import {participantPresence} from '@/domain/live-participants';
 import {vitalsSnapshot} from './live-vitals';
 import {materialStageSource,regieMaterials} from './material-stage';
 import {readFigure} from './live-figures';
+import {deliveriesForViewer} from './live-deliveries';
 import {archivePocket,pocketHolders,pocketItem,pocketRow,pocketSnapshot,removePocket,restorePocket} from './material-pocket';
 
 export function storedStage(room:{stage?:unknown}):StageState{
@@ -82,7 +83,7 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
 }
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){
  const {row,room}=await stageRoom(a,sessionId),stage=storedStage(room);
- const [events,members,vitals]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room)]);
+ const [events,members,vitals,deliveries]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room),deliveriesForViewer(a,sessionId)]);
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
  const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:reportForStoredV20Roll(e.roll!,e.report),...(e.rulesVersion?{rulesVersion:e.rulesVersion}:{}),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
  // Consequences, intended figures and the prepared origin are GM-only; liveEvents already strips them for players.
@@ -111,6 +112,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
   // Character condition values: own and explicitly released characters only; GM sees the whole table.
   vitals,
+  // Visions and personal messages: a player gets only own active deliveries (no internal title, no other recipients).
+  ...(deliveries?{deliveries}:{}),
   // Table-wide atmosphere and pager messages. Players get only their own pagers, without the recipient list.
   effects:stage.effects||[],
   music:stage.music?{title:stage.music.title,key:stage.music.key,...(a.gm?{fileId:stage.music.fileId}:{})}:null,

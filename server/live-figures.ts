@@ -1,4 +1,5 @@
 import {database,gmOnly,HttpError,type Actor} from './access';
+import {readSetting,mutateSetting} from './settings-store';
 import {readLiveRoom} from './live-game';
 import {resolveFigure,typeById,tierById,nextLabel,MAX_LIVE_FIGURES,MAX_SPAWN,STANDARD_FIGURES_VERSION,type LiveFigure,type FigureStatePatch,type TierId} from '@/domain/standard-figures';
 
@@ -12,22 +13,8 @@ const figuresKey=(campaignId:string,sessionId:string)=>`live-figures:${campaignI
 const assetsKey=(campaignId:string)=>`standard-figure-assets:${campaignId}`;
 const empty=():State=>({rev:0,figures:[],requests:[]});
 
-async function readRaw(key:string){return (await database().prepare('SELECT value FROM settings WHERE key=?').bind(key).first<{value:string}>())?.value??null;}
-/** Compare-and-swap: writes only when nobody changed the value since it was read. */
-async function writeCas(key:string,expected:string|null,next:string){
- const db=database();
- const result=expected===null
-  ?await db.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING').bind(key,next).run()
-  :await db.prepare('UPDATE settings SET value=? WHERE key=? AND value=?').bind(next,key,expected).run();
- return result.meta.changes===1;
-}
-async function mutate<T>(key:string,parse:(raw:string|null)=>T,apply:(state:T)=>T){
- for(let attempt=0;attempt<4;attempt++){
-  const raw=await readRaw(key),next=apply(parse(raw));
-  if(await writeCas(key,raw,JSON.stringify(next)))return next;
- }
- throw new HttpError(409,'Die Figuren wurden gleichzeitig geändert. Bitte erneut versuchen.');
-}
+const readRaw=readSetting;
+const mutate=<T>(key:string,parse:(raw:string|null)=>T,apply:(state:T)=>T)=>mutateSetting(key,parse,apply,'Die Figuren wurden gleichzeitig geändert. Bitte erneut versuchen.');
 const parseState=(raw:string|null):State=>{try{const s=raw?JSON.parse(raw):null;return s&&Array.isArray(s.figures)?{rev:Number(s.rev)||0,figures:s.figures,requests:Array.isArray(s.requests)?s.requests:[]}:empty();}catch{return empty();}};
 const parseAssets=(raw:string|null):AssetLink[]=>{try{const s=raw?JSON.parse(raw):[];return Array.isArray(s)?s:[];}catch{return [];}};
 

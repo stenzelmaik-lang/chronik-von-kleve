@@ -3,7 +3,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {Eye,EyeOff,UserPlus,FilePlus2,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw} from 'lucide-react';
 import {RegieMaterials} from '../material/regie-materials';
-import {PreparedWhisperReleases} from './prepared-whisper-releases';
+import {DeliveryDesk} from './delivery-desk';
 import {api} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
@@ -43,7 +43,7 @@ export function BackdropChoice({current,sceneImages,busy,onChoose}:{current:stri
  return sceneImages.length?<ul className={styles.backdropGrid} aria-label="Szenenbild">{sceneImages.map(tile)}</ul>:<p className={styles.empty}>Für diese Szene ist kein Szenenbild vorbereitet. Lege es in der Szene unter Atmosphäre fest.</p>;
 }
 
-export function Regie({deliveryBusy,crew,onCommand,onIssue,checksEnabled,checksSwitch,checkState,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
+export function Regie({crew,onCommand,onIssue,checksEnabled,checksSwitch,checkState,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
  const [preview,setPreview]=useState<Media|null>(null),previewDialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  // Loaded scenes stay cached for the evening: switching back costs no request.
@@ -80,7 +80,7 @@ export function Regie({deliveryBusy,crew,onCommand,onIssue,checksEnabled,checksS
    {tab==='interactions'&&<><Text value={s.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={styles.note}><h3>{n.title}</h3><Text value={n.text} empty=""/></article>)}{checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.checkLink} onClick={()=>onTab('checks')}>Vorbereitete Proben ausgeben</button>}</>}
    {tab==='checks'&&checksSwitch&&<ChecksSwitch on={checksSwitch.on} busy={busy} onSwitch={onIssue}/>}
    {tab==='checks'&&<CheckDesk sceneId={s.id} notes={context.notes} crew={crew} figures={checkState?.figures} checks={checkState?.checks||[]} events={checkState?.events||[]} checksEnabled={checksEnabled} busy={busy} onIssue={onIssue} onShow={checkState?.onShow}/>}
-   {tab==='whispers'&&<PreparedWhisperReleases items={context.whispers||[]} sceneId={s.id} version={s.version} crew={crew} objects={table.objects} busy={deliveryBusy} onCommand={onCommand}/>}
+   {tab==='whispers'&&<DeliveryDesk items={context.whispers||[]} sceneId={s.id} version={s.version} sessionId={sessionId} crew={crew} objects={table.objects} onCommand={onCommand}/>}
    {tab==='secrets'&&<><Text value={s.secrets} empty="Keine Geheimnisse hinterlegt."/>{s.visions.trim()&&<><h3>Visionen</h3><Text value={s.visions} empty=""/></>}</>}
    {tab==='consequences'&&<><Text value={s.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s.possibilities.map(p=><article key={p.id} className={styles.note}><h3>{p.title}</h3><p>{p.text}</p></article>)}</>}
    {tab==='notes'&&<Text value={s.gmNotes} empty="Keine SL-Notizen."/>}
