@@ -31,10 +31,10 @@ function fitChronicleRegion(map: MapLibreMap, compact = false) {
   });
 }
 
-function createMarkerElement(place: WorldMapMarker) {
+function createMarkerElement(place: WorldMapMarker, compact: boolean) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = styles.mapLibreMarker;
+  button.className = compact ? styles.atlasMarker : styles.mapLibreMarker;
   const positionText = place.precision === "candidate"
     ? "unbestätigte, noch nicht gespeicherte Kartenauswahl"
     : place.precision === "approximate"
@@ -43,7 +43,9 @@ function createMarkerElement(place: WorldMapMarker) {
   button.setAttribute("aria-label", `${place.title}, ${positionText}. Vorschau anzeigen.`);
   button.setAttribute("aria-pressed", "false");
   button.title = `${place.title} · ${positionText}`;
-  button.innerHTML = '<span aria-hidden="true"></span><i aria-hidden="true"></i>';
+  button.innerHTML = compact
+    ? '<svg aria-hidden="true" viewBox="0 0 20 26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 14C7 12 5.5 9.3 5.5 6.8a4.5 4.5 0 0 1 9 0c0 2.5-1.5 5.2-4.5 7.2v10M4 14h12"/></svg>'
+    : '<span aria-hidden="true"></span><i aria-hidden="true"></i>';
   return button;
 }
 
@@ -171,7 +173,7 @@ export function WorldMapLibre({
         }
         continue;
       }
-      const element = createMarkerElement(place);
+      const element = createMarkerElement(place, compact);
       const marker = new Marker({ element, anchor: "center" })
         .setLngLat([longitude, latitude])
         .addTo(instance);
