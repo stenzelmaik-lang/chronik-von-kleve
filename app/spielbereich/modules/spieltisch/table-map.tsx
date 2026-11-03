@@ -5,7 +5,6 @@ import {lazy, Suspense, useEffect, useMemo, useRef, useState, type Ref} from 're
 import {ArrowLeft, Compass, MapPin, X} from 'lucide-react';
 import type {PlaceProjection} from '@/domain/location-types';
 import {api} from '../api-client';
-import {LocationMediaGallery} from '../location-media-gallery';
 import {RichTextView} from '../rich-text';
 import {mapMarkersForPlaces, playerMapPlaces, type WorldHubPlace} from '../world-map-contract';
 import styles from './stage.module.css';
@@ -69,14 +68,14 @@ export function TablePlace({id,gm,onBack}:{id:string;gm:boolean;onBack:()=>void}
    <article className={styles.tablePlace}>
     <h2>{place.title}</h2>
     {place.image&&<img src={place.image} alt={place.title}/>}
-    {place.summary&&<RichTextView value={place.summary} readable flowing/>}
-    <LocationMediaGallery media={place.media?.filter(item=>!item.hero)}/>
-    {place.areas.filter(area=>!area.redacted).map(area=><details key={area.viewKey}>
-     <summary>{area.title}</summary>
-     {area.playerHint&&<RichTextView value={area.playerHint} readable flowing/>}
-     <LocationMediaGallery media={area.media}/>
-     {area.rooms.map(room=><div key={room.viewKey}><h3>{room.title}</h3>{room.short&&<RichTextView value={room.short} readable flowing/>}<LocationMediaGallery media={room.media}/></div>)}
-    </details>)}
+     {(place.atmosphere||place.summary)&&<section>
+      <h3>Dein Eindruck</h3>
+      <RichTextView value={place.atmosphere||place.summary} readable flowing/>
+     </section>}
+     {(place.address||place.district)&&<dl>
+      {place.address&&<><dt>Adresse</dt><dd>{place.address}</dd></>}
+      {place.district&&<><dt>Gebiet</dt><dd>{place.district}</dd></>}
+     </dl>}
    </article>}
  </>;
 }
