@@ -53,8 +53,8 @@ test('Resolving a parent leaves all existing node IDs, fields and ordering untou
 test('Directory actions show their actual target and creation uses that same stable parent',()=>{
   const ui=readFileSync(new URL('../app/spielbereich/modules/location-cms.tsx',import.meta.url),'utf8');
   const css=readFileSync(new URL('../app/spielbereich/modules/location-cms.module.css',import.meta.url),'utf8');
-  assert.ok(ui.includes('Bereich hinzufügen<small>Hauptort: {areaParent.title}'));
-  assert.ok(ui.includes('Raum hinzufügen<small>Bereich: {roomParent.title}'));
+  assert.ok(ui.includes('Bereich hinzufügen<small>Unter {areaParent.title}'));
+  assert.ok(ui.includes('Raum hinzufügen<small>Unter {roomParent.title}'));
   assert.ok(ui.includes('const parent=locationCreationParent(level,nodes,placeId,nodeId)'));
   assert.ok(ui.includes('if(level!=="location"&&!parent)return'));
   assert.ok(ui.includes('parentId:parent?.id??null'));
