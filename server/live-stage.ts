@@ -107,6 +107,7 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
   backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(stage.backdrop.transition?{transition:stage.backdrop.transition}:{}),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,boardLocked:!!room.boardLocked,
+  ...(a.gm?{campaignCrew:members.map(m=>({id:m.id,name:m.name,gm:isGmMembership(m.membershipRole),presence:participantPresence(m.id,room.peers,room.away)}))}:{}),
   crew:roomCrew(room,members).map(({membershipRole,...m})=>({...m,...(a.gm&&isGmMembership(membershipRole)?{gm:true}:{}),avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
   dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
   // Character condition values: own and explicitly released characters only; GM sees the whole table.

@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {PreparedWhisperReleases} from './prepared-whisper-releases';
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen} from 'lucide-react';
+import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen,Users,Dices} from 'lucide-react';
 import type {Actor} from '@/domain/types';
 import {pagerTextMax,pagerTitleMax,pagerSenderMax,stageEffects,type StageEffect} from '@/domain/live-stage';
 import {api,ApiError} from '../api-client';
@@ -34,6 +34,22 @@ const fileUrl=(id:string)=>'/api/files?id='+encodeURIComponent(id);
 const stageUrl=(sessionId:string,catalog=false)=>'/api/live-stage?sessionId='+encodeURIComponent(sessionId)+(catalog?'&catalog=1':'');
 
 /** Who receives one release: the whole round or chosen players. Every item keeps its own choice. */
+type CampaignCrew=NonNullable<Snapshot['campaignCrew']>;
+
+function CampaignMenu({members,failed=false}:{members?:CampaignCrew;failed?:boolean}){
+ return <details className={styles.headerMenu}>
+    <summary><Users size={15}/> Kampagne{members&&' ('+members.length+')'}</summary>
+    <div className={styles.menuBody}>
+     {!members?<span>{failed?'Teilnehmende konnten nicht geladen werden.':'Teilnehmende werden geladen …'}</span>:members.length===0?<span>Keine aktiven Mitglieder</span>:
+      <ul className={styles.crew} aria-label="Kampagnenmitglieder">
+       {members.map(member=><li key={member.id} data-presence={member.presence}>
+        <strong>{member.name}</strong><small>{member.gm?'SL · ':''}{member.presence==='connected'?'Am Tisch':member.presence==='afk'?'Am Tisch · abwesend':'Nicht am Tisch'}</small>
+       </li>)}
+      </ul>}
+    </div>
+   </details>;
+}
+
 function AudiencePicker({value,onChange,crew,label}:{value:Audience;onChange:(v:Audience)=>void;crew:Crew;label:string}){
  return <div className={styles.audience} role="group" aria-label={'Empfänger: '+label}>
   <button type="button" aria-pressed={value===null} onClick={()=>onChange(null)}>Alle</button>
@@ -44,8 +60,9 @@ function AudiencePicker({value,onChange,crew,label}:{value:Audience;onChange:(v:
 const pagerTime=(at:string)=>new Date(at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 const audienceText=(v:Audience,crew:Crew)=>v===null?'alle':v.map(id=>crew.find(m=>m.id===id)?.name||'?').join(', ')||'niemand';
 
+const spontaneousPagerArea='Pager · spontan';
 const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['checks','Proben','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
- ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs','block'],['figures','Figuren','block'],['pager','Pager','block'],['table','Tisch','block']] as const;
+ ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs der Szene','block'],['figures','NPCs & Würfel','block'],['pager','Pager vorbereitet','block'],[spontaneousPagerArea,'Spontan-Pager','block'],['table','Tisch','block']] as const;
 type RegieArea=typeof regieAreas[number][0];
 const areaKey=(actorId:string)=>'chroniplay:regie-bereich:'+actorId;
 const effectIcons:Record<StageEffect,typeof CloudRain>={rain:CloudRain,fog:CloudFog,storm:CloudLightning,snow:Snowflake,embers:Flame,darkness:Moon,flicker:Lightbulb};
@@ -61,6 +78,9 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [contexts,setContexts]=useState<Record<string,RegieContext>>({}),[contextError,setContextError]=useState<{id:string;message:string}|null>(null);
  const [chosenScene,setChosenScene]=useState(''),[audiences,setAudiences]=useState<Record<string,Audience>>({});
+ const [waitingCrew,setWaitingCrew]=useState<CampaignCrew>();
+ const [rosterFailed,setRosterFailed]=useState(false);
+ const [toolbar,setToolbar]=useState<HTMLDivElement|null>(null);
  const layout=useRegieLayout('chroniplay:regie-layout:'+a.campaignId+':'+a.id);
  const revealTile=layout.reveal;
  const [area,setArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
@@ -80,6 +100,19 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   }catch(e){setWaiting((e as Error).message);}
  },[sessionHint]);
  useEffect(()=>{if(room)return;queueMicrotask(()=>void locate());const t=window.setInterval(()=>void locate(),3000);return()=>window.clearInterval(t);},[room,locate]);
+
+ useEffect(()=>{
+  if(room)return;
+  let current=true;
+  const refreshRoster=()=>void api<{members:Omit<CampaignCrew[number],'presence'>[]}>('/api/members?view=regie-roster').then(({members})=>{
+   if(!current)return;
+   setWaitingCrew(members.map(member=>({...member,presence:'disconnected'})));
+   setRosterFailed(false);
+  }).catch(()=>{if(current)setRosterFailed(true);});
+  refreshRoster();
+  window.addEventListener('focus',refreshRoster);
+  return()=>{current=false;window.removeEventListener('focus',refreshRoster);};
+ },[room]);
 
  const accept=useCallback((next:Snapshot)=>{
   if(next.principal.id!==a.id||!next.principal.gm){window.location.reload();return;}
@@ -179,7 +212,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  // A remembered block area is brought into view once its scene has loaded.
  const restored=useRef(false),loaded=!!context;
  useEffect(()=>{if(!loaded||restored.current)return;restored.current=true;const kind=regieAreas.find(([x])=>x===area)?.[2];if(kind==='block')queueMicrotask(()=>chooseArea(area));},[loaded,area,chooseArea]);
- if(!room)return <main className={styles.waiting}><p className={styles.eyebrow}>CHRONIPLAY · REGIE</p><h1>Live-Regie</h1><p role="status">{waiting||'Spielabend wird gesucht …'}</p><p>Starte den Spielabend am Spieltisch. Diese Regie verbindet sich dann von selbst.</p></main>;
+ if(!room)return <main className={styles.waiting}><p className={styles.eyebrow}>CHRONIPLAY · REGIE</p><h1>Live-Regie</h1><p role="status">{waiting||'Spielabend wird gesucht …'}</p><p>Starte den Spielabend am Spieltisch. Diese Regie verbindet sich dann von selbst.</p><CampaignMenu members={waitingCrew} failed={rosterFailed}/></main>;
 
  const media=(m:Media,Icon:typeof ImageIcon,kind:'image'|'pdf'|'audio'|'video')=>{const placed=placedFile(m.fileId),key='file:'+m.fileId,target=audienceOf(key);return <article key={m.id} className={styles.item} data-item={m.fileId}>
   {kind==='image'?<button type="button" className={styles.thumb} aria-label={'Vorschau: '+m.title} onClick={()=>setPreview(m)}><ThumbImage id={m.fileId}/></button>:<div className={styles.fileIcon}><Icon/><small>{m.name}</small></div>}
@@ -207,14 +240,18 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     {!allScenes.some(x=>x.id===sceneId)&&<option value={sceneId}>{s?.title||'Szene'}</option>}
    </select></label>
    <div className={styles.sceneState}>{s&&(running?<span className={styles.live}><Clapperboard size={14}/> Läuft auf dem Tisch</span>:<button type="button" className={styles.primary} disabled={busy} onClick={()=>void activate(s.id)}><Clapperboard/> Szene starten</button>)}</div>
-   <ul className={styles.crew} aria-label="Runde">{crew.filter(m=>m.presence!=='disconnected').map(m=><li key={m.id} data-presence={m.presence}>{m.name}</li>)}</ul>
+   {context&&<div ref={setToolbar}/>}
+   {context&&<div className={styles.textTools}>
+     <div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div>
+   </div>}
+   <CampaignMenu members={snapshot?.campaignCrew||waitingCrew}/>
    <p className={styles.sync} role="status" data-fresh={!!snapshot&&!offline}><Radio size={13}/> {offline?'Verbindung gestört – versuche erneut':snapshot?'Live verbunden':'Verbinde …'}</p>
    <button type="button" className={styles.tableLink} onClick={()=>{if(window.opener&&!window.opener.closed)window.opener.focus();else window.open('/spielbereich?bereich=sitzung','_blank');}}><BookOpen size={15}/> Zum Spieltisch</button>
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
-  <nav className={styles.areas} aria-label="Bereiche der Szene">{visibleAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id),waiting=id==='checks'?openTargets:0;return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} data-attention={waiting>0||undefined} aria-current={(area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{label}{waiting>0&&<span className={styles.areaBadge} aria-label={waiting+' Würfe ausstehend'}>{waiting}</span>}</button>;})}</nav>
+  <nav className={styles.areas} aria-label="Bereiche der Szene">{visibleAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id),waiting=id==='checks'?openTargets:0;return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} data-attention={waiting>0||undefined} aria-current={(area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{id===spontaneousPagerArea&&<BellRing size={14}/>}{id==='figures'&&<Dices size={14}/>} {label}{waiting>0&&<span className={styles.areaBadge} aria-label={waiting+' Würfe ausstehend'}>{waiting}</span>}</button>;})}</nav>
   {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
-  <main className={styles.grid} data-scene={s!.id}><RegieTiles state={layout}>
+  <main className={styles.grid} data-scene={s!.id}><RegieTiles state={layout} toolbar={toolbar}>
 
     {!!context.materials?.length&&<Block title="Szenenmaterial"><RegieMaterials heading={false} materials={context.materials} objects={snapshot?.objects||[]} crew={crew} busy={busy} run={(body,done)=>run(body,null,done)}/></Block>}
     {snapshot&&<Block title="Materialbibliothek" area="material"><TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/></Block>}
@@ -225,11 +262,8 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
 
 
 
-    <div className={styles.textTools}><h2>Texte zum Vorlesen</h2><h3 className={styles.sceneTitle}>{s!.title}</h3>{context.place&&<small>Schauplatz: {context.place.title}</small>}
-     <div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div></div>
-
      <Block title="Erzählung" area="narration"><div style={{fontSize:textSize+'em'}} data-text-area="narration"><section className={styles.narration} aria-label="Erzählung">
-      <header><h3>Erzählung</h3><p className={regieStyles.state} data-placed={shared}>{shared?'Für die Runde freigegeben':'Noch nicht freigegeben'}</p></header>
+      <header><h3>{s!.title}</h3>{context.place&&<small>Schauplatz: {context.place.title}</small>}<p className={regieStyles.state} data-placed={shared}>{shared?'Für die Runde freigegeben':'Noch nicht freigegeben'}</p></header>
       <Text value={s!.narration} empty="Kein Erzähltext vorbereitet."/>
       {s!.narration.trim()&&<div className={styles.releaseBar}><AudiencePicker value={audienceOf('narration:'+s!.id)} onChange={setAudience('narration:'+s!.id)} crew={crew} label="Erzählung"/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(audienceOf('narration:'+s!.id))} onClick={()=>void release(s!.id)}><Eye/> {shared?'Erneut freigeben':'Erzählung freigeben'}</button>{snapshot?.sceneEventId&&<button type="button" disabled={busy} onClick={()=>void run({action:'hideScene',eventId:snapshot.sceneEventId},null,'Erzählung zurückgezogen.')}><EyeOff/> Erzählung zurückziehen</button>}</div></div>}</section></div></Block>
      <Block title="Atmosphäre" area="atmosphere"><div style={{fontSize:textSize+'em'}} data-text-area="atmosphere"><section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section></div></Block>
@@ -285,7 +319,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
        <div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||!ready||invalid(target)} onClick={()=>void playPrepared(p)}><Send/> Ausspielen</button><button type="button" disabled={!ready} onClick={()=>setPagerTest({id:'test-'+p.id+'-'+Date.now(),at:new Date().toISOString(),sender:p.sender,title:p.title,text:p.text,priority:p.priority,recipients:null})}><BellRing/> An mich testen</button></div></>}
      </li>;})}</ul>:<p className={regieStyles.empty}>Für diese Szene sind keine Pager vorbereitet. Vorbereiten lassen sie sich im Command Center unter „Material“ → „Szenenbausteine“ → Szene auswählen → „Pager-Nachricht“.</p>}
     </Block>
-    <Block title="Pager · spontan">
+    <Block title={spontaneousPagerArea} area={spontaneousPagerArea}>
      <form className={styles.pager} onSubmit={e=>{e.preventDefault();sendSpontaneous();}}>
       <div className={styles.pagerMeta}><label>Absender (im Spiel)<input aria-label="Pager-Absender" maxLength={pagerSenderMax} value={pagerSender} onChange={e=>{const v=e.target.value;draft(()=>setPagerSender(v));}} placeholder="z. B. Unbekannt"/></label><label>Titel<input aria-label="Pager-Titel" maxLength={pagerTitleMax} value={pagerTitle} onChange={e=>{const v=e.target.value;draft(()=>setPagerTitle(v));}} placeholder="optional"/></label></div>
       <label>Nachricht<textarea aria-label="Pager-Nachricht" maxLength={pagerTextMax} rows={3} value={pagerText} onChange={e=>{const v=e.target.value;draft(()=>setPagerText(v));}} placeholder="z. B. RUF MICH AN · 0281-1922"/></label>

@@ -22,9 +22,9 @@ function regionPadding() {
     : { top: 76, right: 76, bottom: 186, left: 76 };
 }
 
-function fitChronicleRegion(map: MapLibreMap) {
+function fitChronicleRegion(map: MapLibreMap, compact = false) {
   map.fitBounds(CHRONICLE_REGION_BOUNDS, {
-    padding: regionPadding(),
+    padding: compact ? 28 : regionPadding(),
     maxZoom: 11.5,
     duration: 350,
   });
@@ -56,6 +56,7 @@ export function WorldMapLibre({
   onFocusPlace,
   onStateChange,
   onMapClick,
+  compact = false,
 }: {
   places: WorldMapMarker[];
   visibleIds: string[];
@@ -65,6 +66,7 @@ export function WorldMapLibre({
   onHover: (id: string | null) => void;
   onFocusPlace: (id: string) => void;
   onStateChange: (state: "loading" | "ready" | "error") => void;
+  compact?: boolean;
   onMapClick?: (coordinates: [longitude: number, latitude: number]) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -114,7 +116,7 @@ export function WorldMapLibre({
       if (!active) return;
       mapReady = true;
       window.clearTimeout(loadTimeout);
-      fitChronicleRegion(instance);
+      fitChronicleRegion(instance, compact);
       onStateChange("ready");
     };
     const loadTimeout = window.setTimeout(() => {
@@ -178,11 +180,11 @@ export function WorldMapLibre({
       element.addEventListener("blur", () => callbacks.current.onHover(null));
       element.addEventListener("click", () => {
         callbacks.current.onSelect(place.id);
-        instance.flyTo({ center: [longitude, latitude], zoom: Math.max(instance.getZoom(), 16), essential: true });
+        if (!compact) instance.flyTo({ center: [longitude, latitude], zoom: Math.max(instance.getZoom(), 16), essential: true });
       });
       markers.current.set(place.id, { marker, element, coordinates: [longitude, latitude] });
     }
-  }, [places]);
+  }, [places, compact]);
 
   useEffect(() => {
     const visible = new Set(visibleIds);
@@ -202,7 +204,7 @@ export function WorldMapLibre({
   }
 
   function returnToRegion() {
-    if (map.current) fitChronicleRegion(map.current);
+    if (map.current) fitChronicleRegion(map.current, compact);
   }
 
   function focusSelected() {
@@ -219,7 +221,7 @@ export function WorldMapLibre({
         <button type="button" aria-label="Hineinzoomen" title="Hineinzoomen" onClick={() => changeZoom(1)}><Plus size={17} /></button>
         <button type="button" aria-label="Herauszoomen" title="Herauszoomen" onClick={() => changeZoom(-1)}><Minus size={17} /></button>
         <button type="button" aria-label="Zur Chronikregion" title="Zur Chronikregion" onClick={returnToRegion}><Compass size={17} /></button>
-        <button type="button" aria-label="Bekannten Ort fokussieren" title="Bekannten Ort fokussieren" onClick={focusSelected} disabled={!visibleIds.includes(selectedId)}><LocateFixed size={17} /></button>
+        {!compact&&<button type="button" aria-label="Bekannten Ort fokussieren" title="Bekannten Ort fokussieren" onClick={focusSelected} disabled={!visibleIds.includes(selectedId)}><LocateFixed size={17} /></button>}
       </div>
     </>
   );

@@ -139,8 +139,20 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .diceLog b{flex:none;font-size:12px;font-weight:600;color:#d9cfbd}.diceLog b[data-outcome=success]{color:#9fc3a5}.diceLog b[data-outcome=botch]{color:#e59b8a}
 .diceLogEmpty{color:#a59d8c;font-size:13px}
 
-.mapLink{display:grid;place-items:center;width:48px;height:44px;border:1px solid var(--line);border-radius:6px;color:var(--accent);background:#182528}
-.mapLink:hover,.mapLink:focus-visible{background:#283735;color:#f0d69e}
 .brand>svg,.simulation svg{color:var(--accent);flex:none}
 .simulation>button{display:inline-flex;align-items:center;gap:5px}
 @media(max-width:600px){.brand>svg{width:16px;margin-right:5px}.simulation>button>svg{display:none}}
+.tableMap{pointer-events:auto;position:absolute;left:50%;bottom:76px;transform:translateX(-50%);display:flex;flex-direction:column;width:min(640px,calc(100% - 20px));height:min(440px,calc(100% - 90px),62dvh);border:1px solid var(--line);border-radius:10px;background:#10191d;color:#eee8dc;box-shadow:0 12px 35px #0008;overflow:hidden}
+.tableMap>header{display:flex;align-items:center;justify-content:space-between;padding:6px 12px;border-bottom:1px solid var(--line)}
+.tableMap h2{display:flex;align-items:center;gap:8px;margin:0;font:normal 17px Georgia,serif}
+.tableMap button{cursor:pointer;color:inherit}
+.tableMap>header button,.tableMapFallback button{display:flex;align-items:center;gap:6px;min-height:36px;padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:#182528}
+.tableMapCanvas{position:relative;flex:1;min-height:0;isolation:isolate}
+.tableMap p,.tableMapFallback{padding:8px 12px}
+.tableMapFallback{height:100%;overflow:auto}
+.tableMapFallback button{margin:5px 0}
+.tableMapPreview{pointer-events:none;position:absolute;z-index:5;left:10px;bottom:28px;display:grid;gap:5px;width:min(150px,60%);padding:6px;border:1px solid var(--line);border-radius:6px;background:#10191df5}
+.tableMapPreview img,.tablePlace>img{display:block;width:100%;object-fit:cover;border-radius:4px}
+.tableMapPreview img{height:76px}
+.tablePlace>img{max-height:210px}
+.tablePlace details{margin-block:10px}

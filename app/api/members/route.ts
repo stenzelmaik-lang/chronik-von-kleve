@@ -8,6 +8,7 @@ import {
   input,
   HttpError,
 } from "@/server/access";
+import {isGmMembership,liveMembers} from '@/server/live-game';
 import {commandCharacterSummary} from '@/domain/character-live';
 import {characterPermissions,characterXpSummary} from '@/domain/character-management';
 export const dynamic = "force-dynamic";
@@ -25,7 +26,12 @@ export async function GET(req:Request) {
   try {
     const a = await actor(false);
     if (a.status !== "active" || !a.gm) return json({ actor: a, members: [] });
-    if(new URL(req.url).searchParams.get('characters')==='1'){
+    const params=new URL(req.url).searchParams;
+    if(params.get('view')==='regie-roster'){
+      const members=await liveMembers(a);
+      return json({members:members.map(({id,name,membershipRole})=>({id,name,gm:isGmMembership(membershipRole)}))});
+    }
+    if(params.get('characters')==='1'){
       const db=database();
       const members=(await db.prepare(`SELECT m.id,m.name,COALESCE(cm.status,m.status) AS status,cm.role,p.preferences
         FROM members m LEFT JOIN campaign_memberships cm ON cm.campaign_id=? AND cm.user_id=m.id
