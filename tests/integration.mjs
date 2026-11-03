@@ -864,7 +864,11 @@ const publicHistory=await req('/api/cms/releases?entityId=place.electric-taberna
 check(publicHistory.s===200&&publicHistory.d.currentVersion===1,'Release ledger starts at target-specific version 1');
 const approvedButUnreleased=await cmsCreate('place.electric-taberna','public','gm');
 const unreleasedPayload={...approvedButUnreleased.d.payload,title:'TEST_DATA approved but never released'};
-const unreleasedSaved=await cmsSave(approvedButUnreleased.d.id,1,unreleasedPayload,{geography:{status:'unknown'} });
+const unreleasedSaved=await cmsSave(approvedButUnreleased.d.id,1,unreleasedPayload,{geography:{status:'exact',coordinates:[6.221,51.811],source:'isolated SL-map fixture',reviewedAt:'2026-11-03T12:00:00Z'} });
+const slMapDraft=await req('/api/locations?view=sl&target=group','gm');
+const playerMapDraft=await req('/api/locations?view=player&target=player','a');
+check(slMapDraft.s===200&&slMapDraft.d.places.find(place=>place.id==='place.electric-taberna')?.geography.coordinates?.[0]===6.221,'SL hub includes saved unreleased positions');
+check(playerMapDraft.s===200&&playerMapDraft.d.places.find(place=>place.id==='place.electric-taberna')?.geography.status==='unknown','Player hub excludes the unreleased position');
 const unreleasedSubmitted=await cmsTransition('gm','submit',approvedButUnreleased.d.id,unreleasedSaved.d.version);
 const unreleasedApproved=await cmsTransition('gm','approve',approvedButUnreleased.d.id,unreleasedSubmitted.d.version);
 const stillPublishedDuringUnreleased=await req('/api/locations?place=place.electric-taberna&view=player&target=player','a');
@@ -947,6 +951,8 @@ for(const who of ['a','b','gm']){
 }
 const areaControl=confidentialSl.slGroupReleases.find(item=>item.entityId==='area.electric-taberna.public-guests');
 check(areaControl.version===1&&areaControl.lastPublishedRevisionId===areaGroupDraft.d.id,'SL quick control refers to exact approved group revision');
+const areaReleaseState=(await req('/api/cms/releases?scope=group&entityId='+encodeURIComponent(areaControl.entityId),'gm')).d;
+check(areaControl.discoveryState===areaReleaseState.discovery.state&&areaControl.discoveryVersion===areaReleaseState.discovery.version&&!areaControl.secret,'SL quick controls show actual campaign knowledge and version independently of publication');
 const hideArea=await cmsRelease('gm','block',areaControl.entityId,'group',areaControl.version,null);
 check(hideArea.s===200,'SL quick control can block the area');
 check(!JSON.stringify((await req('/api/locations?place=place.electric-taberna&view=player&target=player','a')).d).includes('TEST_DATA freigegebener Bereichshinweis'),'Blocked area content disappears from real player dossier');

@@ -119,12 +119,13 @@ function buildPersistedProjection(
   const grantsForNode = (row: NodeRow) => grantRows.get(row.entity_id) ?? [];
   const publicRule = (row: NodeRow) => attrsFor(row).visibility === "public" || row.world_visibility === "public" || grantsForNode(row).some(grant => grant.audience === "public");
   const fullDiscovery = (row: NodeRow): DiscoveryState => {
+    const discovery=validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
+    const atLeastKnown=discoveryOrder.indexOf(discovery)<discoveryOrder.indexOf("known")?"known":discovery;
     if (overlay?.managedIds.has(row.entity_id)) {
       if (!overlay.playerPayloads.has(row.entity_id)) return "hidden";
-      if (overlay.publicKnownIds.has(row.entity_id)) return "known";
-      return validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
+      return overlay.publicKnownIds.has(row.entity_id)?atLeastKnown:discovery;
     }
-    return publicRule(row) ? "known" : validDiscovery(grantMap.get(row.entity_id) ?? "hidden");
+    return publicRule(row)?atLeastKnown:discovery;
   };
   const gmOnlyInformation = (row: NodeRow) => row.level === "information" && attrs(row).visibility === "gm";
   const visibleNode = (row: NodeRow) => sl || (!gmOnlyInformation(row) && fullDiscovery(row) !== "hidden" &&
@@ -268,6 +269,24 @@ export async function loadPersistedLocation(
   return projection;
 }
 
+async function loadSlMapGeography(db:D1Database,campaignId:string,placeIds:string[]){
+  const positions=new Map<string,NonNullable<ReturnType<typeof parseGeography>>>();
+  for(let offset=0;offset<placeIds.length;offset+=70){
+    const ids=placeIds.slice(offset,offset+70), placeholders=ids.map(()=>"?").join(",");
+    const result=await db.prepare(`SELECT entity_id,geography_json FROM (
+      SELECT entity_id,geography_json,revision_no,id,
+        ROW_NUMBER() OVER(PARTITION BY entity_id,audience_scope,audience_key ORDER BY revision_no DESC,id DESC) AS audience_position
+      FROM entity_revisions WHERE campaign_id=? AND entity_id IN (${placeholders}) AND status IN ('draft','in_review','approved')
+    ) WHERE audience_position=1 ORDER BY revision_no DESC,id DESC`).bind(campaignId,...ids).all<{entity_id:string;geography_json:string}>();
+    for(const row of result.results){
+      if(positions.has(row.entity_id))continue;
+      const geography=parseGeography(jsonObject(row.geography_json));
+      if(geography&&geography.status!=="unknown")positions.set(row.entity_id,geography);
+    }
+  }
+  return positions;
+}
+
 /** Read all root IDs, nodes, grants, and actions in bounded batches. This is the
  * shared source for the hub, map markers, and search; it never performs per-place reads. */
 export async function loadLocationHub(db: D1Database, actor: Actor, requestedView: "sl" | "player", target: "group" | "player") {
@@ -277,12 +296,15 @@ export async function loadLocationHub(db: D1Database, actor: Actor, requestedVie
   const loaded = await selectLocationData(db, actor, placeIds, target);
   loaded.overlay = await loadRevisionOverlay(db, actor, loaded.rows, loaded.grants, target);
   loaded.media=await loadLocationMedia(db,actor.campaignId,loaded.rows.map(row=>row.entity_id),requestedView==='sl'&&actor.gm);
+  const slPositions=requestedView==="sl"&&actor.gm?await loadSlMapGeography(db,actor.campaignId,placeIds):null;
   const byPlace = new Map<string, NodeRow[]>();
   const actionsByPlace = new Map<string, ActionRow[]>();
   for (const row of loaded.rows) byPlace.set(row.location_id, [...(byPlace.get(row.location_id) ?? []), row]);
   for (const row of loaded.actions as (ActionRow & { location_id: string })[]) actionsByPlace.set(row.location_id, [...(actionsByPlace.get(row.location_id) ?? []), row]);
   return placeIds.flatMap(placeId => {
     const projection = buildPersistedProjection(actor, placeId, { rows: byPlace.get(placeId) ?? [], actions: actionsByPlace.get(placeId) ?? [], grants: loaded.grants, overlay: loaded.overlay,media:loaded.media }, requestedView, target);
+    const position=slPositions?.get(placeId);
+    if(projection?.view==="sl"&&position)projection.location.geography=position;
     return projection ? [projection] : [];
   });
 }

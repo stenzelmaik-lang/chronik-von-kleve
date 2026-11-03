@@ -77,3 +77,6 @@ div.prose:not(:empty) :is(p, li, td, blockquote) { line-height: 1.6; }
 @media (min-width: 900px) { .tools { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 @media (max-width: 500px) { .header h2 { font-size: 25px; } .overview { padding: 15px; } .identity { align-items: start; flex-direction: column; } .chapter summary { padding-inline: 0; } }
 @media (prefers-reduced-motion: reduce) { .chapter summary svg { transition: none; } }
+.context{margin-block:18px;padding:16px 18px;border-inline-start:2px solid var(--dossier-accent);background:#171e20}
+.context h4{margin:0 0 8px;color:var(--dossier-accent);font:18px Georgia,serif}
+.overview+.chapterTools,.context+.chapterTools{margin-top:16px}

@@ -170,7 +170,7 @@ export type ProjectedPlace = Omit<
   preparedActions?: PreparedPlaceAction[];
   /** Only emitted by the campaign publisher SL projection, never the player reader. */
   slNotes?: { entityId: string; text: string; source: string; image?: string }[];
-  slGroupReleases?: { entityId: string; version: number; transition: string; lastPublishedRevisionId: string | null; discoveryState: DiscoveryState }[];
+  slGroupReleases?: { entityId: string; version: number; transition: string; lastPublishedRevisionId: string | null; discoveryState: DiscoveryState; discoveryVersion: number; secret: boolean }[];
 };
 
 export type PlaceProjection = {

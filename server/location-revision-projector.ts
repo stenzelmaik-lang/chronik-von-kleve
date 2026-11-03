@@ -1,5 +1,6 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import type { Actor } from "@/domain/types";
+import { locationIsSecret } from "@/domain/location-discovery";
 import type { DiscoveryState } from "@/domain/location-types";
 
 type NodeRef = { entity_id: string };
@@ -149,7 +150,7 @@ export async function loadRevisionOverlay(
  * merged into player payloads or used to infer discovery. */
 export async function loadSlDossierExtras(db: D1Database, actor: Actor, entityIds: string[]) {
   const slNotes: {entityId:string;text:string;source:string;image?:string}[] = [];
-  const slGroupReleases: {entityId:string;version:number;transition:string;lastPublishedRevisionId:string|null;discoveryState:DiscoveryState}[] = [];
+  const slGroupReleases: {entityId:string;version:number;transition:string;lastPublishedRevisionId:string|null;discoveryState:DiscoveryState;discoveryVersion:number;secret:boolean}[] = [];
   if (actor.status !== "active" || !["campaign_owner", "campaign_gm"].includes(actor.role)) return {slNotes,slGroupReleases};
   for (let start=0;start<entityIds.length;start+=70) {
     const ids=entityIds.slice(start,start+70); const placeholders=ids.map(()=>"?").join(",");
@@ -166,10 +167,17 @@ export async function loadSlDossierExtras(db: D1Database, actor: Actor, entityId
     const releases=await db.prepare(`SELECT r.entity_id,r.release_version,r.transition,r.revision_id,r.discovery_grant_state
       FROM entity_revision_releases r WHERE r.campaign_id=? AND r.entity_id IN (${placeholders}) AND r.audience_scope='group' AND r.audience_key='@group' ORDER BY r.release_version DESC`)
       .bind(actor.campaignId,...ids).all<{entity_id:string;release_version:number;transition:string;revision_id:string|null;discovery_grant_state:DiscoveryState|null}>();
+    const knowledge=await db.prepare(`SELECT n.entity_id,n.attributes,e.canon_status,e.content,k.discovery_state,k.version
+      FROM location_nodes n JOIN entities e ON e.campaign_id=n.campaign_id AND e.id=n.entity_id
+      LEFT JOIN knowledge k ON k.campaign_id=n.campaign_id AND k.entity_id=n.entity_id AND k.audience='group' AND k.subject_id=?
+      WHERE n.campaign_id=? AND n.entity_id IN (${placeholders})`)
+      .bind(actor.campaignId,actor.campaignId,...ids).all<{entity_id:string;discovery_state:DiscoveryState|null;version:number|null;attributes:string;canon_status:string;content:string}>();
+    const groupKnowledge=new Map(knowledge.results.map(row=>[row.entity_id,row]));
     for(const entityId of ids) {
+      const discovery=groupKnowledge.get(entityId);
       const history=releases.results.filter(row=>row.entity_id===entityId);
       const lastPublish=history.find(row=>row.transition==='publish'&&row.revision_id);
-      slGroupReleases.push({entityId,version:history[0]?.release_version??0,transition:history[0]?.transition??'none',lastPublishedRevisionId:lastPublish?.revision_id??null,discoveryState:lastPublish?.discovery_grant_state??'known'});
+      slGroupReleases.push({entityId,version:history[0]?.release_version??0,transition:history[0]?.transition??'none',lastPublishedRevisionId:lastPublish?.revision_id??null,discoveryState:discovery?.discovery_state??'hidden',discoveryVersion:discovery?.version??0,secret:!!discovery&&locationIsSecret(discovery.canon_status,parseObject(discovery.content),parseObject(discovery.attributes))});
     }
   }
   return {slNotes,slGroupReleases};

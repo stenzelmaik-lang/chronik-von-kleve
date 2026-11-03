@@ -6,7 +6,7 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { Compass, LocateFixed, Minus, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import type { WorldMapMarker } from "./world-map-contract";
+import { mapDiscoveryLabels, type WorldMapMarker } from "./world-map-contract";
 import styles from "./world-experience.module.css";
 
 const OPENFREEMAP_ATLAS_STYLE = "https://tiles.openfreemap.org/styles/fiord";
@@ -31,21 +31,44 @@ function fitChronicleRegion(map: MapLibreMap, compact = false) {
   });
 }
 
-function createMarkerElement(place: WorldMapMarker, compact: boolean) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = compact ? styles.atlasMarker : styles.mapLibreMarker;
+const discoveryGlyphs = {
+  hidden: '<rect x="4" y="12" width="12" height="10" rx="2"/><path d="M6.5 12V8a3.5 3.5 0 0 1 7 0v4"/>',
+  rumored: '<path d="M6 8a4 4 0 1 1 6 3.5c-1.5 1-2 2-2 4M10 21h.01"/>',
+  known: '<path d="M10 4l7 9-7 9-7-9z"/>',
+  visited: '<path d="M10 14C7 12 5.5 9.3 5.5 6.8a4.5 4.5 0 0 1 9 0c0 2.5-1.5 5.2-4.5 7.2v10M4 14h12"/>',
+  investigated: '<path d="M10 3l2.5 7 7.5 3-7.5 3-2.5 7-2.5-7L0 13l7.5-3z"/>',
+};
+
+function WorldMapLegend({includeInternal,compact}: {includeInternal: boolean;compact:boolean}) {
+  const states = includeInternal ? (["known","visited","investigated","rumored","hidden"] as const) : (["known","visited","investigated"] as const);
+  return <ul className={styles.mapDiscoveryLegend} data-compact={compact||undefined} aria-label="Kartenzeichen">
+    {states.map(state=><li key={state} data-discovery={state}>
+      <svg aria-hidden="true" viewBox="0 0 20 26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" dangerouslySetInnerHTML={{__html:discoveryGlyphs[state]}}/>
+      <span>{state==="known"?"Bekannt":mapDiscoveryLabels[state]}</span>
+    </li>)}
+  </ul>;
+}
+
+function updateMarkerElement(button: HTMLButtonElement, place: WorldMapMarker) {
   const positionText = place.precision === "candidate"
     ? "unbestätigte, noch nicht gespeicherte Kartenauswahl"
     : place.precision === "approximate"
     ? `ungefähre Position, Genauigkeit etwa ${place.accuracyMeters ?? 0} Meter`
     : "geprüfte genaue Position";
-  button.setAttribute("aria-label", `${place.title}, ${positionText}. Vorschau anzeigen.`);
+  const description = `${place.title} · ${mapDiscoveryLabels[place.discovery]} · ${positionText}`;
+  button.setAttribute("aria-label", `${description}. Vorschau anzeigen.`);
+  button.title = description;
+  if (button.dataset.discovery === place.discovery) return;
+  button.dataset.discovery = place.discovery;
+  button.innerHTML = `<svg aria-hidden="true" viewBox="-2 0 24 26" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">${discoveryGlyphs[place.discovery]}</svg>`;
+}
+
+function createMarkerElement(place: WorldMapMarker, compact: boolean) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = compact ? styles.atlasMarker : styles.mapLibreMarker;
   button.setAttribute("aria-pressed", "false");
-  button.title = `${place.title} · ${positionText}`;
-  button.innerHTML = compact
-    ? '<svg aria-hidden="true" viewBox="0 0 20 26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 14C7 12 5.5 9.3 5.5 6.8a4.5 4.5 0 0 1 9 0c0 2.5-1.5 5.2-4.5 7.2v10M4 14h12"/></svg>'
-    : '<span aria-hidden="true"></span><i aria-hidden="true"></i>';
+  updateMarkerElement(button, place);
   return button;
 }
 
@@ -60,6 +83,8 @@ export function WorldMapLibre({
   onStateChange,
   onMapClick,
   compact = false,
+  showDiscoveryLegend = false,
+  includeInternal = false,
 }: {
   places: WorldMapMarker[];
   visibleIds: string[];
@@ -70,6 +95,8 @@ export function WorldMapLibre({
   onFocusPlace: (id: string) => void;
   onStateChange: (state: "loading" | "ready" | "error") => void;
   compact?: boolean;
+  showDiscoveryLegend?: boolean;
+  includeInternal?: boolean;
   onMapClick?: (coordinates: [longitude: number, latitude: number]) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -167,6 +194,7 @@ export function WorldMapLibre({
       const [longitude, latitude] = place.coordinates;
       const existing = markers.current.get(place.id);
       if (existing) {
+        updateMarkerElement(existing.element, place);
         if (existing.coordinates[0] !== longitude || existing.coordinates[1] !== latitude) {
           existing.marker.setLngLat([longitude, latitude]);
           existing.coordinates = [longitude, latitude];
@@ -181,9 +209,10 @@ export function WorldMapLibre({
       element.addEventListener("mouseleave", () => callbacks.current.onHover(null));
       element.addEventListener("focus", () => callbacks.current.onHover(place.id));
       element.addEventListener("blur", () => callbacks.current.onHover(null));
-      element.addEventListener("click", () => {
+      element.addEventListener("click", (event) => {
+        event.stopPropagation();
         callbacks.current.onSelect(place.id);
-        if (!compact) instance.flyTo({ center: [longitude, latitude], zoom: Math.max(instance.getZoom(), 16), essential: true });
+        if (!compact) instance.flyTo({ center: marker.getLngLat(), zoom: Math.max(instance.getZoom(), 16), essential: true });
       });
       markers.current.set(place.id, { marker, element, coordinates: [longitude, latitude] });
     }
@@ -220,6 +249,7 @@ export function WorldMapLibre({
   return (
     <>
       <div ref={host} className={styles.mapLibreCanvas} aria-label="Interaktive OpenStreetMap der Chronikregion" />
+      {showDiscoveryLegend&&<WorldMapLegend includeInternal={includeInternal} compact={compact}/>}
       <div className={styles.mapLibreControls} data-compact={compact||undefined} aria-label="Kartensteuerung">
         <button type="button" aria-label="Hineinzoomen" title="Hineinzoomen" onClick={() => changeZoom(1)}><Plus size={17} /></button>
         <button type="button" aria-label="Herauszoomen" title="Herauszoomen" onClick={() => changeZoom(-1)}><Minus size={17} /></button>

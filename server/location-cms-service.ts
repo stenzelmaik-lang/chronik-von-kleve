@@ -199,17 +199,30 @@ async function effectivePublishedSeed(db: D1Database, actor: Actor, entityId: st
   return null;
 }
 
+export async function locationDraftBaseline(db:D1Database,actor:Actor,entityId:string,audience:unknown,playerId?:unknown){
+  requireCmsEditor(actor);
+  const node=await getLocationNode(db,actor,entityId,true);
+  const target=await getTarget(db,actor,audience,playerId);
+  if(isGmOnlyLocationInfo(node)&&target.scope!=="gm")throw new HttpError(404,"Der Ortseintrag wurde nicht gefunden.");
+  const seed=target.scope==="gm"?null:await effectivePublishedSeed(db,actor,entityId,target);
+  return {
+    payload:target.scope==="gm"?{}:seed?object(seed.player_payload_json):await playerPayloadFromNode(db,actor,node),
+    geography:node.level==="location"&&seed?object(seed.geography_json):{status:"unknown"},
+  };
+}
+
 export async function createLocationDraft(db: D1Database, actor: Actor, input: {
-  entityId: string; audience: unknown; playerId?: unknown; payload?: unknown; geography?: unknown; gmSecret?: unknown; sourceRevisionId?:string;
+  entityId: string; audience: unknown; playerId?: unknown; payload?: unknown; geography?: unknown; gmSecret?: unknown; sourceRevisionId?:string; expectedLatest?:string;
 }) {
   requireCmsEditor(actor);
   const node = await getLocationNode(db, actor, input.entityId,true);
   const target = await getTarget(db, actor, input.audience, input.playerId);
   if(isGmOnlyLocationInfo(node)&&target.scope!=="gm")throw new HttpError(404,"Der Ortseintrag wurde nicht gefunden.");
-  const previous = await db.prepare(`SELECT id,player_payload_json,gm_secret_json,geography_json FROM entity_revisions
+  const previous = await db.prepare(`SELECT id,version,player_payload_json,gm_secret_json,geography_json FROM entity_revisions
     WHERE campaign_id=? AND entity_id=? AND audience_scope=? AND audience_key=? ORDER BY revision_no DESC LIMIT 1`)
     .bind(actor.campaignId,input.entityId,target.scope,target.key)
-    .first<{id:string;player_payload_json:string;gm_secret_json:string;geography_json:string}>();
+    .first<{id:string;version:number;player_payload_json:string;gm_secret_json:string;geography_json:string}>();
+  if(input.expectedLatest!==undefined&&input.expectedLatest!==(previous?`${previous.id}:${previous.version}`:"none"))throw new HttpError(409,"Der Arbeitsstand hat sich geändert. Lade ihn vor dem Speichern neu.");
   const source=input.sourceRevisionId?await db.prepare('SELECT id,player_payload_json,gm_secret_json,geography_json FROM entity_revisions WHERE campaign_id=? AND entity_id=? AND id=? AND audience_scope=? AND audience_key=?').bind(actor.campaignId,input.entityId,input.sourceRevisionId,target.scope,target.key).first<{id:string;player_payload_json:string;gm_secret_json:string;geography_json:string}>():null;
   if(input.sourceRevisionId&&!source)throw new HttpError(404,'Frühere Revision für diese Zielgruppe nicht gefunden.');
   const publishedSeed = source||(target.scope === "gm" ? null : await effectivePublishedSeed(db, actor, input.entityId, target));
@@ -238,12 +251,13 @@ export async function createLocationDraft(db: D1Database, actor: Actor, input: {
   try {
     const statements=[
       db.prepare(`INSERT INTO entity_revisions(id,campaign_id,entity_id,revision_no,parent_revision_id,audience_scope,audience_key,audience_user_id,status,base_entity_version,version,player_payload_json,gm_secret_json,geography_json,author_id,created_at,updated_at)
-        VALUES(?,?,?,?,?,?,?,?,'draft',?,1,?,?,?,?,?,?)`).bind(id,actor.campaignId,input.entityId,version,parentRevisionId,target.scope,target.key,target.userId,currentEntity.version,JSON.stringify(payload),JSON.stringify(gmSecret),JSON.stringify(geography),actor.id,now,now),
+        SELECT ?,?,?,?,?,?,?,?,'draft',?,1,?,?,?,?,?,?
+        WHERE ? IS NULL OR COALESCE((SELECT id||':'||version FROM entity_revisions WHERE campaign_id=? AND entity_id=? AND audience_scope=? AND audience_key=? ORDER BY revision_no DESC LIMIT 1),'none')=?`).bind(id,actor.campaignId,input.entityId,version,parentRevisionId,target.scope,target.key,target.userId,currentEntity.version,JSON.stringify(payload),JSON.stringify(gmSecret),JSON.stringify(geography),actor.id,now,now,input.expectedLatest??null,actor.campaignId,input.entityId,target.scope,target.key,input.expectedLatest??null),
       db.prepare(`INSERT INTO entity_revision_events(id,campaign_id,entity_id,revision_id,actor_id,event,expected_version,revision_version,reason,created_at)
-        SELECT ?,?,?,?,?,'created',0,1,?,? WHERE changes()=1`).bind(crypto.randomUUID(),actor.campaignId,input.entityId,id,actor.id,source?`Wiederhergestellt aus Revision ${source.id}`:"Neuer sicherer Ortsentwurf",now),
+        SELECT ?,?,?,?,?,'created',0,1,?,? WHERE changes()=1`).bind(crypto.randomUUID(),actor.campaignId,input.entityId,id,actor.id,source&&input.expectedLatest===undefined?`Wiederhergestellt aus Revision ${source.id}`:"Neuer sicherer Ortsentwurf",now),
     ];
     if (publishedHero) statements.push(db.prepare(`INSERT INTO entity_revision_media(id,campaign_id,entity_id,revision_id,file_id,audience_scope,audience_key,purpose,alt_text,position,created_at)
-      VALUES(?,?,?,?,?,?,?,'hero',?,?,?)`).bind(crypto.randomUUID(),actor.campaignId,input.entityId,id,publishedHero.file_id,target.scope,target.key,publishedHero.alt_text,publishedHero.position,now));
+      SELECT ?,?,?,?,?,?,?,'hero',?,?,? WHERE EXISTS(SELECT 1 FROM entity_revisions WHERE id=?)`).bind(crypto.randomUUID(),actor.campaignId,input.entityId,id,publishedHero.file_id,target.scope,target.key,publishedHero.alt_text,publishedHero.position,now,id));
     const result=await db.batch(statements);
     if (!result[0].meta.changes || !result[1].meta.changes) throw new HttpError(409,"Für dieses Ziel wurde der Entwurf parallel angelegt. Bitte lade neu.");
   } catch (error) { if (error instanceof HttpError) throw error; throw conflictError(error); }

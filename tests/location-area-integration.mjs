@@ -53,6 +53,18 @@ export async function locationAreaIntegration({req,check,base,ids}) {
   const confidential=await req('/api/cms/drafts','gm','POST',{entityId:area.id,audience:'gm',gmSecret:{text:'AREA_QA_SL_SECRET'}});
   check(confidential.s===201,'AREA confidential text remains in a distinct existing SL draft');
   await publish(area,persisted.version);
+  const rootRead='/api/cms/drafts?entityId='+root.id+'&scope=public';
+  const baseline=await req(rootRead,'gm');
+  check(baseline.s===200&&baseline.d.baseline?.payload?.title===root.title,'AREA opening an empty target loads safe editable content');
+  const afterOpen=await req(rootRead,'gm');
+  check(afterOpen.d.drafts.length===baseline.d.drafts.length&&await req(rootRead,'editor').then(r=>r.s===403),'AREA direct open creates no revision and preserves audience permissions');
+  const approved=(await req('/api/cms/drafts?entityId='+area.id,'gm')).d.drafts.find(item=>item.id===area.revisionId);
+  const directWrite={entityId:area.id,audience:'group',sourceRevisionId:approved.id,expectedLatest:approved.id+':'+approved.version,payload:{...payload,playerHint:'AREA_DIRECT_EDIT_DRAFT'}};
+  const successor=await req('/api/cms/drafts','gm','POST',directWrite);
+  check(successor.s===201&&successor.d.id!==approved.id&&successor.d.heroFileId===upload.d.id,'AREA direct save creates a separate revision with the existing image');
+  check((await req('/api/cms/drafts','gm','POST',directWrite)).s===409,'AREA repeated or stale direct save cannot create another draft');
+  const stillReleased=(await req('/api/locations?place='+root.id+'&view=player&target=player','a')).d;
+  check(!JSON.stringify(stillReleased).includes('AREA_DIRECT_EDIT_DRAFT'),'AREA direct save leaves the player release untouched');
   const visible=(await req('/api/locations?place='+root.id+'&view=player&target=player','a')).d.projection.location;
   const playerArea=visible.areas.find(a=>a.title===area.title);
   check(visible.summary===oldText&&playerArea?.playerHint===text,'AREA published HTML and unchanged old plain text reach the same player projection');

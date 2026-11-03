@@ -6,7 +6,7 @@ import {ArrowLeft, Compass, MapPin, X} from 'lucide-react';
 import type {PlaceProjection} from '@/domain/location-types';
 import {api} from '../api-client';
 import {RichTextView} from '../rich-text';
-import {mapMarkersForPlaces, playerMapPlaces, type WorldHubPlace} from '../world-map-contract';
+import {mapDiscoveryLabels, mapMarkersForPlaces, playerMapPlaces, type WorldHubPlace} from '../world-map-contract';
 import styles from './stage.module.css';
 
 const WorldMap = lazy(async () => ({default:(await import('../world-maplibre')).WorldMapLibre}));
@@ -43,10 +43,10 @@ export function TableMap({panelRef,gm,onClose,onSelect}:{panelRef:Ref<HTMLElemen
   <header><Compass size={29} aria-hidden="true"/><div><small>CHRONIK VON KLEVE · REGION I</small><h2>Kreis Kleve</h2></div><button type="button" aria-label="Weltkarte schließen" onClick={onClose}><X size={19}/></button></header>
   {failed?<p role="alert">Kartenorte konnten nicht geladen werden.</p>:!data?<p role="status">Karte wird geladen …</p>:
    <div className={styles.tableMapCanvas}>
-    {mapState==='error'?<div className={styles.tableMapFallback}><p role="status">Die Grundkarte ist gerade nicht verfügbar.</p>{markers.map(marker=><button type="button" key={marker.id} onClick={()=>onSelect(marker.id)}><MapPin size={15}/> {marker.title}</button>)}</div>:
-     <Suspense fallback={<p role="status">Karte wird geladen …</p>}><WorldMap compact places={markers} visibleIds={ids} selectedId="" hoveredId={hovered} onHover={setHovered} onSelect={onSelect} onFocusPlace={onSelect} onStateChange={setMapState}/></Suspense>}
+    {mapState==='error'?<div className={styles.tableMapFallback}><p role="status">Die Grundkarte ist gerade nicht verfügbar.</p>{markers.map(marker=><button type="button" key={marker.id} onClick={()=>onSelect(marker.id)}><MapPin size={15}/> {marker.title} · {mapDiscoveryLabels[marker.discovery]}</button>)}</div>:
+     <Suspense fallback={<p role="status">Karte wird geladen …</p>}><WorldMap compact showDiscoveryLegend places={markers} visibleIds={ids} selectedId="" hoveredId={hovered} onHover={setHovered} onSelect={onSelect} onFocusPlace={onSelect} onStateChange={setMapState}/></Suspense>}
     {mapState==='ready'&&<span className={styles.atlasSeal} aria-hidden="true">N<Compass size={24}/></span>}
-    {preview&&mapState==='ready'&&<div className={styles.tableMapPreview}>{preview.image&&<img src={preview.image} alt=""/>}<strong>{preview.title}</strong></div>}
+    {preview&&mapState==='ready'&&<div className={styles.tableMapPreview}>{preview.image&&<img src={preview.image} alt=""/>}<strong>{preview.title}</strong><small>{mapDiscoveryLabels[preview.discovery]}</small></div>}
    </div>}
  </section>
   {mapState==='ready'&&<details ref={credits} open className={styles.tableMapCredits}>

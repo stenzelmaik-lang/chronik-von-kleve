@@ -173,14 +173,24 @@
 .mapLibreControls button:disabled { opacity: .45; cursor: not-allowed; }
 .atlasMarker{display:grid;place-items:center;width:30px;height:32px;padding:0;border:0;border-radius:5px;background:transparent;color:#ff676a;cursor:pointer}
 .atlasMarker svg{width:16px;height:21px;pointer-events:none;filter:drop-shadow(0 0 2px #130b0c) drop-shadow(0 1px 1px #130b0c)}
-.atlasMarker[data-active="true"]{color:#ffb0a5;z-index:1}
+.atlasMarker[data-active="true"]{z-index:1}
 .atlasMarker:focus-visible{outline:2px solid #f3dcae;outline-offset:1px}
 .mapLibreMarker { position: relative; display: grid; place-items: center; width: 58px; height: 58px; padding: 0; border: 0; border-radius: 50%; color: inherit; background: transparent; cursor: pointer; }
 .mapLibreMarker::before { position: absolute; inset: 5px; border: 1px solid rgba(226,197,133,.55); border-radius: 50%; background: rgba(205,166,107,.13); box-shadow: 0 3px 16px rgba(0,0,0,.4); content: ""; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
-.mapLibreMarker span { position: relative; width: 19px; height: 19px; border: 2px solid #f0d38f; border-radius: 50%; background: #151b1c; box-shadow: 0 0 0 4px rgba(10,15,16,.82), 0 0 18px rgba(228,193,113,.34); }
-.mapLibreMarker i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #f0d38f; }
+.mapLibreMarker svg{position:relative;width:22px;height:26px;pointer-events:none;filter:drop-shadow(0 1px 2px #130b0c)}
 .mapLibreMarker[data-active="true"]::before { transform: scale(1.2); border-color: #f4dda9; background: rgba(205,166,107,.24); }
-.mapLibreMarker[data-active="true"] span { border-color: #fff0c5; box-shadow: 0 0 0 4px rgba(10,15,16,.82), 0 0 24px rgba(238,203,128,.66); }
+.mapLibreMarker[data-discovery],.atlasMarker[data-discovery],.mapDiscoveryLegend li[data-discovery]{color:#f2cd85}
+:is(.mapLibreMarker,.atlasMarker,.mapDiscoveryLegend li)[data-discovery=visited]{color:#ff676a}
+:is(.mapLibreMarker,.atlasMarker,.mapDiscoveryLegend li)[data-discovery=investigated]{color:#96dfd5}
+:is(.mapLibreMarker,.atlasMarker,.mapDiscoveryLegend li)[data-discovery=rumored]{color:#c6b0f4}
+:is(.mapLibreMarker,.atlasMarker,.mapDiscoveryLegend li)[data-discovery=hidden]{color:#b9bdc4}
+:is(.mapLibreMarker,.atlasMarker)[data-active=true] svg{filter:drop-shadow(0 0 3px currentColor) drop-shadow(0 1px 2px #130b0c)}
+.mapDiscoveryLegend{position:absolute;z-index:2;bottom:20px;left:10px;right:auto;max-width:calc(100% - 46px);background:#10191ded;border:1px solid #b59b6366;border-radius:5px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 9px;padding:4px 7px;margin:0;list-style:none;font-size:11px}
+.mapDiscoveryLegend[data-compact]{top:53px;bottom:auto;pointer-events:none}
+.mapStage:not([data-map-state="ready"]) .mapDiscoveryLegend{display:none}
+.mapDiscoveryLegend li{display:flex;align-items:center;gap:3px}
+.mapDiscoveryLegend li>span{color:#e3cfac}
+.mapDiscoveryLegend svg{width:12px;height:15px;flex:none}
 .mapLibreMarker:focus-visible { outline: 2px solid #f3dcae; outline-offset: 3px; }
 .mapStage[data-map-state="ready"] .placeMarker { display: none; }
 
@@ -638,3 +648,10 @@
 }
 
 .slConfidential{margin:16px 0;padding:18px;border:1px solid #aa815744;border-left:3px solid #c69b61;background:#17130f80;border-radius:8px}.slVisibility{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:14px 0;padding:12px;border:1px solid #c69b6133;border-radius:8px}.slVisibility span,.slVisibility small{flex-basis:100%}
+.slDossierPage{max-width:1100px;margin-inline:auto}
+.slDossierPage .slVisibility{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:12px;margin:0 0 16px;padding:14px;background:#171e20}
+.slVisibility>div:not(.slVisibilityActions){display:grid;gap:3px}
+.slVisibility strong{color:#e8c88d;font-size:13px}
+.slVisibilityActions,.slVisibility>small{grid-column:1/-1}
+.slVisibilityActions{display:flex;gap:8px;flex-wrap:wrap}
+.gmActions>summary{cursor:pointer;color:#edc7a5;font:20px Georgia,serif}

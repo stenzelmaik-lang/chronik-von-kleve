@@ -15,6 +15,14 @@ export type WorldMapMarker = WorldMapPlace & {
   editorDraft?: boolean;
 };
 
+export const mapDiscoveryLabels: Record<DiscoveryState, string> = {
+  hidden: "Geheim",
+  rumored: "Gerücht",
+  known: "Bekannt · noch nicht besucht",
+  visited: "Besucht",
+  investigated: "Untersucht",
+};
+
 const MAP_KNOWLEDGE = new Set<DiscoveryState>(["known", "visited", "investigated"]);
 
 /** The exact same released collection feeds player search, place tiles, previews,
@@ -44,15 +52,4 @@ export function mapMarkersForPlaces(places: readonly WorldHubPlace[], includeUnr
       ...(place.geography.status === "approximate" ? { accuracyMeters: place.geography.accuracyMeters } : {}),
     }];
   });
-}
-
-/** Keep the map focused on the one place currently selected in the tile list. */
-export function activeMapMarkersForPlace(
-  places: readonly WorldHubPlace[],
-  activePlaceId: string | null | undefined,
-  includeUnrevealed = false,
-): WorldMapMarker[] {
-  if (!activePlaceId) return [];
-  const activePlace = places.find((place) => place.id === activePlaceId);
-  return activePlace ? mapMarkersForPlaces([activePlace], includeUnrevealed) : [];
 }

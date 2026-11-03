@@ -39,7 +39,7 @@ import { LocationKnowledgeSearch } from "./location-knowledge-search";
 import { LocationConnections } from "./location-connections";
 import { RichTextView, richTextToPlainText } from "./rich-text";
 import { LocationSLDossier } from "./location-sl-dossier";
-import { activeMapMarkersForPlace, visibleWorldPlaces, type WorldHubPlace, type WorldMapMarker } from "./world-map-contract";
+import { mapMarkersForPlaces, visibleWorldPlaces, type WorldHubPlace, type WorldMapMarker } from "./world-map-contract";
 import {
   describeDataError,
   invalidatePlayerData,
@@ -59,6 +59,8 @@ type HubState = { key: string; places: WorldHubPlace[] };
 type NoteState = { scope: string; records: Entry[] };
 type WorldOverlay = { kind: "image"; src: string; title: string } | { kind: "clue"; title: string; text: string; media?:import("@/domain/location-library").PublicLocationMedia[] } | null;
 type WorldMapViewProps = {
+  showDiscoveryLegend?: boolean;
+  includeInternal?: boolean;
   places: WorldMapMarker[];
   visibleIds: string[];
   selectedId: string;
@@ -218,8 +220,8 @@ export function WorldExperience({
   const matchingPlaces = matchingMapPlaces;
   const selected = matchingPlaces.find((place) => place.id === selectedId) ?? matchingPlaces[0] ?? null;
   const mapMarkers = useMemo(
-    () => activeMapMarkersForPlace(matchingMapPlaces, selected?.id, view === "sl"),
-    [matchingMapPlaces, selected?.id, view],
+    () => mapMarkersForPlaces(matchingMapPlaces, view === "sl"),
+    [matchingMapPlaces, view],
   );
   const visibleMapIds = useMemo(() => mapMarkers.map((marker) => marker.id), [mapMarkers]);
   const mapPreviewPlace = selected;
@@ -406,7 +408,7 @@ export function WorldExperience({
     if(!window.confirm(reopen?"Den zuletzt genehmigten Gruppenstand wieder anzeigen? Ungespeicherte und unveröffentlichte Entwürfe bleiben verborgen.":"Diesen Eintrag für die aktive Spielgruppe sperren? Untergeordnete Inhalte bleiben ebenfalls verborgen. Das bereits erworbene Wissen wird nicht zurückgestuft."))return;
     setBusy(true);
     try{
-      await api("/api/cms/releases","POST",{action:reopen?"publish":"block",entityId,scope:"group",expectedReleaseVersion:state.version,...(reopen?{revisionId:state.lastPublishedRevisionId,discoveryState:state.discoveryState}:{}),reason:reopen?"Gruppenstand am SL-Spieltisch reaktiviert":"Gruppensicht am SL-Spieltisch gesperrt"});
+      await api("/api/cms/releases","POST",{action:reopen?"publish":"block",entityId,scope:"group",expectedReleaseVersion:state.version,...(reopen?{revisionId:state.lastPublishedRevisionId,grantDiscovery:false}:{}),reason:reopen?"Gruppenstand am SL-Spieltisch reaktiviert":"Gruppensicht am SL-Spieltisch gesperrt"});
       invalidatePlayerData(dataScope);
       const updated=await requestPlayerData(dataScope,projectionKey,()=>api<Payload>(projectionKey),{force:true});
       setResult({key:scopedProjectionKey,projection:updated.projection});
@@ -414,10 +416,33 @@ export function WorldExperience({
     }catch(reason){toast.error(reason instanceof Error?reason.message:"Die Freigabe konnte nicht geändert werden.");}
     finally{setBusy(false);}
   }
+  async function advanceGroupKnowledge(entityId:string,next:'known'|'visited'|'investigated',expectedRevision:number){
+    if(!location||!a.gm||view!=='sl'||busy||embeddedDossier)return;
+    setBusy(true);
+    try{
+      await api('/api/locations/state','POST',{placeId:location.id,entityId,mode:'discovery',audience:'group',discoveryState:next,expectedRevision,reason:'Wissensstand im SL-Dossier fortgeschrieben'});
+      invalidatePlayerData(dataScope);
+      const updated=await requestPlayerData(dataScope,projectionKey,()=>api<Payload>(projectionKey),{force:true});
+      setResult({key:scopedProjectionKey,projection:updated.projection});
+      toast.success('Wissensstand der Runde aktualisiert.');
+    }catch(reason){toast.error(reason instanceof Error?reason.message:'Der Wissensstand konnte nicht geändert werden.');}
+    finally{setBusy(false);}
+  }
+
   function groupVisibilityFor(entityId: string) {
     const state=location?.slGroupReleases?.find(item=>item.entityId===entityId);
     if(projection?.view!=="sl"||!state||embeddedDossier)return null;
-    return <div className={styles.slVisibility}><span>Gruppenfreigabe dieses Eintrags: {state.transition==="block"?"gesperrt":state.transition==="publish"?"freigegeben":"kein direkter Gruppenstand"}</span><button type="button" className={styles.secondaryButton} disabled={busy||state.transition==="block"||!state.lastPublishedRevisionId} onClick={()=>changeGroupVisibility(entityId,false)}>Für Gruppe sperren</button><button type="button" className={styles.secondaryButton} disabled={busy||!state.lastPublishedRevisionId||state.transition==="publish"} onClick={()=>changeGroupVisibility(entityId,true)}>Gruppenstand aktivieren</button>{!state.lastPublishedRevisionId&&<small>Erste Freigabe im SL-CMS vornehmen.</small>}</div>;
+    const released=state.transition==='publish';
+    const next=state.discoveryState==='hidden'||state.discoveryState==='rumored'?'known':state.discoveryState==='known'?'visited':state.discoveryState==='visited'?'investigated':null;
+    return <section className={styles.slVisibility} aria-label="Sichtbarkeit und Wissen der Runde">
+      <div><strong>Sichtbarkeit</strong><span>{state.secret?'Geheim · nur Spielleitung':released?'Gruppenstand freigegeben':state.transition==='block'?'Für die Gruppe gesperrt':'Kein direkter Gruppenstand'}</span></div>
+      <div><strong>Wissen der Runde</strong><span>{discoveryLabel(state.discoveryState)}</span></div>
+      <div className={styles.slVisibilityActions}>
+        {!state.secret&&released&&next&&<button type="button" className={styles.secondaryButton} disabled={busy} onClick={()=>void advanceGroupKnowledge(entityId,next,state.discoveryVersion)}>Als {discoveryLabel(next).toLocaleLowerCase('de-DE')} markieren</button>}
+        {state.lastPublishedRevisionId&&(!state.secret||released)&&<button type="button" className={styles.secondaryButton} disabled={busy} onClick={()=>void changeGroupVisibility(entityId,!released)}>{released?'Für Gruppe sperren':'Gruppenstand aktivieren'}</button>}
+      </div>
+      {!state.secret&&!state.lastPublishedRevisionId&&<small>Die erste Freigabe eines neuen Gruppenstands erfolgt in der Ortsredaktion.</small>}
+    </section>;
   }
 
   function closeOverlay() {
@@ -458,7 +483,7 @@ export function WorldExperience({
       <div className={styles.introRight}>
       <p>{showingDossier ? embeddedLabel || (view === "sl" ? "Internes Ortswissen, nach Bereichen und Kapiteln." : "Ein Ort, wie dein Charakter ihn kennt.") : view === "sl" ? "Alle angelegten Orte der Chronik." : "Orte, die deinem Charakter bekannt sind."}</p>
         {a.gm && !embeddedDossier && <div className={styles.viewSwitch} role="group" aria-label="Ortsansicht wählen">
-          <button type="button" aria-pressed={view === "player"} className={view === "player" ? styles.switchActive : ""} onClick={() => { setOverlay(null); setView("player"); }}><Eye size={14} aria-hidden="true"/>Spieleransicht</button>
+          <button type="button" aria-pressed={view === "player"} className={view === "player" ? styles.switchActive : ""} onClick={() => { setOverlay(null); setView("player"); }}><Eye size={14} aria-hidden="true"/>{showingDossier?"Spielerstand ansehen":"Spieleransicht"}</button>
           <button type="button" aria-pressed={view === "sl"} className={view === "sl" ? styles.switchActive : ""} onClick={() => { if(view === "player")setActiveDossierId(activeArea || selectedId); setOverlay(null); setView("sl"); }}><Shield size={14} aria-hidden="true"/>{showingDossier ? "SL-Dossier" : "SL-Ortsbestand"}</button>
         </div>}
         {a.gm && !embeddedDossier && view === "player" && <span className={styles.previewBadge}><Eye size={13} />Gruppenprojektion</span>}
@@ -475,7 +500,7 @@ export function WorldExperience({
         <div className={styles.mapStage} data-map-state={mapStatus}>
           <div className={styles.mapImage} role="img" aria-label="Abstrahierte Stadtstruktur mit Straßen, offener Fläche und Grünzone. Keine geografische Navigationskarte." />
           <div className={styles.mapVignette} aria-hidden="true" />
-          {WorldMapView && <WorldMapView
+          {WorldMapView && <WorldMapView showDiscoveryLegend includeInternal={view==="sl"}
             places={mapMarkers}
             visibleIds={visibleMapIds}
             selectedId={selectedId}
@@ -492,7 +517,7 @@ export function WorldExperience({
           </span>}
           <div className={styles.mapCoordinates} aria-hidden="true"><span>DOMÄNE · KLEVE</span><span>NACHTATLAS · ILLUSTRATION</span><span>SCHEMATISCH · NICHT NAVIGIERBAR</span></div>
           <div className={styles.mapLegend} aria-live="polite">
-            {mapMarkers.length > 0 && selected
+            {selected && mapMarkers.some(marker=>marker.id===selected.id)
               ? <><span className={styles.legendDot} />Aktive Markierung · {selected.title}</>
               : <>Keine bestätigte Position für den ausgewählten Ort</>}
           </div>
@@ -527,12 +552,11 @@ export function WorldExperience({
       </section>
     </> : projection.view === "sl" ? <article className={styles.slDossierPage} aria-label="SL-Dossier">
       <div className={styles.slDossierNavigation}><button type="button" className={styles.backLink} onClick={returnToMap}><ArrowLeft size={16} aria-hidden="true"/>{embeddedDossier ? "Zur Redaktion" : "Zur Karte"}</button></div>
-      <LocationSLDossier onNavigate={openLocationReference} key={location.id} projection={projection} selectedId={dossierNodeId} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
-      {groupVisibilityFor(dossierNodeId)}
-      {location.preparedActions && location.preparedActions.length > 0 && <section className={styles.gmActions}>
-        <header className={styles.detailSectionHeader}><h2>Vorbereitete Aktionen</h2><Shield size={18} aria-hidden="true"/></header>
+      <LocationSLDossier onNavigate={openLocationReference} key={location.id} projection={projection} selectedId={dossierNodeId} releaseControls={groupVisibilityFor(dossierNodeId)} onSelect={id => { setActiveDossierId(id); const area=areaList.find(item=>item.viewKey===id||item.rooms.some(room=>room.viewKey===id)); if(area)chooseArea(area.viewKey); }}/>
+      {location.preparedActions && location.preparedActions.length > 0 && <details className={styles.gmActions}>
+        <summary>Vorbereitete Aktionen ({location.preparedActions.length})</summary>
         {location.preparedActions.map(action => <div className={styles.gmActionRow} key={action.id}><span><strong>{action.label}</strong><small>{action.target}</small></span><button type="button" className={styles.secondaryButton} disabled={busy || action.status === "triggered"} onClick={() => triggerAction(action.id)}>{action.status === "triggered" ? "Ausgelöst" : "Auslösen"}</button></div>)}
-      </section>}
+      </details>}
     </article> : <>
       <article className={styles.locationPage} aria-labelledby="location-title">
         <section className={styles.locationHero}>
