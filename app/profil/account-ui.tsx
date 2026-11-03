@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- Profile images use protected private media endpoints. */
 /* eslint-disable @next/next/no-location-assign-relative-destination -- Credential and session changes discard all protected client state through full navigation. */
 import { FormEvent, useEffect, useState } from "react";
-import { roleLabels } from "@/domain/account-access";
+import { profileBanners, profilePlayStyles, roleLabels } from "@/domain/account-access";
 import styles from "./account.module.css";
 
 type Mutation={ok:boolean;logout?:boolean;id?:string;token?:string};
@@ -11,11 +11,16 @@ export async function accountApi<T=Mutation>(path:string,method='GET',body?:unkn
   if(!r.headers.get('content-type')?.includes('application/json'))throw new Error('Der Kontodienst ist momentan nicht erreichbar. Bitte erneut versuchen.');
   const d=await r.json() as T&{error?:string};if(!r.ok)throw new Error(d.error??'Der Vorgang konnte nicht abgeschlossen werden.');return d;
 }
-type Profile={displayName:string;email:string;version:number;avatarFileId:string|null;preferences:{reducedMotion:boolean;compactView:boolean};campaigns:{id:string;name:string;role:string;status:string}[];platformRoles:string[];canManage:boolean};
+type Profile={displayName:string;email:string;version:number;avatarFileId:string|null;preferences:{reducedMotion:boolean;compactView:boolean;realName?:string;introduction?:string;pronouns?:string;banner?:typeof profileBanners[number];playStyles?:Array<typeof profilePlayStyles[number]>};campaigns:{id:string;name:string;role:string;status:string}[];platformRoles:string[];canManage:boolean};
 type Session={id:string;createdAt:string;expiresAt:string;lastSeenAt:string;current:boolean};
+const bannerLabels:Record<typeof profileBanners[number],string>={neon:'Neon im Regen',fog:'Rheinnebel',candle:'Kerzenlicht'};
 const date=(s:string)=>new Date(s).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
 export default function AccountProfile(){
   const [profile,setProfile]=useState<Profile|null>(null),[sessions,setSessions]=useState<Session[]>([]),[busy,setBusy]=useState(false),[feedback,setFeedback]=useState(''),[error,setError]=useState(''),[dirty,setDirty]=useState(false);
+  function updatePreferences(changes:Partial<Profile['preferences']>){
+    setProfile(current=>current?{...current,preferences:{...current.preferences,...changes}}:current);
+    setDirty(true);
+  }
   async function load(){const [p,s]=await Promise.all([accountApi<Profile>('/api/profile'),accountApi<{sessions:Session[]}>('/api/auth/sessions')]);setProfile(p);setSessions(s.sessions);setDirty(false);}
   useEffect(()=>{let active=true;void Promise.all([accountApi<Profile>('/api/profile'),accountApi<{sessions:Session[]}>('/api/auth/sessions')]).then(([p,s])=>{if(active){setProfile(p);setSessions(s.sessions);}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[]);
   async function run(fn:()=>Promise<void>){setBusy(true);setError('');setFeedback('');try{await fn();}catch(e){setError(e instanceof Error?e.message:'Bitte erneut versuchen.');}finally{setBusy(false);}}
@@ -33,7 +38,34 @@ export default function AccountProfile(){
     {!profile?<p>Dein Konto wird geladen…</p>:<>
     <div className={styles.grid}><section className={styles.card} aria-label="Profil bearbeiten"><div className={styles.heading}><h2>Dein Auftreten</h2><span>{dirty?'Ungespeicherte Änderungen':'Gespeicherter Stand'}</span></div>
       <form onSubmit={save}><div className={styles.identity}>{profile.avatarFileId?<img alt="Dein privates Profilbild" src={'/api/profile/avatar?v='+profile.version}/>:<span className={styles.initial}>{profile.displayName.slice(0,1)}</span>}<div><label className={styles.upload}>Profilbild auswählen<input type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={e=>void upload(e.target.files?.[0])}/></label><small>JPG, PNG oder WebP · bis 2 MB · privat gespeichert</small>{profile.avatarFileId&&<button type="button" disabled={busy} onClick={()=>{setProfile({...profile,avatarFileId:null});setDirty(true);}}>Profilbild entfernen</button>}</div></div>
-        <label>Anzeigename<input required maxLength={80} value={profile.displayName} onChange={e=>{setProfile({...profile,displayName:e.target.value});setDirty(true);}}/></label><label>E-Mail<input readOnly value={profile.email}/></label><small>Die bestätigte Kontoidentität wird durch Profiländerungen nicht verändert.</small>
+        <label>Nickname (Anzeigename)<input required maxLength={80} value={profile.displayName} onChange={e=>{setProfile({...profile,displayName:e.target.value});setDirty(true);}}/></label>
+        <fieldset className={styles.introduction}>
+          <legend>Persönliche Vorstellung</legend>
+          <small>Diese Angaben sind vorerst nur für dich sichtbar.</small>
+          <label>Name (optional)<input maxLength={100} value={profile.preferences.realName??''} onChange={e=>{setProfile({...profile,preferences:{...profile.preferences,realName:e.target.value}});setDirty(true);}}/></label>
+          <label>Pronomen (optional)<input maxLength={40} value={profile.preferences.pronouns??''} onChange={e=>updatePreferences({pronouns:e.target.value})}/></label>
+          <label>Profilmotiv<select value={profile.preferences.banner??'fog'} onChange={e=>{const banner=profileBanners.find(value=>value===e.target.value);if(banner)updatePreferences({banner});}}>{profileBanners.map(banner=><option key={banner} value={banner}>{bannerLabels[banner]}</option>)}</select></label>
+          <label>Über mich<textarea rows={4} maxLength={600} value={profile.preferences.introduction??''} onChange={e=>{setProfile({...profile,preferences:{...profile.preferences,introduction:e.target.value}});setDirty(true);}}/></label>
+          <fieldset className={styles.playStyles}><legend>So spiele ich · bis zu fünf</legend>
+            {profilePlayStyles.map(style=>{
+              const chosen=profile.preferences.playStyles??[];
+              const checked=chosen.includes(style);
+              return <label className={styles.check} key={style}><input type="checkbox" checked={checked} disabled={!checked&&chosen.length>=5} onChange={()=>updatePreferences({playStyles:checked?chosen.filter(value=>value!==style):[...chosen,style]})}/>{style}</label>;
+            })}
+          </fieldset>
+        </fieldset>
+        <details className={styles.profilePreview}>
+          <summary>Vorschau der Spielervorstellung</summary>
+          <article>
+            <header data-banner={profile.preferences.banner??'fog'}>
+              {profile.avatarFileId&&<img src={'/api/profile/avatar?v='+profile.version} alt=""/>}
+              <div><small>CHRONIPLAY · SPIELERPROFIL</small><h3>{profile.displayName}</h3>{profile.preferences.pronouns&&<span>{profile.preferences.pronouns}</span>}</div>
+            </header>
+            {profile.preferences.introduction&&<p>{profile.preferences.introduction}</p>}
+            {!!profile.preferences.playStyles?.length&&<ul>{profile.preferences.playStyles.map(style=><li key={style}>{style}</li>)}</ul>}
+          </article>
+        </details>
+        <label>E-Mail<input readOnly value={profile.email}/></label><small>Die bestätigte Kontoidentität wird durch Profiländerungen nicht verändert.</small>
         <label className={styles.check}><input type="checkbox" checked={profile.preferences.reducedMotion} onChange={e=>{setProfile({...profile,preferences:{...profile.preferences,reducedMotion:e.target.checked}});setDirty(true);}}/>Animationen reduzieren</label>
         <label className={styles.check}><input type="checkbox" checked={profile.preferences.compactView} onChange={e=>{setProfile({...profile,preferences:{...profile.preferences,compactView:e.target.checked}});setDirty(true);}}/>Kompakte Spieltischansicht</label>
         <button className={styles.primary} disabled={busy||!dirty}>{busy?'Bitte warten…':'Profil speichern'}</button>

@@ -1,7 +1,7 @@
 import { env } from "cloudflare:workers";
 import { currentUser, rateAllowed, rateKey, recordFailure, verifyPassword } from "@/server/platform-auth";
 import { database, HttpError } from "@/server/database";
-import { profileInput } from "@/domain/account-access";
+import { profileBanners, profileInput, profilePlayStyles } from "@/domain/account-access";
 
 export async function account(request: Request) {
   const user = await currentUser(request);
@@ -28,8 +28,17 @@ export async function profile(request: Request) {
     db.prepare("SELECT c.id,c.name,cm.role,cm.status FROM campaign_memberships cm JOIN campaigns c ON c.id=cm.campaign_id WHERE cm.user_id=? ORDER BY c.name").bind(u.memberId).all<{id:string;name:string;role:string;status:string}>(),
     accountRoles(u.memberId),
   ]);
+  const preferences=JSON.parse(row?.preferences||'{}');
   return { displayName:u.displayName, email:u.email, version:row!.version, avatarFileId:row?.avatar_file_id ?? null,
-    preferences:{reducedMotion:JSON.parse(row?.preferences||'{}').reducedMotion===true,compactView:JSON.parse(row?.preferences||'{}').compactView===true},
+    preferences:{
+      reducedMotion:preferences.reducedMotion===true,
+      compactView:preferences.compactView===true,
+      ...(typeof preferences.realName==='string'?{realName:preferences.realName}:{}),
+      ...(typeof preferences.pronouns==='string'?{pronouns:preferences.pronouns}:{}),
+      ...(profileBanners.includes(preferences.banner)?{banner:preferences.banner}:{}),
+      ...(Array.isArray(preferences.playStyles)?{playStyles:profilePlayStyles.filter(style=>preferences.playStyles.includes(style)).slice(0,5)}:{}),
+      ...(typeof preferences.introduction==='string'?{introduction:preferences.introduction}:{}),
+    },
     campaigns:memberships.results, platformRoles, canManage:platformRoles.includes("platform_admin") || memberships.results.some(r => r.status==='active' && ['campaign_owner','campaign_gm'].includes(r.role)),
   };
 }
@@ -45,7 +54,7 @@ export async function saveProfile(request:Request, value:unknown) {
   const result=await db.batch([
     db.prepare("UPDATE auth_users SET display_name=?,version=version+1,updated_at=? WHERE id=? AND version=? AND status='active'").bind(d.displayName,stamp,u.id,d.version),
     db.prepare("INSERT INTO auth_security_events(id,actor_id,subject_user_id,action,metadata,created_at) SELECT ?,?,?,'profile.saved','{}',? WHERE changes()=1").bind(event,u.id,u.id,stamp),
-    db.prepare("INSERT INTO auth_profiles(user_id,avatar_file_id,preferences) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM auth_security_events WHERE id=?) ON CONFLICT(user_id) DO UPDATE SET avatar_file_id=excluded.avatar_file_id,preferences=json_set(excluded.preferences,'$.activeCharacters',json(COALESCE(json_extract(auth_profiles.preferences,'$.activeCharacters'),'{}')))").bind(u.id,d.avatarFileId,JSON.stringify(d.preferences),event),
+    db.prepare("INSERT INTO auth_profiles(user_id,avatar_file_id,preferences) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM auth_security_events WHERE id=?) ON CONFLICT(user_id) DO UPDATE SET avatar_file_id=excluded.avatar_file_id,preferences=json_patch(COALESCE(auth_profiles.preferences,'{}'),excluded.preferences)").bind(u.id,d.avatarFileId,JSON.stringify(d.preferences),event),
   ]);
   if(result[0].meta.changes!==1)throw new HttpError(409,"Dein Profil wurde inzwischen geändert. Bitte neu laden.");
   return {ok:true,version:d.version+1};
