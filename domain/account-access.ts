@@ -14,6 +14,7 @@ export const profileInput = z.object({
     introduction: z.string().trim().max(600).optional(),
     pronouns: z.string().trim().max(40).optional(),
     banner: z.enum(profileBanners).optional(),
+    sharePlayerProfileCampaigns: z.array(z.string().min(1).max(160)).max(100).refine(values=>new Set(values).size===values.length).optional(),
     playStyles: z.array(z.enum(profilePlayStyles)).max(5).refine(values=>new Set(values).size===values.length).optional(),
   }).strict(),
 }).strict();

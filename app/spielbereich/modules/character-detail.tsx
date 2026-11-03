@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
 import { RichTextEditor, RichTextView } from "./rich-text";
+import { CharacterPresentationEditor } from "./character-presentation-editor";
 import { CharacterProgression } from "./character-progression";
 import { CharacterLiveVitals } from "./character-live-vitals";
 import studio from "./character-studio.module.css";
@@ -84,6 +85,13 @@ export function CharacterDetail({
   onRefresh?: () => void;
 }) {
   const [view, setView] = useState(initialView);
+  const presentationDirty=useRef(false);
+  function leavePresentation(){
+    if(!presentationDirty.current)return true;
+    if(!window.confirm('Ungespeicherte Änderungen am Figurenprofil verwerfen?'))return false;
+    presentationDirty.current=false;
+    return true;
+  }
   const [projectionState, setProjection] = useState<CharacterDetailProjection | null>(
     null,
   );
@@ -115,7 +123,7 @@ export function CharacterDetail({
   const lifecycleConfirmation=useCommandConfirmation();
   const entries=useMemo(()=>allEntries.filter(e=>archiveView?!activeCharacterBody(e.body):activeCharacterBody(e.body)),[allEntries,archiveView]);
   const selected=archiveView?archivedId:activeCharacterId;
-  async function abandonDrafts(){if((roleEdit||noteDraft)&&!await lifecycleConfirmation.ask('Ungespeicherte Texte verwerfen und die Charakteransicht wechseln?'))return false;setRoleEdit(null);setNoteDraft(null);setView('sheet');return true;}
+  async function abandonDrafts(){if(!leavePresentation())return false;if((roleEdit||noteDraft)&&!await lifecycleConfirmation.ask('Ungespeicherte Texte verwerfen und die Charakteransicht wechseln?'))return false;setRoleEdit(null);setNoteDraft(null);setView('sheet');return true;}
   async function chooseCharacter(id:string|null){if(!await abandonDrafts())return;if(archiveView)setArchivedId(id);else onActiveCharacterChange(id);}
   async function switchArchive(archive:boolean){if(!await abandonDrafts())return;setArchiveView(archive);}
   const archiveNav=<nav className="character-archive-nav" aria-label="Charakterverwaltung"><button className="button" aria-pressed={!archiveView} onClick={()=>void switchArchive(false)}>Aktive Charaktere</button><button className="button" aria-pressed={archiveView} onClick={()=>void switchArchive(true)}>Archivierte Charaktere ({allEntries.filter(e=>!activeCharacterBody(e.body)).length})</button></nav>;
@@ -516,7 +524,12 @@ export function CharacterDetail({
               className="button primary character-edit"
               disabled={!(inspection && a.gm) && projection.permissions.sheetEditing !== true && (characterState === "confirmed" || characterState === "review")}
               title={inspection && a.gm ? "Werte als zuständige SL begründet korrigieren und Ausnahmen freigeben." : characterState === "confirmed" ? "Bestätigte Werte über Entwicklung steigern; Texte unter Geschichte bearbeiten." : characterState === "review" ? "Der eingereichte Bogen ist während der SL-Prüfung geschützt." : undefined}
-              onClick={() => inspection && a.gm ? setView("management") : projection.permissions.sheetEditing === true ? setView("development") : onEdit(active)}
+              onClick={() => {
+                if(!leavePresentation())return;
+                if(inspection&&a.gm)setView("management");
+                else if(projection.permissions.sheetEditing===true)setView("development");
+                else onEdit(active);
+              }}
             >
               <Pencil size={16} /> {inspection && a.gm ? "Akte verwalten" : "Bogen bearbeiten"}
             </button>
@@ -539,11 +552,13 @@ export function CharacterDetail({
           </div></details>
         </div>
       </header>
-      <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>setView("development")}/>
+      <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>{if(leavePresentation())setView("development");}}/>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},...(!inspection&&!archived?[{id:"presentation",label:"Figurenprofil"}]:[]),{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
+
+      {!inspection&&!archived&&view==="presentation"&&<CharacterPresentationEditor key={active.id} id={active.id!} title={active.title} onDirty={dirty=>{presentationDirty.current=dirty;}} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">

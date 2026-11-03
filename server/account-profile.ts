@@ -37,6 +37,7 @@ export async function profile(request: Request) {
       ...(typeof preferences.pronouns==='string'?{pronouns:preferences.pronouns}:{}),
       ...(profileBanners.includes(preferences.banner)?{banner:preferences.banner}:{}),
       ...(Array.isArray(preferences.playStyles)?{playStyles:profilePlayStyles.filter(style=>preferences.playStyles.includes(style)).slice(0,5)}:{}),
+      ...(Array.isArray(preferences.sharePlayerProfileCampaigns)?{sharePlayerProfileCampaigns:memberships.results.filter(membership=>membership.status==='active'&&preferences.sharePlayerProfileCampaigns.includes(membership.id)).map(membership=>membership.id)}:{}),
       ...(typeof preferences.introduction==='string'?{introduction:preferences.introduction}:{}),
     },
     campaigns:memberships.results, platformRoles, canManage:platformRoles.includes("platform_admin") || memberships.results.some(r => r.status==='active' && ['campaign_owner','campaign_gm'].includes(r.role)),
@@ -46,6 +47,11 @@ export async function saveProfile(request:Request, value:unknown) {
   const u=await account(request), parsed=profileInput.safeParse(value);
   if(!parsed.success) throw new HttpError(400,"Bitte Anzeigename, Profilbild und Einstellungen prüfen.");
   const d=parsed.data,db=database();
+  if(d.preferences.sharePlayerProfileCampaigns?.length){
+    const memberships=await db.prepare("SELECT campaign_id FROM campaign_memberships WHERE user_id=? AND status='active'").bind(u.memberId).all<{campaign_id:string}>();
+    const active=new Set(memberships.results.map(membership=>membership.campaign_id));
+    if(d.preferences.sharePlayerProfileCampaigns.some(id=>!active.has(id)))throw new HttpError(403,"Du kannst dein Spielerprofil nur für aktive Kampagnen freigeben.");
+  }
   if(d.avatarFileId){
     const f=await db.prepare("SELECT id FROM files WHERE id=? AND owner_id=? AND visibility='private' AND mime IN ('image/png','image/jpeg','image/webp')").bind(d.avatarFileId,u.memberId).first();
     if(!f) throw new HttpError(403,"Bitte ein eigenes privates Bild auswählen.");

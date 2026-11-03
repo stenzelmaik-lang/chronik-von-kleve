@@ -8,7 +8,7 @@ import styles from './sl-workspace-shell.module.css';
 
 const preparationTools = [
   { name: 'Spielabende & Szenen', description: 'Abende planen und Geschichten vorbereiten', section: 'sitzung', icon: Clapperboard },
-  { name: 'Spieler & Charaktere', description: 'Die Charaktere deiner Spielrunde einsehen', section: 'charaktere', icon: Users },
+  { name: 'Spieler & Charaktere', description: 'Charaktere einsehen und Spieler einladen', section: 'charaktere', icon: Users },
   { name: 'Galerie', description: 'Bilder und Dateien finden, sortieren und verwalten', section: 'galerie', icon: Images },
   { name: 'Material', description: 'Dokumente und Unterlagen zum Ausspielen vorbereiten', section: 'vorbereitung', icon: FolderOpen },
   { name: 'NPCs', description: 'Nichtspielercharaktere anlegen, bearbeiten und freigeben', section: 'nscs', icon: UserRoundPlus },
@@ -31,6 +31,7 @@ export function SLWorkspaceShell({a,section,navigate,children,preparationDirty=f
       </nav>
       {preparationDirty&&<p className={styles.unsavedNotice} role="status">Offene Eingaben: vor dem Bereichswechsel speichern oder im Editor bewusst verwerfen.</p>}
       {section==='charaktere'&&<div className={styles.inspection} role="status"><strong>SL-INSPEKTION · KAMPAGNENCHARAKTERE</strong><span>Du prüfst fremde Charaktere als Spielleitung. Du spielst sie nicht; persönliche Spielerauswahl bleibt getrennt.</span></div>}
+      {section==='charaktere'&&a.gm&&<div className={styles.inviteEntry}><a href="/zugang/verwaltung"><UserRoundPlus size={17} aria-hidden="true"/> Spieler einladen und Einladungen verwalten</a></div>}
       {children}
     </main>
     <Toaster position="bottom-right" theme="dark"/>

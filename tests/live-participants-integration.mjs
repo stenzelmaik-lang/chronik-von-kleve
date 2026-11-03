@@ -15,7 +15,7 @@ export async function liveParticipantsIntegration({req,check,base,ids,localSql,s
  check(own.s===200&&gm.s===200&&own.d.projection.sheet.attributes.Körperkraft===engineFixture.attributes.Körperkraft&&!own.d.projection.permissions.canEdit,'MENUS owner and GM reuse complete read-only projection');
  check((await req(endpoint('sprint1-b','sheet',cid),'gm')).s===404,'MENUS character ownership cannot be substituted');
  const hiddenCharacter=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC PRIVATE MENU CHARACTER',visibility:'private',body:{...engineFixture}});
- check((await req(endpoint('sprint1-a','profile',hiddenCharacter.d.id),'gm')).d.character===null,'MENUS SL public-profile tab never pretends a private character is released');
+ check((await req(endpoint('sprint1-a','profile',hiddenCharacter.d.id),'gm')).s===404,'MENUS SL public-profile tab never pretends a private character is released');
  const b=await req(endpoint('sprint1-a','profile',cid),'b');
  check(b.s===200&&b.d.character.name==='SYNTHETIC MENU CHARACTER'&&!JSON.stringify(b.d).includes('MENUS_PRIVATE')&&!b.d.projection,'MENUS public character card never inherits private biography or sheet');
  await req('/api/content-blocks','gm','POST',{entityId:cid,kind:'biography',content:'MENUS_RELEASED_DESCRIPTION',visibility:'player_visible',position:0});
@@ -29,7 +29,7 @@ export async function liveParticipantsIntegration({req,check,base,ids,localSql,s
   check(item.s===201,'MENUS existing inventory creates '+visibility+' item');
  }
  const inv=await req(endpoint('sprint1-a','inventory',cid),'b');
- check(inv.s===200&&inv.d.publicOnly===true&&inv.d.items.length===1&&inv.d.items[0].name==='MENUS_ITEM_group'&&!inv.d.items[0].canEdit&&!JSON.stringify(inv.d).includes('MENUS_ITEM_private')&&!JSON.stringify(inv.d).includes('MENUS_ITEM_sl'),'MENUS public inventory contains only released read-only items');
+ check(inv.s===403&&!JSON.stringify(inv.d).includes('MENUS_ITEM'),'MENUS foreign inventory stays private even if an item has group visibility');
  const gmInventory=(await req('/api/inventory?view=sl&characterId='+cid,'gm')).d;check(gmInventory.items.some(i=>i.name==='MENUS_ITEM_sl')&&!gmInventory.items.some(i=>i.name==='MENUS_ITEM_private'),'MENUS GM keeps existing shared-inventory limits, no private takeover');
  check((await req('/api/inventory?characterId='+cid,'b')).s===404,'MENUS public card does not grant general foreign inventory access');
  const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jS1cAAAAASUVORK5CYII=','base64'),form=new FormData();form.set('file',new Blob([png],{type:'image/png'}),'SYNTHETIC_MENU_AVATAR.png');form.set('visibility','private');
@@ -37,6 +37,31 @@ export async function liveParticipantsIntegration({req,check,base,ids,localSql,s
  check((await req('/api/profile','a','PATCH',{version:profileBefore.version,displayName:profileBefore.displayName,avatarFileId:avatar,preferences:profileBefore.preferences})).s===200,'MENUS reuse existing profile avatar without new upload system');
  const image=await fetch(base+endpoint('sprint1-a','avatar'),{headers:ids.b});
  check(image.status===200&&Buffer.from(await image.arrayBuffer()).equals(png)&&(await fetch(base+'/api/files?id='+avatar,{headers:ids.b})).status===404,'MENUS contextual player avatar works without exposing private original file');
+ const profileNow=(await req('/api/profile','a')).d;
+ check(profile.d.member.presentation===null,'MENUS player profile is private before sharing');
+ const playerUpdate={version:profileNow.version,displayName:profileNow.displayName,avatarFileId:avatar,preferences:{...profileNow.preferences,realName:'MENUS_PRIVATE_NAME',introduction:'MENUS_RELEASED_PLAYER',pronouns:'they',sharePlayerProfileCampaigns:['chronik-von-kleve']}};
+ check((await req('/api/profile','a','PATCH',playerUpdate)).s===200,'MENUS player can share presentation with active campaign');
+ const sharedPlayer=(await req(endpoint('sprint1-a'),'b')).d.member.presentation;
+ check(sharedPlayer?.introduction==='MENUS_RELEASED_PLAYER'&&!JSON.stringify(sharedPlayer).includes('MENUS_PRIVATE_NAME'),'MENUS shared player data omits real name');
+ check((await req('/api/profile','a','PATCH',{...playerUpdate,version:profileNow.version+1,preferences:{...playerUpdate.preferences,sharePlayerProfileCampaigns:['foreign-campaign']}})).s===403,'MENUS profile sharing cannot target another campaign');
+ check((await req('/api/profile','a','PATCH',{...playerUpdate,version:profileNow.version+1,preferences:{...playerUpdate.preferences,sharePlayerProfileCampaigns:[]}})).s===200&&(await req(endpoint('sprint1-a'),'b')).d.member.presentation===null,'MENUS player sharing can be revoked');
+
+ const hiddenId=hiddenCharacter.d.id;
+ const presentationUrl='/api/character-companion?id='+hiddenId;
+ const figure={published:true,tagline:'MENUS_FIGURE_TAGLINE',introduction:'MENUS_FIGURE_INTRO',gallery:[{fileId:avatar,caption:'MENUS_FIGURE_PHOTO'}]};
+ const figureImageUrl=endpoint('sprint1-a','figure-image',hiddenId)+'&fileId='+avatar;
+ check((await fetch(base+figureImageUrl,{headers:ids.b})).status===404,'MENUS guessed unpublished gallery URL is denied');
+ const privateEditor=(await req(presentationUrl,'a')).d;
+ check((await req('/api/character-companion','a','PATCH',{action:'presentation',id:hiddenId,version:privateEditor.version,presentation:figure})).s===200,'MENUS owner explicitly publishes presentation of private sheet');
+ check((await req('/api/character-selection','a','PATCH',{characterId:hiddenId})).s===200,'MENUS owner selects published figure');
+ const presented=(await req(endpoint('sprint1-a'),'b')).d.character;
+ check(presented?.id===hiddenId&&presented.introduction==='MENUS_FIGURE_INTRO'&&presented.gallery?.[0]?.caption==='MENUS_FIGURE_PHOTO'&&!('sheet' in presented),'MENUS active figure returns only its presentation');
+ const figureImage=await fetch(base+figureImageUrl,{headers:ids.b});
+ check(figureImage.status===200&&Buffer.from(await figureImage.arrayBuffer()).equals(png),'MENUS gallery image is shared only by contextual URL');
+ const figureVersion=(await req(presentationUrl,'a')).d.version;
+ check((await req('/api/character-companion','a','PATCH',{action:'presentation',id:hiddenId,version:figureVersion,presentation:{...figure,published:false}})).s===200,'MENUS owner can withdraw figure presentation');
+ check((await fetch(base+figureImageUrl,{headers:ids.b})).status===404&&(await req(endpoint('sprint1-a'),'b')).d.character===null,'MENUS withdrawal removes card and revokes gallery URL');
+ await req('/api/character-selection','a','PATCH',{characterId:null});
  const messageRequest={clientRequestId:randomUUID(),recipients:['sprint1-b'],title:'SYNTHETIC private player letter',text:'MENUS_PRIVATE_A_TO_B'};
  const sent=await req('/api/messages','a','POST',messageRequest);check(sent.s===200&&sent.d.sent===1,'MENUS active player sends through existing message engine');
  const letter=sent.d.ids?.[0];

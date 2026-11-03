@@ -17,7 +17,16 @@ export const dynamic = "force-dynamic";
 
 const id = z.string().min(1).max(100);
 const visibility = z.enum(["private", "sl", "group"]);
+const presentation = z.object({
+  published: z.boolean(),
+  tagline: z.string().trim().max(100),
+  introduction: z.string().trim().max(1200),
+  gallery: z.array(z.object({fileId:id,caption:z.string().trim().max(160)}).strict()).max(8)
+    .refine(items=>new Set(items.map(item=>item.fileId)).size===items.length),
+}).strict();
+
 const schema = z.discriminatedUnion("action", [
+  z.object({action:z.literal('presentation'),id,version:z.number().int().positive(),presentation}).strict(),
   z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({
@@ -144,6 +153,16 @@ async function loadEditableNote(
   return { note, body };
 }
 
+export async function GET(req: Request) {
+  try {
+    const a=await actor();
+    const characterId=id.safeParse(new URL(req.url).searchParams.get('id'));
+    if(!characterId.success)throw new HttpError(400,'Charakter-ID fehlt.');
+    const {character,body}=await loadCharacter(database(),a.id,a.campaignId,characterId.data);
+    return json({version:character.version,presentation:presentation.safeParse(body.presentation).data??null});
+  } catch(e){return failure(e,req);}
+}
+
 export async function PATCH(req: Request) {
   try {
     sameOrigin(req);
@@ -172,6 +191,19 @@ export async function PATCH(req: Request) {
       body.text = data.backgroundStory;
       body.playGuide = data.playGuide;
       return json(await updateCharacterBody(db, character, data.version, body));
+    }
+    if(data.action==='presentation'){
+      const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
+      try{
+        const original:unknown=JSON.parse(character.body);
+        if(!original||typeof original!=='object'||Array.isArray(original))throw Error();
+      }catch{throw new HttpError(409,'Der ursprüngliche Charakterdatensatz ist ungültig und bleibt unverändert.');}
+      if(!canEdit(a,character))throw new HttpError(403,'Charakter nicht editierbar.');
+      const files=await Promise.all(data.presentation.gallery.map(item=>loadOwnedImage(db,a.campaignId,a.id,item.fileId)));
+      if(files.some(file=>!['image/jpeg','image/png','image/webp'].includes(file.mime)))
+        throw new HttpError(400,'Bitte JPG, PNG oder WebP auswählen.');
+      body.presentation=data.presentation;
+      return json(await updateCharacterBody(db,character,data.version,body));
     }
     if (data.action === "media") {
       const { character, body } = await loadCharacter(db, a.id, a.campaignId, data.id);

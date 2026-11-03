@@ -18,3 +18,14 @@
 .profilePreview article p{margin:12px;white-space:pre-wrap}
 .profilePreview ul{display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:12px;list-style:none}
 .profilePreview li{padding:3px 8px;border:1px solid #b79e6355;border-radius:12px;color:#ead6ad;font-size:12px}
+.personalSettings>div{display:grid;gap:12px;margin-top:12px}
+.profilePreview{align-self:start;min-width:0;position:sticky;top:20px}
+.profilePreview article{margin-top:0;background:#101a24;box-shadow:0 12px 30px #05090e70}
+.profilePreview header{min-height:148px;align-items:end;padding:18px;border-bottom:1px solid #b79e6355}
+.profilePreview header h2{margin:4px 0;color:#f2dfb7;font:clamp(24px,4vw,36px) Georgia,serif}
+.profilePreview header img,.profilePreview header .initial{width:64px;height:64px;flex:none;font-size:30px}
+.previewBody{padding:16px 18px 20px}
+.previewBody h3{margin:0 0 6px;color:#ead6ad;font:18px Georgia,serif}
+.previewBody p{margin:0 0 16px;line-height:1.6}
+.previewBody ul{margin:0}
+@media(max-width:700px){.profilePreview{position:static;margin-bottom:16px}}

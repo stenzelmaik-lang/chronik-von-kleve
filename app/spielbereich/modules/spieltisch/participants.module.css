@@ -49,3 +49,24 @@
 @media(max-width:600px){.drawer{animation-name:lowerAside}.drawer[data-closing=true]{animation-name:raiseAside}}
 @keyframes lowerAside{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:none}}
 @keyframes raiseAside{to{opacity:0;transform:translateY(-24px)}}
+.figureCard{overflow:hidden;border:1px solid #a98c555e;border-radius:8px;background:#111a1e;overflow-wrap:anywhere}
+.figureCard>header{position:relative;isolation:isolate;display:flex;align-items:end;gap:12px;min-height:125px;padding:18px;background:#262321}
+.figureCard>header:has(.figureHero){min-height:250px}
+.figureCard>header:has(.figureHero)::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,#100e10 2%,#100e1000 75%)}
+.figureHero{position:absolute;inset:0;z-index:-2;width:100%;height:100%;object-fit:cover;object-position:center 32%}
+.figureCard>header h3{margin:5px 0;color:#f1dbad;font:clamp(25px,5vw,38px)/1.1 Georgia,serif}
+.figureCard>header p{margin:0;white-space:pre-wrap}
+.figureCard>header[data-banner=fog]{background:linear-gradient(115deg,#142126,#354745,#17242a)}
+.figureCard>header[data-banner=neon]{background:linear-gradient(115deg,#241a35,#43253c,#182938)}
+.figureCard>header[data-banner=candle]{background:radial-gradient(ellipse at 75% 15%,#6a4427,#302225 65%,#181a25)}
+.playerPortrait{width:56px;height:56px;object-fit:cover;border-radius:50%;border:1px solid #d5ba81}
+.figureText,.figureGallery{padding:16px 18px}
+.figureText h4,.figureGallery h4{margin:0 0 8px;color:#ead6ad;font:20px Georgia,serif}
+.figureText p,.figureGallery figcaption{white-space:pre-wrap}
+.figureGallery{border-top:1px solid #a98c5540}
+.figureGallery figure{margin:0}
+.figureGallery img{display:block;width:100%;max-height:340px;object-fit:contain;background:#090d10;border-radius:4px}
+.figureGallery figcaption{padding:8px 0;color:#d2c4aa}
+.figureGallery nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
+.playerTraits{display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
+.playerTraits li{padding:3px 8px;border:1px solid #b79e6355;border-radius:12px;color:#ead6ad;font-size:12px}
