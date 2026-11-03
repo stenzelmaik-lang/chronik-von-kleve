@@ -42,7 +42,21 @@ try{
  await map.locator('.maplibregl-map').first().waitFor({timeout:25000});
  await map.close();
  await playerTable.getByRole('button',{name:'Würfel öffnen'}).waitFor();
- if(screenshots)await playerTable.screenshot({path:screenshots+'/spieltisch-390.png'});
+ for(const width of [390,1440]){
+  await playerTable.setViewportSize({width,height:width===390?844:900});
+  const health=playerTable.getByRole('button',{name:/^Zustand von /});
+  const pressure=playerTable.getByRole('button',{name:'Stress und Maskerade öffnen'});
+  await health.getByText('Blut',{exact:true}).waitFor();
+  await health.getByText('Willenskraft',{exact:true}).waitFor();
+  await health.getByRole('img',{name:/Blutvorrat \d+ von \d+/}).waitFor();
+  await health.getByRole('img',{name:/Willenskraft \d+ von \d+/}).waitFor();
+  const [body,stress]=await Promise.all([health.boundingBox(),pressure.boundingBox()]);
+  assert.ok(body&&stress&&body.x+body.width<=stress.x,'The player HUD cards stay apart at '+width+'px');
+  if(screenshots)await playerTable.screenshot({path:screenshots+'/spieltisch-'+width+'.png'});
+  await health.click();
+  await playerTable.getByRole('complementary',{name:'Zustände',exact:true}).waitFor();
+  await playerTable.getByRole('button',{name:'Werkzeug schließen'}).click();
+ }
  await player.close();
  await playerButton.waitFor({state:'hidden',timeout:45000});
  console.log('PASS presence joins and leaves the roster, and world map opens without leaving the table');
