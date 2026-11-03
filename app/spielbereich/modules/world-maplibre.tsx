@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import type { WorldMapMarker } from "./world-map-contract";
 import styles from "./world-experience.module.css";
 
+const OPENFREEMAP_ATLAS_STYLE = "https://tiles.openfreemap.org/styles/fiord";
 const OPENFREEMAP_DARK_STYLE = "https://tiles.openfreemap.org/styles/dark";
 const CHRONICLE_REGION_BOUNDS: [[number, number], [number, number]] = [
   [6.03, 51.65], // Goch / A57 side of the regional starting frame.
@@ -22,18 +23,18 @@ function regionPadding() {
     : { top: 76, right: 76, bottom: 186, left: 76 };
 }
 
-function fitChronicleRegion(map: MapLibreMap) {
+function fitChronicleRegion(map: MapLibreMap, compact = false) {
   map.fitBounds(CHRONICLE_REGION_BOUNDS, {
-    padding: regionPadding(),
+    padding: compact ? 28 : regionPadding(),
     maxZoom: 11.5,
     duration: 350,
   });
 }
 
-function createMarkerElement(place: WorldMapMarker) {
+function createMarkerElement(place: WorldMapMarker, compact: boolean) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = styles.mapLibreMarker;
+  button.className = compact ? styles.atlasMarker : styles.mapLibreMarker;
   const positionText = place.precision === "candidate"
     ? "unbestätigte, noch nicht gespeicherte Kartenauswahl"
     : place.precision === "approximate"
@@ -42,7 +43,9 @@ function createMarkerElement(place: WorldMapMarker) {
   button.setAttribute("aria-label", `${place.title}, ${positionText}. Vorschau anzeigen.`);
   button.setAttribute("aria-pressed", "false");
   button.title = `${place.title} · ${positionText}`;
-  button.innerHTML = '<span aria-hidden="true"></span><i aria-hidden="true"></i>';
+  button.innerHTML = compact
+    ? '<svg aria-hidden="true" viewBox="0 0 20 26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10 14C7 12 5.5 9.3 5.5 6.8a4.5 4.5 0 0 1 9 0c0 2.5-1.5 5.2-4.5 7.2v10M4 14h12"/></svg>'
+    : '<span aria-hidden="true"></span><i aria-hidden="true"></i>';
   return button;
 }
 
@@ -56,6 +59,7 @@ export function WorldMapLibre({
   onFocusPlace,
   onStateChange,
   onMapClick,
+  compact = false,
 }: {
   places: WorldMapMarker[];
   visibleIds: string[];
@@ -65,6 +69,7 @@ export function WorldMapLibre({
   onHover: (id: string | null) => void;
   onFocusPlace: (id: string) => void;
   onStateChange: (state: "loading" | "ready" | "error") => void;
+  compact?: boolean;
   onMapClick?: (coordinates: [longitude: number, latitude: number]) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -91,12 +96,12 @@ export function WorldMapLibre({
     try {
       instance = new MapLibreMap({
       container,
-      style: OPENFREEMAP_DARK_STYLE,
+      style: compact ? OPENFREEMAP_ATLAS_STYLE : OPENFREEMAP_DARK_STYLE,
       center: [6.18, 51.78],
       zoom: 9,
       minZoom: 5,
       maxZoom: 19,
-      attributionControl: { compact: false },
+      attributionControl: compact ? false : { compact: false },
       dragPan: true,
       touchZoomRotate: true,
       dragRotate: false,
@@ -114,7 +119,7 @@ export function WorldMapLibre({
       if (!active) return;
       mapReady = true;
       window.clearTimeout(loadTimeout);
-      fitChronicleRegion(instance);
+      fitChronicleRegion(instance, compact);
       onStateChange("ready");
     };
     const loadTimeout = window.setTimeout(() => {
@@ -168,7 +173,7 @@ export function WorldMapLibre({
         }
         continue;
       }
-      const element = createMarkerElement(place);
+      const element = createMarkerElement(place, compact);
       const marker = new Marker({ element, anchor: "center" })
         .setLngLat([longitude, latitude])
         .addTo(instance);
@@ -178,11 +183,11 @@ export function WorldMapLibre({
       element.addEventListener("blur", () => callbacks.current.onHover(null));
       element.addEventListener("click", () => {
         callbacks.current.onSelect(place.id);
-        instance.flyTo({ center: [longitude, latitude], zoom: Math.max(instance.getZoom(), 16), essential: true });
+        if (!compact) instance.flyTo({ center: [longitude, latitude], zoom: Math.max(instance.getZoom(), 16), essential: true });
       });
       markers.current.set(place.id, { marker, element, coordinates: [longitude, latitude] });
     }
-  }, [places]);
+  }, [places, compact]);
 
   useEffect(() => {
     const visible = new Set(visibleIds);
@@ -202,7 +207,7 @@ export function WorldMapLibre({
   }
 
   function returnToRegion() {
-    if (map.current) fitChronicleRegion(map.current);
+    if (map.current) fitChronicleRegion(map.current, compact);
   }
 
   function focusSelected() {
@@ -215,11 +220,11 @@ export function WorldMapLibre({
   return (
     <>
       <div ref={host} className={styles.mapLibreCanvas} aria-label="Interaktive OpenStreetMap der Chronikregion" />
-      <div className={styles.mapLibreControls} aria-label="Kartensteuerung">
+      <div className={styles.mapLibreControls} data-compact={compact||undefined} aria-label="Kartensteuerung">
         <button type="button" aria-label="Hineinzoomen" title="Hineinzoomen" onClick={() => changeZoom(1)}><Plus size={17} /></button>
         <button type="button" aria-label="Herauszoomen" title="Herauszoomen" onClick={() => changeZoom(-1)}><Minus size={17} /></button>
         <button type="button" aria-label="Zur Chronikregion" title="Zur Chronikregion" onClick={returnToRegion}><Compass size={17} /></button>
-        <button type="button" aria-label="Bekannten Ort fokussieren" title="Bekannten Ort fokussieren" onClick={focusSelected} disabled={!visibleIds.includes(selectedId)}><LocateFixed size={17} /></button>
+        {!compact&&<button type="button" aria-label="Bekannten Ort fokussieren" title="Bekannten Ort fokussieren" onClick={focusSelected} disabled={!visibleIds.includes(selectedId)}><LocateFixed size={17} /></button>}
       </div>
     </>
   );

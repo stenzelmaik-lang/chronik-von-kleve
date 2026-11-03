@@ -1,7 +1,8 @@
 "use client";
 
 import {Children, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
-import {ArrowLeft, ArrowRight, EyeOff, Grip, Maximize2, Minimize2, StretchHorizontal} from 'lucide-react';
+import {createPortal} from 'react-dom';
+import {LayoutGrid, RotateCcw, ArrowLeft, ArrowRight, EyeOff, Grip, Maximize2, Minimize2, StretchHorizontal} from 'lucide-react';
 import styles from './regie-window.module.css';
 
 type TileProps = {title:string; children:ReactNode; area?:string; open?:boolean};
@@ -65,7 +66,7 @@ function Tile({id,title,children,open=true,hidden,wide,move,canMove,toggleWidth,
  </dialog>;
 }
 
-export function RegieTiles({children,state}:{children:ReactNode;state:ReturnType<typeof useRegieLayout>}){
+export function RegieTiles({children,state,toolbar}:{children:ReactNode;state:ReturnType<typeof useRegieLayout>;toolbar:HTMLDivElement|null}){
  const drag=useRef<string|null>(null);
  const elements=Children.toArray(children);
  const blocks=elements.filter(isValidElement<TileProps>).filter(item=>item.type===Block);
@@ -80,10 +81,13 @@ export function RegieTiles({children,state}:{children:ReactNode;state:ReturnType
   state.change(layout=>({...layout,order:next}));
  }
  return <>
-  <div className={styles.layoutTools} aria-label="Regie-Layout">
-   {hidden.length>0&&<details><summary>Ausgeblendete Kacheln ({hidden.length})</summary>{hidden.map(id=><button key={id} type="button" onClick={()=>state.reveal(id)}>{byId.get(id)!.title} einblenden</button>)}</details>}
-   <button type="button" onClick={()=>state.change(()=>initial)}>Layout zurücksetzen</button>
-  </div>
+  {toolbar&&createPortal(<details className={styles.headerMenu}>
+   <summary><LayoutGrid size={15}/> Layout{hidden.length>0&&' ('+hidden.length+')'}</summary>
+   <div className={styles.menuBody}>
+    {hidden.map(id=><button key={id} type="button" onClick={()=>state.reveal(id)}>{byId.get(id)!.title} einblenden</button>)}
+    <button type="button" onClick={()=>state.change(()=>initial)}><RotateCcw size={15}/> Layout zurücksetzen</button>
+   </div>
+  </details>,toolbar)}
   {elements.filter(element=>!isValidElement(element)||element.type!==Block)}
   {ids.map(id=>{
    const index=visible.indexOf(id);

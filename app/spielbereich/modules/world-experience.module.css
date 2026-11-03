@@ -166,7 +166,15 @@
 .mapLibreControls button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid rgba(205,166,107,.42); color: #eee4d2; background: rgba(12,18,20,.93); cursor: pointer; }
 .mapLibreControls button:hover:not(:disabled) { border-color: #e0c17f; color: #f1d89f; background: #1a2325; }
 .mapLibreControls button:focus-visible { outline: 2px solid #f3dcae; outline-offset: 2px; }
+.mapLibreControls[data-compact]{top:8px;right:8px;display:flex}
+.mapLibreControls[data-compact] button{width:36px;height:36px;border-color:#8c704d;border-radius:4px;color:#f0dab5;background:#261c18}
+.mapLibreControls[data-compact] button:hover{color:#ffe6be;background:#493521}
+.mapLibreControls[data-compact] button:focus-visible{outline-color:#e7c99a}
 .mapLibreControls button:disabled { opacity: .45; cursor: not-allowed; }
+.atlasMarker{display:grid;place-items:center;width:30px;height:32px;padding:0;border:0;border-radius:5px;background:transparent;color:#ff676a;cursor:pointer}
+.atlasMarker svg{width:16px;height:21px;pointer-events:none;filter:drop-shadow(0 0 2px #130b0c) drop-shadow(0 1px 1px #130b0c)}
+.atlasMarker[data-active="true"]{color:#ffb0a5;z-index:1}
+.atlasMarker:focus-visible{outline:2px solid #f3dcae;outline-offset:1px}
 .mapLibreMarker { position: relative; display: grid; place-items: center; width: 58px; height: 58px; padding: 0; border: 0; border-radius: 50%; color: inherit; background: transparent; cursor: pointer; }
 .mapLibreMarker::before { position: absolute; inset: 5px; border: 1px solid rgba(226,197,133,.55); border-radius: 50%; background: rgba(205,166,107,.13); box-shadow: 0 3px 16px rgba(0,0,0,.4); content: ""; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
 .mapLibreMarker span { position: relative; width: 19px; height: 19px; border: 2px solid #f0d38f; border-radius: 50%; background: #151b1c; box-shadow: 0 0 0 4px rgba(10,15,16,.82), 0 0 18px rgba(228,193,113,.34); }

@@ -1,10 +1,21 @@
 import { z } from "zod";
 
+export const profileBanners = ["neon", "fog", "candle"] as const;
+export const profilePlayStyles = ["Ermittlungen", "Intrigen", "Charakterdrama", "Horror", "Taktik", "Improvisation"] as const;
+
 export const profileInput = z.object({
   version: z.number().int().min(1),
   displayName: z.string().trim().min(1).max(80),
   avatarFileId: z.string().min(1).max(100).nullable(),
-  preferences: z.object({ reducedMotion: z.boolean(), compactView: z.boolean() }).strict(),
+  preferences: z.object({
+    reducedMotion: z.boolean(),
+    compactView: z.boolean(),
+    realName: z.string().trim().max(100).optional(),
+    introduction: z.string().trim().max(600).optional(),
+    pronouns: z.string().trim().max(40).optional(),
+    banner: z.enum(profileBanners).optional(),
+    playStyles: z.array(z.enum(profilePlayStyles)).max(5).refine(values=>new Set(values).size===values.length).optional(),
+  }).strict(),
 }).strict();
 export const passwordInput = z.object({
   version: z.number().int().min(1), currentPassword: z.string().min(1).max(200),
