@@ -51,7 +51,8 @@ export function VisionPlayer({delivery,assetUrl,onSeen,onDone,preview=false,with
  const doneRef=useRef(onDone),seenRef=useRef(onSeen);
  useEffect(()=>{doneRef.current=onDone;seenRef.current=onSeen;});
  useEffect(()=>{if(!host)return;document.body.appendChild(host);return()=>{host.remove();};},[host]);
- useIsolate(host,phase!=='exit',!reduced&&!preview);
+ // the preview pulls the page in exactly like the real vision; only reduced effects switch the pull off
+ useIsolate(host,phase!=='exit',!reduced);
   useEffect(()=>{if(!seenSent.current&&!preview){seenSent.current=true;seenRef.current?.();}},[preview]);
  useEffect(()=>{root.current?.focus({preventScroll:true});},[host]);
  // enter -> play

@@ -44,10 +44,10 @@ export function previewDelivery(w:SceneWhisper):PlayerDelivery{
 }
 
 /** GM preview of a prepared vision or message. Only local rendering with the GM's own file access; no delivery, no receipt. */
-export function DeliveryPreview({whisper,onClose}:{whisper:SceneWhisper;onClose:()=>void}){
+export function DeliveryPreview({whisper,onClose,recipientName}:{whisper:SceneWhisper;onClose:()=>void;recipientName?:string}){
  const [delivery]=useState(()=>previewDelivery(whisper));
  const url=useCallback((fileId:string)=>'/api/files?id='+encodeURIComponent(fileId),[]);
  return delivery.kind==='vision'
   ?<VisionPlayer delivery={delivery} assetUrl={url} onDone={onClose} preview/>
-  :<MessagePlayer delivery={delivery} assetUrl={url} recipientName="Empfänger (Vorschau)" onDone={onClose} preview/>;
+  :<MessagePlayer delivery={delivery} assetUrl={url} recipientName={recipientName||'Empfänger (Vorschau)'} onDone={onClose} preview/>;
 }

@@ -31,6 +31,7 @@ import {StageEffects,BackgroundMusic} from './atmosphere';
 import {AmbiencePlayer} from './ambience-player';
 import {UltioPager,PagerMirror} from './ultio-pager';
 import {openRegieWindow} from './regie-window-link';
+import {TablePreview} from './delivery-preview-channel';
 import {VitalsHud,VitalsPanel,quickActions} from './vitals';
 import {Polaroid,CassettePlayer,RetroScreen,StageBackdrop} from './media-objects';
 import {MaterialToken,stagePresented} from '../material/stage-material';
@@ -201,7 +202,8 @@ function SessionStage({a,sessionId,runId,onExit,onEnd}:StageProps){
    {/* The scene backdrop is the only full-stage image. Released photos stay table objects or personal views. */}
    <div className={styles.background} data-layer="background"/><div className={styles.scene} data-layer="scene"><StageBackdrop className={mediaStyles.backdropLayer} image={backdropImage}/><div className={styles.scrim}/><StageEffects effects={snapshot?.effects||[]}/></div>
    {/* Only released narration lives on the shared stage. Private reading happens in the Regie drawer. */}
-   {!a.gm&&snapshot&&<DeliveryStage key={a.id+':'+runId} deliveries={snapshot.deliveries||[]} sessionId={sessionId} recipientName={snapshot.crew.find(m=>m.id===a.id)?.name||a.name}/>}
+   {a.gm&&<TablePreview sessionId={sessionId}/>}
+   {!a.gm&&snapshot&&<DeliveryStage key={'deliveries:'+a.id+':'+runId} deliveries={snapshot.deliveries||[]} sessionId={sessionId} recipientName={snapshot.crew.find(m=>m.id===a.id)?.name||a.name}/>}
    <PersonalDeliveryReader autoOpen={!a.gm} key={a.id+':'+runId} objects={snapshot?.objects||[]} viewer={a.id+':'+runId} activeId={personalId} onSelect={setPersonalId} asset={asset}/>
    {snapshot?.sceneInfo&&snapshot.sceneEventId&&<StageNarration gm={a.gm} actorId={a.id} runId={runId} eventId={snapshot.sceneEventId} title={snapshot.sceneInfo.title} narration={snapshot.sceneInfo.narration||''} busy={busy} onHide={()=>void command({action:'hideScene',eventId:snapshot.sceneEventId})} onReading={setReading}/>}
    {!snapshot?.sceneInfo&&!snapshot?.media&&!snapshot?.backdrop&&!snapshot?.objects.length&&<div className={styles.idle} aria-hidden="true"><small>{snapshot?.title||'Spielabend'}</small><p>{a.gm?'Die Bühne ist leer. Öffne links „Szenen des Abends“ und starte die Regie.':'Die Spielleitung bereitet die nächste Szene vor …'}</p></div>}

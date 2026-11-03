@@ -75,16 +75,16 @@ try{
  // Alpha 2.0: the Regie triggers prepared items through the delivery desk; players get the fullscreen vision or the fax.
  const releases=gm.getByRole('region',{name:'Visionen und persönliche Botschaften'});await releases.waitFor({timeout:30000});
  await b.keyboard.press('Escape');await a.keyboard.press('Escape');
- const preparedVision=releases.locator('article').filter({has:gm.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true})});
- await preparedVision.getByRole('button',{name:'Vision auslösen',exact:true}).click();
+ const preparedVision=releases.getByRole('group',{name:'Vorbereitet in dieser Szene'}).locator('article').filter({has:gm.getByRole('heading',{name:'Zweite Vision für Spieler B',exact:true})});
+ await preparedVision.getByRole('button',{name:'Aufklappen: Zweite Vision für Spieler B'}).click();await preparedVision.getByRole('button',{name:'Vision auslösen',exact:true}).click();
  const visionB=b.getByRole('dialog',{name:'Eine Vision'});await visionB.waitFor({timeout:15000});
  await b.getByRole('button',{name:'Text vollständig anzeigen'}).click();
  const longBody=visionB.locator('p').filter({hasText:'Eine weitere unabhängig vorbereitete Vision.'}).first().locator('xpath=..');
  assert.ok(await longBody.evaluate(el=>el.scrollHeight>el.clientHeight),'long visions remain scrollable');await longBody.evaluate(el=>{el.scrollTop=el.scrollHeight;});assert.ok(await longBody.evaluate(el=>el.scrollTop>0));
  assert.equal(await a.getByText('Eine weitere unabhängig vorbereitete Vision.').count(),0);
  await b.getByRole('button',{name:'Ich habe alles gesehen'}).click();await visionB.waitFor({state:'detached',timeout:8000});
- const preparedLetter=releases.locator('article').filter({has:gm.getByRole('heading',{name:'Zweiter Brief für Spieler A',exact:true})});
- await preparedLetter.getByRole('button',{name:'Botschaft zustellen',exact:true}).click();
+ const preparedLetter=releases.getByRole('group',{name:'Vorbereitet in dieser Szene'}).locator('article').filter({has:gm.getByRole('heading',{name:'Zweiter Brief für Spieler A',exact:true})});
+ await preparedLetter.getByRole('button',{name:'Aufklappen: Zweiter Brief für Spieler A'}).click();await preparedLetter.getByRole('button',{name:'Botschaft zustellen',exact:true}).click();
  const letterA=a.getByRole('dialog',{name:'Persönliche Botschaft'});await letterA.waitFor({timeout:15000});await letterA.getByText('Ein zweiter persönlicher Brief.',{exact:true}).waitFor();
  await gm.screenshot({path:out+'/regie-release.png',fullPage:true});
  await letterA.getByRole('button',{name:/^Gelesen/}).click();await letterA.waitFor({state:'detached',timeout:8000});

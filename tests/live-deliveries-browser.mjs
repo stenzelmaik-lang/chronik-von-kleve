@@ -54,27 +54,32 @@ try{
  const gm=await gmc.newPage();gm.on('pageerror',e=>errors.push('GM: '+e.message));
  await gm.goto(base+'/sl/regie?sessionId='+encodeURIComponent(sessionId));
  const desk=gm.getByRole('region',{name:'Visionen und persönliche Botschaften'});await desk.waitFor({timeout:30000});
- const item=title=>desk.locator('article').filter({has:gm.getByRole('heading',{name:title,exact:true})});
+ const item=title=>desk.getByRole('group',{name:'Vorbereitet in dieser Szene'}).locator('article').filter({has:gm.getByRole('heading',{name:title,exact:true})});
+ const looseItem=title=>desk.getByRole('group',{name:'Spontan ausgespielt'}).locator('article').filter({has:gm.getByRole('heading',{name:title,exact:true})});
+ // rows are folded to one line; details open on demand
+ const expand=async title=>{const t=item(title).getByRole('button',{name:'Aufklappen: '+title});if(await t.count())await t.click();return item(title);};
+ const folded=async title=>(await item(title).getByRole('button',{name:'Aufklappen: '+title}).count())===1;
  const table=async(c,name)=>{const p=await c.newPage();p.on('pageerror',e=>errors.push(name+': '+e.message));await p.goto(base+'/spielbereich?bereich=sitzung');await p.locator('[data-layer="stage_objects"]').waitFor({timeout:30000});return p;};
  const a=await table(ac,'A'),b=await table(bc,'B');
  const visionOn=p=>p.getByRole('dialog',{name:'Eine Vision'});
  const finish=async p=>{await p.getByRole('button',{name:'Text vollständig anzeigen'}).click();await p.getByRole('button',{name:'Ich habe alles gesehen'}).click();await visionOn(p).waitFor({state:'detached',timeout:8000});};
 
  step='GM preview never delivers';
- await item('Klassisch').getByRole('button',{name:'Vorschau'}).click();
+ assert.ok(await folded('Klassisch')&&await folded('Fax intern'),'entries start folded');ok('entries start folded to one line');
+ await (await expand('Klassisch')).getByRole('button',{name:'Vorschau'}).click();
  const preview=gm.getByRole('dialog',{name:'Vorschau einer Vision'});await preview.waitFor();await gm.getByText('Vorschau · nichts wird zugestellt').waitFor();
  await gm.waitForTimeout(3600);await gm.screenshot({path:out+'/preset-classic.png'});
  await gm.getByRole('button',{name:'Text vollständig anzeigen'}).click();await gm.getByRole('button',{name:'Ich habe alles gesehen'}).click();await preview.waitFor({state:'detached',timeout:8000});
  assert.equal(await runsCount(),before,'preview created no delivery');assert.equal(await visionOn(a).count(),0);ok('GM preview runs locally and delivers nothing');
 
  step='single player vision';
- await item('Dunkel').getByRole('button',{name:'Vision auslösen'}).click();
+ await (await expand('Dunkel')).getByRole('button',{name:'Vision auslösen'}).click();
  await visionOn(a).waitFor({timeout:12000});assert.equal(await visionOn(a).getAttribute('data-preset'),'dark');
  const weiter=a.getByRole('button',{name:'Weiter ›'});await weiter.waitFor({timeout:8000});assert.equal(await weiter.getAttribute('data-hint'),'true');ok('"Weiter" glows on the first text so fast readers know they may skip ahead');
  await b.waitForTimeout(2500);assert.equal(await visionOn(b).count(),0,'B stays on the normal table');ok('only player A is pulled into the dark vision; B keeps playing');
  await a.waitForTimeout(4200);await a.screenshot({path:out+'/preset-dark-player.png'});
  assert.equal(await a.locator('[data-layer="stage_objects"]').evaluate(el=>!!el.closest('[inert]')),true,'table is inert during the vision');ok('the table below is inert while the vision runs');
- await item('Dunkel').getByText(/sieht es gerade/).waitFor({timeout:12000});ok('GM sees "sieht es gerade"');
+ await item('Dunkel').getByText(/sieht es gerade/).waitFor({timeout:12000});assert.ok(await folded('Dunkel'),'folds after triggering');ok('the row folds after triggering and still shows "sieht es gerade"');
  assert.equal(await a.getByRole('button',{name:'Ich habe alles gesehen'}).count(),0,'no confirmation before the content was shown');
  for(let i=0;i<4&&!(await a.getByRole('button',{name:'Ich habe alles gesehen'}).count());i++){await a.waitForTimeout(1400);if(await a.getByRole('button',{name:'Weiter'}).count())await a.getByRole('button',{name:'Weiter'}).click();}
  await a.getByRole('button',{name:'Ich habe alles gesehen'}).waitFor({timeout:20000});await a.getByRole('button',{name:'Ich habe alles gesehen'}).click();
@@ -83,7 +88,7 @@ try{
  await item('Dunkel').getByText(/bestätigt/).waitFor({timeout:12000});ok('GM sees "bestätigt"');
 
  step='whole group, reload during the vision';
- const threat=item('Bedrohung');await threat.getByRole('radio',{name:/Ganze Gruppe/}).check();await threat.getByRole('button',{name:'Vision auslösen'}).click();
+ const threat=await expand('Bedrohung');await threat.getByRole('radio',{name:/Ganze Gruppe/}).check();await threat.getByRole('button',{name:'Vision auslösen'}).click();
  await visionOn(a).waitFor({timeout:12000});await visionOn(b).waitFor({timeout:12000});ok('the whole group receives the threatening vision');
  await a.waitForTimeout(5200);await a.screenshot({path:out+'/preset-threat-player.png'});await b.screenshot({path:out+'/preset-threat-mobile.png'});
  assert.ok(await a.locator('svg path').count()>=5,'shadow tentacles are drawn');
@@ -93,7 +98,7 @@ try{
  await finish(a);assert.equal(await visionOn(b).count(),1,'B still sees it');await finish(b);ok('group members confirm independently');
 
  step='two players, two different deliveries';
- await item('Traum').getByRole('button',{name:'Vision auslösen'}).click();await item('Fax intern').getByRole('button',{name:'Botschaft zustellen'}).click();
+ await (await expand('Traum')).getByRole('button',{name:'Vision auslösen'}).click();await (await expand('Fax intern')).getByRole('button',{name:'Botschaft zustellen'}).click();
  await visionOn(a).waitFor({timeout:12000});assert.equal(await visionOn(a).getAttribute('data-preset'),'dream');
  const faxView=b.getByRole('dialog',{name:'Persönliche Botschaft'});await faxView.waitFor({timeout:12000});await b.getByText('Kanzlei Vogt').waitFor();await b.getByText(/Treffen um Mitternacht/).waitFor();
  assert.equal(await faxView.getAttribute('data-sound'),'fax');await b.waitForFunction(()=>['played','blocked'].includes(document.querySelector('[data-sound]')?.getAttribute('data-sound-state')),null,{timeout:5000});ok('the fax arrives with its fax sound ('+await faxView.getAttribute('data-sound-state')+')');
@@ -104,10 +109,61 @@ try{
 
  step='remaining looks in the GM preview';
  for(const [title,file] of [['Offenbarung','preset-drama.png'],['Echo','preset-echo.png']]){
-  await item(title).getByRole('button',{name:'Vorschau'}).click();const p=gm.getByRole('dialog',{name:'Vorschau einer Vision'});await p.waitFor();await gm.waitForTimeout(3600);await gm.screenshot({path:out+'/'+file});
+  await (await expand(title)).getByRole('button',{name:'Vorschau'}).click();const p=gm.getByRole('dialog',{name:'Vorschau einer Vision'});await p.waitFor();await gm.waitForTimeout(3600);await gm.screenshot({path:out+'/'+file});
   await gm.getByRole('button',{name:'Text vollständig anzeigen'}).click();await gm.getByRole('button',{name:'Ich habe alles gesehen'}).click();await p.waitFor({state:'detached',timeout:8000});
  }
  ok('six vision looks captured for comparison');
- assert.deepEqual(errors,[],'no page errors');ok('no page errors in GM, A or B');
+
+ step='folded rows open again with their receipts';
+ const dark=await expand('Dunkel');await dark.getByText(/: bestätigt/).first().waitFor();await dark.getByRole('button',{name:'Bearbeiten'}).waitFor();
+ await dark.getByRole('button',{name:'Einklappen: Dunkel'}).click();assert.ok(await folded('Dunkel'));ok('a delivered row opens again with receipts, resend and edit, and folds back');
+
+ step='spontaneous fax to one player';
+ let count=await runsCount();
+ await desk.getByRole('button',{name:'Neue Botschaft'}).click();
+ const composer=desk.getByRole('region',{name:'Neue Botschaft'});await composer.waitFor();
+ await composer.getByLabel('Titel (nur für dich)').fill('Hafen-Fax');await composer.getByLabel('Absender').fill('Hafenmeister');
+ await composer.getByLabel('Text der Botschaft').fill('SPONTAN: Das Schiff legt um drei Uhr ab.');
+ await composer.getByRole('radio',{name:'Auswahl'}).check();await composer.getByRole('checkbox',{name:/B$/}).check();
+ await gm.screenshot({path:out+'/regie-spontan.png'});
+ await composer.getByRole('button',{name:'Jetzt zustellen'}).dblclick();
+ const spontanFax=b.getByRole('dialog',{name:'Persönliche Botschaft'});await spontanFax.waitFor({timeout:12000});await b.getByText('SPONTAN: Das Schiff legt um drei Uhr ab.').waitFor();await b.getByText('Hafenmeister').waitFor();
+ await a.waitForTimeout(2500);assert.equal(await a.getByText(/Das Schiff legt/).count(),0,'A gets nothing');
+ assert.equal(await runsCount(),count+1,'one delivery despite the double click');
+ await looseItem('Hafen-Fax').getByText(/nicht gespeichert/).waitFor();
+ await b.getByRole('button',{name:'Gelesen · ablegen'}).click();await spontanFax.waitFor({state:'detached',timeout:6000});
+ ok('a spontaneous fax from the Regie reaches only player B, once, and is listed as not saved');
+
+ step='spontaneous vision for the whole group, kept in the scene';
+ count=await runsCount();
+ await desk.getByRole('button',{name:'Neue Vision'}).click();
+ const visionComposer=desk.getByRole('region',{name:'Neue Vision'});await visionComposer.waitFor();
+ await visionComposer.getByLabel('Titel (nur für dich)').fill('Spontaner Schatten');await visionComposer.getByLabel('Visionstyp').selectOption('threat');
+ await visionComposer.getByLabel('Text der Vision').fill('Ein Schatten löst sich von der Wand.\n\nEr kommt näher.');
+ await visionComposer.getByRole('checkbox',{name:/In dieser Szene speichern/}).check();
+ await visionComposer.getByRole('button',{name:'Jetzt ausspielen'}).click();
+ await visionOn(a).waitFor({timeout:12000});await visionOn(b).waitFor({timeout:12000});assert.equal(await visionOn(a).getAttribute('data-preset'),'threat');
+ await finish(a);await finish(b);
+ assert.equal(await runsCount(),count+1);await item('Spontaner Schatten').waitFor();assert.ok(await folded('Spontaner Schatten'));
+ ok('a spontaneous vision reaches the whole group and stays in the scene as a folded entry');
+
+ step='preview on the GM table';
+ count=await runsCount();
+ const gmTable=await table(gmc,'GM-Tisch');
+ await (await expand('Echo')).getByRole('button',{name:'Vorschau'}).click();
+ const tablePreview=gmTable.getByRole('dialog',{name:'Vorschau einer Vision'});await tablePreview.waitFor({timeout:8000});
+ assert.equal(await gm.getByRole('dialog',{name:'Vorschau einer Vision'}).count(),0,'not in the Regie');await gm.getByText(/Vorschau läuft auf deinem Spieltisch/).waitFor();
+ await gmTable.waitForTimeout(3600);await gmTable.screenshot({path:out+'/preview-on-gm-table.png'});
+ assert.equal(await visionOn(a).count()+await visionOn(b).count(),0,'players see nothing');
+ await gmTable.getByRole('button',{name:'Text vollständig anzeigen'}).click();await gmTable.getByRole('button',{name:'Ich habe alles gesehen'}).click();await tablePreview.waitFor({state:'detached',timeout:8000});
+ await item('Echo').getByRole('button',{name:'Vorschau'}).click();await tablePreview.waitFor({timeout:8000});await gmTable.getByRole('button',{name:'Text vollständig anzeigen'}).click();await gmTable.getByRole('button',{name:'Ich habe alles gesehen'}).click();await tablePreview.waitFor({state:'detached',timeout:8000});
+ await desk.getByRole('button',{name:'Neue Botschaft'}).click();const draft=desk.getByRole('region',{name:'Neue Botschaft'});await draft.getByLabel('Text der Botschaft').fill('Nur zur Probe');
+ await draft.getByRole('button',{name:'Vorschau auf meinem Tisch'}).click();
+ const tableFax=gmTable.getByRole('dialog',{name:'Vorschau einer persönlichen Botschaft'});await tableFax.waitFor({timeout:8000});await gmTable.getByText('Nur zur Probe').waitFor();
+ await b.waitForTimeout(1500);assert.equal(await b.getByText('Nur zur Probe').count(),0,'B sees nothing of the preview');
+ await tableFax.getByRole('button',{name:/^Gelesen/}).click();await tableFax.waitFor({state:'detached',timeout:6000});await draft.getByRole('button',{name:'Abbrechen'}).click();
+ assert.equal(await runsCount(),count,'previews create no delivery and no receipt');
+ ok('previews from the Regie play on the GM table only, can be repeated and deliver nothing');
+ assert.deepEqual(errors,[],'no page errors');ok('no page errors in GM, GM table, A or B');
  console.log('PASS live deliveries browser');
 }catch(error){console.error('FAIL at '+step,error);process.exitCode=1;}finally{await browser.close();}

@@ -2,7 +2,7 @@
 
 - **Branch:** `claude/visionen-nextgen`
 - **Basis:** `origin/main` `70f4059`. Diese Basis enthält Codex-PR #72 (`codex/live-regie-layout`). Den hat Claude bisher nicht veröffentlicht; ein Deployment dieses Branches bringt ihn mit.
-- **Stand:** Live seit 03.11.2026 (siehe Abschnitt 9). Die Nachbesserung aus Abschnitt 9 ist lokal geprüft und noch nicht live.
+- **Stand:** Live seit 03.11.2026 mit Galerien, Tönen und Tempo (`2b62ddf`, siehe Abschnitt 9). Die Live-Regie-Nachbesserung aus Abschnitt 10 ist lokal geprüft und noch nicht live.
 - **Datum:** 03.11.2026
 
 ## 1. Bestand vorher
@@ -264,7 +264,59 @@ Dabei hat er einen **echten Fehler dieser Arbeit** gefunden: Die unsichtbaren Ra
 | Story-Editor-Browserprüfungen | bestanden |
 | Typprüfung, Lint | sauber |
 
-## 10. Ausdrücklich nicht getan
+## 10. Nachbesserung Live-Regie (Branch `claude/regie-spontan`)
+
+### Eingebaut, in die bestehende Architektur und ohne Parallelmodul
+
+**1. Spontan erstellen**
+- Im Regie-Pult stehen „Neue Vision“ und „Neue Botschaft“. Sie öffnen einen kompakten Editor mit:
+  - Titel (intern) und Empfängern (ganze Gruppe oder Auswahl);
+  - Visionstyp und Tempo bzw. Fax/Brief, Absender und Geräusch;
+  - Text sowie Bildern und Tönen aus den eigenen Galerien.
+- Knöpfe: „Vorschau auf meinem Tisch“, „Jetzt ausspielen/zustellen“, optional „In dieser Szene speichern“ und „Nur speichern“.
+- Server:
+  - Neuer Befehl `compose` im bestehenden `/api/live-deliveries`: dieselbe Prüfung (`sceneWhisperSchema`), dieselbe Lauf-Erzeugung und dieselben Quittungen wie bei vorbereiteten Inhalten.
+  - `save` legt den Eintrag vorher in der Szene ab, per ID ersetzt, damit nie doppelt.
+  - Wiederholte Anfragen mit derselben `requestId` stellen nichts doppelt zu.
+  - Neuer Befehl `save-entry`: Bearbeiten und Speichern aus der Regie. Er liest die Szene frisch und ersetzt nur diesen Eintrag. Die Antwort enthält die neue Szenenversion, mit der das Pult weiterarbeitet.
+- Nicht gespeicherte spontane Inhalte erscheinen unter „Spontan ausgespielt“, nur für die aktuelle Szene. Von dort lassen sie sich erneut senden oder nachträglich speichern.
+
+**2. Einklappen**
+- Jeder Eintrag ist eine Zeile mit Titel, Typ und Zustellstatus, z. B. „12:41 · sieht es gerade 1 · bestätigt 1“.
+- Aufgeklappt gibt es Empfängerwahl, Vorschau, Auslösen, „Bearbeiten“ (der Kompakt-Editor direkt im Eintrag) und die letzten Zustellungen mit „erneut“ und „Zurückziehen“.
+- Nach dem Auslösen klappt der Eintrag automatisch zu.
+
+**3. Vorschau auf dem SL-Tisch**
+- Die Regie übergibt den Inhalt per `BroadcastChannel` des eigenen Browsers an den offenen Spieltisch der SL (`TablePreview`, nur bei `a.gm`).
+- Der Tisch spielt ihn mit exakt der Spielerdarstellung ab, inklusive Hineinziehen, Animation und Ton, über dem unveränderten Tischzustand.
+- Kein Serveraufruf, also keine Zustellung, keine Quittung und kein Spielereignis. Beliebig oft wiederholbar.
+- Ist kein Tisch offen, läuft die Vorschau wie bisher in der Regie, mit Hinweis.
+
+**Nebenbei behobener Fehler aus der ersten Lieferung:** `DeliveryStage` und `PersonalDeliveryReader` hatten im Tisch denselben React-Key. Das ging zufällig gut, führte aber nach einer kleinen Umstellung dazu, dass sich Visionsfenster bei jeder Abfrage verdoppelten. Jetzt hat `DeliveryStage` einen eigenen Key, und es entsteht nachweislich nur ein Fenster.
+
+### Prüfungen
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Unit-Tests | 359/359 |
+| Integration Visionen | 47/47. Neu: spontanes Fax nur an B (Doppelklick, ohne Szenenänderung), spontane Vision an die Gruppe mit Speichern (genau ein Eintrag, genau eine Zustellung), Bearbeiten aus der Regie samt neuer Version, Spieler-Sperre, ungültige Inhalte |
+| Browser (SL-Regie, SL-Tisch, Spieler A und B) | 24 Schritte bestanden (Details unten) |
+| Alte Visions- und Brief-Prüfungen | bestanden |
+| Volle Integration | 2046 + 46 |
+| Story-Editor-Browserprüfungen | bestanden |
+| Typprüfung, Lint | sauber |
+
+Abgedeckt in der Browserprüfung:
+- Einträge starten eingeklappt und klappen nach dem Auslösen zu.
+- Wieder aufgeklappt zeigen sie Quittungen und „Bearbeiten“.
+- Ein spontanes Fax geht nur an B, auch beim Doppelklick genau einmal.
+- Eine spontane Vision geht an die ganze Gruppe und bleibt gespeichert.
+- Die Vorschau erscheint nur auf dem SL-Tisch, ist wiederholbar, A und B sehen nichts, und es entsteht keine Zustellung.
+- Keine Seitenfehler.
+
+**Prüfgrenze:** Die Tisch-Vorschau braucht Regie und Spieltisch im selben Browser, was der übliche Aufbau mit dem zweiten Fenster ist. Auf einem anderen Gerät läuft sie stattdessen in der Regie.
+
+## 11. Ausdrücklich nicht getan
 
 - Kein Deployment, keine Migration, keine Schreibzugriffe auf Produktion (D1/R2).
 - Keine Änderung an bestehenden Kampagnendaten oder Rechten.

@@ -1,6 +1,7 @@
 import {database,gmOnly,HttpError,type Actor} from './access';
 import {readLiveRoom,liveMembers,roomCrew,isGmMembership} from './live-game';
-import {readScene} from './story-scenes';
+import {readScene,executeScene} from './story-scenes';
+import {sceneCommandSchema,type SceneWhisper} from '@/domain/story-scene';
 import {validatePreparationMedia} from './preparation-media';
 import {readSetting,mutateSetting} from './settings-store';
 import {richTextFileIds,richTextToPlainText} from '@/domain/location-rich-text';
@@ -35,17 +36,43 @@ export async function deliveriesForViewer(a:Actor,sessionId:string){
 
 export type DeliveryCommand=
  |{action:'deliver';sessionId:string;requestId:string;sceneId:string;whisperId:string;sceneVersion?:number;recipients:RecipientChoice}
+ /** spontaneous entry from the Regie: delivered right away, optionally kept in the scene for later */
+ |{action:'compose';sessionId:string;requestId:string;sceneId:string;entry:SceneWhisper;recipients:RecipientChoice;save:boolean}
+ /** create or edit an entry of the scene from the Regie, without delivering it */
+ |{action:'save-entry';sessionId:string;sceneId:string;entry:SceneWhisper}
  |{action:'withdraw';sessionId:string;runId:string}
  |{action:'seen'|'ack';sessionId:string;runId:string};
 
+/** Replace the entry with the same id or append it; the rest of the scene stays as it is now on the server. */
+async function saveEntry(a:Actor,sceneId:string,entry:SceneWhisper){
+ const db=database(),scene=await readScene(db,a,sceneId);
+ const list=scene.document.whispers;
+ const whispers=list.some(w=>w.id===entry.id)?list.map(w=>w.id===entry.id?entry:w):[...list,entry];
+ const command=sceneCommandSchema.safeParse({action:'save',id:scene.id,version:scene.version,document:{...scene.document,whispers}});
+ if(!command.success)throw new HttpError(400,list.length>=100?'Diese Szene hat bereits 100 vorbereitete Inhalte.':'Dieser Inhalt kann so nicht gespeichert werden.');
+ return executeScene(db,a,command.data);
+}
+const sceneView=(s:{id:string;version:number;document:{whispers:SceneWhisper[]}})=>({id:s.id,version:s.version,whispers:s.document.whispers});
+
 export async function changeDeliveries(a:Actor,c:DeliveryCommand){
  const k=key(a.campaignId,c.sessionId);
- if(c.action==='deliver'){
+ if(c.action==='save-entry'){
+  gmOnly(a);await readLiveRoom(a,c.sessionId);
+  return {scene:sceneView(await saveEntry(a,c.sceneId,c.entry))};
+ }
+ if(c.action==='deliver'||c.action==='compose'){
   gmOnly(a);
   const eligible=await players(a,c.sessionId);
-  const scene=await readScene(database(),a,c.sceneId);
-  if(c.sceneVersion!==undefined&&c.sceneVersion!==scene.version)throw new HttpError(409,'Die Vorbereitung wurde inzwischen geändert. Lade die Regie neu.');
-  const w=scene.document.whispers.find(x=>x.id===c.whisperId);
+  let scene=await readScene(database(),a,c.sceneId),saved=false;
+  let w:SceneWhisper|undefined;
+  if(c.action==='compose'){
+   // saved first: a retry with the same request id replaces the same entry and never delivers twice
+   if(c.save){scene=await saveEntry(a,c.sceneId,c.entry);saved=true;}
+   w=c.entry;
+  }else{
+   if(c.sceneVersion!==undefined&&c.sceneVersion!==scene.version)throw new HttpError(409,'Die Vorbereitung wurde inzwischen geändert. Lade die Regie neu.');
+   w=scene.document.whispers.find(x=>x.id===c.whisperId);
+  }
   if(!w)throw new HttpError(404,'Vorbereiteter Inhalt nicht gefunden.');
   let recipients:string[];
   try{recipients=resolveRecipients(c.recipients,w.recipientIds,eligible);}catch(e){throw new HttpError(400,(e as Error).message);}
@@ -63,7 +90,7 @@ export async function changeDeliveries(a:Actor,c:DeliveryCommand){
    if(s.runs.length>=MAX_RUNS)throw new HttpError(409,`Höchstens ${MAX_RUNS} Zustellungen je Spielabend.`);
    return {rev:s.rev+1,runs:[...s.runs,run],requests:[...s.requests,c.requestId].slice(-60)};
   });
-  return {runs:state.runs};
+  return {runs:state.runs,...(saved?{scene:sceneView(scene)}:{})};
  }
  if(c.action==='withdraw'){
   gmOnly(a);await readLiveRoom(a,c.sessionId);

@@ -109,6 +109,29 @@ const soundView=(await stage(a)).deliveries.find(d=>d.id===soundRun.id);
 check((await asset(a,picRun.id,visionPic.data.id)).status===200&&soundView?.audio===true&&soundView.arrivalSound===null&&(await asset(a,soundRun.id,messageSound.data.id)).status===200,'section media reach the recipient through the delivery; an own sound replaces the built-in one');
 check([403,404].includes((await asset(b,picRun.id,visionPic.data.id)).status),'other players still cannot open section media');
 
+// Spontaneous from the Regie: delivered right away, kept in the scene only on request, never twice for one request.
+const whisperCount=async()=>(await req('/api/command-center/scenes?id='+sceneId,gm)).data.scene.document.whispers.length;
+const compose=(who,entry,recipients,save=false,requestId=uuid())=>post(who,{action:'compose',requestId,sceneId,entry,recipients,save});
+const countBefore=await whisperCount();
+const quick={id:uuid(),kind:'letter',title:'SPONTAN_INTERN',text:'SPONTAN_FAX_FUER_B',recipientIds:[],fileIds:[],layout:'fax',sender:'Unbekannt'};
+check((await compose(a,quick,{mode:'all'})).status===403&&(await post(a,{action:'save-entry',sceneId,entry:quick})).status===403,'players cannot compose or save entries');
+check((await compose(gm,{...quick,preset:'godlike'},{mode:'all'})).status===400&&(await compose(gm,quick,{mode:'players',playerIds:['no-such-player']})).status===400,'invalid spontaneous content or recipients are refused');
+const once2=uuid(),q1=await compose(gm,quick,{mode:'players',playerIds:['command-b']},false,once2),q2=await compose(gm,quick,{mode:'players',playerIds:['command-b']},false,once2);
+const quickRun=q1.data.runs.at(-1);
+check(q1.status===200&&q2.data.runs.length===q1.data.runs.length&&quickRun.whisperId===quick.id&&!q1.data.scene,'a spontaneous fax goes out once, even on a double click, without touching the scene');
+const quickView=(await stage(b)).deliveries.find(d=>d.id===quickRun.id);
+check(quickView&&quickView.layout==='fax'&&quickView.html.includes('SPONTAN_FAX_FUER_B')&&!JSON.stringify(quickView).includes('SPONTAN_INTERN')&&!JSON.stringify(await stage(a)).includes('SPONTAN_FAX_FUER_B'),'only the chosen player gets it, without the internal title');
+check(await whisperCount()===countBefore,'an unsaved spontaneous entry is not kept in the scene');
+const keep={id:uuid(),kind:'vision',title:'Spontan gespeichert',text:'Absatz eins\n\nAbsatz zwei',recipientIds:[],fileIds:[],preset:'drama',tempo:'brisk'};
+const k1=uuid(),kept=await compose(gm,keep,{mode:'all'},true,k1),keptAgain=await compose(gm,keep,{mode:'all'},true,k1);
+const keptRun=kept.data.runs.at(-1);
+check(kept.status===200&&kept.data.scene?.whispers.some(w=>w.id===keep.id)&&keptAgain.data.runs.length===kept.data.runs.length&&await whisperCount()===countBefore+1,'"save" keeps the entry in the scene exactly once and delivers it once');
+check(keptRun.recipients.includes('command-a')&&keptRun.recipients.includes('command-b')&&(await stage(a)).deliveries.some(d=>d.id===keptRun.id&&d.fragments.length===2&&d.tempo==='brisk'),'the whole group gets the spontaneous vision with its paragraphs and tempo');
+const edited=await post(gm,{action:'save-entry',sceneId,entry:{...keep,title:'Umbenannt in der Regie',preset:'echo'}});
+const after=(await req('/api/command-center/scenes?id='+sceneId,gm)).data.scene;
+check(edited.status===200&&edited.data.scene.version===after.version&&after.document.whispers.filter(w=>w.id===keep.id).length===1&&after.document.whispers.find(w=>w.id===keep.id).preset==='echo'&&await whisperCount()===countBefore+1,'editing in the Regie replaces the entry and returns the new scene version');
+check((await deliver(gm,{...keep},{mode:'all'},uuid(),after.version)).status===200,'the edited entry can be triggered with the version the Regie got back');
+
 // Clean up this run's deliveries so the fixture stays tidy.
 for(const r of (await req('/api/live-deliveries?sessionId='+sessionId,gm)).data.runs)if(!r.withdrawnAt)await post(gm,{action:'withdraw',runId:r.id});
 console.log(checks+' delivery checks passed.');

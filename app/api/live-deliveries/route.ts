@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {actor,sameOrigin,input,json,failure,HttpError} from '@/server/access';
 import {listDeliveries,changeDeliveries,type DeliveryCommand} from '@/server/live-deliveries';
+import {sceneWhisperSchema} from '@/domain/story-scene';
 export const dynamic='force-dynamic';
 // Triggering and withdrawing are GM only; "seen" and "ack" only change the caller's own receipt of a delivery addressed to them.
 const session=z.object({sessionId:z.string().min(1).max(160)});
@@ -11,6 +12,9 @@ const recipients=z.discriminatedUnion('mode',[
 ]);
 const body=z.discriminatedUnion('action',[
  session.extend({action:z.literal('deliver'),requestId:z.string().uuid(),sceneId:z.string().min(1).max(160),whisperId:z.string().uuid(),sceneVersion:z.number().int().positive().optional(),recipients}).strict(),
+ // spontaneous from the Regie: the full entry is checked like a prepared one; `save` keeps it in the scene
+ session.extend({action:z.literal('compose'),requestId:z.string().uuid(),sceneId:z.string().min(1).max(160),entry:sceneWhisperSchema,recipients,save:z.boolean()}).strict(),
+ session.extend({action:z.literal('save-entry'),sceneId:z.string().min(1).max(160),entry:sceneWhisperSchema}).strict(),
  session.extend({action:z.literal('withdraw'),runId:z.string().uuid()}).strict(),
  session.extend({action:z.literal('seen'),runId:z.string().uuid()}).strict(),
  session.extend({action:z.literal('ack'),runId:z.string().uuid()}).strict(),
