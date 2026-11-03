@@ -2,7 +2,7 @@
 
 - **Branch:** `claude/visionen-nextgen`
 - **Basis:** `origin/main` `70f4059`. Diese Basis enthält Codex-PR #72 (`codex/live-regie-layout`). Den hat Claude bisher nicht veröffentlicht; ein Deployment dieses Branches bringt ihn mit.
-- **Stand:** Der Code ist lokal geprüft und noch nicht live. Es gibt keine Migration, keinen Eingriff in Produktionsdaten und kein Deployment.
+- **Stand:** Live seit 03.11.2026 (siehe Abschnitt 9). Die Nachbesserung aus Abschnitt 9 ist lokal geprüft und noch nicht live.
 - **Datum:** 03.11.2026
 
 ## 1. Bestand vorher
@@ -216,7 +216,55 @@ Dabei hat er einen **echten Fehler dieser Arbeit** gefunden: Die unsichtbaren Ra
 6. Ein Archiv „Erhaltene Botschaften“ für Spieler zum späteren Nachlesen (bewusst nicht Teil dieses Auftrags).
 7. Aufnahme von `tests/live-deliveries-integration.mjs` in die CI über einen `--regie`-Schritt.
 
-## 9. Ausdrücklich nicht getan
+## 9. Release und Nachbesserung (03.11.2026)
+
+### Release 1
+
+| | |
+| --- | --- |
+| Live-Codecommit | `96c22b2`, identisch mit `main` |
+| Inhalt | dieser Stand plus der bereits live laufende Codex-Branch `codex/live-table-map-release` (`95ddc4b`) |
+| Worker-Version | `e9d7f9bb-44c4-496b-9442-ffb6caff2705`, Tag `96c22b2-Visionen` |
+| Zeitpunkt | 11:15 UTC |
+| Migration | keine |
+
+### Nachbesserung auf SL-Wunsch (Branch `claude/visionen-galerie`)
+
+- **Eigene Galerieabschnitte „Visionen“ und „Botschaften“:**
+  - Bilder und Töne, die direkt an einer Vision oder Botschaft hochgeladen werden, landen getrennt von der allgemeinen Galerie.
+  - Sie sind immer SL-intern, nur Bilder und Töne sind erlaubt, und nur die SL darf hochladen.
+  - Der Abschnitt steht im Speicherpfad (`users/<id>/<abschnitt>/<datei>`). Es gibt keine Migration.
+  - Die Galerie hat für die SL Filter „Allgemein / Visionen / Botschaften“. Lädt man bei aktivem Filter hoch, landet die Datei im jeweiligen Abschnitt.
+- **Editor entschlackt:**
+  - Im Text von Visionen und Botschaften gibt es keine allgemeine Galerie und keinen Schalter „Weitere Formatierung“ mehr.
+  - Unten liegt die eigene Bildergalerie des Abschnitts mit Upload und Auswahl per Klick.
+  - Früher verknüpfte Bilder aus der allgemeinen Galerie bleiben erhalten und sind gekennzeichnet.
+- **Töne:**
+  - Visionen bekommen eigene Töne per Upload.
+  - Botschaften haben ein eingebautes Ankunftsgeräusch: ein typisches Faxgeräusch (Anwahlton, Antwortton, Modem-Zwitschern, Rauschen, Drucker) bzw. Briefrascheln (Hereingleiten, Knistern, Aufsetzen).
+  - Beide werden per Web Audio erzeugt, ohne Audiodateien und ohne Lizenzfrage.
+  - Alternativ „Kein Geräusch“ oder ein eigener Ton.
+  - „Anhören“ im Editor.
+  - Blockiert der Browser den Ton, erscheint beim Spieler „Geräusch abspielen“.
+- **Tempo:**
+  - Die Grundlesezeit ist kürzer: etwa 7 statt 10 Sekunden für 100 Zeichen.
+  - Neu ist ein Tempo pro Vision: Ruhig / Normal / Zügig.
+  - „Weiter ›“ ist deutlicher und leuchtet beim ersten Text kurz auf.
+  - Der Doppelklick-Schutz ist von 1,2 s auf 0,5 s verkürzt.
+
+### Prüfungen der Nachbesserung
+
+| Prüfung | Ergebnis |
+| --- | --- |
+| Unit-Tests | 359/359 |
+| Integration Visionen | 38/38, u. a. Abschnitts-Upload, Spieler-Sperre, falsche Dateitypen, Tempo und Geräusch beim Spieler |
+| Browser | 19 Schritte bestanden, darunter Editor-Upload, Tempo, Weiter-Hinweis und Fax-Ton (im Browser tatsächlich abgespielt) |
+| Alte Visions- und Brief-Prüfungen | bestanden |
+| Volle Integration | 2046 + 46 |
+| Story-Editor-Browserprüfungen | bestanden |
+| Typprüfung, Lint | sauber |
+
+## 10. Ausdrücklich nicht getan
 
 - Kein Deployment, keine Migration, keine Schreibzugriffe auf Produktion (D1/R2).
 - Keine Änderung an bestehenden Kampagnendaten oder Rechten.

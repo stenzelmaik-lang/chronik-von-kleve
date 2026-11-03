@@ -81,6 +81,34 @@ const faxView=(await stage(a)).deliveries.find(d=>d.id===faxRun.id);
 check(faxView&&faxView.kind==='letter'&&faxView.layout==='fax'&&faxView.sender==='Kanzlei Vogt'&&faxView.html.includes('SECRET_A_FAX')&&!JSON.stringify(faxView).includes('INTERNAL_FAX_TITLE'),'the fax reaches A with sender and text, without the internal title');
 check(!JSON.stringify(await stage(b)).includes('SECRET_A_FAX'),'B never receives A\'s message');
 
+// Tempo of a vision and arrival sound of a message travel with the run.
+const brisk={id:uuid(),kind:'vision',title:'Zügig',text:'TEMPO_TEXT',recipientIds:['command-a'],fileIds:[],preset:'classic',tempo:'brisk'};
+const letterQuiet={id:uuid(),kind:'letter',title:'Brief leise',text:'QUIET_LETTER',recipientIds:['command-a'],fileIds:[],layout:'letter',sound:'none'};
+const letterLoud={id:uuid(),kind:'letter',title:'Brief laut',text:'LOUD_LETTER',recipientIds:['command-a'],fileIds:[],layout:'letter'};
+await save({...scene.document,whispers:[...scene.document.whispers,brisk,letterQuiet,letterLoud]});
+const ids=[];for(const w of [brisk,letterQuiet,letterLoud,fax])ids.push((await deliver(gm,w,{mode:'prepared'})).data.runs.at(-1).id);
+const byId=Object.fromEntries((await stage(a)).deliveries.map(d=>[d.id,d]));
+check(byId[ids[0]]?.tempo==='brisk'&&byId[ids[1]]?.arrivalSound===null&&byId[ids[2]]?.arrivalSound==='letter'&&byId[ids[3]]?.arrivalSound==='fax','tempo and arrival sound (fax, letter, off) reach the player');
+
+// Own gallery sections for visions and messages: GM only, pictures and sounds only, always SL-internal.
+const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
+const wav=(()=>{const b=Buffer.alloc(444);b.write('RIFF',0);b.writeUInt32LE(436,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(8000,24);b.writeUInt32LE(16000,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(400,40);return b;})();
+const upload=async(who,bytes,type,name,section,visibility='sl')=>{const form=new FormData();form.set('file',new Blob([bytes],{type}),name);form.set('visibility',visibility);if(section)form.set('section',section);const r=await fetch(base+'/api/files',{method:'POST',headers:{Cookie:who,Origin:base},body:form});return {status:r.status,data:await r.json().catch(()=>null)};};
+const visionPic=await upload(gm,png,'image/png','SYNTH-vision.png','visionen'),messageSound=await upload(gm,wav,'audio/wav','SYNTH-fax.wav','botschaften');
+const listed=(await req('/api/files',gm)).data.files;
+check(visionPic.status===200&&visionPic.data.section==='visionen'&&listed.find(f=>f.id===visionPic.data.id)?.section==='visionen'&&listed.find(f=>f.id===visionPic.data.id)?.visibility==='sl'&&listed.find(f=>f.id===messageSound.data.id)?.section==='botschaften','uploads land in their own section and stay SL-internal');
+check(images.length>0&&images.every(id=>listed.find(f=>f.id===id)?.section===null),'the general gallery keeps its files without a section');
+check((await upload(a,png,'image/png','SYNTH-player.png','visionen','group')).status===403,'players cannot upload into the vision section');
+check((await upload(gm,png,'image/png','SYNTH-x.png','geheim')).status===400&&(await upload(gm,Buffer.from('%PDF-1.4\n%%EOF'),'application/pdf','SYNTH.pdf','botschaften')).status===400,'unknown sections and other file types are refused');
+check(!(await req('/api/files',a)).data.files.some(f=>f.id===visionPic.data.id),'players never see the vision section in their gallery');
+const withPic={...brisk,id:uuid(),title:'Mit eigenem Bild',fileIds:[visionPic.data.id],audioFileId:undefined};
+const withSound={...letterLoud,id:uuid(),title:'Mit eigenem Ton',audioFileId:messageSound.data.id};
+await save({...scene.document,whispers:[...scene.document.whispers,withPic,withSound]});
+const picRun=(await deliver(gm,withPic,{mode:'prepared'})).data.runs.at(-1),soundRun=(await deliver(gm,withSound,{mode:'prepared'})).data.runs.at(-1);
+const soundView=(await stage(a)).deliveries.find(d=>d.id===soundRun.id);
+check((await asset(a,picRun.id,visionPic.data.id)).status===200&&soundView?.audio===true&&soundView.arrivalSound===null&&(await asset(a,soundRun.id,messageSound.data.id)).status===200,'section media reach the recipient through the delivery; an own sound replaces the built-in one');
+check([403,404].includes((await asset(b,picRun.id,visionPic.data.id)).status),'other players still cannot open section media');
+
 // Clean up this run's deliveries so the fixture stays tidy.
 for(const r of (await req('/api/live-deliveries?sessionId='+sessionId,gm)).data.runs)if(!r.withdrawnAt)await post(gm,{action:'withdraw',runId:r.id});
 console.log(checks+' delivery checks passed.');

@@ -5,6 +5,7 @@ import {createPortal} from 'react-dom';
 import {fragmentDuration,presetById,documentNumber,type PlayerDelivery} from '@/domain/personal-delivery';
 import {RichTextView} from '../rich-text';
 import {richTextFileIds} from '@/domain/location-rich-text';
+import {playArrivalSound} from './delivery-sounds';
 import styles from './delivery-players.module.css';
 
 /* ------------------------------------------------------------------ preferences */
@@ -44,7 +45,7 @@ export function VisionPlayer({delivery,assetUrl,onSeen,onDone,preview=false,with
  const preset=presetById(delivery.preset);
  // Without text the pictures carry the vision: one "fragment" per picture keeps the same pacing and the same end.
  const steps=useMemo(()=>delivery.fragments.length?delivery.fragments:delivery.images.map(()=>''),[delivery]);
- const [phase,setPhase]=useState<Phase>('enter'),[index,setIndex]=useState(0),[fullText,setFullText]=useState(false),[sound,setSound]=useState<'off'|'on'|'blocked'>('off');
+ const [phase,setPhase]=useState<Phase>('enter'),[index,setIndex]=useState(0),[fullText,setFullText]=useState(false),[sound,setSound]=useState<'off'|'on'|'blocked'>('off'),[skipped,setSkipped]=useState(false);
  const root=useRef<HTMLDivElement>(null),audio=useRef<HTMLAudioElement>(null),shownAt=useRef(0),seenSent=useRef(false);
  // Parents re-render on every poll; the latest callbacks are read at call time so timers are never restarted by that.
  const doneRef=useRef(onDone),seenRef=useRef(onSeen);
@@ -56,7 +57,7 @@ export function VisionPlayer({delivery,assetUrl,onSeen,onDone,preview=false,with
  // enter -> play
  useEffect(()=>{if(phase!=='enter')return;const t=window.setTimeout(()=>{setPhase('play');shownAt.current=Date.now();},reduced?500:preset.enterMs);return()=>window.clearTimeout(t);},[phase,reduced,preset.enterMs]);
  // fragment timing: fade in, readable hold, fade out, next. The last one stays and the confirmation appears.
- const inMs=reduced?500:1700,outMs=reduced?400:1300,hold=fragmentDuration(steps[index]||'',delivery.preset,reduced);
+ const inMs=reduced?500:1700,outMs=reduced?400:1300,hold=fragmentDuration(steps[index]||'',delivery.preset,reduced,delivery.tempo);
  useEffect(()=>{
   if(phase!=='play')return;
   const last=index>=steps.length-1;
@@ -72,7 +73,8 @@ export function VisionPlayer({delivery,assetUrl,onSeen,onDone,preview=false,with
   a.volume=0;const p=a.play();
   if(p)p.then(()=>{setSound('on');let k=0;const f=window.setInterval(()=>{k++;a.volume=Math.min(.6,k*.06);if(k>=10)window.clearInterval(f);},150);}).catch(()=>setSound('blocked'));
  },[delivery.audio]);
- const next=()=>{if(phase==='enter'){setPhase('play');shownAt.current=Date.now();return;}if(phase!=='play'||Date.now()-shownAt.current<1200)return;if(index>=steps.length-1)setPhase('end');else{setIndex(i=>i+1);shownAt.current=Date.now();}};
+ // a short guard only against double clicks; fast readers may skip ahead right away
+ const next=()=>{setSkipped(true);if(phase==='enter'){setPhase('play');shownAt.current=Date.now();return;}if(phase!=='play'||Date.now()-shownAt.current<500)return;if(index>=steps.length-1)setPhase('end');else{setIndex(i=>i+1);shownAt.current=Date.now();}};
  const keys=(e:React.KeyboardEvent)=>{
   if(e.key==='Escape'){e.preventDefault();setFullText(true);return;} // no silent exit: offer the readable full text instead
   if((e.key===' '||e.key==='Enter'||e.key==='ArrowRight')&&e.target===root.current){e.preventDefault();next();}
@@ -99,7 +101,7 @@ export function VisionPlayer({delivery,assetUrl,onSeen,onDone,preview=false,with
   </div>
   {(phase==='end'||fullText)&&phase!=='exit'&&<div className={styles.closing}><button type="button" autoFocus className={styles.seen} onClick={()=>setPhase('exit')}>Ich habe alles gesehen</button>{!fullText&&<button type="button" className={styles.quiet} onClick={()=>{setIndex(0);setPhase('play');shownAt.current=Date.now();}}>Noch einmal</button>}</div>}
   <div className={styles.tools}>
-   {phase==='play'&&<button type="button" className={styles.quiet} onClick={next}>Weiter</button>}
+   {phase==='play'&&<button type="button" className={`${styles.quiet} ${styles.next}`} data-hint={!skipped&&index===0||undefined} aria-keyshortcuts="Space ArrowRight" onClick={next}>Weiter ›</button>}
    {!fullText&&phase!=='exit'&&<button type="button" className={styles.quiet} onClick={()=>setFullText(true)}>Text vollständig anzeigen</button>}
    <button type="button" className={styles.quiet} aria-pressed={own} onClick={toggle}>{own?'Effekte wieder voll':'Effekte ruhiger'}</button>
    {delivery.audio&&sound==='blocked'&&<button type="button" className={styles.quiet} onClick={()=>{const a=audio.current;if(!a)return;a.volume=.6;void a.play().then(()=>setSound('on')).catch(()=>setSound('blocked'));}}>Ton einschalten</button>}
@@ -117,13 +119,20 @@ function Tentacles(){
 
 /* ------------------------------------------------------------------ personal message (fax / letter) */
 export function MessagePlayer({delivery,assetUrl,recipientName,onSeen,onDone,preview=false,withdrawn=false}:{delivery:PlayerDelivery;assetUrl:(fileId:string)=>string;recipientName:string;onSeen?:()=>void;onDone:()=>void;preview?:boolean;withdrawn?:boolean}){
- const [phase,setPhase]=useState<'arrive'|'read'|'leave'>('arrive');
+ const [phase,setPhase]=useState<'arrive'|'read'|'leave'>('arrive'),[sound,setSound]=useState<'idle'|'played'|'blocked'>('idle');
+ const audio=useRef<HTMLAudioElement>(null),soundStarted=useRef(false);
  // Above every table layer (rails, HUD, dialogs), but not modal: the table stays usable beside the message.
  const [host]=useState(()=>{if(typeof document==='undefined')return null;const el=document.createElement('div');el.className=styles.messageHost;return el;});
  useEffect(()=>{if(!host)return;document.body.appendChild(host);return()=>{host.remove();};},[host]);
  const {reduced}=useReducedEffects(),seenSent=useRef(false),button=useRef<HTMLButtonElement>(null),doneRef=useRef(onDone),seenRef=useRef(onSeen);
  useEffect(()=>{doneRef.current=onDone;seenRef.current=onSeen;});
  useEffect(()=>{if(!seenSent.current&&!preview){seenSent.current=true;seenRef.current?.();}},[preview]);
+ // arrival sound once: the built-in fax/letter sound or the GM's own sound; if the browser blocks it, one quiet button
+ const playSound=useCallback(()=>{
+  if(delivery.arrivalSound){void playArrivalSound(delivery.arrivalSound).then(ok=>setSound(ok?'played':'blocked'));return;}
+  const a=audio.current;if(!a)return;a.currentTime=0;a.volume=.7;void a.play().then(()=>setSound('played')).catch(()=>setSound('blocked'));
+ },[delivery.arrivalSound]);
+ useEffect(()=>{if(soundStarted.current||(!delivery.arrivalSound&&!delivery.audio))return;soundStarted.current=true;playSound();},[delivery.arrivalSound,delivery.audio,playSound]);
  useEffect(()=>{if(phase!=='arrive')return;const t=window.setTimeout(()=>setPhase('read'),reduced?300:delivery.layout==='fax'?3200:1400);return()=>window.clearTimeout(t);},[phase,reduced,delivery.layout]);
  useEffect(()=>{if(phase==='read')button.current?.focus({preventScroll:true});},[phase]);
  useEffect(()=>{if(withdrawn&&phase!=='leave')queueMicrotask(()=>setPhase('leave'));},[withdrawn,phase]);
@@ -133,7 +142,7 @@ export function MessagePlayer({delivery,assetUrl,recipientName,onSeen,onDone,pre
  const stamp=new Date(delivery.createdAt);
  const when=Number.isFinite(stamp.getTime())?stamp.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
  if(!host)return null;
- return createPortal(<section className={styles.message} data-layout={delivery.layout} data-phase={phase} data-reduced={reduced||undefined} role="dialog" aria-modal="false" aria-label={preview?'Vorschau einer persönlichen Botschaft':'Persönliche Botschaft'}>
+ return createPortal(<section className={styles.message} data-layout={delivery.layout} data-phase={phase} data-reduced={reduced||undefined} role="dialog" aria-modal="false" aria-label={preview?'Vorschau einer persönlichen Botschaft':'Persönliche Botschaft'} data-sound={delivery.arrivalSound||(delivery.audio?'own':undefined)} data-sound-state={sound}>
   {delivery.layout==='fax'&&<div className={styles.faxSlot} aria-hidden="true"><span className={styles.led}/><span>EMPFANG</span></div>}
   <article className={styles.sheet}>
    {preview&&<p className={styles.previewBadge}>Vorschau · nichts wird zugestellt</p>}
@@ -141,7 +150,8 @@ export function MessagePlayer({delivery,assetUrl,recipientName,onSeen,onDone,pre
     :<header className={styles.letterHeader}>{delivery.sender&&<span>{delivery.sender}</span>}<span>{when}</span></header>}
    <div className={styles.sheetBody}><RichTextView value={delivery.html} readable flowing fileUrl={id=>delivery.images.includes(id)?assetUrl(id):''}/></div>
    {!!attachments.length&&<div className={styles.attachments} aria-label="Beilagen">{attachments.map(id=><img key={id} src={assetUrl(id)} alt="Beilage" draggable={false}/>)}</div>}
-   <footer><button ref={button} type="button" className={styles.read} disabled={phase==='leave'} onClick={()=>setPhase('leave')}>{delivery.layout==='fax'?'Gelesen · ablegen':'Gelesen · Brief schließen'}</button></footer>
+   <footer>{sound==='blocked'&&<button type="button" className={styles.soundButton} onClick={playSound}>Geräusch abspielen</button>}<button ref={button} type="button" className={styles.read} disabled={phase==='leave'} onClick={()=>setPhase('leave')}>{delivery.layout==='fax'?'Gelesen · ablegen':'Gelesen · Brief schließen'}</button></footer>
   </article>
+  {delivery.audio&&delivery.audioFileId&&<audio ref={audio} src={assetUrl(delivery.audioFileId)} preload="auto"/>}
  </section>,host);
 }

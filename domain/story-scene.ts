@@ -48,6 +48,9 @@ export const sceneWhisperSchema=z.object({id:z.string().uuid(),kind:z.enum(['vis
   layout:z.enum(['fax','letter']).optional(),
   sender:z.string().max(120).optional(),
   note:z.string().max(2000).optional(),
+  // reading tempo of a vision; arrival sound of a message (built-in fax/letter sound unless switched off or replaced)
+  tempo:z.enum(['calm','normal','brisk']).optional(),
+  sound:z.enum(['builtin','none']).optional(),
 }).strict();
 export type SceneWhisper=z.infer<typeof sceneWhisperSchema>;
 // Preparation has no execution flags. Only an explicit SL command creates a run.

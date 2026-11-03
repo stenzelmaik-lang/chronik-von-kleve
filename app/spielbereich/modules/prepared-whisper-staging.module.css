@@ -25,3 +25,15 @@
 .fragments { display: grid; gap: 6px; margin: 6px 0; }
 .fragment { display: flex; gap: 6px; align-items: flex-end; }
 .fragment label { flex: 1; min-width: 0; }
+.tempo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; padding: 0; border: 0; min-width: 0; }
+.tempo legend { margin-bottom: 6px; font-weight: 600; }
+.tempo label { position: relative; display: inline-flex; padding: 6px 14px; border: 1px solid #3a4651; border-radius: 999px; cursor: pointer; font-size: 13px; }
+.tempo label:has(input:checked) { border-color: #d6b36f; background: rgba(214, 179, 111, .14); color: #f1dca8; }
+.tempo label:has(input:focus-visible) { outline: 2px solid #e4c589; outline-offset: 2px; }
+.tempo input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.tempo .hint { flex-basis: 100%; }
+.sound { display: grid; gap: 8px; min-width: 0; }
+.sound label { display: grid; gap: 4px; font-size: 13px; }
+.soundRow { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.soundRow label { flex: 1 1 220px; min-width: 0; }
+.soundRow button { display: inline-flex; gap: 6px; align-items: center; }

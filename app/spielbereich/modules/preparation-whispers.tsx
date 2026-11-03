@@ -62,4 +62,4 @@ function LegacyPreparationWhispers({scene,players,files,onChange,onSave,children
   </section>;
 }
 
-export function PreparationWhispers(p:Parameters<typeof LegacyPreparationWhispers>[0]){return <><PreparedWhispers scene={p.scene} players={p.players} files={p.files} onChange={p.onChange}/>{(p.scene.visions||p.scene.visionFileIds.length||p.scene.visionRecipientIds.length)?<details><summary>Bisherige gemeinsame Vorbereitung</summary><LegacyPreparationWhispers {...p}/></details>:null}</>;}
+export function PreparationWhispers({onUploaded,...p}:Parameters<typeof LegacyPreparationWhispers>[0]&{onUploaded?:(file:PreparationFile)=>void}){return <><PreparedWhispers scene={p.scene} players={p.players} files={p.files} onChange={p.onChange} onUploaded={onUploaded}/>{(p.scene.visions||p.scene.visionFileIds.length||p.scene.visionRecipientIds.length)?<details><summary>Bisherige gemeinsame Vorbereitung</summary><LegacyPreparationWhispers {...p}/></details>:null}</>;}

@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import {canReadNPCFile} from '@/server/npc-file-access';
 import {canReadPersonalMessageFile} from '@/server/personal-message-files';
 import {LIVE_MEDIA_TYPES,validMediaBytes} from '@/domain/media-upload';
+import {DELIVERY_MEDIA_SECTIONS} from '@/domain/personal-delivery';
 import {
   actor,
   database,
@@ -20,6 +21,8 @@ const types = LIVE_MEDIA_TYPES;
 const manageable = "SELECT id,owner_id,visibility FROM files WHERE id=? AND campaign_id=? AND (owner_id=? OR (?=1 AND visibility IN ('sl','group')))";
 /** Small preview of an image, made by the browser of someone who may manage the file and stored next to the original. */
 const thumbKey = (key: string) => key + ".thumb";
+/** Gallery section of a file, kept in its storage path (users/<owner>/<section>/<id>): no schema change, fixed at upload. */
+const sectionColumn = "CASE WHEN key LIKE 'users/%/visionen/%' THEN 'visionen' WHEN key LIKE 'users/%/botschaften/%' THEN 'botschaften' END AS section";
 const thumbMax = 256 * 1024;
 async function saveThumb(req: Request, id: string) {
   const a = await actor();
@@ -50,7 +53,7 @@ export async function GET(req: Request) {
     if (!id) {
       const r = await db
         .prepare(
-          "SELECT id,owner_id,visibility,name,mime,size,created_at FROM files WHERE campaign_id=? AND (owner_id=? OR visibility=? OR (visibility=? AND ?=1)) ORDER BY created_at DESC",
+          "SELECT id,owner_id,visibility,name,mime,size,created_at,"+sectionColumn+" FROM files WHERE campaign_id=? AND (owner_id=? OR visibility=? OR (visibility=? AND ?=1)) ORDER BY created_at DESC",
         )
         .bind(a.campaignId, a.id, "group", "sl", a.gm ? 1 : 0)
         .all();
@@ -97,7 +100,8 @@ export async function POST(req: Request) {
     try{while(true){const part=await reader.read();if(part.done)break;total+=part.value.byteLength;if(total>11*1024*1024){await reader.cancel();throw new HttpError(413,'Bitte maximal 10 MB hochladen.');}chunks.push(part.value.slice());}}finally{reader.releaseLock();}
     const form=await new Request(req.url,{method:'POST',headers:req.headers,body:new Blob(chunks)}).formData();
     const file = form.get("file");
-    const visibility = String(form.get("visibility") || "private");
+    const section = String(form.get("section") || "");
+    const visibility = section ? "sl" : String(form.get("visibility") || "private");
     if (
       !(file instanceof File) ||
       !types.includes(file.type) ||
@@ -112,6 +116,11 @@ export async function POST(req: Request) {
       throw new HttpError(400, "Ungültige Sichtbarkeit.");
     if (visibility === "sl" && !a.gm)
       throw new HttpError(403, "SL-Dateien können nur von der Spielleitung angelegt werden.");
+    // Visions and messages have their own gallery sections: GM only (forced SL-internal above), pictures and sounds only.
+    if (section && !(DELIVERY_MEDIA_SECTIONS as readonly string[]).includes(section))
+      throw new HttpError(400, "Unbekannter Galerieabschnitt.");
+    if (section && !/^(image|audio)\//.test(file.type))
+      throw new HttpError(400, "Für Visionen und Botschaften sind nur Bilder und Töne erlaubt.");
     const bytes = new Uint8Array(await file.arrayBuffer());
     const valid=validMediaBytes(file.type,bytes);
     if (!valid)
@@ -122,7 +131,7 @@ export async function POST(req: Request) {
     if (!env.BUCKET)
       throw new HttpError(503, "Dateispeicher nicht erreichbar.");
     const id = crypto.randomUUID(),
-      key = `users/${a.id}/${id}`;
+      key = `users/${a.id}/${section ? section + "/" : ""}${id}`;
     await env.BUCKET.put(key, bytes, {
       httpMetadata: { contentType: file.type },
     });
@@ -147,7 +156,7 @@ export async function POST(req: Request) {
       await env.BUCKET.delete(key);
       throw e;
     }
-    return json({ id });
+    return json({ id, ...(section ? { section } : {}) });
   } catch (e) {
     return failure(e, req);
   }

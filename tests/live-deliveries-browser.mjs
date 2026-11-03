@@ -25,6 +25,32 @@ try{
  const runsCount=async()=>(await api(gmc,'/api/live-deliveries?sessionId='+encodeURIComponent(sessionId))).data.runs.length;
  const before=await runsCount();
 
+ step='editor: own gallery sections, no inline gallery, tempo, sounds';
+ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64');
+ const wav=(()=>{const w=Buffer.alloc(444);w.write('RIFF',0);w.writeUInt32LE(436,4);w.write('WAVE',8);w.write('fmt ',12);w.writeUInt32LE(16,16);w.writeUInt16LE(1,20);w.writeUInt16LE(1,22);w.writeUInt32LE(8000,24);w.writeUInt32LE(16000,28);w.writeUInt16LE(2,32);w.writeUInt16LE(16,34);w.write('data',36);w.writeUInt32LE(400,40);return w;})();
+ const ed=await gmc.newPage();ed.on('pageerror',e=>errors.push('Editor: '+e.message));
+ await ed.goto(base+'/sl/command-center?bereich=sitzung&scene='+encodeURIComponent(sceneId)+'&section=visions');
+ const prep=ed.getByRole('region',{name:'Visionen und persönliche Botschaften vorbereiten'});await prep.waitFor({timeout:30000});
+ const entries=prep.getByRole('list',{name:'Vorbereitete persönliche Inhalte'});
+ await entries.getByRole('button',{name:/^Klassisch(?! nach)/}).click();
+ assert.equal(await prep.getByRole('button',{name:'Galerie',exact:true}).count(),0,'no general gallery inside the vision text');
+ assert.equal(await prep.getByRole('button',{name:'Weitere Formatierung'}).count(),0,'no formatting switch');
+ const media=prep.getByRole('region',{name:'Bilder aus der Galerie Visionen'});
+ await media.locator('input[type=file]').setInputFiles({name:'SYNTH-erscheinung.png',mimeType:'image/png',buffer:png});
+ await media.getByRole('button',{name:'Bild abwählen: SYNTH-erscheinung.png'}).waitFor({timeout:15000});ok('a picture uploaded at the vision lands in the own gallery "Visionen" and is attached');
+ await prep.getByRole('radio',{name:'Zügig'}).check();
+ await prep.getByRole('region',{name:'Inszenierung'}).locator('input[type=file]').setInputFiles({name:'SYNTH-ton.wav',mimeType:'audio/wav',buffer:wav});
+ await ed.waitForFunction(()=>[...document.querySelectorAll('select')].some(s=>s.selectedOptions[0]?.textContent==='SYNTH-ton.wav'),null,{timeout:15000});ok('an own sound is uploaded and chosen for the vision; tempo set to brisk');
+ await ed.screenshot({path:out+'/editor-vision-gallery.png',fullPage:true});
+ const filesNow=(await api(gmc,'/api/files')).data.files;
+ assert.equal(filesNow.find(f=>f.name==='SYNTH-erscheinung.png')?.section,'visionen');assert.equal(filesNow.find(f=>f.name==='SYNTH-ton.wav')?.section,'visionen');
+ await entries.getByRole('button',{name:/^Fax intern(?! nach)/}).click();
+ const sound=prep.getByRole('combobox',{name:'Geräusch beim Eintreffen'});await sound.waitFor();
+ assert.equal(await sound.inputValue(),'builtin');assert.equal(await sound.locator('option').first().textContent(),'Typisches Faxgeräusch (eingebaut)');
+ await prep.getByRole('button',{name:'Anhören'}).click();await ed.waitForTimeout(400);
+ assert.equal(await prep.getByRole('region',{name:'Bilder aus der Galerie Botschaften'}).count(),1);ok('the fax offers its built-in sound, a listen button and its own gallery "Botschaften"');
+ await ed.close();
+
  const gm=await gmc.newPage();gm.on('pageerror',e=>errors.push('GM: '+e.message));
  await gm.goto(base+'/sl/regie?sessionId='+encodeURIComponent(sessionId));
  const desk=gm.getByRole('region',{name:'Visionen und persönliche Botschaften'});await desk.waitFor({timeout:30000});
@@ -44,6 +70,7 @@ try{
  step='single player vision';
  await item('Dunkel').getByRole('button',{name:'Vision auslösen'}).click();
  await visionOn(a).waitFor({timeout:12000});assert.equal(await visionOn(a).getAttribute('data-preset'),'dark');
+ const weiter=a.getByRole('button',{name:'Weiter ›'});await weiter.waitFor({timeout:8000});assert.equal(await weiter.getAttribute('data-hint'),'true');ok('"Weiter" glows on the first text so fast readers know they may skip ahead');
  await b.waitForTimeout(2500);assert.equal(await visionOn(b).count(),0,'B stays on the normal table');ok('only player A is pulled into the dark vision; B keeps playing');
  await a.waitForTimeout(4200);await a.screenshot({path:out+'/preset-dark-player.png'});
  assert.equal(await a.locator('[data-layer="stage_objects"]').evaluate(el=>!!el.closest('[inert]')),true,'table is inert during the vision');ok('the table below is inert while the vision runs');
@@ -69,6 +96,7 @@ try{
  await item('Traum').getByRole('button',{name:'Vision auslösen'}).click();await item('Fax intern').getByRole('button',{name:'Botschaft zustellen'}).click();
  await visionOn(a).waitFor({timeout:12000});assert.equal(await visionOn(a).getAttribute('data-preset'),'dream');
  const faxView=b.getByRole('dialog',{name:'Persönliche Botschaft'});await faxView.waitFor({timeout:12000});await b.getByText('Kanzlei Vogt').waitFor();await b.getByText(/Treffen um Mitternacht/).waitFor();
+ assert.equal(await faxView.getAttribute('data-sound'),'fax');await b.waitForFunction(()=>['played','blocked'].includes(document.querySelector('[data-sound]')?.getAttribute('data-sound-state')),null,{timeout:5000});ok('the fax arrives with its fax sound ('+await faxView.getAttribute('data-sound-state')+')');
  assert.equal(await visionOn(b).count(),0);ok('A gets the dream vision while B gets the fax');
  await a.waitForTimeout(4200);await a.screenshot({path:out+'/preset-dream-player.png'});await b.waitForTimeout(3600);await b.screenshot({path:out+'/fax-mobile.png'});
  await b.getByRole('button',{name:'Gelesen · ablegen'}).click();await faxView.waitFor({state:'detached',timeout:6000});ok('the fax slides away after "Gelesen"');

@@ -83,6 +83,7 @@ export function RichTextEditor({
   files = [],
   compactTools = false,
   preparationTools = false,
+  inlineGallery = true,
   proseClassName,
   previewValue,
   disabled = false,
@@ -97,6 +98,8 @@ export function RichTextEditor({
   files?:{id:string;name:string;mime:string;visibility?:string}[];
   compactTools?: boolean;
   preparationTools?: boolean;
+  /** preparation editors only: hide the inline gallery and the formatting switch (visions and messages bring their own media) */
+  inlineGallery?: boolean;
   proseClassName?: string;
   previewValue?: string;
   disabled?: boolean;
@@ -214,7 +217,7 @@ export function RichTextEditor({
       {htmlSource&&<button type="button" aria-pressed={preview} disabled={!!htmlError} onClick={()=>setPreview(true)}>Vorschau</button>}
       {!preparationTools&&<small>{htmlSource?'Vorschau veröffentlicht nichts.':'Nur sichere Struktur; Bilder aus dem geschützten Dateispeicher.'}</small>}
     </div>}
-    {preparationTools&&<div className={styles.preparationTools}><ProtectedImageGallery files={files} disabled={disabled||!!htmlError||preview} onOpen={preserveSelection} onSelect={id=>{const markup='<img src="/api/files?id='+id.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="Szenenbild"><p><br></p>';if(htmlMode)sourceChange(htmlDraft+markup);else command('insertHTML',markup);}}/>{!htmlMode&&!preview&&<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button>}</div>}
+    {preparationTools&&inlineGallery&&<div className={styles.preparationTools}><ProtectedImageGallery files={files} disabled={disabled||!!htmlError||preview} onOpen={preserveSelection} onSelect={id=>{const markup='<img src="/api/files?id='+id.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="Szenenbild"><p><br></p>';if(htmlMode)sourceChange(htmlDraft+markup);else command('insertHTML',markup);}}/>{!htmlMode&&!preview&&<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button>}</div>}
     {preview?<section className={styles.preview} data-custom-prose={proseClassName ? true : undefined} aria-label={`${label} Vorschau`}><RichTextView value={previewValue ?? value} readable flowing={Boolean(proseClassName)} className={proseClassName}/></section>:htmlMode?<>
       <textarea disabled={disabled} aria-label={label+' HTML'} aria-describedby={preparationTools?undefined:helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={16}/>
       {htmlSource&&!preparationTools&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: Überschriften, Absätze, Hervorhebungen, Listen, Zitate, Links, Trennlinien, Tabellen mit Kopfzeilen und aufklappbare Abschnitte. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}

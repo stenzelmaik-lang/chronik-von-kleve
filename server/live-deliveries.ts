@@ -4,7 +4,7 @@ import {readScene} from './story-scenes';
 import {validatePreparationMedia} from './preparation-media';
 import {readSetting,mutateSetting} from './settings-store';
 import {richTextFileIds,richTextToPlainText} from '@/domain/location-rich-text';
-import {visionFragments,resolveRecipients,playerDeliveries,presetById,type DeliveryRun,type RecipientChoice,type MessageLayoutId} from '@/domain/personal-delivery';
+import {visionFragments,resolveRecipients,playerDeliveries,presetById,tempoById,type DeliveryRun,type RecipientChoice,type MessageLayoutId} from '@/domain/personal-delivery';
 
 /**
  * Delivery runs of one evening (visions & personal messages). Preparation stays in the scene; a trigger copies the
@@ -57,7 +57,7 @@ export async function changeDeliveries(a:Actor,c:DeliveryCommand){
   if(w.kind==='letter'&&!plain.trim()&&!imageFileIds.length)throw new HttpError(400,'Diese Botschaft ist noch leer.');
   const stamp=new Date().toISOString();
   const run:DeliveryRun={id:crypto.randomUUID(),whisperId:w.id,sceneId:scene.id,sceneVersion:scene.version,kind:w.kind,preset:presetById(w.preset).id,layout:(w.layout||'fax') as MessageLayoutId,
-   title:w.title,sender:w.sender||'',fragments,html:w.text,imageFileIds,audioFileId:w.audioFileId||null,recipients,createdAt:stamp,createdBy:a.id,withdrawnAt:null,receipts:{}};
+   title:w.title,sender:w.sender||'',fragments,html:w.text,imageFileIds,audioFileId:w.audioFileId||null,...(w.kind==='vision'?{tempo:tempoById(w.tempo).id}:{sound:w.sound||'builtin'}),recipients,createdAt:stamp,createdBy:a.id,withdrawnAt:null,receipts:{}};
   const state=await mutate(k,s=>{
    if(s.requests.includes(c.requestId))return s; // double click, retry or a late duplicate: nothing new
    if(s.runs.length>=MAX_RUNS)throw new HttpError(409,`Höchstens ${MAX_RUNS} Zustellungen je Spielabend.`);
