@@ -88,7 +88,7 @@ check((await detail(undefined,primary)).status===401&&(await companion(undefined
 // Journal switch (local instance on) and the live value of the running table.
 const room=(await req(gm,'/api/live-table?view=active')).data.room;
 const stageA=(await req(a,'/api/live-stage?sessionId='+encodeURIComponent(room.sessionId))).data,stageG=(await req(gm,'/api/live-stage?sessionId='+encodeURIComponent(room.sessionId))).data;
-check(stageA.journalEnabled===true&&stageG.journalEnabled===undefined,'the switch opens the journal for players only');
+check(stageA.journalEnabled===true&&stageG.journalEnabled===true,'the switch opens the journal for players and the SL (the SL gets only an own figure or a sample copy)');
 const before=stageA.vitals.characters.find(c=>c.id===primary);
 check(before&&before.own,'the active figure appears in the table values of A');
 const spent=await req(a,'/api/live-vitals','POST',{sessionId:room.sessionId,runId:room.runId,characterId:primary,command:{op:'blood.spend',amount:1,note:'Journalabnahme'}});

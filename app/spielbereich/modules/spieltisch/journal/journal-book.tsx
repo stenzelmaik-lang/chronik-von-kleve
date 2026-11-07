@@ -8,6 +8,7 @@ import {EntryEditor,EntryList,type SaveState} from './journal-entries';
 import {sheetAdvantages,sheetStory,sheetTraits} from './journal-sheet';
 import {DogEar,Hotspot,JournalIcon,Medallion,Ribbon,RibbonLoop,type JournalIconName} from './journal-controls';
 import {JOURNAL_REGISTERS,JOURNAL_SPREADS,OWN_BOOKMARK_LIMIT,addBookmark,chronicleEntries,clampPlace,clampSpread,draftDirty,draftRequest,noteEntries,readBookmarks,registerOf,registerStart,removeBookmark,spreadIndex,viewAfterEscape,type JournalBookmark,type JournalDraft,type JournalKind,type JournalView,type TablePlace} from '@/domain/journal';
+import {SAMPLE_CHARACTER_ID,sampleProjection} from './journal-sample';
 import styles from './journal.module.css';
 
 // Abenteuerjournal at the live table (AJ-01). The book is an object on the table, not a window: it can be packed away
@@ -49,7 +50,7 @@ function bookSize(view:JournalView,flat:boolean){
  return {width:Math.round(Math.min(width,height*1.72)),height};
 }
 
-export function JournalBook({actorId,snapshot,pendingCheck,onOpenCheck,inert}:{actorId:string;snapshot:Snapshot|null;pendingCheck:string;onOpenCheck:()=>void;inert?:boolean}){
+export function JournalBook({gm=false,actorId,snapshot,pendingCheck,onOpenCheck,inert}:{gm?:boolean;actorId:string;snapshot:Snapshot|null;pendingCheck:string;onOpenCheck:()=>void;inert?:boolean}){
  const storeKey='chroniplay-journal:v1:'+actorId,placeKey='chroniplay-journal-place:v2:'+actorId;
  const [restored]=useState(()=>readStored(storeKey));
  const [placed,setPlaced]=useState(()=>readPlaced(placeKey));
@@ -60,7 +61,11 @@ export function JournalBook({actorId,snapshot,pendingCheck,onOpenCheck,inert}:{a
  const [busy,setBusy]=useState(false),[mobilePage,setMobilePage]=useState<0|1>(0);
  const [webgl,setWebgl]=useState<'pending'|'ready'|'failed'>('pending'),[opened,setOpened]=useState(false),[turning,setTurning]=useState(false);
  const [narrow,setNarrow]=useState(false),[reduced,setReduced]=useState(false),[announcement,setAnnouncement]=useState(''),[,setViewport]=useState(0);
- const data=useJournalData(view==='open'||view==='large',snapshot);
+ const live=useJournalData(view==='open'||view==='large',snapshot);
+ // SL without an own active figure: a sample copy shows how the players' book looks (never saved, no player data).
+ const [sample]=useState(sampleProjection);
+ const demo=gm&&live.loaded&&!live.characterId;
+ const data=demo?{...live,characterId:SAMPLE_CHARACTER_ID,projection:sample,tableVitals:null,error:''}:live;
  const flat=reduced||webgl==='failed';
  const mobileOpen=narrow&&(view==='open'||view==='large');
  const use3d=view!=='stored'&&!flat&&!mobileOpen;
@@ -220,6 +225,7 @@ export function JournalBook({actorId,snapshot,pendingCheck,onOpenCheck,inert}:{a
  const discard=(kind:JournalKind)=>{if(!replaceDraft(kind))return;setDrafts(old=>{const n={...old};delete n[kind];return n;});setSelected(old=>({...old,[kind]:''}));setSave(old=>({...old,[kind]:idle}));};
  const saveDraft=async(kind:JournalKind,asNew=false)=>{
   const d=drafts[kind];if(!d||busy)return;
+  if(d.characterId===SAMPLE_CHARACTER_ID){setSave(old=>({...old,[kind]:{kind:'error',message:'Ansichtsexemplar: Hier wird nichts gespeichert. Mit einer eigenen aktiven Figur schreibst du in dein eigenes Buch.'}}));return;}
   const draft=asNew?{...d,noteId:undefined,version:undefined,base:undefined}:d;
   setBusy(true);setSave(old=>({...old,[kind]:{kind:'saving'}}));
   try{
@@ -271,6 +277,7 @@ export function JournalBook({actorId,snapshot,pendingCheck,onOpenCheck,inert}:{a
  else if(sid==='sheet-traits')pages=sheetTraits({p:data.projection});
  else if(sid==='sheet-advantages')pages=sheetAdvantages({p:data.projection,table:data.tableVitals,checkHint});
  else pages=sheetStory({p:data.projection});
+ if(demo)pages={left:pages.left,right:<><div className={styles.checkSlip}><p className={styles.checkHint}><JournalIcon name="star" size={16}/> <span><b>Ansichtsexemplar für die Spielleitung.</b> So sieht das Buch für Spieler aus. Beispielinhalte, nichts wird gespeichert.</span></p></div>{pages.right}</>};
  if(checkHint&&sid!=='sheet-advantages')pages={left:pages.left,right:<><div className={styles.checkSlip}>{checkHint}</div>{pages.right}</>};
 
  const atStart=target===0&&(!narrow||mobilePage===0),atEnd=target===JOURNAL_SPREADS.length-1&&(!narrow||mobilePage===1);
