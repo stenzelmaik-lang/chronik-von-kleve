@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element, react-hooks/exhaustive-deps */
+import { formatPlayDate } from "@/domain/journal";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
@@ -783,6 +784,7 @@ export function CharacterDetail({
                     <div>
                       <span className="badge">{visibilityNames[note.visibility] || note.visibility}</span>
                       <h4>{note.title}</h4>
+                      {note.journalKind === "chronicle" && <small className="muted">Chronikeintrag · Spieldatum {formatPlayDate(note.playDate)}</small>}
                       <RichTextView value={note.text}/>
                       <small>Geändert {new Date(note.updatedAt).toLocaleDateString("de-DE")}</small>
                     </div>
