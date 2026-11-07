@@ -20,7 +20,7 @@ export function WorkspaceShell({a,section,navigate,children}:{a:Actor;section:st
    <button className={styles.brand} type="button" onClick={()=>navigate('dashboard')} aria-label="ChroniPlay – Spielerzentrale">ChroniPlay</button><span className={styles.campaign}>{campaignName}</span>
    <nav className={styles.navigation} aria-label="Hauptnavigation">
     {section!=='dashboard'&&<button type="button" onClick={()=>navigate('dashboard')}><ArrowLeft size={16} aria-hidden="true"/><span>Zur Spielerzentrale</span></button>}
-    <a href="/kampagne#deine-runde"><Users size={17} aria-hidden="true"/><span>Deine Runde</span></a>
+    <a href="/kampagne"><Users size={17} aria-hidden="true"/><span>Kampagnen</span></a>
     <button type="button" onClick={()=>navigate('schauplaetze')} aria-current={world?'page':undefined}><Compass size={17} aria-hidden="true"/><span>Chronik erkunden</span></button>
     {a.gm&&<a href="/sl/command-center"><MapPinned size={17} aria-hidden="true"/><span>Command Center</span></a>}
     {!a.gm&&a.role==='campaign_editor'&&<a href="/sl/command-center?bereich=ortscms"><MapPinned size={17} aria-hidden="true"/><span>Ortsredaktion</span></a>}

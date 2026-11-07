@@ -6,6 +6,9 @@ import type {DiceEvent} from './types';
 import type {Audience} from './stage-client';
 import {CATEGORIES,FIGURE_TYPES,HEALTH_LEVELS,TIERS,effectivePool,resolveFigure,tierById,typeById,woundPenalty,type FigureStatePatch,type LiveFigure,type PreparedFigure} from '@/domain/standard-figures';
 import styles from './regie-figures.module.css';
+import {FigureTemplateLibrary} from '../figure-template-library';
+import type {FigureTemplate} from '@/domain/figure-templates';
+import type {TierId} from '@/domain/standard-figures';
 
 type Asset={id:string;typeId:string;tierId:string|null;fileId:string;label:string;role:string};
 type GalleryFile={id:string;name:string;mime:string};
@@ -16,7 +19,9 @@ type Props={sessionId:string;prepared:PreparedFigure[];busy:boolean;dice:DiceEve
 export function RegieFigures({sessionId,prepared,busy,dice,actorId,run,table}:Props){
  const [data,setData]=useState<Listing>({figures:[],assets:[]}),[error,setError]=useState(''),[working,setWorking]=useState(false);
  const [files,setFiles]=useState<GalleryFile[]>([]),[rolls,setRolls]=useState<Record<string,string>>({});
- const [cat,setCat]=useState<string>(CATEGORIES[0].id),[typeId,setTypeId]=useState<string>(FIGURE_TYPES[0].id),[tierId,setTierId]=useState<string>('standard'),[count,setCount]=useState(1);
+ const [cat,setCat]=useState<string>(CATEGORIES[0].id),[typeId,setTypeId]=useState<string>(FIGURE_TYPES[0].id),[tierId,setTierId]=useState<TierId>('standard'),[count,setCount]=useState(1);
+ const [template,setTemplate]=useState<FigureTemplate|null>(null),[templates,setTemplates]=useState<FigureTemplate[]>([]);
+ const selectTemplate=(next:FigureTemplate|null)=>{setTemplate(next);if(next){setTypeId(next.typeId);setTierId(next.tierId);setCat(typeById(next.typeId)!.category);}};
  const request=useRef<string|null>(null);
  const types=FIGURE_TYPES.filter(t=>t.category===cat);
  const load=useCallback(async()=>{try{setData(await api<Listing>('/api/live-figures?sessionId='+encodeURIComponent(sessionId)));setError('');}catch(e){setError((e as Error).message);}},[sessionId]);
@@ -28,7 +33,7 @@ export function RegieFigures({sessionId,prepared,busy,dice,actorId,run,table}:Pr
   catch(e){setError((e as Error).message);return false;}finally{setWorking(false);}
  }
  // One request id per click intent: a double click or retry cannot create the figures twice.
- const spawn=async(t:string,tier:string,n:number,image?:string)=>{request.current??=crypto.randomUUID();if(await post({action:'spawn',requestId:request.current,typeId:t,tierId:tier,count:n,...(image?{imageFileId:image}:{})}))request.current=null;};
+ const spawn=async(t:string,tier:string,n:number,image?:string,templateId?:string)=>{request.current??=crypto.randomUUID();if(await post({action:'spawn',requestId:request.current,typeId:t,tierId:tier,count:n,...(templateId?{templateId}:{}),...(image?{imageFileId:image}:{})}))request.current=null;};
  const patch=(id:string,p:FigureStatePatch)=>post({action:'update',id,patch:p});
  const roll=async(f:LiveFigure,action:{id:string;label:string},pool:number,target:number,shared:boolean)=>{
   const eventId=crypto.randomUUID();
@@ -38,14 +43,15 @@ export function RegieFigures({sessionId,prepared,busy,dice,actorId,run,table}:Pr
  const lock=busy||working;
  return <div className={styles.wrap}>
   <p className={styles.draft}>Entwurfswerte: Die Figurenwerte sind plausible Startwerte der SL, noch nicht gegen das V20-Regelwerk geprüft. Gewürfelt wird mit den bestehenden gemeinsamen Würfeln. Nichts erscheint automatisch am Tisch.</p>
-  {!!prepared.length&&<ul className={styles.list} aria-label="Vorbereitete Figuren dieser Szene">{prepared.map(p=>{const t=typeById(p.typeId),tier=tierById(p.tierId);return <li key={p.id} className={styles.prepared}><span>{t?.name||p.typeId} · {tier?.label||p.tierId} · ×{p.count}</span><button type="button" className={`${styles.btn} ${styles.primary}`} disabled={lock||!t} onClick={()=>void spawn(p.typeId,p.tierId,p.count,p.imageFileId)}>Einsetzen</button></li>;})}</ul>}
+  {!!prepared.length&&<ul className={styles.list} aria-label="Vorbereitete Figuren dieser Szene">{prepared.map(p=>{const t=typeById(p.typeId),tier=tierById(p.tierId);return <li key={p.id} className={styles.prepared}><span>{p.templateId?(templates.find(item=>item.id===p.templateId)?.name||"Eigene Vorlage"):t?.name||p.typeId} · {tier?.label||p.tierId} · ×{p.count}</span><button type="button" className={`${styles.btn} ${styles.primary}`} disabled={lock||!t} onClick={()=>void spawn(p.typeId,p.tierId,p.count,p.imageFileId,p.templateId)}>Einsetzen</button></li>;})}</ul>}
+  <FigureTemplateLibrary typeId={typeId} tierId={tierId} selected={template} onSelect={selectTemplate} onLoaded={setTemplates} disabled={lock}/>
   <details className={styles.details}><summary>Weitere Figur einsetzen</summary>
    <div className={styles.picker}>
-    <label>Gruppe<select value={cat} onChange={e=>{setCat(e.target.value);setTypeId(FIGURE_TYPES.find(t=>t.category===e.target.value)!.id);}}>{CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
-    <label>Figur<select value={typeId} onChange={e=>setTypeId(e.target.value)}>{types.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
-    <label>Stufe<select value={tierId} onChange={e=>setTierId(e.target.value)}>{TIERS.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
+    <label>Gruppe<select value={cat} onChange={e=>{setTemplate(null);setCat(e.target.value);setTypeId(FIGURE_TYPES.find(t=>t.category===e.target.value)!.id);}}>{CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+    <label>Figur<select value={typeId} onChange={e=>{setTemplate(null);setTypeId(e.target.value);}}>{types.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+    <label>Stufe<select value={tierId} onChange={e=>{setTemplate(null);setTierId(e.target.value as TierId);}}>{TIERS.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}</select></label>
     <label>Anzahl<input type="number" min={1} max={10} value={count} onChange={e=>setCount(Math.max(1,Math.min(10,Number(e.target.value)||1)))}/></label>
-    <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={lock} onClick={()=>void spawn(typeId,tierId,count)}>Einsetzen</button>
+    <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={lock} onClick={()=>void spawn(typeId,tierId,count,undefined,template?.id)}>Einsetzen</button>
    </div>
    {typeById(typeId)?.note&&<p className={styles.note}>{typeById(typeId)!.note}</p>}
   </details>

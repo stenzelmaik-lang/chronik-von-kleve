@@ -46,13 +46,14 @@ test('effects are a set in a stable order; unknown effects are refused',()=>{
  assert.equal(stageCommandSchema.safeParse({action:'effects',effects:['fire']}).success,false);
 });
 
-test('music needs a resolved audio file and can be stopped; it survives a scene change',()=>{
+test('file music needs a resolved audio file and ends at scene activation',()=>{
  assert.throws(()=>changeStageObjects(emptyStage(),gm,{action:'music',fileId:'f-audio'}),e=>e.status===404,'Unresolved file');
  let s=changeStageObjects(emptyStage(),gm,{action:'music',fileId:'f-audio'},undefined,undefined,music);
  assert.deepEqual(s.music,music);
  s=changeStageObjects(s,gm,{action:'effects',effects:['rain']});
  s=changeStageObjects(s,gm,{action:'activateScene',sceneId:'next'},undefined,null);
- assert.deepEqual(s.music,music,'Music and weather are explicit GM choices, not table material');assert.deepEqual(s.effects,['rain']);
+ assert.equal(s.music,null);assert.deepEqual(s.effects,['rain']);
+ s=changeStageObjects(s,gm,{action:'music',fileId:'f-audio'},undefined,undefined,music);
  s=changeStageObjects(s,gm,{action:'music',fileId:null});assert.equal(s.music,null);
 });
 

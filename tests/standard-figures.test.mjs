@@ -82,3 +82,19 @@ test('scenes without prepared figures stay valid and carry the new field', () =>
   assert.throws(() => sceneDocumentSchema.parse({ ...emptyScene(), standardFigures: [{ id, typeId: 'security_bouncer', tierId: 'godlike', count: 2 }] }));
   assert.throws(() => sceneDocumentSchema.parse({ ...emptyScene(), standardFigures: [{ id, typeId: 'security_bouncer', tierId: 'hard', count: 11 }] }));
 });
+
+
+test('saved figure values drive pools and remain compatible with prepared scenes', async () => {
+  const {figureTemplateSchema,resolveFigureTemplate}=await import('../domain/figure-templates.ts');
+  const base=resolveFigure('security_bouncer','standard');
+  const input={id:'90000000-0000-4000-8000-000000000001',name:'Eigener Wachmann',typeId:base.typeId,tierId:base.tierId,attributes:{...base.attributes,Geschick:4},skills:{...base.skills,Handgemenge:5},willpower:8,bloodMax:null};
+  assert.equal(figureTemplateSchema.safeParse(input).success,true);
+  const stats=resolveFigureTemplate({...input,version:2,updatedAt:'2026-11-04T00:00:00Z'});
+  assert.equal(stats.actions.find(action=>action.label==='Zuschlagen').pool,9);
+  assert.equal(stats.willpower,8);
+  assert.notEqual(resolveFigure(base.typeId,base.tierId).actions.find(action=>action.label==='Zuschlagen').pool,9);
+  assert.equal(figureTemplateSchema.safeParse({...input,attributes:{...input.attributes,Geschick:11}}).success,false);
+  assert.equal(figureTemplateSchema.safeParse({...input,typeId:'missing'}).success,false);
+  const prepared={id:'90000000-0000-4000-8000-000000000002',typeId:base.typeId,tierId:base.tierId,count:2,templateId:input.id};
+  assert.equal(sceneDocumentSchema.parse({...emptyScene(),standardFigures:[prepared]}).standardFigures[0].templateId,input.id);
+});

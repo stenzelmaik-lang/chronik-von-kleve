@@ -229,3 +229,8 @@
 
 .directoryPanel,.editorControlPanel{background:#101b29;border-color:#695b3e}
 .sectionTabActive{background:#202b39;border-color:#827047;color:#f2d096}
+
+.directoryPanel:has(.editorControlPanel[open]){position:static;height:auto;max-height:none;overflow:visible}
+.directoryPanel:has(.editorControlPanel[open]) .directoryScroll{flex:0 0 auto;min-height:120px;max-height:260px}
+.inactiveToggle{display:flex;align-items:center;gap:8px;font-size:13px;line-height:1.5;color:#d7c9ad;cursor:pointer}
+.inactiveToggle input{flex:none;width:18px;height:18px;accent-color:#d6b36f}

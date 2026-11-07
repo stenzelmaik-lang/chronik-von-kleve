@@ -4,7 +4,11 @@ import {Music,Play,Pause,Volume2,VolumeX} from 'lucide-react';
 import {stageEffects,type StageEffect} from '@/domain/live-stage';
 import styles from './atmosphere.module.css';
 
-export const effectLabels:Record<StageEffect,string>={rain:'Regen',fog:'Nebel',storm:'Gewitter',snow:'Schnee',embers:'Funken & Glut',darkness:'Dunkelheit',flicker:'Flackerlicht'};
+export const effectLabels:Record<StageEffect,string>={
+ rain:'Regen',fog:'Nebel',storm:'Gewitter',snow:'Schnee',embers:'Funken & Glut',
+ darkness:'Dunkelheit',flicker:'Flackerlicht',moonlight:'Mondlicht',
+ candlelight:'Kerzenschein',ritualglow:'Rituallicht',
+};
 /** Fade-out time of a leaving effect; it stays mounted this long so the change blends instead of cutting. */
 const fadeOutMs=2200;
 
@@ -16,6 +20,9 @@ function Effect({effect,leaving}:{effect:StageEffect;leaving:boolean}){
  if(effect==='storm')return <div className={`${styles.layer} ${styles.storm}`} {...common}><span className={styles.stormRain}/><span className={styles.flash}/></div>;
  if(effect==='snow')return <div className={`${styles.layer} ${styles.snow}`} {...common}><span/><span/></div>;
  if(effect==='embers')return <div className={`${styles.layer} ${styles.embers}`} {...common}><i/><span/><span/></div>;
+ if(effect==='moonlight'||effect==='candlelight'||effect==='ritualglow'){
+  return <div className={`${styles.layer} ${styles[effect]}`} {...common}><span/></div>;
+ }
  if(effect==='darkness')return <div className={`${styles.layer} ${styles.darkness}`} {...common}/>;
  return <div className={`${styles.layer} ${styles.flicker}`} {...common}/>;
 }

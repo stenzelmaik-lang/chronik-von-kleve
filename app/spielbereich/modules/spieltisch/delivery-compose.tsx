@@ -1,5 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- GM-only thumbnails from the protected file store. */
+import { authoringTextMax } from '@/domain/authoring-limits';
 import {useEffect,useRef,useState} from 'react';
 import {CloudFog,Mail,Eye,Send,Save,X} from 'lucide-react';
 import {api} from '../api-client';
@@ -73,7 +74,7 @@ export function DeliveryComposer({mode,initial,players,sessionId,sceneId,onPrevi
    {to.mode==='players'&&<div className={styles.players}>{players.map(p=><label key={p.id}><input type="checkbox" checked={to.ids.includes(p.id)} onChange={()=>choose({...to,ids:to.ids.includes(p.id)?to.ids.filter(x=>x!==p.id):[...to.ids,p.id]})}/> {p.name}</label>)}{!players.length&&<span>Keine Spieler am Tisch.</span>}</div>}
   </fieldset>
   {rich?<div className={styles.richNote}><RichTextView value={entry.text} readable/><p>Formatierter Text aus der Szenenvorbereitung.</p><button type="button" onClick={()=>change({text:richTextToPlainText(entry.text)})}>Als einfachen Text bearbeiten</button></div>
-   :<label className={styles.text}>{entry.kind==='vision'?'Text der Vision':'Text der Botschaft'}<textarea rows={5} maxLength={10000} value={entry.text} placeholder={entry.kind==='vision'?'Jeder Absatz erscheint einzeln …':'Was soll der Spieler lesen?'} onChange={e=>change({text:e.target.value})}/></label>}
+   :<label className={styles.text}>{entry.kind==='vision'?'Text der Vision':'Text der Botschaft'}<textarea rows={5} maxLength={authoringTextMax} value={entry.text} placeholder={entry.kind==='vision'?'Jeder Absatz erscheint einzeln …':'Was soll der Spieler lesen?'} onChange={e=>change({text:e.target.value})}/></label>}
   {entry.kind==='vision'&&!!entry.fragments?.length&&<p className={styles.note}>Diese Vision nutzt {entry.fragments.length} eigene Textabschnitte aus der Szenenvorbereitung. Sie bleiben unverändert.</p>}
   <div className={styles.mediaPick} role="group" aria-label={'Bilder aus der Galerie '+mediaSectionLabel[section]}>
    {images.length?images.map(f=>{const on=entry.fileIds.includes(f.id);return <button key={f.id} type="button" aria-pressed={on} aria-label={(on?'Bild abwählen: ':'Bild verwenden: ')+f.name} disabled={!on&&entry.fileIds.length>=20} onClick={()=>change({fileIds:on?entry.fileIds.filter(x=>x!==f.id):[...entry.fileIds,f.id]})}><img src={'/api/files?id='+encodeURIComponent(f.id)+'&size=thumb'} alt="" loading="lazy"/></button>;})

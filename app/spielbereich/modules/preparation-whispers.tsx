@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Existing protected character portraits. */
 "use client";
+import { authoringTextMax } from '@/domain/authoring-limits';
 import {PreparedWhispers} from './prepared-whispers';
 import {useRef,useState,type ReactNode} from 'react';
 import {Send,Eye,Users,Paperclip,X,UserRound,Check} from 'lucide-react';
@@ -22,14 +23,14 @@ function LegacyPreparationWhispers({scene,players,files,onChange,onSave,children
   const reviewing=review===signature;
   const recipientLabel=(id:string)=>{const player=players.find(player=>player.id===id);return player?player.character?player.character.name+' · '+player.name:player.name:'Nicht verfügbar';};
   const unknown=scene.visionRecipientIds.some(id=>!players.some(player=>player.id===id));
-  const ready=scene.visionRecipientIds.length>0&&!unknown&&isRichTextWithinLimit(scene.visions,10000)&&!!(richTextToPlainText(scene.visions).trim()||richTextFileIds(scene.visions).length||scene.visionFileIds.length);
+  const ready=scene.visionRecipientIds.length>0&&!unknown&&isRichTextWithinLimit(scene.visions,authoringTextMax)&&!!(richTextToPlainText(scene.visions).trim()||richTextFileIds(scene.visions).length||scene.visionFileIds.length);
   function addFile(id:string){if(!scene.visionFileIds.includes(id)){if(scene.visionFileIds.length>=20){setNotice('Höchstens 20 Dateien. Entferne zuerst eine Zuordnung.');return;}onChange({visionFileIds:[...scene.visionFileIds,id]});}}
   function material(id:string){const item=scene.elements.find(element=>element.id===id);if(!item)return;
     try{
-      if(!isRichTextWithinLimit(scene.visions,10000))throw new Error('Korrigiere zuerst die ungültige Botschaft; dein Entwurf bleibt erhalten.');
+      if(!isRichTextWithinLimit(scene.visions,authoringTextMax))throw new Error('Korrigiere zuerst die ungültige Botschaft; dein Entwurf bleibt erhalten.');
       const escaped=item.title.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
       const text=htmlToRichText(richTextToHtml(scene.visions)+'<h3>'+escaped+'</h3>'+richTextToHtml(item.text));
-      if(!isRichTextWithinLimit(text,10000))throw new Error('Die übernommenen Texte überschreiten 10.000 Zeichen. Kürze zuerst deine Botschaft.');
+      if(!isRichTextWithinLimit(text,authoringTextMax))throw new Error('Die übernommenen Texte überschreiten 20.000 Zeichen. Kürze zuerst deine Botschaft.');
       const ids=[...new Set([...scene.visionFileIds,...(item.fileId?[item.fileId]:[])])];if(ids.length>20)throw new Error('Höchstens 20 Dateien je Botschaft.');
       onChange({visions:text,visionFileIds:ids});setImportRevision(value=>value+1);setNotice('Baustein in die Botschaft übernommen. Prüfe den Inhalt vor dem Zustellen; Originalakte und Freigaben bleiben unverändert.');
     }catch(error){setNotice((error as Error).message);}

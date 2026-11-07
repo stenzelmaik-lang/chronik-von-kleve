@@ -87,11 +87,11 @@ export async function failure(e: unknown, req?: Request) {
     503,
   );
 }
-export async function input(req: Request) {
+export async function input(req: Request, maximumLength = 150000) {
   if (!(req.headers.get("content-type") || "").includes("application/json"))
     throw new HttpError(415, "JSON erwartet.");
   const raw = await req.text();
-  if (raw.length > 150000) throw new HttpError(413, "Der Eintrag ist zu groß.");
+  if (raw.length > maximumLength) throw new HttpError(413, "Der Eintrag ist zu groß.");
   try {
     return JSON.parse(raw);
   } catch {

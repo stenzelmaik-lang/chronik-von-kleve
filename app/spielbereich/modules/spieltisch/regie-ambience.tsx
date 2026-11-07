@@ -2,22 +2,49 @@
 import {useEffect,useRef,useState} from 'react';
 import {Play,Pause,SkipForward,SkipBack,Square,ListMusic,Bookmark,Trash2} from 'lucide-react';
 import {youtubeVideoId,youtubeTracksMax} from '@/domain/live-stage';
-import type {Snapshot} from './types';
+import type {RegieContext,Snapshot} from './types';
 import styles from './regie-window.module.css';
 
 type Run=(body:Record<string,unknown>,done?:string)=>Promise<boolean>;
+type ScenePlaylistProps={
+ sceneTracks:NonNullable<RegieContext['youtube']>;
+ sceneTitle:string;
+ busy:boolean;
+ run:Run;
+};
 type Saved={id:string;label:string;links:string[]};
 const savedKey=(actorId:string)=>'chroniplay:ambiente-liste:'+actorId;
 function readSaved(actorId:string):Saved[]{try{const v=JSON.parse(window.localStorage.getItem(savedKey(actorId))||'[]');return Array.isArray(v)?v.filter((x):x is Saved=>typeof x?.id==='string'&&typeof x?.label==='string'&&Array.isArray(x?.links)).slice(0,40):[];}catch{return [];}}
 /** One link per line; an optional title before a „|“ (e.g. „Wald | https://youtu.be/…“). */
 function parseLines(text:string){return text.split('\n').map(l=>l.trim()).filter(Boolean).slice(0,youtubeTracksMax).map((line,i)=>{const [a,b]=line.includes('|')?line.split('|',2).map(x=>x.trim()):['',line];return {video:b,title:a||'Titel '+(i+1),ok:!!youtubeVideoId(b)};});}
 
+export function RegieScenePlaylist({sceneTracks,sceneTitle,busy,run}:ScenePlaylistProps){
+ if(!sceneTracks.length)return null;
+ const start=(index:number)=>run({
+  action:'youtubeList',
+  tracks:sceneTracks.map(track=>({video:track.videoId,title:track.title})),
+  label:sceneTitle,
+  index,
+ },'Playlist der Szene startet.');
+ return <div className={styles.ambienceGroup}>
+  <h4><ListMusic size={14}/> Playlist der Szene ({sceneTracks.length})</h4>
+  <p className={styles.muted}>Startet beim Szenenstart automatisch und läuft in Schleife.</p>
+  <button type="button" disabled={busy} onClick={()=>void start(0)}><Play/> Playlist der Szene starten</button>
+  {sceneTracks.length>1&&<ol className={styles.compact} aria-label="Vorbereitete Musiktitel">
+   {sceneTracks.map((track,index)=><li key={track.id}>
+    <span>{index+1}. {track.title||'Titel '+(index+1)}</span>
+    <button type="button" aria-label={'Playlist ab Titel '+(index+1)+' starten'} disabled={busy} onClick={()=>void start(index)}><Play size={15}/></button>
+   </li>)}
+  </ol>}
+ </div>;
+}
+
 /**
  * Ambience control in the Regie: play/pause, next/previous, choosing a track and the base volume for everyone
  * (each viewer keeps their own scaling), the scene's prepared playlist and spontaneous links or saved ambiences.
  * Commands go through the stage API; only the GM may send them.
  */
-export function RegieAmbience({youtube,sceneTracks,sceneTitle,actorId,busy,run}:{youtube:Snapshot['youtube'];sceneTracks:{id:string;title:string;videoId:string}[];sceneTitle:string;actorId:string;busy:boolean;run:Run}){
+export function RegieAmbience({youtube,sceneTracks,sceneTitle,actorId,busy,run}:ScenePlaylistProps&{youtube:Snapshot['youtube'];actorId:string}){
  const [lines,setLines]=useState(''),[label,setLabel]=useState(''),[saved,setSaved]=useState<Saved[]>([]),[volume,setVolume]=useState<number|null>(null),[problem,setProblem]=useState('');
  const timer=useRef(0);
  useEffect(()=>{queueMicrotask(()=>setSaved(readSaved(actorId)));},[actorId]);
@@ -39,9 +66,7 @@ export function RegieAmbience({youtube,sceneTracks,sceneTitle,actorId,busy,run}:
    <label className={styles.vitalsSetting}>Grundpegel für alle: {base} % <input type="range" aria-label="Grundpegel für alle" min={0} max={100} step={5} value={base} disabled={busy} onChange={e=>setBase(Number(e.target.value))}/></label>
    {tracks.length>1&&<ol className={styles.compact} aria-label="Titel der laufenden Playlist">{tracks.map((t,i)=><li key={i+t.videoId} data-active={i===index}><span>{i+1}. {t.title}</span><button type="button" aria-label={'Titel wählen: '+t.title} disabled={busy||i===index} onClick={()=>void control('select',{index:i},'Titel „'+t.title+'“ für alle.')}><Play/></button></li>)}</ol>}
   </>}
-  {!!sceneTracks.length&&<div className={styles.ambienceGroup}><h4><ListMusic size={14}/> Playlist der Szene ({sceneTracks.length})</h4>
-   <p className={styles.muted}>Startet beim Szenenstart automatisch und läuft in Schleife.</p>
-   <button type="button" disabled={busy} onClick={()=>void run({action:'youtubeList',tracks:sceneTracks.map(t=>({video:t.videoId,title:t.title})),label:sceneTitle},'Playlist der Szene startet.')}><Play/> Playlist der Szene starten</button></div>}
+  <RegieScenePlaylist sceneTracks={sceneTracks} sceneTitle={sceneTitle} busy={busy} run={run}/>
   <form className={styles.pager} onSubmit={e=>{e.preventDefault();startLines(lines,label);}}>
    <label>Spontan: YouTube-Links (einer pro Zeile, optional „Titel | Link“)<textarea aria-label="YouTube-Links" rows={3} value={lines} onChange={e=>{setLines(e.target.value);setProblem('');}} placeholder={'Wald | https://youtu.be/…\nhttps://www.youtube.com/watch?v=…'}/></label>
    <label>Name<input className={styles.search} aria-label="Name des Ambientes" maxLength={200} value={label} onChange={e=>setLabel(e.target.value)} placeholder="z. B. Bar, Wald, Stadt"/></label>

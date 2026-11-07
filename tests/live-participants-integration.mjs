@@ -4,10 +4,10 @@ export async function liveParticipantsIntegration({req,check,base,ids,localSql,s
  const sessionId=randomUUID();await req('/api/live-table','gm','POST',{action:'start',sessionId,title:'SYNTHETIC participant menus',create:true});
  const initial=(await req('/api/live-stage?sessionId='+sessionId,'gm')).d,runId=initial.runId;
  const endpoint=(member,view='profile',character)=>'/api/live-participants?sessionId='+sessionId+'&memberId='+member+'&view='+view+(character?'&characterId='+character:'');
- const lobby='/api/campaign-profiles?memberId=sprint1-a';
  const profile=await req(endpoint('sprint1-a'),'b');
  check(profile.s===200&&!JSON.stringify(profile.d).includes('@')&&!profile.d.member.email&&!profile.d.sheet,'MENUS public player profile excludes email and private sheet');
  check((await req(endpoint('sprint1-a'))).s===401,'MENUS anonymous profile denied');
+ check((await fetch(base+'/api/campaign-profiles?memberId=sprint1-a',{headers:ids.b})).status===404,'CAMPAIGN no member profile endpoint outside the live table');
  for(const role of ['blockedPlayer','otherCampaign','editor'])check([403,404].includes((await req(endpoint('sprint1-a'),role)).s),'MENUS blocked, foreign or nonparticipant '+role+' denied');
  check((await req(endpoint('sprint1-a','sheet'),'b')).s===403,'MENUS guessed foreign full character sheet denied');
  const c=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC MENU CHARACTER',visibility:'group',body:{...engineFixture,text:'MENUS_PRIVATE_BIO',goals:'MENUS_PRIVATE_GOAL'}}),cid=c.d.id;
@@ -59,10 +59,6 @@ export async function liveParticipantsIntegration({req,check,base,ids,localSql,s
  check(presented?.id===hiddenId&&presented.introduction==='MENUS_FIGURE_INTRO'&&presented.gallery?.[0]?.caption==='MENUS_FIGURE_PHOTO'&&!('sheet' in presented),'MENUS active figure returns only its presentation');
  const figureImage=await fetch(base+figureImageUrl,{headers:ids.b});
  check(figureImage.status===200&&Buffer.from(await figureImage.arrayBuffer()).equals(png),'MENUS gallery image is shared only by contextual URL');
- const lobbyFigure=await req(lobby,'b');
- check(lobbyFigure.s===200&&lobbyFigure.d.character?.id===hiddenId,'CAMPAIGN profiles reuse the released active figure');
- const lobbyImage=lobbyFigure.d.character?.gallery?.[0]?.url;
- check(lobbyImage?.startsWith('/api/campaign-profiles?')&&(await fetch(base+lobbyImage,{headers:ids.b})).status===200,'CAMPAIGN gallery works with campaign authorization');
  const figureVersion=(await req(presentationUrl,'a')).d.version;
  check((await req('/api/character-companion','a','PATCH',{action:'presentation',id:hiddenId,version:figureVersion,presentation:{...figure,published:false}})).s===200,'MENUS owner can withdraw figure presentation');
  check((await fetch(base+figureImageUrl,{headers:ids.b})).status===404&&(await req(endpoint('sprint1-a'),'b')).d.character===null,'MENUS withdrawal removes card and revokes gallery URL');
@@ -88,14 +84,10 @@ export async function liveParticipantsIntegration({req,check,base,ids,localSql,s
  await command('a','leave',peers[0]);check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='afk','PRESENCE closing one tab keeps remaining connection');
  await command('a','pulse',peers[1],{afk:false});check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='connected','PRESENCE explicit return to table');
  await command('a','leave',peers[1]);check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='disconnected','PRESENCE leaving final tab disconnects automatically');
- if(lobbyImage)check((await fetch(base+lobbyImage,{headers:ids.b})).status===404,'CAMPAIGN gallery URL is revoked when presentation is withdrawn');
  const timeoutPeer=randomUUID();await command('a','join',timeoutPeer);
  localSql('UPDATE records SET body=json_set(body,'+sqlQuote('$.peers."'+timeoutPeer+'".seen')+',0) WHERE id='+sqlQuote('live-table:chronik-von-kleve:'+sessionId)+';');
  check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='disconnected','PRESENCE timeout detected without client disconnect flag');
  await command('a','join',timeoutPeer);check((await req('/api/live-stage?sessionId='+sessionId,'gm')).d.crew.find(m=>m.id==='sprint1-a').presence==='connected','PRESENCE reconnect restores actual membership');
  check((await command('a','join',randomUUID(),{runId:randomUUID()})).s===409,'PRESENCE old run cannot claim a new live connection');
  await req('/api/live-table','gm','POST',{action:'end',sessionId,runId});check((await req(endpoint('sprint1-a'),'gm')).s===409,'MENUS closed room revokes profile and avatar context');
- check((await req(lobby,'b')).s===200,'CAMPAIGN profile remains accessible after the evening closes');
- check((await req(lobby)).s===401&&[403,404].includes((await req(lobby,'otherCampaign')).s),'CAMPAIGN denies anonymous and foreign profiles');
- check((await req(lobby+'&view=sheet','b')).s===400,'CAMPAIGN never exposes the character sheet');
 }

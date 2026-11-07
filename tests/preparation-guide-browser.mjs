@@ -140,8 +140,8 @@ try{
  await page.goto(base+'/sl/command-center?bereich=sitzung&scene='+sceneId+'&section=secrets&fromSession='+sessionId+'&returnGuide=1');await assertStep('secrets','section');
  await page.reload();await cnav().getByRole('heading',{name:'Geheimnisse',exact:true}).waitFor();
  phase='text limit blocks navigation and preserves invalid source';
- await source('Geheimnisse','<p>'+'X'.repeat(10000)+'</p>');await page.getByRole('button',{name:'Jetzt speichern',exact:true}).click();await page.getByText(/^Gespeichert ·/).waitFor();const full=(await api('/api/command-center/scenes?id='+sceneId)).body.scene;assert.ok(full.document.secrets.includes('X'.repeat(10000)));
- const oversized='<p>'+'X'.repeat(10001)+'</p>';
+ await source('Geheimnisse','<p>'+'X'.repeat(20000)+'</p>');await page.getByRole('button',{name:'Jetzt speichern',exact:true}).click();await page.getByText(/^Gespeichert ·/).waitFor();const full=(await api('/api/command-center/scenes?id='+sceneId)).body.scene;assert.ok(full.document.secrets.includes('X'.repeat(20000)));
+ const oversized='<p>'+'X'.repeat(20001)+'</p>';
  await source('Geheimnisse',oversized);await footer().click();
  await page.getByText(/Deine Eingaben bleiben im Editor/).waitFor();
  assert.equal(new URL(page.url()).searchParams.get('section'),'secrets');assert.equal(await page.getByRole('textbox',{name:'Geheimnisse HTML',exact:true}).inputValue(),oversized);

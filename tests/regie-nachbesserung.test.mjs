@@ -6,10 +6,11 @@ import {mayOperate,allowedOperations,applyTableVitals,emptyTableVitals,tableVita
 // Regie-Nachbesserung: more atmosphere effects, YouTube music as an optional stage field, YouTube tracks in scenes.
 const a={id:'a',name:'Player A',gm:false},gm={id:'sl',name:'SL',gm:true};
 
-test('new effects are known, combinable and keep the stable table order',()=>{
- assert.deepEqual([...stageEffects],['rain','fog','storm','snow','embers','darkness','flicker']);
- const s=changeStageObjects(emptyStage(),gm,{action:'effects',effects:['flicker','storm','rain','snow','embers','darkness','fog']});
- assert.deepEqual(s.effects,['rain','fog','storm','snow','embers','darkness','flicker']);
+test('lighting and weather can be combined and stored in stable table order',()=>{
+ const command=stageCommandSchema.parse({action:'effects',effects:['ritualglow','candlelight','fog','moonlight','rain']});
+ const stage=changeStageObjects(emptyStage(),gm,command);
+ assert.deepEqual(stageSchema.parse(stage).effects,['rain','fog','moonlight','candlelight','ritualglow']);
+ assert.deepEqual(stageEffects.slice(0,7),['rain','fog','storm','snow','embers','darkness','flicker']);
  assert.equal(stageCommandSchema.safeParse({action:'effects',effects:['lightning']}).success,false,'Unknown names stay refused');
  assert.throws(()=>changeStageObjects(emptyStage(),a,{action:'effects',effects:['snow']}),e=>e.status===403);
 });
@@ -31,8 +32,21 @@ test('only the GM starts and stops YouTube music; the stage stores the id, a tit
  s=changeStageObjects(s,gm,{action:'youtube',video:'dQw4w9WgXcQ'});
  assert.notEqual(s.youtube.key,first,'Starting again restarts for everyone');assert.equal(s.youtube.title,'YouTube-Musik');
  s=changeStageObjects(s,gm,{action:'activateScene',sceneId:'next'},undefined,null);
- assert.equal(s.youtube.videoId,'dQw4w9WgXcQ','Music is an explicit GM choice and survives a scene change');
+ assert.equal(s.youtube,null,'An activated scene never inherits the previous YouTube source');
+ s=changeStageObjects(s,gm,{action:'youtube',video:'dQw4w9WgXcQ'});
  s=changeStageObjects(s,gm,{action:'youtube',video:null});assert.equal(s.youtube,null);
+});
+
+test('the GM can stop both background sources in one command',()=>{
+ const playing=changeStageObjects(emptyStage(),gm,{action:'youtube',video:'dQw4w9WgXcQ'});
+ playing.music={fileId:'f-audio',title:'Dateimusik',key:'file-start'};
+ const command={action:'stopMusic'};
+ assert.equal(stageCommandSchema.safeParse(command).success,true);
+ assert.throws(()=>changeStageObjects(playing,a,command),e=>e.status===403);
+ const stopped=changeStageObjects(playing,gm,command);
+ assert.equal(stopped.music,null);
+ assert.equal(stopped.youtube,null);
+ assert.equal(stopped.version,playing.version+1);
 });
 
 test('stored stages and scenes from before stay valid; strict parsers still refuse unknown data',()=>{

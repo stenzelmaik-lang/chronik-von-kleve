@@ -163,8 +163,11 @@ export async function stageMutation(a:Actor,sessionId:string,runId:string,expect
   music={fileId:f.id,title:f.name,key:crypto.randomUUID().replaceAll('-','').slice(0,16)};
  }
  let next:StageState;try{next=changeStageObjects(state,a,c,source,backdrop,music);}catch(e){if(e instanceof Error&&'status' in e)throw new HttpError(Number(e.status),e.message);throw new HttpError(400,'Ungültige Bühnenaktion.');}
- // Starting a scene with a prepared playlist starts it for everyone (it loops); without one the current music keeps playing.
- if(c.action==='activateScene'&&scenePlaylist)next=startYoutube(next,scenePlaylist.tracks,{label:scenePlaylist.label,sceneId:c.sceneId});
+ // The scene change ends both background sources. A prepared playlist starts in the same update.
+ // Carry over the base volume when switching straight from another YouTube playlist.
+ if(c.action==='activateScene'&&scenePlaylist){
+  next=startYoutube({...next,youtube:state.youtube},scenePlaylist.tracks,{label:scenePlaylist.label,sceneId:c.sceneId});
+ }
  const sourceGuard=source?.sourceKind==='record'&&!source.sourceId.startsWith('scene-material:')&&!source.sourceId.startsWith('scene-whisper:')&&!source.sourceId.startsWith('standard-figure:')?" AND EXISTS (SELECT 1 FROM records prepared WHERE prepared.id=? AND prepared.campaign_id=? AND prepared.owner_id=? AND prepared.version=?)":"";
  const sourceBindings=sourceGuard&&source?[source.sourceId,a.campaignId,a.id,source.sourceVersion!]:[];
  const whisperGuard=source&&'presentation' in source&&source.presentation?" AND EXISTS (SELECT 1 FROM entities prepared WHERE prepared.id=? AND prepared.campaign_id=? AND prepared.version=?)":'';

@@ -72,7 +72,7 @@ export async function locationLibraryIntegration({req,check,base,ids}){
   check(!(await tree(root.id)).some(n=>n.id===hall.id),'LIBRARY moving never creates a second copy in the original root');
   const archive=await write('/api/cms/location-structure',{action:'archive',entityId:hall.id,expectedRevision:movedTree.find(n=>n.id===hall.id).revision,reason:'Synthetic archive'});check(archive.s===200,'LIBRARY subtree archives without hard deletion');
   check((await req('/api/locations?place='+root2.id+'&view=player','a')).s===404,'LIBRARY archived subtree disappears from all player navigation');
-  const archivedTree=await tree(root2.id);check(archivedTree.some(n=>n.id===room.id&&n.lifecycle==='archived'),'LIBRARY archived descendants remain in the SL administration');
+  const archivedTree=(await req('/api/cms/locations?place='+root2.id+'&includeInactive=1','gm')).d.nodes;check(archivedTree.some(n=>n.id===room.id&&n.lifecycle==='archived'),'LIBRARY archived descendants remain in the SL administration');
   check((await write('/api/cms/location-structure',{action:'restore',entityId:hall.id,expectedRevision:archivedTree.find(n=>n.id===hall.id).revision,reason:'Synthetic restoration'})).s===200,'LIBRARY archived subtree restores with its previous discovery intact');
   await publish(root2,{title:root2.title,summary:'LIBRARY_PUBLIC_SECOND_ROOT'});
   check((await write('/api/locations/state',{placeId:root2.id,entityId:root2.id,mode:'discovery',audience:'group',discoveryState:'known',expectedRevision:0,reason:'Explicit second root discovery'})).s===200,'LIBRARY relocated root is independently discovered');
@@ -107,5 +107,16 @@ export async function locationLibraryIntegration({req,check,base,ids}){
   check(!JSON.stringify((await req('/api/locations?place='+root2.id+'&view=player&target=player','b')).d).includes('LIBRARY_PERSONAL_PUBLIC_TEXT'),'LIBRARY personal discovery never becomes knowledge of another player');
   const exportResult=await req('/api/cms/location-export?entityId='+root2.id,'gm');check(exportResult.s===200&&exportResult.d.nodes.some(n=>n.entity_id===info.id)&&exportResult.d.entity_content_blocks.some(b=>b.id===architecture.id)&&exportResult.d.knowledge.some(k=>k.entity_id===hall.id),'LIBRARY protected export preserves structure, chapters, history and knowledge');
   check((await req('/api/cms/location-export?entityId='+root2.id,'a')).s===403,'LIBRARY export is never player accessible');
+  const trashRoot=await create('location','LIBRARY_DELETE_ROOT'),trashArea=await create('area','LIBRARY_DELETE_AREA',trashRoot.id),trashRoom=await create('room','LIBRARY_DELETE_ROOM',trashArea.id);
+  const trashTree=(await req('/api/cms/locations?place='+trashRoot.id,'gm')).d.nodes;
+  const removed=await write('/api/cms/location-structure',{action:'remove',entityId:trashRoot.id,expectedRevision:trashTree.find(item=>item.id===trashRoot.id).revision,reason:'Synthetic root deletion'});
+  check(removed.s===200,'LIBRARY entire place can be moved to trash');
+  const trashed=(await req('/api/cms/locations?place='+trashRoot.id+'&includeInactive=1','gm')).d.nodes;
+  check([trashRoot.id,trashArea.id,trashRoom.id].every(id=>trashed.some(item=>item.id===id&&item.lifecycle==='deleted')),'LIBRARY deleted root retains its areas and rooms in the recoverable trash');
+  check(!(await req('/api/cms/locations','gm')).d.locations.some(item=>item.id===trashRoot.id),'LIBRARY deleted root disappears from the active catalog');
+  check((await req('/api/cms/locations?place='+trashRoot.id,'gm')).d.nodes.length===0,'LIBRARY deleted root and descendants disappear from the active tree');
+  check((await req('/api/cms/locations?includeInactive=1','gm')).d.locations.some(item=>item.id===trashRoot.id&&item.lifecycle==='deleted'),'LIBRARY trash root is explicitly available for restoration');
+  const restored=await write('/api/cms/location-structure',{action:'restore',entityId:trashRoot.id,expectedRevision:trashed.find(item=>item.id===trashRoot.id).revision,reason:'Synthetic root restoration'});
+  check(restored.s===200,'LIBRARY deleted root can be restored');
   check(JSON.stringify((await req('/api/members','gm')).d)===JSON.stringify(beforeMembers)&&JSON.stringify((await req('/api/records?kind=charaktere','gm')).d)===JSON.stringify(beforeCharacters),'LIBRARY all authoring, move, archive and restore tests preserve existing accounts and characters');
 }

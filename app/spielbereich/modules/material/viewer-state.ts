@@ -1,5 +1,5 @@
 "use client";
-import {useCallback,useEffect,useState} from 'react';
+import {useCallback,useEffect,useRef,useState} from 'react';
 
 /**
  * Personal viewer state of one material: page, zoom and volume belong to the person looking at it and are never
@@ -15,8 +15,16 @@ function read(id:string):ViewerState{
 }
 export function useViewerState(id:string){
  const [state,setState]=useState<ViewerState>(initial);
- useEffect(()=>{queueMicrotask(()=>setState(read(id)));},[id]);
- const update=useCallback((patch:Partial<ViewerState>)=>setState(old=>{const next={...old,...patch};try{window.localStorage.setItem(key(id),JSON.stringify(next));}catch{/* storage unavailable */}return next;}),[id]);
+ const current=useRef<{id:string;value:ViewerState}|null>(null);
+ useEffect(()=>{let active=true;queueMicrotask(()=>{if(!active||current.current?.id===id)return;const value=read(id);current.current={id,value};setState(value);});return()=>{active=false;};},[id]);
+ const update=useCallback((patch:Partial<ViewerState>)=>{
+  // Opening a viewer marks it as opened immediately, sometimes before the deferred storage read.
+  // Merge that first update with the saved values rather than overwriting volume/page/zoom with defaults.
+  const value=current.current?.id===id?current.current.value:read(id),next={...value,...patch};
+  current.current={id,value:next};
+  try{window.localStorage.setItem(key(id),JSON.stringify(next));}catch{/* storage unavailable */}
+  setState(next);
+ },[id]);
  return [state,update] as const;
 }
 /** Whether this viewer has opened the material before (for "Geöffnet liegen lassen" on the table token). */

@@ -1,4 +1,5 @@
 import { parseFragment } from 'parse5';
+import { authoringSourceMax } from './authoring-limits.ts';
 export const richTextPrefix = "cvk-rich-v1:";
 
 export const richTextColors = ["#d6b36f", "#eee6d6", "#a9c3cf", "#d38b82"] as const;
@@ -229,7 +230,7 @@ export function htmlTextToRichText(value:string):string|null {
 type HtmlNode={nodeName:string;tagName?:string;value?:string;attrs?:{name:string;value:string}[];childNodes?:HtmlNode[]};
 const forbidden=new Set(['script','style','iframe','object','embed','svg','math','template','noscript','form','input','button','video','audio']);
 export function htmlToRichText(html:string):string {
-  if(html.length>85000)throw new Error('HTML zu lang.');
+  if(html.length>authoringSourceMax)throw new Error('HTML zu lang.');
   const root=parseFragment(html) as unknown as HtmlNode;
   let visited=0;
   const inline=(n:HtmlNode,marks:Omit<RichTextInline,'text'>={},depth=0):RichTextInline[]=>{

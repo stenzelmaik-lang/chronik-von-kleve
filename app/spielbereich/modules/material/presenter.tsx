@@ -5,7 +5,8 @@ import {X,Minus,Plus,ArrowLeft,ArrowRight,Volume2,VolumeX,Lock,Layers,BookOpen,I
 import {effectiveEffect,effectProblem,materialSpeedFactor,materialTypeInfo,type MaterialCloseEffect,type MaterialDisplay,type MaterialEffectId,type MaterialType} from '@/domain/material-system';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
-import {CassettePlayer,RetroScreen} from '../spieltisch/media-objects';
+import {RetroScreen} from '../spieltisch/media-objects';
+import {AudioDeviceCover,UltioAudioPlayer,type AudioTrack} from './ultio-audio';
 import {useViewerState,useEffectSound,prefersReducedMotion} from './viewer-state';
 import {ownClose} from './file-picker';
 import styles from './presenter.module.css';
@@ -35,6 +36,7 @@ export function MaterialCover({material,showOpen=false,className,full=false}:{ma
   {material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}
  </span>;
  if(state)return <span className={`${styles.cover} ${className||''}`}><img src={small(state.src)} alt="" loading="lazy" decoding="async" draggable={false}/>{material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}</span>;
+ if(material.type==='audio')return <span className={`${styles.cover} ${className||''}`}><AudioDeviceCover title={material.title}/></span>;
  return <span className={`${styles.cover} ${styles.fallback} ${className||''}`} data-type={material.type}><Icon size={30} aria-hidden="true"/><small>{materialTypeInfo[material.type].label}</small>{material.pages.length>1&&<b className={styles.count}><Layers size={12}/> {material.pages.length}</b>}</span>;
 }
 
@@ -43,7 +45,7 @@ export function MaterialCover({material,showOpen=false,className,full=false}:{ma
  * and volume stay with this viewer; nothing here changes the shared table. Effects respect reduced motion and a
  * sound only plays after the viewer's own click and only if they did not switch effect sounds off.
  */
-export function MaterialPresenter({material,personalKey,onClose,badge,onTake}:{material:PresentedMaterial;personalKey:string;onClose:()=>void;badge?:string;onTake?:()=>void}){
+export function MaterialPresenter({material,personalKey,onClose,badge,onTake,audioTracks}:{material:PresentedMaterial;personalKey:string;onClose:()=>void;badge?:string;onTake?:()=>void;audioTracks?:AudioTrack[]}){
  const dialog=useRef<HTMLDialogElement>(null),timer=useRef(0),swipe=useRef<number|null>(null);
  const [view,setView]=useViewerState(personalKey),[soundOn,toggleSound]=useEffectSound();
  const stateKeys=material.states.map(s=>s.key);
@@ -81,7 +83,7 @@ export function MaterialPresenter({material,personalKey,onClose,badge,onTake}:{m
  const single=pages.length===1?pages[0]:undefined;
 
  const content=useMemo(()=>{
-  if(material.type==='audio'&&single)return <div className={styles.device}><CassettePlayer title={material.title} src={single.src} drag={noDrag} skin={openState?.src||closedState?.src} initialVolume={view.volume} onVolume={volume=>setView({volume})}/></div>;
+  if(material.type==='audio')return null;
   if(material.type==='video'&&single)return <div className={styles.device} data-video=""><RetroScreen title={material.title} src={single.src} drag={noDrag} skin={openState?.src||closedState?.src} onEnlarge={()=>setView({zoom:view.zoom>1?1:1.6})}/></div>;
   if(single?.mime==='application/pdf')return <LivePdf url={single.src} name={material.title}/>;
   if(!pages.length)return null;
@@ -89,11 +91,11 @@ export function MaterialPresenter({material,personalKey,onClose,badge,onTake}:{m
   if(material.display==='stack')return <div className={styles.stack} aria-label="Stapel">{pages.map((p,i)=>({p,i})).filter(({i})=>i>=page&&i<page+4).reverse().map(({p,i})=><figure key={p.src} className={styles.stackCard} data-top={i===page} style={{'--d':i-page,'--i':i} as CSSProperties}><img src={p.src} alt={i===page?(p.title||'Bild '+(i+1)):''} loading={i===page?'eager':'lazy'} decoding="async" style={{maxHeight:Math.round(62*view.zoom)+'vh'}}/><figcaption>{i===page?p.title:''}</figcaption></figure>)}</div>;
   const visible=spread?pages.slice(shown,shown+2):[pages[shown]];
   return <div key={turn} className={styles.book} data-display={material.display} data-turn={turn>0}>{visible.map((p,i)=><figure key={p.src} style={{'--i':i} as CSSProperties}><img src={p.src} alt={p.title||'Seite '+(shown+i+1)} decoding="async" style={{width:Math.round((spread?460:760)*view.zoom),maxWidth:view.zoom>1?'none':'100%'}}/>{p.title&&<figcaption>{p.title}</figcaption>}</figure>)}</div>;
- },[material,pages,single,page,shown,spread,turn,view.zoom,view.volume,setView,openState,closedState]);
+ },[material,pages,single,page,shown,spread,turn,view.zoom,setView,openState,closedState]);
 
  const paged=pages.length>1&&material.display!=='grid'&&material.type!=='audio'&&material.type!=='video';
  // Without a window: the object lies on the darkened table, a click beside it or Escape closes it again.
- return <dialog ref={dialog} className={styles.presenter} aria-label={'Material: '+material.title} style={style}
+ return <dialog ref={dialog} className={styles.presenter} aria-label={audioTracks?'Audiogerät':'Material: '+material.title} style={style}
   onCancel={e=>{if(e.target!==e.currentTarget)return;e.preventDefault();close();}} onClose={ownClose(onClose)}
   onClick={e=>{const t=e.target as HTMLElement;if(phase!=='closing'&&(t===e.currentTarget||t.dataset.backdrop!==undefined))close();}}
   onKeyDown={e=>{if(phase!=='open'||!paged)return;if(e.key==='ArrowRight'){e.preventDefault();go(1);}else if(e.key==='ArrowLeft'){e.preventDefault();go(-1);}}}
@@ -116,7 +118,7 @@ export function MaterialPresenter({material,personalKey,onClose,badge,onTake}:{m
     {openState&&<img className={styles.openImage} src={openState.src} alt="" decoding="async"/>}
    </div>}
    {phase==='closed'&&!hasCover&&<button type="button" className={styles.openButton} onClick={open} autoFocus><BookOpen size={18}/> Öffnen</button>}
-   {phase!=='closed'&&<div className={styles.content} data-display={material.display} data-backdrop="">{content}</div>}
+   {phase!=='closed'&&<div className={styles.content} data-display={material.display} data-backdrop="">{material.type==='audio'&&single?<div className={styles.audioDevice}><UltioAudioPlayer key={audioTracks?'playlist':single.src} title={material.title} src={single.src} tracks={audioTracks} initialVolume={view.volume} onVolume={volume=>setView({volume})} onStop={close} suspended={phase==='closing'}/></div>:content}</div>}
   </div>
   {phase==='open'&&paged&&<>
    <button type="button" className={styles.prev} disabled={shown===0} aria-label={material.display==='stack'?'Vorheriges Bild':'Vorherige Seite'} onClick={()=>go(-1)}><ArrowLeft/></button>

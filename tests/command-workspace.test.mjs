@@ -37,7 +37,7 @@ test('Plot dossiers separate prepared possibilities from actual session events',
 });
 test('Plot sections reject broken rich text and excessive contents', () => {
   const base = emptyStory();
-  assert.equal(storyDocumentSchema.safeParse({ ...base, sections: { ...base.sections, core: 'x'.repeat(10001) } }).success, false);
+  assert.equal(storyDocumentSchema.safeParse({ ...base, sections: { ...base.sections, core: 'x'.repeat(20001) } }).success, false);
   assert.equal(storyDocumentSchema.safeParse({ ...base, sections: { ...base.sections, core: 'cvk-rich-v1:{"version":1,"blocks":[{"type":"script"}]}' } }).success, false);
 });
 test('Multi-window synchronization accepts references only, never secrets or session tokens', () => {

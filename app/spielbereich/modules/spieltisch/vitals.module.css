@@ -116,7 +116,7 @@
 .roundName{display:flex;align-items:center;gap:5px;min-width:0}
 .presenceDot{flex:none;width:7px;height:7px;border-radius:50%;background:#6b716a}
 .presenceDot[data-state=online]{background:#7fcf97}.presenceDot[data-state=away],.presenceDot[data-state=afk]{background:#d6b36f}
-.roundBlock{display:grid;gap:5px;padding-top:6px;border-top:1px solid #c5a46a33}
+.roundBlock{display:grid;gap:5px;max-height:min(28dvh,240px);overflow:auto;padding-top:6px;border-top:1px solid #c5a46a33}
 .roundCaption{display:flex;align-items:center;gap:4px;color:#b7bdb6;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
 .hitLabel{margin-left:auto;padding:0 5px;border-radius:3px;background:#a3312a;color:#fff;font-size:10px}
 .roundRow[data-hit]{animation:roundHit 1.1s ease-out 2}

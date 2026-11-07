@@ -1,3 +1,4 @@
+import { authoringRequestMax } from '@/domain/authoring-limits';
 import { withoutDeletedFiles } from "@/server/preparation-media";
 import {
   actor,
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
     sameOrigin(req);
     const a = await actor();
     gmOnly(a);
-    const body = await input(req);
+    const body = await input(req, authoringRequestMax);
     if (body?.action === "delete") {
       const command = deletePreparationCommand.safeParse(body);
       if (!command.success) throw new HttpError(400, command.error.issues[0].message);

@@ -30,18 +30,16 @@ const context=JSON.parse((await gm.get(q+'&regie='+encodeURIComponent(first.id))
 assert.deepEqual(context.youtube.map(t=>t.videoId),['l8GAZU4eY7g','dQw4w9WgXcQ']);
 console.log('PASS scene playlist prepared in order; GM-only');
 
-// Starting the scene starts its playlist for everyone; a scene without one keeps the music.
-await stage(gm,{action:'youtube',video:null});
+// Starting the scene starts its playlist for everyone.
+await stage(gm,{action:'stopMusic'});
 await stage(gm,{action:'activateScene',sceneId:first.id});
 for(const p of [gm,a,b]){const y=(await snap(p)).youtube;assert.equal(y.videoId,'l8GAZU4eY7g');assert.equal(y.tracks.length,2);assert.equal(y.playing,true);assert.equal(y.volume,25);}
 for(const p of [a,b]){const y=(await snap(p)).youtube;assert.equal('sceneId' in y,false,'Players get only the play state');}
 const startKey=(await snap(a)).youtube.key;
-await stage(gm,{action:'activateScene',sceneId:second.id});
-assert.equal((await snap(b)).youtube.key,startKey,'A scene without a playlist keeps the music running');
-console.log('PASS scene start plays its playlist for SL, A and B; other scenes keep the music');
+console.log('PASS scene start plays its playlist for SL, A and B');
 
 // Only the GM controls.
-for(const p of [a,b])for(const c of [{action:'youtubeControl',op:'pause'},{action:'youtubeControl',op:'volume',volume:90},{action:'youtubeList',tracks:[{video:'dQw4w9WgXcQ'}]},{action:'youtube',video:null}])await stage(p,c,403);
+for(const p of [a,b])for(const c of [{action:'youtubeControl',op:'pause'},{action:'youtubeControl',op:'volume',volume:90},{action:'youtubeList',tracks:[{video:'dQw4w9WgXcQ'}]},{action:'youtube',video:null},{action:'stopMusic'}])await stage(p,c,403);
 await stage(gm,{action:'youtubeControl',op:'pause'});for(const p of [a,b])assert.equal((await snap(p)).youtube.playing,false);
 await stage(gm,{action:'youtubeControl',op:'play'});
 await stage(gm,{action:'youtubeControl',op:'next'});let y=(await snap(a)).youtube;assert.equal(y.index,1);assert.equal(y.videoId,'dQw4w9WgXcQ');assert.notEqual(y.key,startKey);
@@ -52,8 +50,36 @@ y=(await snap(b)).youtube;assert.equal(y.label,'Wald');assert.equal(y.volume,40,
 await stage(gm,{action:'youtubeList',tracks:[{video:'https://example.com/watch?v=l8GAZU4eY7g'}]},400);
 console.log('PASS only the SL plays, pauses, skips, selects, sets the base volume and switches playlists');
 
-// Restore: stop and put the scene's original playlist back.
-await stage(gm,{action:'youtube',video:null});await stage(gm,{action:'activateScene',sceneId:first.id});await stage(gm,{action:'youtube',video:null});
+const file=(await snap(gm)).catalog.find(item=>item.sourceKind==='file'&&item.mime?.startsWith('audio/'));
+assert.ok(file,'Fixture has a local audio file');
+async function expectSilence(){
+ for(const p of [gm,a,b]){
+  const {music,youtube}=await snap(p);
+  assert.equal(music,null);
+  assert.equal(youtube,null);
+ }
+ assert.equal((await a.get(q.replace('/api/live-stage?','/api/live-stage/asset?')+'&objectId=music')).status,404);
+}
+await stage(gm,{action:'music',fileId:file.id});
+assert.ok((await snap(a)).music&& (await snap(a)).youtube,'Both music sources are running');
+await stage(gm,{action:'activateScene',sceneId:second.id});
+await expectSilence();
+console.log('PASS a scene without music clears both music sources for everyone');
+
+await stage(gm,{action:'music',fileId:file.id});
+await stage(gm,{action:'youtube',video:'dQw4w9WgXcQ'});
+await stage(gm,{action:'activateScene',sceneId:first.id});
+for(const p of [gm,a,b]){
+ const {music,youtube}=await snap(p);
+ assert.equal(music,null,'File music from the prior scene is gone');
+ assert.equal(youtube.videoId,'l8GAZU4eY7g','Only the new scene playlist starts');
+}
+await stage(gm,{action:'music',fileId:file.id});
+await stage(gm,{action:'stopMusic'});
+await expectSilence();
+console.log('PASS the next scene starts only its own playlist; quick stop clears both sources');
+
+// Restore the scene's original playlist.
 const now=JSON.parse((await gm.get('/api/command-center/scenes?id='+encodeURIComponent(first.id))).text);const doc={...now.scene.document};if(original)doc.youtube=original;else delete doc.youtube;
 assert.equal((await gm.post('/api/command-center/scenes',{action:'save',id:first.id,version:now.scene.version,document:doc})).status,200);
 console.log('ALL PASS: Ambiente-Playlist – scene start, SL-only control, play state for players');

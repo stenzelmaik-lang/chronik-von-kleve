@@ -7,7 +7,7 @@ const session=z.object({sessionId:z.string().min(1).max(160)});
 const tier=z.enum(['easy','standard','hard','very_hard','extreme']);
 const patch=z.object({label:z.string().max(60).optional(),hurt:z.number().int().min(0).max(7).optional(),willpower:z.number().int().min(0).max(10).optional(),blood:z.number().int().min(0).max(30).optional(),note:z.string().max(2000).optional(),imageFileId:z.string().max(160).optional()}).strict();
 const body=z.discriminatedUnion('action',[
- session.extend({action:z.literal('spawn'),requestId:z.string().uuid(),typeId:z.string().min(1).max(60),tierId:tier,count:z.number().int().min(1).max(10),imageFileId:z.string().max(160).optional()}).strict(),
+ session.extend({action:z.literal('spawn'),requestId:z.string().uuid(),typeId:z.string().min(1).max(60),tierId:tier,count:z.number().int().min(1).max(10),templateId:z.string().uuid().optional(),imageFileId:z.string().max(160).optional()}).strict(),
  session.extend({action:z.literal('update'),id:z.string().uuid(),patch}).strict(),
  session.extend({action:z.literal('retire'),id:z.string().uuid()}).strict(),
  session.extend({action:z.literal('linkAsset'),typeId:z.string().min(1).max(60),tierId:tier.nullable(),fileId:z.string().min(1).max(160),label:z.string().max(80),role:z.enum(['fullbody','portrait','token','scene'])}).strict(),

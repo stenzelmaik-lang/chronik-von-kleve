@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {resolveFigure} from '../domain/standard-figures.ts';
 // Standard figures: GM only, per-figure state, no player payload, double-click safe, image links reuse the gallery.
 export async function liveFiguresIntegration({req,check,base,testPassword,localSql}){
  localSql("DELETE FROM auth_rate_limits");
@@ -18,6 +19,29 @@ export async function liveFiguresIntegration({req,check,base,testPassword,localS
   check([403,404].includes((await call('/api/live-figures',cookie,'POST',{action:'spawn',sessionId,requestId:randomUUID(),typeId:'security_bouncer',tierId:'standard',count:1})).s),'FIGURES player '+who+' cannot spawn');
  }
  check((await call(url)).s===401,'FIGURES anonymous denied');
+ // Campaign-owned values are saved before an evening, and isolated from player requests.
+ const templateUrl='/api/figure-templates',baseStats=resolveFigure('security_bouncer','standard');
+ const template={id:randomUUID(),name:'FIGURES_PRIVATE_TEMPLATE',typeId:baseStats.typeId,tierId:baseStats.tierId,attributes:{...baseStats.attributes,Geschick:4},skills:{...baseStats.skills,Handgemenge:5},willpower:8,bloodMax:null};
+ for(const cookie of players){
+  check([403,404].includes((await call(templateUrl,cookie)).s),'TEMPLATES player cannot list values');
+  check([403,404].includes((await call(templateUrl,cookie,'POST',{template,expectedVersion:0})).s),'TEMPLATES player cannot save values');
+ }
+ check((await call(templateUrl)).s===401,'TEMPLATES anonymous denied');
+ const saved=await req(templateUrl,'gm','POST',{template,expectedVersion:0});
+ check(saved.s===200&&saved.d.template.version===1,'TEMPLATES GM saves custom values');
+ check((await req(templateUrl,'gm')).d.templates.some(item=>item.id===template.id&&item.willpower===8),'TEMPLATES library survives a fresh database read');
+ const customSpawn={action:'spawn',sessionId,requestId:randomUUID(),typeId:template.typeId,tierId:template.tierId,count:1,templateId:template.id};
+ const custom=await req('/api/live-figures','gm','POST',customSpawn);
+ const instance=custom.d.figures.find(figure=>figure.label==='FIGURES_PRIVATE_TEMPLATE 1');
+ check(custom.s===200&&instance?.stats.actions.find(action=>action.label==='Zuschlagen')?.pool===9,'TEMPLATES Regie uses saved attributes and abilities in its dice pools');
+ const revised={...template,attributes:{...template.attributes,Geschick:3},willpower:6};
+ check((await req(templateUrl,'gm','POST',{template:revised,expectedVersion:1})).s===200,'TEMPLATES own values can be revised');
+ check((await req(templateUrl,'gm','POST',{template,expectedVersion:1})).s===409,'TEMPLATES stale edit cannot overwrite newer values');
+ check((await req(url,'gm')).d.figures.find(item=>item.id===instance.id).stats.willpower===8,'TEMPLATES later changes leave existing live figures intact');
+ check((await req('/api/live-figures','gm','POST',{...customSpawn,requestId:randomUUID(),typeId:'security_guard_basic'})).s===400,'TEMPLATES mismatched base type is rejected');
+ check((await req('/api/live-figures','gm','POST',{...customSpawn,requestId:randomUUID(),templateId:randomUUID()})).s===404,'TEMPLATES missing template never silently falls back to default values');
+ check((await req(templateUrl,'gm','POST',{template:{...revised,willpower:11},expectedVersion:2})).s===400,'TEMPLATES out-of-range values are rejected');
+ await req('/api/live-figures','gm','POST',{action:'retire',sessionId,id:instance.id});
  // Spawn three separate instances; a repeated request id (double click) creates nothing new.
  const requestId=randomUUID(),spawn={action:'spawn',sessionId,requestId,typeId:'security_bouncer',tierId:'standard',count:3};
  const first=await req('/api/live-figures','gm','POST',spawn);

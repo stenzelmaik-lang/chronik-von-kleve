@@ -33,6 +33,12 @@ try{
   const {name,...options}=config;phase=name;
   const [gm,a,b]=await Promise.all([account('command-gm',options),account('command-a',options),account('command-b',{...options,reducedMotion:'reduce'})]);
   const [sl,pa,pb]=await Promise.all([table(gm,'SL'),table(a,'A'),table(b,'B')]);
+  const playerA=pb.getByRole('navigation',{name:'Spielerleiste'}).getByRole('button',{name:nameA+' \u00b7 Am Tisch',exact:true});
+  await playerA.click();
+  await pb.locator('[data-participant-menu]').waitFor();
+  await playerA.click();
+  await pb.locator('[data-participant-menu]').waitFor({state:'hidden'});
+  assert.equal(await playerA.getAttribute('aria-expanded'),'false');
   // 3. Live overview bottom left: B sees A with blood and willpower.
   await row(pb,ca.id).waitFor();const before=await bloodOf(pb,ca.id);
   const box=await row(pb,ca.id).boundingBox(),vp=pb.viewportSize();assert.ok(box.x<vp.width/2&&box.y>vp.height/2,name+': overview sits bottom left');

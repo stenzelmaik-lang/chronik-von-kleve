@@ -1,22 +1,25 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- Authenticated GM media must never use a public optimization proxy. */
 import {DeliveryDesk} from './delivery-desk';
-import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen,Users,Dices} from 'lucide-react';
+import {memo,useCallback,useEffect,useRef,useState} from 'react';
+import {Eye,EyeOff,Lock,Clapperboard,Image as ImageIcon,FileText,Music,Film,Search,X,RotateCcw,CloudRain,CloudFog,CloudLightning,Snowflake,Flame,Moon,Lightbulb,UserPlus,UserMinus,Send,Undo2,MonitorPlay,Minus,Plus,Square,Radio,BookOpen,Users,LayoutGrid as LayoutGridIcon,ChevronUp,MoonStar,FlameKindling,Sparkles} from 'lucide-react';
 import type {Actor} from '@/domain/types';
+import {Popover,PopoverContent,PopoverTrigger} from '@/components/ui/popover';
 import {pagerTextMax,pagerTitleMax,pagerSenderMax,stageEffects,type StageEffect} from '@/domain/live-stage';
 import {api,ApiError} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {LivePdf} from '../live-pdf';
 import {BackdropChoice,tableState} from './regie';
 import {RegieFigures} from './regie-figures';
-import {Block,RegieTiles,useRegieLayout} from './regie-tiles';
+import {Block,useRegieLayout} from './regie-tiles';
+import {RegieStudio} from './regie-studio';
+import {regieAreaLabels} from '@/domain/regie-studio';
 import type {PreparedFigure} from '@/domain/standard-figures';
 import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
 import {TableMaterialLibrary} from '../table-material-library';
 import {RegieVitals} from './regie-vitals';
-import {RegieAmbience} from './regie-ambience';
+import {RegieAmbience,RegieScenePlaylist} from './regie-ambience';
 import {RegieMaterials} from '../material/regie-materials';
 import type {RegieContext,Snapshot,StageObject,PreparedPager,PagerMessage} from './types';
 import {PagerSelfTest} from './ultio-pager';
@@ -38,7 +41,7 @@ type CampaignCrew=NonNullable<Snapshot['campaignCrew']>;
 
 function CampaignMenu({members,failed=false}:{members?:CampaignCrew;failed?:boolean}){
  return <details className={styles.headerMenu}>
-    <summary><Users size={15}/> Kampagne{members&&' ('+members.length+')'}</summary>
+    <summary aria-label={'Kampagnenmitglieder'+(members?' ('+members.length+')':'')} title="Kampagnenmitglieder"><Users size={15}/> Kampagne{members&&' ('+members.length+')'}</summary>
     <div className={styles.menuBody}>
      {!members?<span>{failed?'Teilnehmende konnten nicht geladen werden.':'Teilnehmende werden geladen …'}</span>:members.length===0?<span>Keine aktiven Mitglieder</span>:
       <ul className={styles.crew} aria-label="Kampagnenmitglieder">
@@ -61,12 +64,15 @@ const pagerTime=(at:string)=>new Date(at).toLocaleTimeString('de-DE',{hour:'2-di
 const audienceText=(v:Audience,crew:Crew)=>v===null?'alle':v.map(id=>crew.find(m=>m.id===id)?.name||'?').join(', ')||'niemand';
 
 const spontaneousPagerArea='Pager · spontan';
-const regieAreas=[['narration','Erzählung','text'],['atmosphere','Atmosphäre','text'],['dialogue','Dialoge','text'],['interactions','Interaktion','text'],['checks','Proben','text'],['whispers','Visionen & Briefe','text'],['secrets','Geheimnisse','text'],['consequences','Folgen','text'],['notes','SL-Notizen','text'],
- ['vitals','Zustände','block'],['material','Material','block'],['sound','Ton & Musik','block'],['effects','Effekte','block'],['npcs','NPCs der Szene','block'],['figures','NPCs & Würfel','block'],['pager','Pager vorbereitet','block'],[spontaneousPagerArea,'Spontan-Pager','block'],['table','Tisch','block']] as const;
-type RegieArea=typeof regieAreas[number][0];
+// Preserve the former title-based tile id so saved hidden/order/width preferences still apply.
+const sceneMaterialArea='Szenenmaterial';
+type RegieArea=string;
 const areaKey=(actorId:string)=>'chroniplay:regie-bereich:'+actorId;
-const effectIcons:Record<StageEffect,typeof CloudRain>={rain:CloudRain,fog:CloudFog,storm:CloudLightning,snow:Snowflake,embers:Flame,darkness:Moon,flicker:Lightbulb};
-function Text({value,empty}:{value:string;empty:string}){return value.trim()?<RichTextView value={value} readable flowing className={regieStyles.prose}/>:<p className={regieStyles.empty}>{empty}</p>;}
+const effectIcons:Record<StageEffect,typeof CloudRain>={
+ rain:CloudRain,fog:CloudFog,storm:CloudLightning,snow:Snowflake,embers:Flame,
+ darkness:Moon,flicker:Lightbulb,moonlight:MoonStar,candlelight:FlameKindling,ritualglow:Sparkles,
+};
+const Text=memo(function Text({value,empty}:{value:string;empty:string}){return value.trim()?<RichTextView value={value} readable flowing className={styles.studioProse}/>:<p className={regieStyles.empty}>{empty}</p>;});
 
 /**
  * The live direction for a second screen. It steers the same evening as the table through the same stage and
@@ -145,28 +151,23 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const sceneId=chosenScene||snapshot?.stageSceneId||snapshot?.sceneInfo?.id||snapshot?.scenes[0]?.id||'';
  const known=!!contexts[sceneId];
  useEffect(()=>{
-  if(!room||!sceneId||known)return;let current=true;
-  api<RegieContext>(stageUrl(room.sessionId)+'&regie='+encodeURIComponent(sceneId)).then(c=>{if(current)setContexts(old=>({...old,[sceneId]:c}));}).catch(e=>{if(current)setContextError({id:sceneId,message:(e as Error).message});});
-  return()=>{current=false;};
+  if(!room||!sceneId)return;let current=true,loading=false;
+  const load=()=>{if(loading)return;loading=true;void api<RegieContext>(stageUrl(room.sessionId)+'&regie='+encodeURIComponent(sceneId)).then(c=>{if(current){setContexts(old=>({...old,[sceneId]:c}));setContextError(null);}}).catch(e=>{if(current)setContextError({id:sceneId,message:(e as Error).message});}).finally(()=>{loading=false;});};
+  if(!known)load();
+  // Returning from preparation refreshes the same scene without discarding the reading workspace.
+  window.addEventListener('focus',load);
+  return()=>{current=false;window.removeEventListener('focus',load);};
  },[room,sceneId,known]);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  useEffect(()=>{try{const v=Number(window.localStorage.getItem('chroniplay:regie-textgroesse:'+a.id));if([.9,1,1.15,1.3,1.5].includes(v))queueMicrotask(()=>setTextSize(v));}catch{/* storage unavailable */}},[a.id]);
- useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));const known=regieAreas.find(([id])=>id===saved);if(known)queueMicrotask(()=>{setArea(known[0]);});}catch{/* storage unavailable */}},[a.id]);
- /** Opens one area: a text area in the reading column, any other area by scrolling its block into view. */
+ useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));if(saved&&Object.hasOwn(regieAreaLabels,saved))queueMicrotask(()=>setArea(saved));}catch{/* storage unavailable */}},[a.id]);
+ /** Changes presentation only. Releases still require an explicit existing stage command. */
  const checksOn=!!snapshot?.checksEnabled,checksShown=checksOn||!!snapshot?.checksSwitch;
- const visibleAreas=useMemo(()=>regieAreas.filter(([id])=>id!=='checks'||checksShown),[checksShown]);
  const openTargets=checksOn?pendingTargets(snapshot?.checks||[],snapshot?.dice.events||[],(snapshot?.crew||[]).filter(isTablePlayer).map(m=>m.id)):0;
- const chooseArea=useCallback((id:RegieArea,scroll=true)=>{
+ const chooseArea=useCallback((id:RegieArea)=>{
   setArea(id);try{window.localStorage.setItem(areaKey(a.id),id);}catch{/* storage unavailable */}
   revealTile(id);
-  if(!scroll)return;
-  requestAnimationFrame(()=>{const el=window.document.getElementById('regie-bereich-'+id);if(!el)return;const details=el.querySelector('details');if(details)details.open=true;
-   // Jump without smooth scrolling: live updates re-render the columns several times a second and would cancel it.
-   el.scrollIntoView({block:'start',behavior:'auto'});
-   el.dataset.flash='true';window.setTimeout(()=>{delete el.dataset.flash;},1400);el.querySelector<HTMLElement>('header button')?.focus({preventScroll:true});});
  },[a.id,revealTile]);
- // Alt+1 … Alt+9 jump to the first nine areas without leaving the keyboard.
- useEffect(()=>{const keys=(e:KeyboardEvent)=>{if(!e.altKey||e.ctrlKey||e.metaKey)return;const n=Number(e.key);if(!Number.isInteger(n)||n<1||n>9)return;e.preventDefault();const selected=visibleAreas[n-1];if(selected)chooseArea(selected[0]);};window.addEventListener('keydown',keys);return()=>window.removeEventListener('keydown',keys);},[chooseArea,visibleAreas]);
  const resize=(d:number)=>{const steps=[.9,1,1.15,1.3,1.5],next=steps[Math.max(0,Math.min(steps.length-1,steps.indexOf(textSize)+d))];setTextSize(next);try{window.localStorage.setItem('chroniplay:regie-textgroesse:'+a.id,String(next));}catch{/* storage unavailable */}};
 
  /** Runs one existing stage/table command; outdated versions are retried once, nothing else is guessed. */
@@ -209,9 +210,6 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   void run({action:'pager',id,text,recipients:pagerTarget,origin:'regie',...(pagerTitle.trim()?{title:pagerTitle.trim()}:{}),...(pagerSender.trim()?{sender:pagerSender.trim()}:{}),...(pagerUrgent?{priority:'hoch'}:{})},null,'Pager an '+audienceText(pagerTarget,crew)+' gesendet.').then(ok=>{if(ok||latest.current?.pagers?.some(p=>p.id===id)){pagerDraftId.current='';setPagerText('');setPagerTitle('');setPagerUrgent(false);}});}
  const draft=(f:()=>void)=>{pagerDraftId.current='';f();};
 
- // A remembered block area is brought into view once its scene has loaded.
- const restored=useRef(false),loaded=!!context;
- useEffect(()=>{if(!loaded||restored.current)return;restored.current=true;const kind=regieAreas.find(([x])=>x===area)?.[2];if(kind==='block')queueMicrotask(()=>chooseArea(area));},[loaded,area,chooseArea]);
  if(!room)return <main className={styles.waiting}><p className={styles.eyebrow}>CHRONIPLAY · REGIE</p><h1>Live-Regie</h1><p role="status">{waiting||'Spielabend wird gesucht …'}</p><p>Starte den Spielabend am Spieltisch. Diese Regie verbindet sich dann von selbst.</p><CampaignMenu members={waitingCrew} failed={rosterFailed}/></main>;
 
  const media=(m:Media,Icon:typeof ImageIcon,kind:'image'|'pdf'|'audio'|'video')=>{const placed=placedFile(m.fileId),key='file:'+m.fileId,target=audienceOf(key);return <article key={m.id} className={styles.item} data-item={m.fileId}>
@@ -227,8 +225,38 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  </article>;};
 
  const s=context?.scene,running=!!s&&snapshot?.stageSceneId===s.id,shared=!!s&&snapshot?.sceneInfo?.id===s.id;
- const filled=(v:string|undefined)=>!!v&&!!v.replace(/<[^>]*>/g,'').trim();
- const areaHasText=(id:RegieArea)=>!s||!context?true:id==='narration'?filled(s.narration):id==='atmosphere'?filled(s.atmosphere):id==='dialogue'?filled(s.dialogueNotes)||context.npcs.some(n=>n.cue.trim()):id==='interactions'?filled(s.interactions)||context.notes.length>0:id==='checks'?true:id==='whispers'?!!context.whispers?.length:id==='secrets'?filled(s.secrets)||filled(s.visions):id==='consequences'?filled(s.possibleConsequences)||s.possibilities.length>0:id==='notes'?filled(s.gmNotes):true;
+ const sceneTracks=context?.youtube||[];
+ const fileTracks=[
+  ...sceneAudio.map(m=>({id:m.fileId,title:m.title})),
+  ...catalogAudio.filter(o=>!sceneAudio.some(m=>m.fileId===o.id)).map(o=>({id:o.id,title:o.title})),
+ ];
+ const fileMusic=snapshot?.music;
+ const ambience=snapshot?.youtube;
+ const hasMusic=Boolean(fileMusic||ambience);
+ const musicLabel=fileMusic&&ambience?'2 Musikquellen':fileMusic?.title||ambience?.title||'Keine Musik';
+ const effectLabel=effects.length===0?'Keine Effekte':effects.length===1?effectLabels[effects[0]]:effects.length+' Effekte aktiv';
+ const musicTracks=<ul className={styles.compact} aria-label="Audiodateien für Hintergrundmusik">
+  {fileTracks.map(track=><li key={track.id} data-active={fileMusic?.fileId===track.id}>
+   <span>{track.title}</span>
+   <button type="button" disabled={busy} onClick={()=>void run({action:'music',fileId:track.id},null,'Musik läuft: '+track.title)}>
+    {fileMusic?.fileId===track.id?<><RotateCcw/> Neu starten</>:<><Music/> Als Musik</>}
+   </button>
+  </li>)}
+ </ul>;
+ const effectControls=<div className={styles.effectControls}>
+  <div className={styles.effects}>{stageEffects.map(effect=>{
+   const Icon=effectIcons[effect];
+   return <button type="button" key={effect} aria-pressed={effects.includes(effect)} disabled={busy} onClick={()=>void toggleEffect(effect)}>
+    <Icon/> {effectLabels[effect]}
+   </button>;
+  })}</div>
+  <div className={styles.effectRow}>
+   <label className={styles.check}><input type="checkbox" checked={crossfade} onChange={e=>setCrossfade(e.target.checked)}/> Überblenden statt kombinieren</label>
+   <button type="button" disabled={busy||!effects.length} onClick={()=>void run({action:'effects',effects:[]},null,'Alle Effekte blenden aus.')}>
+    <Square/> Alle beenden
+   </button>
+  </div>
+ </div>;
 
  const allScenes=[...snapshot?.scenes||[],...snapshot?.moreScenes||[]];
  return <div className={styles.app} data-regie-window="true">
@@ -241,24 +269,56 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
    </select></label>
    <div className={styles.sceneState}>{s&&(running?<span className={styles.live}><Clapperboard size={14}/> Läuft auf dem Tisch</span>:<button type="button" className={styles.primary} disabled={busy} onClick={()=>void activate(s.id)}><Clapperboard/> Szene starten</button>)}</div>
    {context&&<div ref={setToolbar}/>}
-   {context&&<div className={styles.textTools}>
-     <div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div>
-   </div>}
    <CampaignMenu members={snapshot?.campaignCrew||waitingCrew}/>
    <p className={styles.sync} role="status" data-fresh={!!snapshot&&!offline}><Radio size={13}/> {offline?'Verbindung gestört – versuche erneut':snapshot?'Live verbunden':'Verbinde …'}</p>
-   <button type="button" className={styles.tableLink} onClick={()=>{if(window.opener&&!window.opener.closed)window.opener.focus();else window.open('/spielbereich?bereich=sitzung','_blank');}}><BookOpen size={15}/> Zum Spieltisch</button>
+    <button type="button" className={styles.tableLink} title="Zum Spieltisch" onClick={()=>{if(window.opener&&!window.opener.closed)window.opener.focus();else window.open('/spielbereich?bereich=sitzung','_blank');}}><BookOpen size={15}/> Zum Spieltisch</button>
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
-  <nav className={styles.areas} aria-label="Bereiche der Szene">{visibleAreas.map(([id,label,kind],i)=>{const empty=!!context&&kind==='text'&&!areaHasText(id),waiting=id==='checks'?openTargets:0;return <button type="button" key={id} data-area-button={id} data-kind={kind} data-empty={empty} data-attention={waiting>0||undefined} aria-current={(area===id)?'true':undefined} title={(i<9?'Alt+'+(i+1)+' · ':'')+(empty?'Nichts vorbereitet':label)} onClick={()=>chooseArea(id)}>{id===spontaneousPagerArea&&<BellRing size={14}/>}{id==='figures'&&<Dices size={14}/>} {label}{waiting>0&&<span className={styles.areaBadge} aria-label={waiting+' Würfe ausstehend'}>{waiting}</span>}</button>;})}</nav>
   {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
-  <main className={styles.grid} data-scene={s!.id}><RegieTiles state={layout} toolbar={toolbar}>
+   <main className={styles.studioHost} data-scene={s!.id}><RegieStudio state={layout} toolbar={toolbar} area={area} onArea={chooseArea} contextKey={a.campaignId+':'+a.id+':'+s!.id} sceneTitle={s!.title} place={context.place?.title} pending={openTargets}
+    editUrl={'/sl/command-center?bereich=sitzung&scene='+encodeURIComponent(s!.id)}
+    readingTools={<div className={styles.textTools}><div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div></div>}
+    prepared={(context.materials||[]).map(m=>({id:m.elementId,title:m.title,area:sceneMaterialArea}))}
+    status={<>
+     <div className={styles.quickMusic} role="group" aria-label="Musik am Tisch">
+      <Popover>
+       <PopoverTrigger asChild><button type="button" title={musicLabel} data-playing={hasMusic}>
+        <Music aria-hidden="true"/><span>{musicLabel}</span><ChevronUp aria-hidden="true"/>
+       </button></PopoverTrigger>
+       <PopoverContent side="top" align="end" sideOffset={8} collisionPadding={10} className={styles.controlPopover} aria-label="Musiksteuerung">
+        <h3>Musik am Tisch</h3>
+        {fileMusic&&<p>Dateimusik: <strong>{fileMusic.title}</strong></p>}
+        {ambience&&<p>{ambience.playing===false?'Ambiente pausiert:':'Ambiente:'} <strong>{ambience.title}</strong></p>}
+        {!hasMusic&&<p className={styles.muted}>Am Tisch läuft gerade keine Musik.</p>}
+        <RegieScenePlaylist sceneTracks={sceneTracks} sceneTitle={s!.title} busy={busy} run={(body,done)=>run(body,null,done)}/>
+        {fileTracks.length>0&&<div className={styles.ambienceGroup}><h4>Hintergrundmusik</h4>{musicTracks}</div>}
+        {!sceneTracks.length&&!fileTracks.length&&<p className={styles.muted}>Keine Musikdateien oder Szenenplaylist verfügbar.</p>}
+       </PopoverContent>
+      </Popover>
+      <button type="button" className={styles.quickStop} aria-label="Musik für alle stoppen" title="Musik für alle stoppen" disabled={busy||!hasMusic}
+       onClick={()=>void run({action:'stopMusic'},null,'Musik für alle gestoppt.')}><Square aria-hidden="true"/></button>
+     </div>
+     <Popover>
+      <PopoverTrigger asChild><button type="button" title={effects.length?effects.map(effect=>effectLabels[effect]).join(', '):effectLabel}>
+       <CloudFog aria-hidden="true"/><span>{effectLabel}</span><ChevronUp aria-hidden="true"/>
+      </button></PopoverTrigger>
+      <PopoverContent side="top" align="end" sideOffset={8} collisionPadding={10} className={styles.controlPopover} aria-label="Tischeffekte">
+       <h3>Tischeffekte</h3>
+       {effectControls}
+      </PopoverContent>
+     </Popover>
+     <span><LayoutGridIcon/>{objects.length} auf dem Tisch</span>
+    </>}>
 
-    {!!context.materials?.length&&<Block title="Szenenmaterial"><RegieMaterials heading={false} materials={context.materials} objects={snapshot?.objects||[]} crew={crew} busy={busy} run={(body,done)=>run(body,null,done)}/></Block>}
-    {snapshot&&<Block title="Materialbibliothek" area="material"><TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/></Block>}
+    <Block title="Szenenmaterialien" area={sceneMaterialArea}>
+     <p>Aus der Kommandozentrale für die ausgewählte Szene vorbereitet.</p>
+     {context.materials?.length?<RegieMaterials heading={false} materials={context.materials} objects={snapshot?.objects||[]} crew={crew} busy={busy} run={(body,done)=>run(body,null,done)}/>:<p className={regieStyles.empty}>Für diese Szene ist noch kein Szenenmaterial vorbereitet.</p>}
+    </Block>
+    {snapshot&&<Block title="Spontanmaterialien" area="material"><p>Eigene Materialvorlagen für spontane Einsätze, unabhängig von der ausgewählten Szene.</p><TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/></Block>}
     <Block title="Standardfiguren" area="figures"><RegieFigures sessionId={room!.sessionId} prepared={(context.scene.standardFigures||[]) as PreparedFigure[]} busy={busy} dice={snapshot?.dice?.events||[]} actorId={a.id} run={(body,recipients,done)=>run(body,recipients,done)} table={f=>{const sid='standard-figure:'+room!.sessionId+':'+f.id,placed=objects.find(o=>o.kind==='npc'&&o.sourceId===sid),key='npc:'+sid,target=audienceOf(key),onTable=placed&&placed.visibility==='group';return <div style={{display:'grid',gap:6}} data-figure-table={f.id}><p className={regieStyles.state} data-placed={!!onTable}>{tableState(placed)}</p>{!f.imageFileId&&<p className={regieStyles.empty}>Wähle unter „Werte, Verhalten, Bild“ zuerst ein Bild, um die Figur auf den Tisch zu spielen.</p>}<AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={f.label}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)||!f.imageFileId} onClick={()=>void place(key,sid,'record',undefined,'npc')}><UserPlus/> {onTable?'Freigabe ändern':'Auftreten lassen'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,f.label+' tritt ab.')}><UserMinus/> Abtreten</button>:<button type="button" disabled={busy||!f.imageFileId} onClick={()=>void run({action:'add',kind:'npc',sourceId:sid,sourceKind:'record'},null,f.label+' liegt nur für dich auf dem Tisch.')}><Lock/> Nur SL auflegen</button>}</div></div>;}}/></Block>
-    {!!sceneMedia.filter(m=>m.mime.startsWith('image/')).length&&<Block title="Bilder · Polaroids">{sceneMedia.filter(m=>m.mime.startsWith('image/')).map(m=>media(m,ImageIcon,'image'))}</Block>}
-    {!!sceneMedia.filter(m=>m.mime==='application/pdf').length&&<Block title="Dokumente · PDF">{sceneMedia.filter(m=>m.mime==='application/pdf').map(m=>media(m,FileText,'pdf'))}</Block>}
-    {!!context.handouts.length&&<Block title="Handout-Akten">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,h.sourceKind||'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:h.sourceKind||'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}
+    {!!sceneMedia.filter(m=>m.mime.startsWith('image/')).length&&<Block title="Bilder · Polaroids" area="images">{sceneMedia.filter(m=>m.mime.startsWith('image/')).map(m=>media(m,ImageIcon,'image'))}</Block>}
+    {!!sceneMedia.filter(m=>m.mime==='application/pdf').length&&<Block title="Dokumente · PDF" area="pdfs">{sceneMedia.filter(m=>m.mime==='application/pdf').map(m=>media(m,FileText,'pdf'))}</Block>}
+    {!!context.handouts.length&&<Block title="Handout-Akten" area="handouts">{context.handouts.map(h=>{const placed=objects.find(o=>o.kind==='document'&&o.sourceKind===(h.sourceKind||'entity')&&o.sourceId===h.id),key='entity:'+h.id,target=audienceOf(key);return <article key={h.id} className={styles.item}><div className={styles.fileIcon}><FileText/></div><div className={styles.itemBody}><h3>{h.title}</h3>{h.stageable?<><p className={regieStyles.state} data-placed={!!placed}>{tableState(placed)}</p><AudiencePicker value={target} onChange={setAudience(key)} crew={crew} label={h.title}/><div className={styles.actions}><button type="button" className={styles.primary} disabled={busy||invalid(target)} onClick={()=>void place(key,h.id,h.sourceKind||'entity')}><Eye/> {placed?'Freigabe ändern':'Auf den Tisch'}</button>{placed?<button type="button" disabled={busy} onClick={()=>void run({action:'remove',id:placed.id},null,'Vom Tisch genommen.')}><EyeOff/> Vom Tisch</button>:<button type="button" disabled={busy} onClick={()=>void run({action:'add',kind:'document',sourceId:h.id,sourceKind:h.sourceKind||'entity'},null,'Nur für dich aufgelegt; noch nicht freigegeben.')}><Lock/> Nur SL auflegen</button>}</div></>:<p className={regieStyles.empty}>Hinweisakte – Freigabe über die Spielwelt.</p>}</div></article>;})}</Block>}
 
 
 
@@ -276,12 +336,12 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      <Block title="SL-Notizen" area="notes"><div style={{fontSize:textSize+'em'}} data-text-area="notes"><section className={styles.textArea} aria-label="SL-Notizen"><h3>SL-Notizen</h3><Text value={s!.gmNotes} empty="Keine SL-Notizen."/></section></div></Block>
 
 
-    <Block title="Tonaufnahmen · Kassette">{sceneAudio.length?sceneAudio.map(m=>media(m,Music,'audio')):<p className={regieStyles.empty}>Keine Tonaufnahme mit dieser Szene verknüpft.</p>}</Block>
-    <Block title="Video · Röhrenbildschirm">{sceneVideo.length?sceneVideo.map(m=>media(m,Film,'video')):<p className={regieStyles.empty}>Kein Video mit dieser Szene verknüpft.</p>}</Block>
-    <Block title="Hintergrundmusik">
+    <Block title="Tonaufnahmen · Kassette" area="recordings">{sceneAudio.length?sceneAudio.map(m=>media(m,Music,'audio')):<p className={regieStyles.empty}>Keine Tonaufnahme mit dieser Szene verknüpft.</p>}</Block>
+    <Block title="Video · Röhrenbildschirm" area="video">{sceneVideo.length?sceneVideo.map(m=>media(m,Film,'video')):<p className={regieStyles.empty}>Kein Video mit dieser Szene verknüpft.</p>}</Block>
+    <Block title="Hintergrundmusik" area="music">
      <p className={regieStyles.state} data-placed={!!snapshot?.music}>{snapshot?.music?'Läuft für alle: '+snapshot.music.title:'Keine Musik'}</p>
      <p className={regieStyles.empty}>Jede Person regelt Lautstärke und Stummschaltung selbst. Blockiert ein Browser den Start, erscheint dort „Musik abspielen“.</p>
-     <ul className={styles.compact}>{[...sceneAudio.map(m=>({id:m.fileId,title:m.title})),...catalogAudio.filter(o=>!sceneAudio.some(m=>m.fileId===o.id)).map(o=>({id:o.id,title:o.title}))].map(t=><li key={t.id} data-active={snapshot?.music?.fileId===t.id}><span>{t.title}</span><button type="button" disabled={busy} onClick={()=>void run({action:'music',fileId:t.id},null,'Musik läuft: '+t.title)}>{snapshot?.music?.fileId===t.id?<><RotateCcw/> Neu starten</>:<><Music/> Als Musik</>}</button></li>)}</ul>
+     {musicTracks}
      {snapshot?.music&&<button type="button" disabled={busy} onClick={()=>void run({action:'music',fileId:null},null,'Musik gestoppt.')}><Square/> Musik stoppen</button>}
     </Block>
     <Block title="Ambiente · YouTube" area="sound">
@@ -291,11 +351,10 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
 
     <Block title="Zustände der Runde" area="vitals">{snapshot?.vitals?<RegieVitals vitals={snapshot.vitals} crew={snapshot.crew} busy={busy} run={(body,done)=>run(body,null,done||'')}/>:<p className={regieStyles.empty}>Zustandswerte werden geladen …</p>}</Block>
     <Block title="Atmosphäre auf dem Tisch" area="effects">
-     <div className={styles.effects}>{stageEffects.map(e=>{const Icon=effectIcons[e];return <button type="button" key={e} aria-pressed={effects.includes(e)} disabled={busy} onClick={()=>void toggleEffect(e)}><Icon/> {effectLabels[e]}</button>;})}</div>
-     <div className={styles.effectRow}><label className={styles.check}><input type="checkbox" checked={crossfade} onChange={e=>setCrossfade(e.target.checked)}/> Überblenden: Wahl ersetzt laufende Effekte</label>{!!effects.length&&<button type="button" disabled={busy} onClick={()=>void run({action:'effects',effects:[]},null,'Alle Effekte blenden aus.')}><Square/> Alle beenden</button>}</div>
+     {effectControls}
      <p className={regieStyles.empty}>Gilt für die ganze Runde. Effekte blenden weich ein und aus. Bei „Bewegung reduzieren“ bleiben sie ruhig stehen; Blitze und Flackern entfallen dann.</p>
     </Block>
-    <Block title="Hintergrund">
+    <Block title="Hintergrund" area="backdrop">
      <p className={regieStyles.state} data-placed={!!snapshot?.backdrop}>Jetzt: {snapshot?.backdrop?.title||'Standardbühne'}</p>
      <BackdropChoice current={snapshot?.backdrop?.fileId||''} busy={busy} onChoose={fileId=>void run({action:'backdrop',fileId},null,'Hintergrund gewechselt.')}
       sceneImages={context.backdrop?[{id:context.backdrop.fileId,title:'Szenenbild · '+context.backdrop.name}]:[]}/>
@@ -331,9 +390,9 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      {pagerTest&&<PagerSelfTest message={pagerTest} actorId={a.id} onClose={()=>setPagerTest(null)}/>}
      {!!sentPagers.length&&<ul className={styles.compact} aria-label="Gesendete Pager">{[...sentPagers].reverse().map(p=><li key={p.id}><span>{p.priority==='hoch'&&<b>Dringend · </b>}{p.title&&<b>{p.title}: </b>}{p.text}<small>{p.origin==='vorbereitet'?'vorbereitet · ':''}{p.sender?'von '+p.sender+' · ':''}an {audienceText(p.recipients??null,crew)} · {pagerTime(p.at)}</small><small data-pager-acks="">{ackText(p)}</small></span><button type="button" aria-label="Pager zurückziehen" disabled={busy} onClick={()=>void run({action:'pagerWithdraw',id:p.id},null,'Pager zurückgezogen.')}><Undo2/></button></li>)}</ul>}
     </Block>
-    <Block title={'Auf dem Tisch ('+objects.length+')'} open={false} area="table">{objects.length?<ul className={styles.compact}>{objects.map(o=><li key={o.id}><span>{o.title}<small>{tableState(o)}</small></span><button type="button" aria-label={o.title+' vom Tisch nehmen'} disabled={busy} onClick={()=>void run({action:'remove',id:o.id})}><EyeOff/></button></li>)}</ul>:<p className={regieStyles.empty}>Der Tisch ist leer.</p>}</Block>
+    <Block title={'Auf dem Tisch ('+objects.length+')'} area="table"><p>Aktive Szene: {snapshot?.sceneInfo?.title||'Keine Erzählung freigegeben'}. {sentPagers.length} Pager ausgespielt.</p>{objects.length?<ul className={styles.compact}>{objects.map(o=><li key={o.id}><span>{o.title}<small>{o.visibility==='sl'?'Nur SL':o.recipients===null?'Ganze Runde':'Freigegeben für '+audienceText(o.recipients,crew)}</small></span><button type="button" aria-label={o.title+' vom Tisch nehmen'} disabled={busy} onClick={()=>void run({action:'remove',id:o.id})}><EyeOff/></button></li>)}</ul>:<p className={regieStyles.empty}>Der Tisch ist leer.</p>}</Block>
 
-  </RegieTiles></main>}
+  </RegieStudio></main>}
   <dialog ref={previewDialog} className={regieStyles.preview} aria-label="Private Vorschau" onClose={()=>setPreview(null)}>{preview&&<><header><div><small>PRIVATE VORSCHAU · NUR SL</small><h2>{preview.title}</h2></div><button aria-label="Vorschau schließen" onClick={()=>previewDialog.current?.close()}><X/></button></header>
    <div>{preview.mime.startsWith('image/')?<img src={fileUrl(preview.fileId)} alt={preview.title}/>:preview.mime.startsWith('audio/')?<audio controls src={fileUrl(preview.fileId)}/>:preview.mime.startsWith('video/')?<video controls playsInline src={fileUrl(preview.fileId)}/>:<LivePdf url={fileUrl(preview.fileId)} name={preview.name}/>}
    {preview.text.trim()&&<Text value={preview.text} empty=""/>}</div></>}</dialog>

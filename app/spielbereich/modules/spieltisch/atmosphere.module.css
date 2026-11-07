@@ -56,6 +56,13 @@
 .flicker[data-leaving]{animation:effectOut 2.2s ease-in both}
 @keyframes flicker{0%{opacity:.55}7%{opacity:.85}9%{opacity:.6}23%{opacity:.62}25%{opacity:.95}27%{opacity:.58}52%{opacity:.6}55%{opacity:.8}61%{opacity:.56}79%{opacity:.7}82%{opacity:.98}84%{opacity:.6}100%{opacity:.55}}
 
+/* Low light over the backdrop: cool moonbeams, warm candle pools and a red ritual halo. */
+.moonlight{background:linear-gradient(155deg,#233e6930,transparent 65%)}
+.moonlight span{inset:0;background:linear-gradient(142deg,transparent 14%,#c6ddff2e 25%,#c6ddff14 42%,transparent 64%),radial-gradient(ellipse at 18% 8%,#afcdff48,transparent 52%)}
+.candlelight{background:radial-gradient(ellipse at 50% 94%,#a953242e,transparent 74%)}
+.candlelight span{inset:0;background:radial-gradient(ellipse 44% 62% at 9% 93%,#f3a24a4d,transparent 78%),radial-gradient(ellipse 36% 58% at 95% 80%,#f6ba6650,transparent 82%);animation:glow 5s ease-in-out infinite alternate}
+.ritualglow{background:radial-gradient(ellipse 70% 65% at 50% 46%,transparent 36%,#38071966 77%,#270313cc)}
+.ritualglow span{inset:0;background:radial-gradient(ellipse 62% 44% at 50% 105%,#c32c595c,transparent 85%);animation:glow 8s ease-in-out infinite alternate}
 /* Reduced motion: calm still images. Fades stay (no movement); lightning and flicker are switched off entirely. */
 @media(prefers-reduced-motion:reduce){
  .layer span,.layer i{animation:none!important}

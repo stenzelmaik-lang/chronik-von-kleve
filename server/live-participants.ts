@@ -14,25 +14,6 @@ export async function participantContext(a:Actor,sessionId:string,memberId:strin
  if(!member)throw new HttpError(404,'Teilnehmer ist nicht in dieser Spielrunde.');
  return member;
 }
-export async function campaignRoster(a:Actor){
- return (await database().prepare(
-  "SELECT m.id,u.display_name AS name FROM campaign_memberships cm JOIN members m ON m.id=cm.user_id JOIN auth_member_links l ON l.member_id=m.id JOIN auth_users u ON u.id=l.auth_user_id AND u.status='active' WHERE cm.campaign_id=? AND cm.status='active' AND cm.role IN ('player','campaign_owner','campaign_gm') ORDER BY u.display_name,m.id"
- ).bind(a.campaignId).all<{id:string;name:string}>()).results;
-}
-
-async function profileContext(a:Actor,sessionId:string|null,memberId:string){
- if(sessionId!==null)return participantContext(a,sessionId,memberId);
- const roster=await campaignRoster(a);
- if(!roster.some(member=>member.id===a.id)||!roster.some(member=>member.id===memberId))
-  throw new HttpError(404,'Profil ist in dieser Kampagne nicht verfügbar.');
-}
-
-function participantMediaUrl(sessionId:string|null,params:Record<string,string>){
- const query=new URLSearchParams(params);
- if(sessionId!==null)query.set('sessionId',sessionId);
- return (sessionId===null?'/api/campaign-profiles':'/api/live-participants')+'?'+query;
-}
-
 export async function participantIdentity(a:Actor,memberId:string){
  const row=await database().prepare("SELECT COALESCE(u.display_name,m.name) AS name,p.avatar_file_id AS avatar,p.preferences FROM members m LEFT JOIN auth_member_links l ON l.member_id=m.id LEFT JOIN auth_users u ON u.id=l.auth_user_id AND u.status='active' LEFT JOIN auth_profiles p ON p.user_id=u.id WHERE m.id=?").bind(memberId).first<{name:string;avatar:string|null;preferences:string|null}>();
  const preferences=JSON.parse(row?.preferences||'{}')??{};
@@ -59,9 +40,8 @@ async function portrait(a:Actor,row:LegacyRecordRow,publicOnly=false){
  const f=await database().prepare('SELECT owner_id,visibility,mime FROM files WHERE id=? AND campaign_id=?').bind(match[1],a.campaignId).first<{owner_id:string;visibility:string;mime:string}>();
  return f&&canRead(a,f)&&(!publicOnly||f.visibility==='group')&&f.mime.startsWith('image/')?image:null;
 }
-export async function participantView(a:Actor,sessionId:string|null,memberId:string,view:string,characterId?:string){
- if(sessionId===null&&view!=='profile')throw new HttpError(400,'Unbekannte Profilansicht.');
- await profileContext(a,sessionId,memberId);
+export async function participantView(a:Actor,sessionId:string,memberId:string,view:string,characterId?:string){
+ await participantContext(a,sessionId,memberId);
  if(view==='sheet'&&a.id!==memberId&&!a.gm)throw new HttpError(403,'Der vollständige fremde Charakterbogen bleibt geschützt.');
  if(view==='inventory'&&a.id!==memberId&&!a.gm)throw new HttpError(403,'Das Inventar anderer Spieler bleibt privat.');
  const identity=view==='profile'?await participantIdentity(a,memberId):null;
@@ -82,7 +62,7 @@ export async function participantView(a:Actor,sessionId:string|null,memberId:str
    introduction:typeof figure?.introduction==='string'?figure.introduction:'',
    gallery,portrait:await portrait(a,row,true)??gallery[0]?.url??null,
   }:null;
-  return {member:{id:memberId,name:identity.name,avatar:identity.hasAvatar?participantMediaUrl(sessionId,{view:'avatar',memberId}):null,presentation:identity.presentation},own:a.id===memberId,characters,selectedCharacter:row?.id??null,character};
+  return {member:{id:memberId,name:identity.name,avatar:identity.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId):null,presentation:identity.presentation},own:a.id===memberId,characters,selectedCharacter:row?.id??null,character};
  }
  if(view==='sheet'){
   if(!row)return {characters,selectedCharacter:null,projection:null};
@@ -110,17 +90,17 @@ function galleryEntries(value:unknown):{fileId:string;caption:string}[]{
  return value.slice(0,8).filter(item=>item&&typeof item.fileId==='string'&&typeof item.caption==='string');
 }
 
-async function participantGallery(a:Actor,sessionId:string|null,memberId:string,row:LegacyRecordRow,value:unknown){
+async function participantGallery(a:Actor,sessionId:string,memberId:string,row:LegacyRecordRow,value:unknown){
  const entries=galleryEntries(value);
  const files=await galleryFiles(a,row.owner_id,entries.map(item=>item.fileId));
  return entries.filter(item=>files.some(file=>file.id===item.fileId)).map(item=>({
   caption:item.caption,
-  url:participantMediaUrl(sessionId,{view:'figure-image',memberId,characterId:row.id,fileId:item.fileId}),
+  url:'/api/live-participants?'+new URLSearchParams({view:'figure-image',sessionId,memberId,characterId:row.id,fileId:item.fileId}),
  }));
 }
 
-export async function participantFigureImage(a:Actor,sessionId:string|null,memberId:string,characterId:string,fileId:string){
- await profileContext(a,sessionId,memberId);
+export async function participantFigureImage(a:Actor,sessionId:string,memberId:string,characterId:string,fileId:string){
+ await participantContext(a,sessionId,memberId);
  const row=(await participantCharacters(a,memberId,true)).find(character=>character.id===characterId);
  const presentation=row?JSON.parse(row.body).presentation:null;
  if(!row||presentation?.published!==true||!galleryEntries(presentation.gallery).some(item=>item.fileId===fileId))throw new HttpError(404,'Figurenbild nicht verfügbar.');
@@ -130,8 +110,8 @@ export async function participantFigureImage(a:Actor,sessionId:string|null,membe
  return new Response(image.body,{headers:{'Content-Type':file.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"}});
 }
 
-export async function participantAvatar(a:Actor,sessionId:string|null,memberId:string){
- await profileContext(a,sessionId,memberId);
+export async function participantAvatar(a:Actor,sessionId:string,memberId:string){
+ await participantContext(a,sessionId,memberId);
  const f=await database().prepare("SELECT f.key,f.mime FROM auth_member_links l JOIN auth_users u ON u.id=l.auth_user_id AND u.status='active' JOIN auth_profiles p ON p.user_id=l.auth_user_id JOIN files f ON f.id=p.avatar_file_id WHERE l.member_id=? AND f.owner_id=? AND f.campaign_id=? AND f.mime IN ('image/png','image/jpeg','image/webp') AND f.visibility='private'").bind(memberId,memberId,a.campaignId).first<{key:string;mime:string}>();
  if(!f||!env.BUCKET)throw new HttpError(404,'Kein Spieleravatar vorhanden.');
  const image=await env.BUCKET.get(f.key);if(!image)throw new HttpError(404,'Spieleravatar nicht vorhanden.');

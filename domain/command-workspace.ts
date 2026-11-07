@@ -1,3 +1,4 @@
+import { authoringTextMax, authoringSourceMax } from './authoring-limits.ts';
 import { z } from 'zod';
 import { isRichTextWithinLimit, sanitizeRichTextInput } from './location-rich-text.ts';
 
@@ -35,7 +36,7 @@ export function defaultWorkspace(mode: WorkspaceMode, companion = false): Comman
 }
 export const storySectionLabels = { core: 'Kern & Konflikt', background: 'Hintergründe', secrets: 'Wissen & Geheimnisse', clues: 'Hinweise', consequences: 'Mögliche Folgen', notes: 'SL-Kommentare' } as const;
 export type StorySection = keyof typeof storySectionLabels;
-const storyText = z.string().max(65000).transform((v,ctx)=>{try{return sanitizeRichTextInput(v);}catch{ctx.addIssue({code:'custom',message:'Ungültiges oder zu komplexes HTML.'});return '';}}).refine(value => isRichTextWithinLimit(value, 10000), 'Der Abschnitt ist zu lang oder enthält ungültige Formatierungen.');
+const storyText = z.string().max(authoringSourceMax).transform((v,ctx)=>{try{return sanitizeRichTextInput(v);}catch{ctx.addIssue({code:'custom',message:'Ungültiges oder zu komplexes HTML.'});return '';}}).refine(value => isRichTextWithinLimit(value, authoringTextMax), 'Der Abschnitt ist zu lang oder enthält ungültige Formatierungen.');
 export const storyDocumentSchema = z.object({
   title: z.string().trim().min(1).max(200),
   summary: z.string().max(2000).default(''), status: z.enum(['draft','ready','active','completed','archived']).default('draft'), favorite: z.boolean().default(false), pinned: z.boolean().default(false),

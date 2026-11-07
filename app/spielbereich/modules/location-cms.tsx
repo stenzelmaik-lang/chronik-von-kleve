@@ -24,7 +24,7 @@ import { RichTextEditor } from "./rich-text";
 import { WorldExperience } from "./world-experience";
 
 type Scope="gm"|"public"|"group"|"player";
-type LocationOption={id:string;title:string;position:number};
+type LocationOption={id:string;title:string;position:number;lifecycle?:string};
 type NodeOption={id:string;locationId:string;parentId:string|null;level:"location"|"area"|"room"|"information";position:number;revision:number;groupDiscovery:string;groupPublication:string;lifecycle:string;title:string;visibility?:string};
 type PlayerOption={id:string;name:string};
 type Draft={id:string;entity_id:string;revision_no:number;audience_scope:string;audience_key:string;audience_user_id:string|null;status:string;version:number;player_payload_json:string;gm_secret_json?:string;geography_json:string;hero_file_id?:string|null};
@@ -47,6 +47,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const publisher=a.status==="active"&&["campaign_owner","campaign_gm"].includes(a.role);
   const [catalog,setCatalog]=useState<CmsState>({locations:[],players:[]});
   const [placeId,setPlaceId]=useState("");
+  const [includeInactive,setIncludeInactive]=useState(false);
   const [nodes,setNodes]=useState<NodeOption[]>([]);
   const [nodeId,setNodeId]=useState("");
   const [scope,setScope]=useState<Scope>("group");
@@ -92,8 +93,9 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const isRoot=node?.level==="location";
   const currentEditor=loadedEditor===editorKey;
   const latestDraft=drafts.find(item=>item.entity_id===nodeId&&item.audience_scope===scope&&(scope!=="player"||item.audience_user_id===playerId));
-  const hasWork=Boolean(currentEditor&&(selectedDraft||baseline));
-  const editable=currentEditor&&(selectedDraft?selectedDraft.status==="draft"||selectedDraft.id===latestDraft?.id:Boolean(baseline));
+  const inactiveNode=Boolean(node&&node.lifecycle!=="active");
+  const hasWork=Boolean(!inactiveNode&&currentEditor&&(selectedDraft||baseline));
+  const editable=!inactiveNode&&currentEditor&&(selectedDraft?selectedDraft.status==="draft"||selectedDraft.id===latestDraft?.id:Boolean(baseline));
   const selectedIsCurrentRelease=Boolean(selectedDraft&&release.history[0]?.transition==="publish"&&release.history[0]?.revision_id===selectedDraft.id);
   const playerTarget=scope==="player"?playerId:"";
   useEffect(()=>()=>{if(pendingImageUrl)URL.revokeObjectURL(pendingImageUrl);},[pendingImageUrl]);
@@ -154,8 +156,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         level:newNode.level,title:newNode.title.trim(),...(newNode.parentId?{parentId:newNode.parentId}:{}),
       });
       const [catalogResult,treeResult,draftResult]=await Promise.all([
-        api<{locations:LocationOption[];players?:PlayerOption[]}>('/api/cms/locations'),
-        api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(created.locationId)}`),
+        api<{locations:LocationOption[];players?:PlayerOption[]}>('/api/cms/locations'+(includeInactive?'?includeInactive=1':'')),
+        api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(created.locationId)}${includeInactive?'&includeInactive=1':''}`),
         api<{drafts:Draft[]}>(`/api/cms/drafts?entityId=${encodeURIComponent(created.id)}`),
       ]);
       const initialDraft=draftResult.drafts.find(item=>item.audience_scope==="group"&&item.audience_key==="@group")||null;
@@ -175,11 +177,11 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
   const loadCatalog=useCallback(async()=>{
     setLoading(true);
     try{
-      const result=await api<{locations:LocationOption[];players?:PlayerOption[]}>('/api/cms/locations');
+      const result=await api<{locations:LocationOption[];players?:PlayerOption[]}>('/api/cms/locations'+(includeInactive?'?includeInactive=1':''));
       const next={locations:result.locations,players:result.players||[]};setCatalog(next);
       setPlaceId(current=>current&&next.locations.some(item=>item.id===current)?current:next.locations.some(item=>item.id===ELECTRIC_TABERNA_ID)?ELECTRIC_TABERNA_ID:next.locations[0]?.id||"");
     }catch(error){toast.error((error as Error).message);}finally{setLoading(false);}
-  },[]);
+  },[includeInactive]);
   useEffect(()=>{
     const timer=window.setTimeout(()=>{void loadCatalog();},0);
     return()=>window.clearTimeout(timer);
@@ -189,12 +191,12 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     const timer=window.setTimeout(()=>{
       if(!placeId){setNodes([]);setNodeId("");return;}
       setLoading(true);
-      api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(placeId)}`).then(result=>{
+      api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(placeId)}${includeInactive?'&includeInactive=1':''}`).then(result=>{
         if(!alive)return;setNodes(result.nodes);setNodeId(current=>result.nodes.some(row=>row.id===current)?current:result.nodes.find(row=>row.level==="location")?.id||"");
       }).catch(error=>{if(alive)toast.error((error as Error).message);}).finally(()=>{if(alive)setLoading(false);});
     },0);
     return()=>{alive=false;window.clearTimeout(timer);};
-  },[placeId]);
+  },[placeId,includeInactive]);
   useEffect(()=>{nodeRowRefs.current.get(nodeId)?.scrollIntoView({block:"nearest"});},[nodeId,filteredNodes.length]);
   const refreshDrafts=useCallback(async(selectNewest=false,isCurrent:()=>boolean=()=>true)=>{
     if(!nodeId){setDrafts([]);setDraftId("");return;}
@@ -342,7 +344,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
     <div className={cmsStyles.redactionLayout}>
       <aside className={"panel "+cmsStyles.directoryPanel} aria-label="Ortsverzeichnis" data-creating={Boolean(newNode)}>
         <div className={cmsStyles.directoryHead}><div><p className="eyebrow">BESTAND</p><h2>Ortsverzeichnis</h2></div><button type="button" className="button" aria-label="Ortsverzeichnis aktualisieren" onClick={()=>{if(canLeaveEditor())void loadCatalog();}} disabled={loading}><RefreshCw size={15}/></button></div>
-        <label className={"field "+cmsStyles.locationSelect}><span>Hauptort</span><select value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
+        <label className={"field "+cmsStyles.locationSelect}><span>Hauptort</span><select aria-label="Hauptort" value={placeId} onChange={event=>{if(canLeaveEditor()){setNewNode(null);setReason("");clearDossierViews();setPlaceId(event.target.value);}}} disabled={loading}>{!catalog.locations.length&&<option value="">Keine Orte vorhanden</option>}{catalog.locations.map(place=><option key={place.id} value={place.id}>{place.title}{place.lifecycle==='deleted'?' · Papierkorb':place.lifecycle==='archived'?' · Archiv':''}</option>)}</select></label>
+        {publisher&&<label className={cmsStyles.inactiveToggle}><input type="checkbox" checked={includeInactive} disabled={busy||loading} onChange={event=>{if(canLeaveEditor()){setIncludeInactive(event.target.checked);setNodes([]);setNodeId("");clearDossierViews();}}}/>Papierkorb und Archiv anzeigen</label>}
         <label className={cmsStyles.directorySearch}><Search size={15}/><span className="sr-only">Orte, Bereiche und Räume suchen</span><input value={directorySearch} onChange={event=>setDirectorySearch(event.target.value)} placeholder="Im Bestand suchen"/></label>
         {publisher&&<details className={cmsStyles.creationMenu}><summary><Plus size={16}/> Eintrag anlegen</summary>
           <div className={cmsStyles.directoryActions} role="group" aria-label="Ortseinträge hinzufügen">
@@ -361,7 +364,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
         <div className={cmsStyles.directoryScroll}>
           {loading&&!nodes.length?<p className="muted">Ortsbestand wird geladen …</p>:!filteredNodes.length?<p className="muted">Keine passenden Einträge.</p>:<nav className={cmsStyles.nodeTree} aria-label="Bereiche, Räume und Informationen">
             {filteredNodes.map(item=><div key={item.id} className={libraryStyles.treeRow}><button type="button" aria-label={(collapsed.has(item.id)?"Aufklappen: ":"Zuklappen: ")+item.title} aria-expanded={!collapsed.has(item.id)} disabled={!nodes.some(n=>n.parentId===item.id)} onClick={()=>setCollapsed(current=>{const next=new Set(current);if(next.has(item.id))next.delete(item.id);else next.add(item.id);return next;})}>{nodes.some(n=>n.parentId===item.id)?collapsed.has(item.id)?"▸":"▾":"·"}</button><button ref={element=>{if(element)nodeRowRefs.current.set(item.id,element);else nodeRowRefs.current.delete(item.id);}} type="button" className={cmsStyles.nodeRow} data-level={item.level} data-selected={item.id===nodeId} aria-current={item.id===nodeId?"page":undefined} onClick={()=>{if(item.id===nodeId||!canLeaveEditor())return;setNodeId(item.id);setReason("");setNewNode(null);clearDossierViews();setActiveSection("content");if(item.visibility==="gm")setScope("gm");else if(scope==="gm")setScope("group");}}>
-              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.lifecycle!=="active"?item.lifecycle+" · ":""}{item.level==="location"?"Hauptort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"} · {item.visibility==="gm"?"Geheim":`${item.groupPublication==="publish"?"Freigegeben":item.groupPublication==="block"?"Gesperrt":"Ohne Gruppenfreigabe"} · ${discoveryLabels[item.groupDiscovery]??"Unbekannt"}`}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
+              <span className={cmsStyles.nodeMarker} aria-hidden="true">{item.level==="location"?"⌖":item.level==="area"?"◇":item.level==="room"?"·":"✧"}</span><span className={cmsStyles.nodeCopy}><strong>{item.title}</strong><small>{item.lifecycle==='deleted'?'Papierkorb · ':item.lifecycle==='archived'?'Archiviert · ':''}{item.level==="location"?"Hauptort":item.level==="area"?"Bereich":item.level==="room"?"Raum":"Erkenntnis"} · {item.visibility==="gm"?"Geheim":`${item.groupPublication==="publish"?"Freigegeben":item.groupPublication==="block"?"Gesperrt":"Ohne Gruppenfreigabe"} · ${discoveryLabels[item.groupDiscovery]??"Unbekannt"}`}</small></span>{item.visibility==="gm"&&<span className={cmsStyles.privateTag}>SL</span>}<ChevronRight className={cmsStyles.nodeArrow} size={15}/>
             </button></div>)}
           </nav>}
         </div>
@@ -384,7 +387,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
           <details className={libraryStyles.chapter}><summary>Ortswissen durchsuchen</summary><div className={libraryStyles.body}><LocationKnowledgeSearch placeId={placeId} view="sl"/></div></details>
 
           </div></details>}
-          {publisher&&<LocationStructureControls disabled={dirty||chapterDirty||mediaDirty} key={node.id+":"+node.revision} node={node} nodes={nodes} locations={catalog.locations} onChanged={async next=>{setPlaceId(next.locationId);const result=await api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(next.locationId)}`);setNodes(result.nodes);setNodeId(next.entityId);await loadCatalog();}}/>}
+          {publisher&&<LocationStructureControls disabled={dirty||chapterDirty||mediaDirty} key={node.id+":"+node.revision} node={node} nodes={nodes} locations={catalog.locations} onChanged={async next=>{setPlaceId(next.locationId);const result=await api<{nodes:NodeOption[]}>(`/api/cms/locations?place=${encodeURIComponent(next.locationId)}${includeInactive?'&includeInactive=1':''}`);setNodes(result.nodes);setNodeId(result.nodes.some(item=>item.id===next.entityId)?next.entityId:result.nodes.find(item=>item.level==='location')?.id||'');clearDossierViews();await loadCatalog();}}/>}
           </details>}
       </aside>
 
@@ -395,7 +398,8 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
             <div className={cmsStyles.editorState}>{selectedDraft?<><span data-status={selectedDraft.status}>{dirty?"UNGESPEICHERT":selectedDraft.status==="draft"?"ENTWURF GESPEICHERT":selectedDraft.status==="in_review"?"IN PRÜFUNG":selectedIsCurrentRelease?"AKTUELL FREIGEGEBEN":selectedDraft.status==="approved"?"GENEHMIGT · NICHT FREIGEGEBEN":selectedDraft.status.toUpperCase()}</span><small>{selectedDraft.status==="draft"||selectedDraft.status==="in_review"||selectedDraft.status==="approved"&&!selectedIsCurrentRelease?"Spieler sehen weiterhin nur den zuletzt freigegebenen Stand.":("Ziel: "+(scope==="gm"?"nur Spielleitung":scope==="group"?"aktive Spielgruppe":scope==="public"?"Public · nur angemeldete Mitglieder":"einzelner Spieler"))}</small></>:<><span data-status="empty">KEIN ARBEITSSTAND</span><small>Eine neue Arbeitsfassung entsteht beim Speichern.</small></>}</div>
           </header>
 
-          {publisher&&scope==="gm"&&<LocationChapters key={node.id} entityId={node.id} onDirty={setChapterDirty}/>}
+          {inactiveNode&&<p className={cmsStyles.inlineNotice} role="status">Dieser Eintrag liegt {node.lifecycle==="deleted"?"im Papierkorb":"im Archiv"}. Zum Bearbeiten kannst du ihn unter „Ortsverwaltung“ und „Archiv, Papierkorb & Struktur“ wiederherstellen.</p>}
+          {!inactiveNode&&publisher&&scope==="gm"&&<LocationChapters key={node.id} entityId={node.id} onDirty={setChapterDirty}/>}
           {hasWork&&["public","group","player"].includes(scope)&&<>
             <nav className={cmsStyles.sectionTabs} aria-label="Redaktionsbereiche" role="tablist">
               {sections.map((section,index)=><button key={section.id} type="button" role="tab" aria-selected={activeSection===section.id} className={activeSection===section.id?cmsStyles.sectionTabActive:cmsStyles.sectionTab} onClick={()=>setActiveSection(section.id)}><span>{String(index+1).padStart(2,"0")}</span>{section.label}</button>)}
@@ -480,7 +484,7 @@ export function LocationCMS({a,dataScope}:{a:Actor;dataScope:string}){
               </div>
             </div>
           </>}
-          {!hasWork&&scope!=="gm"&&<p role="status">{scope==="player"&&!playerTarget?"Wähle unter Ortsverwaltung ein Spielerziel.":"Arbeitsfassung wird geladen …"}</p>}
+          {!hasWork&&!inactiveNode&&scope!=="gm"&&<p role="status">{scope==="player"&&!playerTarget?"Wähle unter Ortsverwaltung ein Spielerziel.":"Arbeitsfassung wird geladen …"}</p>}
         </>}
       </div>
     </div>

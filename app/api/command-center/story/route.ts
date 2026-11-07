@@ -1,3 +1,4 @@
+import { authoringRequestMax } from '@/domain/authoring-limits';
 import { z } from 'zod';
 import { actor, database, gmOnly, input, sameOrigin, json, failure, HttpError } from '@/server/access';
 import { storyDocumentSchema } from '@/domain/command-workspace';
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
   catch (e) { return failure(e, req); }
 }
 export async function POST(req: Request) {
-  try { sameOrigin(req); const a = await actor(); gmOnly(a); const body = await input(req), db = database();
+  try { sameOrigin(req); const a = await actor(); gmOnly(a); const body = await input(req, authoringRequestMax), db = database();
     if (body?.action === 'delete') { const p = deletePreparationCommand.safeParse(body); if (!p.success) throw new HttpError(400, p.error.issues[0].message); return json({ deleted: await deletePreparation(db, a, 'story', p.data.id, p.data.version) }); }
     const p = actionSchema.safeParse(body); if (!p.success) throw new HttpError(400, p.error.issues[0].message); const d = p.data;
     if (d.action === 'create') return json({ story: await writeStory(db, a, { id: 'plot-' + d.clientRequestId, version: 0, document: d.document, create: true }) }, 201);

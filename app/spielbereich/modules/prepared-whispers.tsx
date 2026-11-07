@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element -- Authenticated SL previews use protected original images. */
 "use client";
+import { authoringTextMax } from '@/domain/authoring-limits';
 import {useEffect,useRef,useState} from 'react';
 import {CloudFog,Mail,Trash2,ArrowUp,ArrowDown,Eye,X} from 'lucide-react';
 import type {SceneDocument,SceneWhisper} from '@/domain/story-scene';
@@ -42,7 +43,7 @@ export function PreparedWhispers({scene,players,files,onChange,onUploaded}:{scen
    <fieldset className={styles.recipients}><legend>Nur für diese Spieler</legend>{players.map(p=><label key={p.id}><input type="checkbox" disabled={current.recipientIds.length>=20&&!current.recipientIds.includes(p.id)} checked={current.recipientIds.includes(p.id)} onChange={()=>update({recipientIds:current.recipientIds.includes(p.id)?current.recipientIds.filter(id=>id!==p.id):[...current.recipientIds,p.id]})}/><span><strong>{p.character?.name||p.name}</strong>{p.character&&<small>{p.name}</small>}</span></label>)}{!players.length&&<p>Keine aktiven Spieler verfügbar.</p>}{current.recipientIds.filter(id=>!players.some(p=>p.id===id)).map(id=><button type="button" key={id} onClick={()=>update({recipientIds:current.recipientIds.filter(v=>v!==id)})}>Nicht verfügbaren Empfänger entfernen</button>)}</fieldset>
    <p className={styles.hint}>{current.kind==='vision'?'Vorgesehene Empfänger. In der Regie kannst du beim Auslösen auch einzelne Spieler oder die ganze Gruppe wählen.':'Vorgesehene Empfänger. Die Botschaft erscheint bei ihnen als Fax oder Brief neben dem Spieltisch.'}</p>
    <WhisperStaging current={current} files={files} update={update} onUpload={(file,patch)=>attach(current.id,file,patch)}/>
-   <RichTextEditor value={current.text} onChange={text=>update({text})} label={current.kind==='vision'?'Text der Vision':'Text des Briefs'} maximumPlainLength={10000} placeholder="Was soll dieser Spieler erfahren?" files={sectionImages} compactTools preparationTools inlineGallery={false}/>
+   <RichTextEditor value={current.text} onChange={text=>update({text})} label={current.kind==='vision'?'Text der Vision':'Text des Briefs'} maximumPlainLength={authoringTextMax} placeholder="Was soll dieser Spieler erfahren?" files={sectionImages} compactTools preparationTools inlineGallery={false}/>
    <section className={styles.media} aria-label={'Bilder aus der Galerie '+mediaSectionLabel[section]}>
     <h4>Bilder <small>Eigene Galerie „{mediaSectionLabel[section]}“ · getrennt von der allgemeinen Galerie</small></h4>
     {sectionImages.length?<ul className={styles.mediaGrid}>{sectionImages.map(f=>{const on=current.fileIds.includes(f.id);return <li key={f.id}><button type="button" aria-pressed={on} disabled={!on&&current.fileIds.length>=20} aria-label={(on?'Bild abwählen: ':'Bild verwenden: ')+f.name} onClick={()=>toggleImage(f.id)}><img src={'/api/files?id='+encodeURIComponent(f.id)+'&size=thumb'} alt="" loading="lazy"/><span>{f.name}</span></button></li>;})}</ul>

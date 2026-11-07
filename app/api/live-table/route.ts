@@ -112,8 +112,8 @@ export async function POST(req:Request) {
     const peerPath=`$.peers."${d.peerId}"`;
     if(d.action==='join'){
       const peer:TablePeer={id:d.peerId,memberId:a.id,name:a.name,seen:now};
-      const result=await db.prepare("UPDATE records SET body=json_set(body,'$.peers',json((SELECT COALESCE(json_group_object(key,json(value)),'{}') FROM json_each(records.body,'$.peers') WHERE json_extract(value,'$.seen')>?)),?,json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND json_extract(body,'$.open')=1 AND (json_extract(body,?) IS NULL OR json_extract(body,?)=?) AND (json_extract(body,?)=? OR (SELECT count(*) FROM json_each(records.body,'$.peers') WHERE json_extract(value,'$.seen')>?)<8)").bind(now-TABLE_PEER_TTL,peerPath,JSON.stringify(peer),stamp,id,a.campaignId,peerPath+'.memberId',peerPath+'.memberId',a.id,peerPath+'.memberId',a.id,now-TABLE_PEER_TTL).run();
-      if(!result.meta.changes)throw new HttpError(409,'Der Raum ist geschlossen oder bereits mit acht Verbindungen belegt.');
+      const result=await db.prepare("UPDATE records SET body=json_set(body,'$.peers',json((SELECT COALESCE(json_group_object(key,json(value)),'{}') FROM json_each(records.body,'$.peers') WHERE json_extract(value,'$.seen')>?)),?,json(?)),version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND json_extract(body,'$.open')=1 AND (json_extract(body,?) IS NULL OR json_extract(body,?)=?) AND (json_extract(body,?)=? OR (SELECT count(*) FROM json_each(records.body,'$.peers') WHERE json_extract(value,'$.seen')>?)<?)").bind(now-TABLE_PEER_TTL,peerPath,JSON.stringify(peer),stamp,id,a.campaignId,peerPath+'.memberId',peerPath+'.memberId',a.id,peerPath+'.memberId',a.id,now-TABLE_PEER_TTL,24).run();
+      if(!result.meta.changes)throw new HttpError(409,'Der Raum ist geschlossen oder hat zu viele gleichzeitige Verbindungen.');
       return json({ok:true});
     }
     if(!existing||existing.seen<=now-TABLE_PEER_TTL)throw new HttpError(403,'Bitte dem Spielraum erneut beitreten.');
@@ -125,7 +125,8 @@ export async function POST(req:Request) {
       if(d.afk!==undefined&&typeof d.afk!=='boolean')throw new HttpError(400,'AFK muss ausdrücklich gewählt werden.');
       const awayPath='$.away.'+JSON.stringify(a.id);
       const update=d.afk===undefined?db.prepare(`UPDATE records SET body=json_set(body,?,?),version=version+1,updated_at=? WHERE ${requirePeer}`).bind(peerPath+'.seen',now,stamp,id,a.campaignId,peerPath+'.memberId',a.id):db.prepare(`UPDATE records SET body=json_set(body,?,?,?,json(?)),version=version+1,updated_at=? WHERE ${requirePeer}`).bind(peerPath+'.seen',now,awayPath,JSON.stringify(d.afk),stamp,id,a.campaignId,peerPath+'.memberId',a.id);
-      await db.batch([update,db.prepare("DELETE FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-signal' AND updated_at<?").bind(a.campaignId,new Date(now-45000).toISOString())]);
+      const [updated]=await db.batch([update,db.prepare("DELETE FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-signal' AND updated_at<?").bind(a.campaignId,new Date(now-45000).toISOString())]);
+      if(!updated.meta.changes)throw new HttpError(403,'Bitte dem Spielraum erneut beitreten.');
       return json({ok:true});
     }
     if(d.action==='leave'){

@@ -116,7 +116,7 @@ try{
    const chunks=[];for await(const chunk of req)chunks.push(chunk);
    const body=chunks.length?Buffer.concat(chunks):undefined;
    const url=`http://${req.headers.host||'127.0.0.1:8793'}${req.url||'/'}`;
-   const response=await mf.dispatchFetch(url,{method:req.method,headers,body});
+   const response=await mf.dispatchFetch(url,{method:req.method,headers,body,redirect:'manual'});
    res.statusCode=response.status;
    response.headers.forEach((value,key)=>res.setHeader(key,value));
    res.end(Buffer.from(await response.arrayBuffer()));

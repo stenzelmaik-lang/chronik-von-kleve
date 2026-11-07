@@ -1,3 +1,4 @@
+import { authoringTextMax, authoringSourceMax } from './authoring-limits.ts';
 import { z } from "zod";
 import {
   isRichTextWithinLimit,
@@ -5,7 +6,7 @@ import {
 } from "./location-rich-text.ts";
 export const preparationText = z
   .string()
-  .max(65000)
+  .max(authoringSourceMax)
   .transform((v, ctx) => {
     try {
       return sanitizeRichTextInput(v);
@@ -17,7 +18,7 @@ export const preparationText = z
       return "";
     }
   })
-  .refine((v) => isRichTextWithinLimit(v, 10000), "Der Text ist zu lang.");
+  .refine((v) => isRichTextWithinLimit(v, authoringTextMax), "Der Text ist zu lang.");
 export const preparationIds = z
   .array(z.string().min(1).max(100))
   .max(100)

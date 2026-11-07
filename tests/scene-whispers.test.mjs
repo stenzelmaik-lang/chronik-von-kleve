@@ -17,7 +17,7 @@ test('each player can have several independent visions and letters in one scene'
 });
 test('IDs, recipients, limits and sanitized rich content are validated per entry',()=>{
  const w=whisper();assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),whispers:[w,w]}).success,false);
- for(const patch of [{recipientIds:['a','a']},{fileIds:['file','file']},{kind:'pager'},{text:'a'.repeat(10001)},{id:'not-a-uuid'}])assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),whispers:[{...w,...patch}]}).success,false);
+ for(const patch of [{recipientIds:['a','a']},{fileIds:['file','file']},{kind:'pager'},{text:'a'.repeat(20001)},{id:'not-a-uuid'}])assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),whispers:[{...w,...patch}]}).success,false);
  const safe=sceneDocumentSchema.parse({...emptyScene(),whispers:[whisper({text:'cvk-html-v1:<p>Safe</p><script>alert(1)</script>'})]});assert.ok(!safe.whispers[0].text.includes('<script>'));
 });
 test('personal content reuses document objects and the exact existing recipient projection',()=>{

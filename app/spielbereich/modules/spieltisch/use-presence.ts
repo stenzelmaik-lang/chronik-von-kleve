@@ -19,8 +19,9 @@ export function usePresence(sessionId:string,runId:string,peerId:string){
   active.current=true;connected.current=false;queueMicrotask(()=>void pulse());
   const timer=window.setInterval(()=>void pulse(),8000),wake=()=>void pulse();
   const leave=()=>{connected.current=false;void fetch('/api/live-table',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'leave',sessionId,runId,peerId}),keepalive:true}).catch(()=>{});};
-  window.addEventListener('focus',wake);window.addEventListener('online',wake);window.addEventListener('pageshow',wake);window.addEventListener('pagehide',leave);
-  return()=>{active.current=false;window.clearInterval(timer);window.removeEventListener('focus',wake);window.removeEventListener('online',wake);window.removeEventListener('pageshow',wake);window.removeEventListener('pagehide',leave);leave();};
+  const visible=()=>{if(document.visibilityState==='visible')wake();};
+  document.addEventListener('visibilitychange',visible);window.addEventListener('focus',wake);window.addEventListener('online',wake);window.addEventListener('pageshow',wake);window.addEventListener('pagehide',leave);
+  return()=>{active.current=false;window.clearInterval(timer);document.removeEventListener('visibilitychange',visible);window.removeEventListener('focus',wake);window.removeEventListener('online',wake);window.removeEventListener('pageshow',wake);window.removeEventListener('pagehide',leave);leave();};
  },[pulse,sessionId,runId,peerId]);
  return {setAway:pulse,error};
 }

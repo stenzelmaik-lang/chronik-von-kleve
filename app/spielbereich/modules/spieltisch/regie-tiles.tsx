@@ -2,10 +2,11 @@
 
 import {Children, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
+import {regieTileId} from '@/domain/regie-studio';
 import {LayoutGrid, RotateCcw, ArrowLeft, ArrowRight, EyeOff, Grip, Maximize2, Minimize2, StretchHorizontal} from 'lucide-react';
 import styles from './regie-window.module.css';
 
-type TileProps = {title:string; children:ReactNode; area?:string; open?:boolean};
+export type TileProps = {title:string; children:ReactNode; area?:string; open?:boolean};
 type Layout = {order:string[]; hidden:string[]; wide:string[]};
 const initial:Layout = {order:['narration','atmosphere','dialogue','interactions','material'],hidden:[],wide:[]};
 const tileId = (props:TileProps) => props.area || props.title;
@@ -18,7 +19,7 @@ export function useRegieLayout(key:string){
   let layout=initial;
   try {
    const raw=JSON.parse(localStorage.getItem(key)||'null');
-   if(raw && ['order','hidden','wide'].every(field=>Array.isArray(raw[field])&&raw[field].every((item:unknown)=>typeof item==='string')))layout=raw;
+   if(raw && ['order','hidden','wide'].every(field=>Array.isArray(raw[field])&&raw[field].every((item:unknown)=>typeof item==='string')))layout={order:raw.order.map(regieTileId),hidden:raw.hidden.map(regieTileId),wide:raw.wide.map(regieTileId)};
   } catch {/* A malformed or unavailable preference falls back to the default. */}
   queueMicrotask(()=>setSaved({key,layout}));
  },[key]);

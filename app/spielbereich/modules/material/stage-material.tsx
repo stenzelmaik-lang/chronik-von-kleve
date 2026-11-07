@@ -13,9 +13,9 @@ const mimeOf=(media:TableObject['media'])=>media==='image'?'image/*':media==='au
 
 /** Viewer data of a released material, resolved through the session-authorized stage asset route only. */
 export function stagePresented(o:TableObject,asset:(id:string)=>string):PresentedMaterial|null{
- const m=o.material;if(!m)return null;
+ const m=o.material||(o.media==='audio'?{type:'audio' as const,display:'single' as const,effect:{open:'fade' as const,close:'fade' as const,speed:'normal' as const,afterClose:'closed' as const},states:[],soundFileId:undefined}:null);if(!m)return null;
  const base=asset(o.id);
- const pages=o.pages?.length?o.pages.map((p,i)=>({title:p.title,src:base+'&page='+i,mime:'image/*'})):o.sourceFileId&&o.media?[{title:o.title,src:base,mime:mimeOf(o.media)}]:[];
+ const pages=o.pages?.length?o.pages.map((p,i)=>({title:p.title,src:base+'&page='+i,mime:'image/*'})):(o.sourceFileId||o.sourceKind==='file')&&o.media?[{title:o.title,src:base,mime:mimeOf(o.media)}]:[];
  return {title:o.title,type:m.type,display:m.display,effect:{open:m.effect.open,close:m.effect.close,speed:m.effect.speed,afterClose:m.effect.afterClose},
   states:m.states.map(s=>({key:s.key,src:base+'&state='+encodeURIComponent(s.key)})),pages,...(o.documentContent?{caption:o.documentContent}:{}),...(m.soundFileId?{soundSrc:base+'&sound=1'}:{})};
 }

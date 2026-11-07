@@ -33,7 +33,7 @@ const backdrop=z.object({fileId:z.string().min(1).max(160),title:z.string().max(
 // Second-screen direction (Regie im Zweitfenster): table-wide effects, background music and pager
 // messages. All optional, so stored stages from before stay valid without a migration.
 // Order is the layering order on the table (later effects lie above earlier ones). New effects are only appended.
-export const stageEffects=['rain','fog','storm','snow','embers','darkness','flicker'] as const;
+export const stageEffects=['rain','fog','storm','snow','embers','darkness','flicker','moonlight','candlelight','ritualglow'] as const;
 export type StageEffect=typeof stageEffects[number];
 const music=z.object({fileId:z.string().min(1).max(160),title:z.string().max(200),key:z.string().min(1).max(64)}).strict();
 /**
@@ -106,8 +106,10 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('edit'),id:z.string(),content:z.string().max(3000),expectedRevision:z.number().int().positive()}).strict(),
  z.object({action:z.literal('visibility'),id:z.string(),visibility:z.enum(['private','group']).optional(),visible:z.boolean().optional(),expectedRevision:z.number().int().positive().optional(),recipients:z.array(z.string()).max(30).nullable().optional()}).strict(),
  z.object({action:z.literal('remove'),id:z.string(),expectedRevision:z.number().int().positive().optional()}).strict(),
+ z.object({action:z.literal('withdrawAudio')}).strict(),
  z.object({action:z.literal('effects'),effects:z.array(z.enum(stageEffects)).max(stageEffects.length)}).strict(),
  z.object({action:z.literal('music'),fileId:z.string().min(1).max(160).nullable()}).strict(),
+ z.object({action:z.literal('stopMusic')}).strict(),
  // A link or id starts YouTube music for the round (null stops it). The server keeps the id only.
  z.object({action:z.literal('youtube'),video:z.string().trim().min(1).max(300).nullable(),title:z.string().trim().max(200).optional()}).strict(),
  // A spontaneous playlist (links or ids, in order) and the GM's controls for everyone.
@@ -148,10 +150,17 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
   if(read&&(c.action==='pagerRead'||acked))return state;
   if(!read)p.reads=[...p.reads||[],{id:a.id,at:now}];
   if(c.action==='pagerAck'&&!acked)p.acks=[...p.acks||[],{id:a.id,at:now}];
- }else if(c.action==='effects'||c.action==='music'||c.action==='youtube'||c.action==='youtubeList'||c.action==='youtubeControl'||c.action==='pager'||c.action==='pagerWithdraw'){
+ }else if(c.action==='withdrawAudio'){
+  if(!a.gm)throw Object.assign(Error('Nur die Spielleitung nimmt das Audiogerät zurück.'),{status:403});
+  next.objects=next.objects.filter(o=>o.kind==='note'||o.media!=='audio');
+ }else if(c.action==='effects'||c.action==='music'||c.action==='stopMusic'||c.action==='youtube'||c.action==='youtubeList'||c.action==='youtubeControl'||c.action==='pager'||c.action==='pagerWithdraw'){
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung steuert Effekte, Musik und Pager.'),{status:403});
   if(c.action==='effects')next.effects=stageEffects.filter(e=>c.effects.includes(e));
   else if(c.action==='music'){if(c.fileId&&!resolvedMusic)throw Object.assign(Error('Musik nicht verfügbar.'),{status:404});next.music=c.fileId?resolvedMusic:null;}
+  else if(c.action==='stopMusic'){
+   next.music=null;
+   next.youtube=null;
+  }
   else if(c.action==='youtube'){
    if(c.video===null)next.youtube=null;
    else{const videoId=youtubeVideoId(c.video);if(!videoId)throw Object.assign(Error('Kein gültiger YouTube-Link.'),{status:400});
@@ -184,9 +193,11 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
   if(!a.gm)throw Object.assign(Error('Nur die Spielleitung wechselt den Schauplatz.'),{status:403});
   next.backdrop=resolvedBackdrop??null;
   if(c.action==='activateScene'){
-   // A scene change clears the previous scene's table material. Player notes and what players laid out from their
-   // own inventory stay (it belongs to them, not to the scene).
-   next.sceneId=c.sceneId;next.objects=next.objects.filter(o=>o.kind==='note'||o.sourceKind==='record'&&!o.sourceId.startsWith('scene-material:')&&!o.sourceId.startsWith('standard-figure:')&&!o.presentation||!!o.ownerId&&o.ownerId!==a.id&&!!o.material);
+   next.music=null;
+   next.youtube=null;
+   // Scene material clears, but the physical audio player keeps its released tracks until explicitly withdrawn.
+   // Player notes and material from their own inventory also stay (it belongs to them, not to the scene).
+   next.sceneId=c.sceneId;next.objects=next.objects.filter(o=>o.kind==='note'||o.media==='audio'||o.sourceKind==='record'&&!o.sourceId.startsWith('scene-material:')&&!o.sourceId.startsWith('standard-figure:')&&!o.presentation||!!o.ownerId&&o.ownerId!==a.id&&!!o.material);
   }
  }else if(c.action==='add'){
   if(c.kind==='note'){

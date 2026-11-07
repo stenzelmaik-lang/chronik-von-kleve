@@ -7,7 +7,7 @@ const source={title:'Arbeitsblatt',kind:'document',sourceKind:'record',sourceId:
 const add={action:'add',kind:'document',sourceKind:'record',sourceId:'prepared-1',visible:true,recipients:['b']};
 test('material validates titles, bounded text and type-compatible attachments',()=>{
  assert.ok(materialSchema.safeParse({title:'Notiz',kind:'document',text:'',fileId:''}).success);
- for(const draft of [{title:'',kind:'document',text:'',fileId:''},{title:'Bild',kind:'image',text:'',fileId:''},{title:'Lang',kind:'document',text:'a'.repeat(50001),fileId:''}])assert.equal(materialSchema.safeParse(draft).success,false);
+ for(const draft of [{title:'',kind:'document',text:'',fileId:''},{title:'Bild',kind:'image',text:'',fileId:''},{title:'Lang',kind:'document',text:'a'.repeat(130001),fileId:''}])assert.equal(materialSchema.safeParse(draft).success,false);
  assert.equal(materialMimeMatches('image','application/pdf'),false);assert.equal(materialMimeMatches('pdf','application/pdf'),true);assert.equal(materialMimeMatches('audio','audio/mpeg'),true);
 });
 test('only author-owned server-resolved records may be staged by players',()=>{

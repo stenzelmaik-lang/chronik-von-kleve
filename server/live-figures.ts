@@ -1,5 +1,7 @@
 import {database,gmOnly,HttpError,type Actor} from './access';
 import {readSetting,mutateSetting} from './settings-store';
+import {listFigureTemplates} from './figure-templates';
+import {resolveFigureTemplate} from '@/domain/figure-templates';
 import {readLiveRoom} from './live-game';
 import {resolveFigure,typeById,tierById,nextLabel,MAX_LIVE_FIGURES,MAX_SPAWN,STANDARD_FIGURES_VERSION,type LiveFigure,type FigureStatePatch,type TierId} from '@/domain/standard-figures';
 
@@ -27,7 +29,7 @@ export async function listFigures(a:Actor,sessionId:string){
 }
 
 export type FigureCommand=
- |{action:'spawn';sessionId:string;requestId:string;typeId:string;tierId:string;count:number;imageFileId?:string}
+ |{action:'spawn';sessionId:string;requestId:string;typeId:string;tierId:string;count:number;imageFileId?:string;templateId?:string}
  |{action:'update';sessionId:string;id:string;patch:FigureStatePatch}
  |{action:'retire';sessionId:string;id:string}
  |{action:'linkAsset';sessionId:string;typeId:string;tierId:string|null;fileId:string;label:string;role:AssetLink['role']}
@@ -47,12 +49,15 @@ export async function changeFigures(a:Actor,c:FigureCommand){
   if(!type||!tier)throw new HttpError(400,'Unbekannte Figur oder Stufe.');
   if(!Number.isInteger(c.count)||c.count<1||c.count>MAX_SPAWN)throw new HttpError(400,`Anzahl 1 bis ${MAX_SPAWN}.`);
   await imageOwned(a,c.imageFileId||'');
-  const stats=resolveFigure(c.typeId,c.tierId)!,stamp=new Date().toISOString();
+  const template=c.templateId?(await listFigureTemplates(a)).find(item=>item.id===c.templateId):null;
+  if(c.templateId&&!template)throw new HttpError(404,'Die gewählte Figurenvorlage ist nicht verfügbar.');
+  if(template&&(template.typeId!==c.typeId||template.tierId!==c.tierId))throw new HttpError(400,'Vorlage und Basisfigur stimmen nicht überein.');
+  const stats=template?resolveFigureTemplate(template):resolveFigure(c.typeId,c.tierId)!,stamp=new Date().toISOString();
   const state=await mutate(key,parseState,s=>{
    if(s.requests.includes(c.requestId))return s; // double click or retry: already created
    if(s.figures.length+c.count>MAX_LIVE_FIGURES)throw new HttpError(409,`Höchstens ${MAX_LIVE_FIGURES} Figuren gleichzeitig.`);
    const added:LiveFigure[]=[];
-   for(let i=0;i<c.count;i++)added.push({id:crypto.randomUUID(),typeId:type.id,tierId:tier.id,label:nextLabel(type.name,[...s.figures,...added]),stats,hurt:0,willpower:stats.willpower,blood:stats.bloodMax,note:'',imageFileId:c.imageFileId||'',createdAt:stamp});
+   for(let i=0;i<c.count;i++)added.push({id:crypto.randomUUID(),typeId:type.id,tierId:tier.id,label:nextLabel(template?.name||type.name,[...s.figures,...added]),stats,hurt:0,willpower:stats.willpower,blood:stats.bloodMax,note:'',imageFileId:c.imageFileId||'',createdAt:stamp});
    return {rev:s.rev+1,figures:[...s.figures,...added],requests:[...s.requests,c.requestId].slice(-30)};
   });
   return {figures:state.figures};

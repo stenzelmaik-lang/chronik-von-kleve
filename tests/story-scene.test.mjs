@@ -55,12 +55,12 @@ test('Existing workspace and moment data remain backward compatible', () => {
 });
 
 
-test('Scene texts support 10000 visible characters and keep visions separate from secrets', () => {
+test('Scene texts support 20000 visible characters and keep visions separate from secrets', () => {
   const old=emptyScene(); delete old.visions;
   assert.equal(sceneDocumentSchema.parse(old).visions,'');
   for(const key of ['narration','atmosphere','dialogueNotes','interactions','secrets','visions','possibleConsequences','gmNotes']) {
-    assert.ok(sceneDocumentSchema.safeParse({...emptyScene(),[key]:'x'.repeat(10000)}).success,key);
-    assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),[key]:'x'.repeat(10001)}).success,false,key);
+    assert.ok(sceneDocumentSchema.safeParse({...emptyScene(),[key]:'x'.repeat(20000)}).success,key);
+    assert.equal(sceneDocumentSchema.safeParse({...emptyScene(),[key]:'x'.repeat(20001)}).success,false,key);
   }
   const scene=sceneDocumentSchema.parse({...emptyScene(),secrets:'INTERNAL_BACKGROUND',visions:'PLAYER_INFO_TO_PREPARE'});
   assert.equal(scene.secrets,'INTERNAL_BACKGROUND');assert.equal(scene.visions,'PLAYER_INFO_TO_PREPARE');
@@ -86,5 +86,5 @@ test('Private message HTML uses the safe existing format while legacy plain text
   // Mailbox 2.0: every member may attach own files to plain letters; access is checked server-side.
   assert.ok(personalMessageSchema.safeParse({...base,fileIds:['file']}).success);
   assert.equal(personalMessageSchema.safeParse({...base,text:' '}).success,false);
-  assert.equal(personalMessageSchema.safeParse({...base,format:'rich',text:'x'.repeat(10001)}).success,false);
+  assert.equal(personalMessageSchema.safeParse({...base,format:'rich',text:'x'.repeat(20001)}).success,false);
 });

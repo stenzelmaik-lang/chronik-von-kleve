@@ -73,7 +73,7 @@ test('the player check lives in the own character sheet; the Regie has its own "
  assert.match(stage,/renderOwnSheet=\{[^}]*<PlayerCheck/,'check rendered through the own sheet of the top bar');
  assert.doesNotMatch(stage,/LiveCheckPanel/,'no second check panel in the dice drawer');
  assert.match(people,/memberId===a\.id&&action==='sheet'&&renderOwnSheet/,'only the own sheet hosts the check');
- assert.match(src('app/spielbereich/modules/spieltisch/regie-window.tsx'),/\['checks','Proben','text'\]/);
+ assert.match(src('app/spielbereich/modules/spieltisch/regie-window.tsx'),/<Block title="Proben" area="checks">/);
  assert.match(src('app/spielbereich/modules/spieltisch/regie.tsx'),/\['checks','Proben'\]/);
  // The client never sends a pool, faces or difficulty for a check roll; the server derives them.
  assert.doesNotMatch(src('app/spielbereich/modules/spieltisch/live-check-panel.tsx'),/action:'rollCheck'[^}]*(pool|faces|difficulty):/);

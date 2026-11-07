@@ -80,9 +80,26 @@ export async function GET(req: Request) {
     };
     if (params.get("size") === "thumb" && !thumbnail) headers["X-CVK-Thumb"] = "missing";
     if (req.headers.get("If-None-Match") === etag) return new Response(null, { status: 304, headers });
-    const obj = await env.BUCKET.get(thumbnail ? thumbKey(f.key) : f.key);
+    // Protected audio/video need a known length and byte ranges for metadata and seeking, just like stage assets.
+    // Keep the same access check above for every range request; this never creates a public media URL.
+    let start = 0, end = f.size - 1;
+    const media = !thumbnail && /^(audio|video)\//.test(f.mime);
+    const range = media ? req.headers.get("range") : null;
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!match || (!match[1] && !match[2])) return new Response(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${f.size}` } });
+      start = match[1] ? Number(match[1]) : Math.max(0, f.size - Number(match[2]));
+      end = match[1] && match[2] ? Math.min(Number(match[2]), f.size - 1) : f.size - 1;
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= f.size) return new Response(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${f.size}` } });
+    }
+    const obj = await env.BUCKET.get(thumbnail ? thumbKey(f.key) : f.key, range ? { range: { offset: start, length: end - start + 1 } } : undefined);
     if (!obj) throw new HttpError(404, "Datei nicht gefunden.");
-    return new Response(obj.body, { headers });
+    if (media) {
+      headers["Content-Length"] = String(end - start + 1);
+      headers["Accept-Ranges"] = "bytes";
+      if (range) headers["Content-Range"] = `bytes ${start}-${end}/${f.size}`;
+    }
+    return new Response(obj.body, { status: range ? 206 : 200, headers });
   } catch (e) {
     return failure(e, req);
   }

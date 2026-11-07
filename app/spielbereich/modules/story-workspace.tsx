@@ -1,4 +1,5 @@
 "use client";
+import { authoringTextMax } from '@/domain/authoring-limits';
 import {
   useCallback,
   useEffect,
@@ -548,9 +549,9 @@ export function StoryWorkspace({ a, onDirty }: { a: Actor; onDirty?: (dirty:bool
         <button type="button" aria-label={expandedEditor===key?"Vollbild schließen":"Editor vergrößern"} aria-pressed={expandedEditor===key} onClick={()=>setExpandedEditor(expandedEditor===key?null:key)}>{expandedEditor===key?<Minimize2 size={17} aria-hidden="true"/>:<Maximize2 size={17} aria-hidden="true"/>}</button>
         </div>
       </div>
-      {helpEditor===key&&<aside className={s.htmlHelp} aria-label="HTML-Hilfe"><h3>Text und HTML gestalten</h3><p>Schreibe direkt im visuellen Editor oder füge im HTML-Quelltext formatierten Text ein. Vorschau zeigt die spätere Darstellung, ohne etwas zu veröffentlichen.</p><p>Nutze h2/h3 für Überschriften, p für Absätze und ul/li für Listen. Tabellen: table, tr, th und td. Fett: strong, kursiv: em. Lass Text automatisch umbrechen; vermeide br-Ketten und feste Breiten.</p><p>Formatvorlagen: cp-intro für Einleitungen, cp-highlight für Hervorhebungen, cp-note für Hinweise, cp-divider für Trennungen.</p><pre>{'<h2>Überschrift</h2>\n<p class="cp-intro">Ein erster Eindruck.</p>\n<p>Ein zusammenhängender Absatz.</p>\n<ul><li>Ein Hinweis</li></ul>'}</pre><p>Bis 10.000 sichtbare Zeichen. HTML wird sicher aufbereitet; Skripte und externe Einbettungen werden nicht übernommen. Bilder wählst du über die Galerie. Dein Entwurf wird automatisch gespeichert. Weiter speichert zusätzlich vor dem Schrittwechsel; nichts davon veröffentlicht Inhalte.</p></aside>}
+      {helpEditor===key&&<aside className={s.htmlHelp} aria-label="HTML-Hilfe"><h3>Text und HTML gestalten</h3><p>Schreibe direkt im visuellen Editor oder füge im HTML-Quelltext formatierten Text ein. Vorschau zeigt die spätere Darstellung, ohne etwas zu veröffentlichen.</p><p>Nutze h2/h3 für Überschriften, p für Absätze und ul/li für Listen. Tabellen: table, tr, th und td. Fett: strong, kursiv: em. Lass Text automatisch umbrechen; vermeide br-Ketten und feste Breiten.</p><p>Formatvorlagen: cp-intro für Einleitungen, cp-highlight für Hervorhebungen, cp-note für Hinweise, cp-divider für Trennungen.</p><pre>{'<h2>Überschrift</h2>\n<p class="cp-intro">Ein erster Eindruck.</p>\n<p>Ein zusammenhängender Absatz.</p>\n<ul><li>Ein Hinweis</li></ul>'}</pre><p>Bis 20.000 sichtbare Zeichen. HTML wird sicher aufbereitet; Skripte und externe Einbettungen werden nicht übernommen. Bilder wählst du über die Galerie. Dein Entwurf wird automatisch gespeichert. Weiter speichert zusätzlich vor dem Schrittwechsel; nichts davon veröffentlicht Inhalte.</p></aside>}
       <RichTextEditor value={value} onChange={onChange} label={label}
-        maximumPlainLength={10000}
+        maximumPlainLength={authoringTextMax}
         placeholder="Deine private Vorbereitung …" advanced htmlSource compactTools preparationTools files={files}/>
     </div>
   );

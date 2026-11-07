@@ -1,16 +1,17 @@
+import { authoringTextMax, authoringSourceMax } from './authoring-limits.ts';
 import {z} from 'zod';
 import {isRichTextWithinLimit,sanitizeRichTextInput,richTextToPlainText,richTextFileIds} from './location-rich-text.ts';
 
 export const personalMessageSchema=z.object({
   clientRequestId:z.string().uuid(),recipients:z.array(z.string().min(1).max(100)).min(1).max(20),
-  title:z.string().trim().min(1).max(160),text:z.string().max(65000),
+  title:z.string().trim().min(1).max(160),text:z.string().max(authoringSourceMax),
   format:z.literal('rich').optional(),fileIds:z.array(z.string().min(1).max(100)).max(20).optional(),
   replyToId:z.string().min(1).max(100).optional(),forwardOfId:z.string().min(1).max(100).optional(),
 }).strict().superRefine((value,ctx)=>{
   if(value.replyToId&&value.forwardOfId)ctx.addIssue({code:'custom',message:'Antwort oder Weiterleitung wählen.'});
   if(value.format==='rich') {
     let text;try{text=sanitizeRichTextInput(value.text);}catch{ctx.addIssue({code:'custom',message:'Ungültiges HTML.'});return;}
-    if(!isRichTextWithinLimit(text,10000))ctx.addIssue({code:'custom',message:'Höchstens 10.000 sichtbare Zeichen.'});
+    if(!isRichTextWithinLimit(text,authoringTextMax))ctx.addIssue({code:'custom',message:'Höchstens 20.000 sichtbare Zeichen.'});
     if(!richTextToPlainText(text).trim()&&!value.fileIds?.length&&!richTextFileIds(text).length)ctx.addIssue({code:'custom',message:'Ergänze eine Botschaft oder eine Datei.'});
   } else if(value.text.trim().length>20000||(!value.text.trim()&&!value.fileIds?.length))ctx.addIssue({code:'custom',message:'Ungültige persönliche Nachricht.'});
 });
