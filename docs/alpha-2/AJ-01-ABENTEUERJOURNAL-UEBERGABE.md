@@ -95,3 +95,14 @@ Synthetische Konten wie in den übrigen lokalen Demos (`command-a@example.invali
 ## Ausdrücklich nicht getan
 
 Kein Commit, kein Push, kein Merge, kein Deployment, keine Remote-Datenbank, keine Migration, keine Änderung echter Daten.
+
+## Release-Vorbereitung (Freigabe des Besitzers „live bringen“, 07.11.2026)
+
+**Gestoppt vor dem Deployment.** Live läuft Worker-Version `ec57ff4e-1209-4c3d-8129-810298eb93f7` (Tag `Regie-Nachbesserung-20261107`, 07.11.2026 09:23Z). Die Live-Versionen seit dem 04.11. (u. a. `Regie-Studio-20261106`, `Regie-Materialzugang-20261106`, Textlimits, ULTIO-Steuerung/-Audio, Ortspapierkorb, Datenschutz) stammen aus einem Stand, der weder in `main` (`acbc62d`) noch in einem anderen Branch auf GitHub oder lokal liegt. In `cvk-private/release-*` liegen nur gebaute Artefakte und Prüfsummen. Ein Deployment von `main` + Journal würde diese Funktionen live entfernen; deshalb kein Deployment, bis der Live-Quellstand auf GitHub liegt.
+
+Bereit:
+- Commit `1bc3401` auf `claude/chroniplay-abenteuerjournal-23ec22` (Basis `acbc62d`).
+- Keine Migration, keine Schemaänderung.
+- Schalter für Produktion: Worker-Variable `AJ01_JOURNAL_CAMPAIGNS=chronik-von-kleve` zusätzlich zu den bestehenden `AUTH_ACCESS_ENVIRONMENT=closed-alpha-production` und `GE01_ALPHA_CAMPAIGNS=chronik-von-kleve`. Ohne die Variable bleibt das Journal aus; Leeren der Variable schaltet es ohne Codeänderung ab.
+
+Nächste Schritte, sobald der Live-Quellstand als Branch vorliegt: Journal-Commit darauf zusammenführen → Typecheck, `pnpm test`, `test:integration:run`, `test:journal` → D1-Time-Travel-Lesezeichen → Build → Produktionskonfiguration aus der aktiven Version plus `AJ01_JOURNAL_CAMPAIGNS` → `wrangler deploy --tag <commit>-Abenteuerjournal` → Smoke-Test ohne Anmeldung → Release-Nachweis. Rückfall: `wrangler rollback ec57ff4e-1209-4c3d-8129-810298eb93f7` oder Variable leeren.
