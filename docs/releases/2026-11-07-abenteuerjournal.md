@@ -23,3 +23,6 @@ Journal aus ohne Codeänderung: Variable `AJ01_JOURNAL_CAMPAIGNS` leeren (neue V
 
 ## Offen
 `main` enthält weder den Live-Quellstand noch das Journal; vor dem nächsten Deployment `claude/journal-release` nach `main` zusammenführen oder als Basis nehmen.
+
+## Nachtrag 07.11.2026 · SL-Ansicht
+Worker-Version **`240e208e-a57f-4f46-9d07-1992ecca6373`**, Tag `f57d990-Journal-SL`, Commit `f57d990` auf `claude/journal-release`: SL erhält das Buch der eigenen aktiven Figur oder ein Ansichtsexemplar (nie Spielerbücher). Vorversion `9ecd595a-a629-46a7-97f4-fb292616fb77`. Keine Migration; D1-Lesezeichen vor dem Deploy `000001ed-000006c0-0000511c-375a2c04b0c7e58777f0b6ab3fbf76e5`. Prüfungen: `pnpm test` 388/388, Journal-Integration 38/38, Browser als SL lokal. Nach dem Deploy: `/anmelden` 200, geschützte Routen 401, Bundle mit Ansichtsexemplar ausgeliefert.
