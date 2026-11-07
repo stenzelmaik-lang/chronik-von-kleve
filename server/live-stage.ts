@@ -4,6 +4,7 @@ import {readMaterial} from './table-materials';
 import {database,gmOnly,HttpError,type Actor} from './access';
 import {readLiveRoom,liveMembers,liveFile,isGmMembership,roomCrew} from './live-game';
 import {checksActive,checksAvailable,type ChecksGateEnv} from '@/domain/live-checks';
+import {journalAvailable,type JournalGateEnv} from '@/domain/journal';
 import {liveEvents} from './live-commands';
 import {loadEntities,loadEntitiesForIds} from './entities';
 import {listScenes,readScene} from './story-scenes';
@@ -104,6 +105,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
  return {principal:{id:a.id,gm:a.gm,role:a.role},version,catalogIncluded:includeCatalog,cursor:row.version+':'+diceRevision+':'+checks.length+':'+(checks.at(-1)?.id||'')+':'+(scene?.id||'')+':'+(media?.id||'')+':'+(media?.index||0),sessionId,runId:room.runId,title:room.title||'Spielabend',scene:scene?.scene?.id||'',sharedScene:scene?.scene?.id||'',preview:false,sceneInfo:scene?.scene,sceneEventId:scene?.id,media,checks,checksEnabled:checksOn,
   // GM only: the release switch of this evening; players never learn whether a campaign is in the alpha.
   ...(a.gm&&checksAvailable(env as unknown as ChecksGateEnv,a.campaignId)?{checksSwitch:{on:checksOn}}:{}),
+  // Abenteuerjournal (AJ-01): players only, off unless the release gate opens it. Notes themselves are never gated.
+  ...(!a.gm&&journalAvailable(env as unknown as JournalGateEnv,a.campaignId)?{journalEnabled:true}:{}),
   // The backdrop belongs to the whole round; its file is only served through the stage asset route.
   // The key only changes with the image, so moving table objects never reloads or re-animates the backdrop.
   backdrop:stage.backdrop?{title:stage.backdrop.title,key:stage.backdrop.fileId.slice(0,12),...(stage.backdrop.transition?{transition:stage.backdrop.transition}:{}),...(a.gm?{fileId:stage.backdrop.fileId}:{})}:null,stageSceneId:a.gm?stage.sceneId||'':undefined,

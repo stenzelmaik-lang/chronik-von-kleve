@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
 import { isRichTextWithinLimit } from "@/domain/location-rich-text";
+import { JOURNAL_KINDS, validPlayDate } from "@/domain/journal";
 import {account} from '@/server/account-profile';
 import {
   actor,
@@ -17,6 +18,9 @@ export const dynamic = "force-dynamic";
 
 const id = z.string().min(1).max(100);
 const visibility = z.enum(["private", "sl", "group"]);
+// Abenteuerjournal: optional and backwards compatible. Omitted on update = keep what is stored.
+const journalKind = z.enum(JOURNAL_KINDS).optional();
+const playDate = z.string().refine(validPlayDate, "Bitte ein gültiges Spieldatum (JJJJ-MM-TT) angeben.").nullable().optional();
 const schema = z.discriminatedUnion("action", [
   z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
@@ -40,6 +44,8 @@ const schema = z.discriminatedUnion("action", [
     title: z.string().trim().max(120).optional(),
     text: z.string().trim().min(1).max(90000),
     visibility: visibility.default("private"),
+    journalKind,
+    playDate,
   }),
   z.object({
     action: z.literal("note.update"),
@@ -49,6 +55,8 @@ const schema = z.discriminatedUnion("action", [
     title: z.string().trim().max(120).optional(),
     text: z.string().trim().min(1).max(90000),
     visibility: visibility.default("private"),
+    journalKind,
+    playDate,
   }),
   z.object({
     action: z.literal("note.archive"),
@@ -197,6 +205,10 @@ export async function PATCH(req: Request) {
       if (data.mediaType === "portrait") body.image = src;
       return json(await updateCharacterBody(db, character, data.version, body));
     }
+    if ((data.action === "note.create" || data.action === "note.update") && data.journalKind === "chronicle" && data.playDate === null)
+      throw new HttpError(400, "Ein Chronikeintrag braucht ein Spieldatum.");
+    if (data.action === "note.create" && data.journalKind === "chronicle" && !data.playDate)
+      throw new HttpError(400, "Ein Chronikeintrag braucht ein Spieldatum.");
     if (data.action === "note.create") {
       const { character, body: characterBody } = await loadCharacter(
         db,
@@ -223,6 +235,8 @@ export async function PATCH(req: Request) {
             characterId: character.id,
             text: data.text,
             context: "character-companion",
+            ...(data.journalKind ? { journalKind: data.journalKind } : {}),
+            ...(data.playDate ? { playDate: data.playDate } : {}),
             archived: false,
             testData: characterBody.testData === true,
           }),
@@ -244,6 +258,13 @@ export async function PATCH(req: Request) {
         data.noteId,
       );
       body.text = data.text;
+      if (data.journalKind) body.journalKind = data.journalKind;
+      if (data.playDate !== undefined) {
+        if (data.playDate) body.playDate = data.playDate;
+        else delete body.playDate;
+      }
+      if (body.journalKind === "chronicle" && !validPlayDate(body.playDate))
+        throw new HttpError(400, "Ein Chronikeintrag braucht ein Spieldatum.");
       body.archived = false;
       const result = await db
         .prepare(
