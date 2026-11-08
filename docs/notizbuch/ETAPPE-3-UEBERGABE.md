@@ -14,7 +14,7 @@ Stand 08.11.2026 · Claude Code (Opus 5.5) · lokal, nicht gepusht, nicht deploy
 2. **[docs/design/GLOSSAR.md](../design/GLOSSAR.md)**: ein Wort pro Ding. Die Entscheidungen des Besitzers sind markiert (Notizbuch, Notizzettel, Spielabendvorbereitung, Persönliches Archiv, Eingesteckt, Kurz erklärt).
    - **Vorschlag:** Der Bereich `archiv` (SL-Handouts) heißt künftig „Überlieferungen“, damit „Archiv“ nur noch im „Persönlichen Archiv“ vorkommt.
    - **Vorschlag:** „Chronik erkunden“ wird „Die Welt“.
-3. **Tokens `--cp-*`** in `app/globals.css` zwischen `/* cp-tokens:start */` und `/* cp-tokens:end */`, insgesamt 69 Variablen:
+3. **Tokens `--cp-*`** in `app/globals.css` zwischen `/* cp-tokens:start */` und `/* cp-tokens:end */`, insgesamt 53 Variablen:
    - Grund, zwei Flächenfamilien (Tealgrau und Marineblau), Text, Gold, Blutrot, Papier und Tinte;
    - zwei Schrift-Tokens, Größen, Abstände, Radius, Eckmarke, Icon-Strich, Bewegung.
 
