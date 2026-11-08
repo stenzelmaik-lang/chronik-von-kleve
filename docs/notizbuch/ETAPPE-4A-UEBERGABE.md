@@ -23,7 +23,7 @@ Stand 08.11.2026 · Claude Code (Opus 5.5) · lokal, nicht gepusht, nicht deploy
 
 ## 4a · Spielerleiste oben und linke Tischleiste
 
-**Zieltabelle:** [docs/design/4a-ZIELTABELLE.md](../design/4a-ZIELTABELLE.md). Ich habe nur **eine** echte Doppelung gefunden: Das Leistensymbol „Zustand“ und die Rundenanzeige öffnen dasselbe Panel. Der Vorschlag, das Leistensymbol zu streichen, wartet auf deine Entscheidung und ist **nicht** umgesetzt. Alle anderen Ziele sind verschiedene Dinge und bleiben, wo sie sind.
+**Zieltabelle:** [docs/design/4a-ZIELTABELLE.md](../design/4a-ZIELTABELLE.md). Ich habe nur **eine** echte Doppelung gefunden: Das Leistensymbol „Zustand“ und die Rundenanzeige öffnen dasselbe Panel. Auf deine Entscheidung („Ja, streichen“) ist das Leistensymbol „Zustand“ entfernt. Der Einstieg läuft nur noch über die Rundenanzeige unten links; im Browser geprüft, sie öffnet die Schublade „Zustände“. Alle anderen Ziele sind verschiedene Dinge und bleiben, wo sie sind.
 
 **Umgesetzt, ohne Erreichbarkeit, Panel-Typen, Routen oder Rechte zu ändern:**
 1. **Eigener Icon-Satz** `app/spielbereich/modules/icons/cp-icons.tsx`: 17 Symbole aus dem abgenommenen Stil (die 12 Proben plus Szenen, Regie, Zeichnen, Zettel, Eingesteckt).
@@ -50,6 +50,7 @@ Stand 08.11.2026 · Claude Code (Opus 5.5) · lokal, nicht gepusht, nicht deploy
 | 375 px | ![](../design/4a/vorher-375-tisch.jpg) | ![](../design/4a/nachher-375-tisch.jpg) |
 | Würfelschale 1280 px | (vorher Leder und Teal, siehe Screenshots des Besitzers) | ![](../design/4a/nachher-1280-wuerfelschale.jpg) |
 | Fokus per Tastatur | | ![](../design/4a/nachher-1280-fokus.png) |
+| Zustand über die Rundenanzeige | | ![](../design/4a/nachher-1280-zustand-ueber-rundenanzeige.jpg) |
 
 ## Prüfungen (beobachtet)
 
@@ -84,7 +85,6 @@ Die lokale Testdatenbank `.local-test/ge-01` ist danach gelöscht.
 
 ## Offene Punkte
 
-- **Deine Entscheidung zu 4a:** Leistensymbol „Zustand“ streichen (Einstieg nur über die Rundenanzeige)? Ohne Antwort bleibt es.
 - **„Mein Zustand“:** grafische und technische Überarbeitung als eigener Auftrag. Dazu gehört dein Befund, dass du als SL mit eigener Figur deine Werte nicht siehst.
 - **4b Charakterbogen:** braucht die Abweichungsliste gegen dein V20-Referenzblatt. Du hast den Drive-Ordner genannt (leeres Blatt „ohne Werte“); ich lese ihn zu Beginn von 4b, er kommt nicht ins Repo.
 - **4c Navigation:** Zieltabelle und Gruppen nimmst du vor dem Umbau ab.

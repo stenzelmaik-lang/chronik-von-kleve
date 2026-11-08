@@ -1,6 +1,6 @@
 # 4a · Zieltabelle Spielerleiste oben und linke Tischleiste
 
-Stand 08.11.2026 · **Vorschlag, noch nicht umgesetzt.** Die Panel-Typen in `stage.tsx` bleiben unverändert, nur ihre Erreichbarkeit würde sich ändern. Nichts davon verschiebt Rechte, Routen oder Daten.
+Stand 08.11.2026 · **Vom Besitzer entschieden am 08.11.2026:** Das Leistensymbol „Zustand“ ist gestrichen, alle anderen Ziele bleiben. Die Panel-Typen in `stage.tsx` bleiben unverändert, nur ihre Erreichbarkeit würde sich ändern. Nichts davon verschiebt Rechte, Routen oder Daten.
 
 ## Alle Ziele am Spieltisch heute
 
@@ -36,7 +36,7 @@ Bei echter Doppelung sehe ich nur **einen** Fall: Zustand ist zugleich über das
 - Die Würfelschale ist ein Tischobjekt: Holzrand und dunkelgrüner Filz, im 3D-Modell und im Ersatzbild ohne WebGL. Die achteckige Form bleibt, weil die Würfelphysik daran hängt.
 - Notizzettel bleiben vorerst wie sie sind (Wunsch des Besitzers: eigens schöner gestalten).
 
-## Zur Entscheidung
+## Entschieden
 
-1. Leistensymbol „Zustand“ entfernen, Einstieg nur über die Rundenanzeige?
-2. Sonst bleibt jedes Ziel, wo es ist?
+- Das Leistensymbol „Zustand“ ist entfernt (Antwort des Besitzers: „Ja, streichen“). Der Einstieg läuft über die Rundenanzeige. Das Panel `vitals` ist unverändert.
+- Alle anderen Ziele bleiben, wo sie sind.
