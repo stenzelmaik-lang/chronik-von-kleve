@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChroniPlay-Way · Musterseite</title>
+<!-- Etappe 3 · local proof page only. Not part of the app build (prototypes/ is outside app/).
+     Start: python -m http.server 8898 --directory prototypes/designgrundlage  →  http://127.0.0.1:8898/musterseite.html -->
+<style>
+/* cp-tokens:start */
+:root{
+  --cp-bg:#0d1316;
+  --cp-surface-1:#111b1f;--cp-surface-2:#16242a;--cp-surface-3:#1c2e35;--cp-line:#2c3d43;--cp-line-strong:#3e5359;
+  --cp-navy-surface-1:#0f1824;--cp-navy-surface-2:#142135;--cp-navy-surface-3:#1b2b42;--cp-navy-line:#2a3a52;--cp-navy-line-strong:#3b4f6b;
+  --cp-text:#ece5d8;--cp-text-muted:#aba89e;--cp-text-faint:#8c948f;
+  --cp-gold:#d6b36f;--cp-gold-strong:#e4c589;--cp-gold-line:#d6b36f73;--cp-gold-wash:#d6b36f14;
+  --cp-blood:#9e2b2f;--cp-blood-text:#e8908a;
+  --cp-paper:#f5eddc;--cp-paper-edge:#e6d9bf;--cp-ink:#2f2a22;--cp-ink-soft:#6b6050;--cp-rule:#d9c7a6;--cp-ink-gold:#7a5a1e;
+  --cp-focus:#e4c589;
+  --cp-font-title:Georgia,'Times New Roman',serif;--cp-font-text:Arial,Helvetica,sans-serif;
+  --cp-size-xs:12px;--cp-size-sm:14px;--cp-size-base:16px;--cp-size-lg:19px;--cp-size-xl:24px;--cp-size-2xl:32px;--cp-size-3xl:44px;
+  --cp-leading:1.55;--cp-leading-title:1.15;--cp-tracking-caps:.14em;
+  --cp-space-1:4px;--cp-space-2:8px;--cp-space-3:12px;--cp-space-4:16px;--cp-space-5:24px;--cp-space-6:32px;--cp-space-7:48px;--cp-space-8:64px;
+  --cp-radius:2px;--cp-hairline:1px;--cp-corner:10px;
+  --cp-icon-stroke:1.5;--cp-duration:180ms;--cp-ease:cubic-bezier(.2,.7,.2,1);
+}
+/* cp-tokens:end */
+
+/* Self-hosted proof fonts (SIL OFL 1.1, see fonts/HERKUNFT.md). Only the chosen pair moves into the app later. */
+@font-face{font-family:'Spectral';src:url(fonts/spectral/spectral-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Spectral';src:url(fonts/spectral/spectral-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'IBM Plex Sans';src:url(fonts/ibm-plex-sans/ibm-plex-sans-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'IBM Plex Sans';src:url(fonts/ibm-plex-sans/ibm-plex-sans-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Fraunces';src:url(fonts/fraunces/fraunces-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Fraunces';src:url(fonts/fraunces/fraunces-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Source Sans 3';src:url(fonts/source-sans-3/source-sans-3-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Source Sans 3';src:url(fonts/source-sans-3/source-sans-3-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Cormorant Garamond';src:url(fonts/cormorant-garamond/cormorant-garamond-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Cormorant Garamond';src:url(fonts/cormorant-garamond/cormorant-garamond-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Alegreya Sans';src:url(fonts/alegreya-sans/alegreya-sans-latin-400-normal.woff2) format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:'Alegreya Sans';src:url(fonts/alegreya-sans/alegreya-sans-latin-700-normal.woff2) format('woff2');font-weight:700;font-display:swap}
+
+/* Proof switches: font pair and surface family. */
+[data-pair="1"]{--cp-font-title:'Spectral',Georgia,serif;--cp-font-text:'IBM Plex Sans',Arial,sans-serif}
+[data-pair="2"]{--cp-font-title:'Fraunces',Georgia,serif;--cp-font-text:'Source Sans 3',Arial,sans-serif}
+[data-pair="3"]{--cp-font-title:'Cormorant Garamond',Georgia,serif;--cp-font-text:'Alegreya Sans',Arial,sans-serif}
+[data-family="navy"]{--cp-surface-1:var(--cp-navy-surface-1);--cp-surface-2:var(--cp-navy-surface-2);--cp-surface-3:var(--cp-navy-surface-3);--cp-line:var(--cp-navy-line);--cp-line-strong:var(--cp-navy-line-strong)}
+
+*{box-sizing:border-box}
+html{background:var(--cp-bg)}
+body{margin:0;background:var(--cp-bg);color:var(--cp-text);font:var(--cp-size-base)/var(--cp-leading) var(--cp-font-text)}
+a{color:var(--cp-gold)}
+:focus-visible{outline:2px solid var(--cp-focus);outline-offset:3px}
+.page{max-width:1180px;margin:0 auto;padding:var(--cp-space-6) var(--cp-space-4) var(--cp-space-8);font:var(--cp-size-base)/var(--cp-leading) var(--cp-font-text)}
+.orient{margin:0;font-size:var(--cp-size-xs);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-gold)}
+h1,h2,h3{font-family:var(--cp-font-title);font-weight:400;line-height:var(--cp-leading-title);margin:0}
+h1{font-size:var(--cp-size-3xl)}
+h2{font-size:var(--cp-size-2xl)}
+h3{font-size:var(--cp-size-xl)}
+p{margin:0}
+.lead{max-width:62ch;margin-top:var(--cp-space-3);color:var(--cp-text-muted)}
+section{margin-top:var(--cp-space-8)}
+.sectionHead{display:grid;gap:var(--cp-space-2);margin-bottom:var(--cp-space-5)}
+/* Ornament rule: the gold hairline sits only under section titles. */
+.sectionHead h2{padding-bottom:var(--cp-space-3);border-bottom:var(--cp-hairline) solid var(--cp-gold-line)}
+.sectionHead p{color:var(--cp-text-muted);max-width:70ch}
+.muted{color:var(--cp-text-muted)}
+.switches{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:var(--cp-space-4);align-items:center;margin:var(--cp-space-5) calc(var(--cp-space-4) * -1) 0;padding:var(--cp-space-3) var(--cp-space-4);background:var(--cp-bg);border-bottom:var(--cp-hairline) solid var(--cp-line)}
+.switch{display:flex;flex-wrap:wrap;gap:var(--cp-space-2);align-items:center}
+.switch>span{font-size:var(--cp-size-xs);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-text-muted)}
+button{font:inherit;color:inherit}
+.switch button,.btn{min-height:40px;padding:0 var(--cp-space-4);border:var(--cp-hairline) solid var(--cp-line-strong);border-radius:var(--cp-radius);background:transparent;color:var(--cp-text);cursor:pointer}
+.switch button[aria-pressed=true]{border-color:var(--cp-gold);color:var(--cp-gold)}
+.btn.primary{background:var(--cp-gold);border-color:var(--cp-gold);color:var(--cp-bg);font-weight:700}
+
+/* Type proof */
+.pairs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--cp-space-5)}
+.pair{display:grid;gap:var(--cp-space-3);padding:var(--cp-space-5);background:var(--cp-surface-1);border:var(--cp-hairline) solid var(--cp-line);border-radius:var(--cp-radius)}
+.pair[aria-current=true]{border-color:var(--cp-gold-line)}
+.pair .label{font:var(--cp-size-xs)/1.4 Arial,sans-serif;letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-text-faint)}
+.pair .title{font:400 var(--cp-size-2xl)/var(--cp-leading-title) var(--cp-font-title)}
+.pair .sub{font:400 var(--cp-size-lg)/1.3 var(--cp-font-title);color:var(--cp-text-muted)}
+.pair .body{font:var(--cp-size-base)/var(--cp-leading) var(--cp-font-text)}
+.pair .small{font:var(--cp-size-sm)/1.5 var(--cp-font-text);color:var(--cp-text-muted)}
+.pair .nums{font:var(--cp-size-sm)/1.5 var(--cp-font-text);font-variant-numeric:tabular-nums}
+.pair .why{font:var(--cp-size-sm)/1.5 var(--cp-font-text);color:var(--cp-text-muted);padding-top:var(--cp-space-3);border-top:var(--cp-hairline) solid var(--cp-line)}
+
+/* Surfaces */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--cp-space-3)}
+.swatch{display:grid;gap:var(--cp-space-1);padding:var(--cp-space-3);min-height:110px;border:var(--cp-hairline) solid var(--cp-line);border-radius:var(--cp-radius);font-size:var(--cp-size-xs)}
+.swatch strong{font-size:var(--cp-size-sm)}
+.swatch code{font-family:ui-monospace,Consolas,monospace}
+.levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--cp-space-4);margin-top:var(--cp-space-5)}
+.level{padding:var(--cp-space-5);border-radius:var(--cp-radius)}
+.level.l1{background:var(--cp-surface-1)}.level.l2{background:var(--cp-surface-2)}.level.l3{background:var(--cp-surface-3)}
+.level p+p{margin-top:var(--cp-space-2)}
+
+/* Frames and corner marks: the recognition sign of the frame level. */
+.marked{position:relative;padding:var(--cp-space-6);background:var(--cp-surface-1);border:var(--cp-hairline) solid var(--cp-line)}
+.marked::before,.marked::after,.marked>.cm::before,.marked>.cm::after{content:'';position:absolute;width:var(--cp-corner);height:var(--cp-corner);border-color:var(--cp-gold);border-style:solid}
+.marked::before{top:-1px;left:-1px;border-width:1px 0 0 1px}
+.marked::after{top:-1px;right:-1px;border-width:1px 1px 0 0}
+.marked>.cm::before{bottom:-1px;left:-1px;border-width:0 0 1px 1px}
+.marked>.cm::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0}
+.main{outline:var(--cp-hairline) solid var(--cp-gold-line);outline-offset:4px}
+.frames{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--cp-space-6);align-items:start}
+.portrait{width:100%;max-width:240px;aspect-ratio:3/4;display:grid;place-items:center;border:var(--cp-hairline) solid var(--cp-gold);outline:var(--cp-hairline) solid var(--cp-gold-line);outline-offset:5px;background:var(--cp-surface-2);color:var(--cp-text-faint);font-size:var(--cp-size-sm);text-align:center;padding:var(--cp-space-4)}
+.fileNo{font:var(--cp-size-xs)/1 ui-monospace,Consolas,monospace;letter-spacing:.08em;color:var(--cp-text-faint)}
+
+/* Icons */
+.icons{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:var(--cp-space-3)}
+.icon{display:grid;justify-items:center;gap:var(--cp-space-2);padding:var(--cp-space-4) var(--cp-space-2);border:var(--cp-hairline) solid var(--cp-line);border-radius:var(--cp-radius);font-size:var(--cp-size-xs);color:var(--cp-text-muted);text-align:center}
+.icon svg{width:32px;height:32px;color:var(--cp-text)}
+.icon.small svg{width:20px;height:20px}
+svg.i{fill:none;stroke:currentColor;stroke-width:var(--cp-icon-stroke);stroke-linecap:square;stroke-linejoin:miter}
+
+/* Notebook page (table level) */
+.desk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:var(--cp-space-6);align-items:start}
+.paper{display:grid;grid-template-columns:38px minmax(0,1fr);min-height:420px;border-radius:2px 10px 10px 2px;background:var(--cp-paper);color:var(--cp-ink);box-shadow:0 1px 0 var(--cp-paper-edge),0 10px 24px #0007}
+.spiral{border-right:1px solid #e3d5b9;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='36' viewBox='0 0 38 36'%3E%3Ccircle cx='29' cy='19' r='3.4' fill='%232a2119' fill-opacity='.78'/%3E%3Cpath d='M3 11 C 14 6, 28 8, 30 18' fill='none' stroke='%23574536' stroke-width='3.4' stroke-linecap='round'/%3E%3Cpath d='M4 10.4 C 14 5.8, 26 7.6, 28.6 15' fill='none' stroke='%23b8a184' stroke-width='1' stroke-linecap='round'/%3E%3C/svg%3E") 0 6px/38px 36px repeat-y,#efe5d0}
+.sheet{padding:var(--cp-space-4) var(--cp-space-5) var(--cp-space-4) var(--cp-space-3)}
+.head{display:grid;gap:var(--cp-space-1);padding-bottom:var(--cp-space-2);border-bottom:1.5px solid #8b765a}
+.head div{display:flex;gap:var(--cp-space-2);align-items:baseline;font:var(--cp-size-xs)/1.4 var(--cp-font-text);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-ink-soft)}
+.head b{font:400 var(--cp-size-lg)/1.3 var(--cp-font-title);letter-spacing:0;text-transform:none;color:var(--cp-ink)}
+.lines{margin-top:6px;font:17px/28px var(--cp-font-title);background:repeating-linear-gradient(to bottom,transparent 0,transparent 27px,var(--cp-rule) 27px,var(--cp-rule) 28px);min-height:280px;white-space:pre-line}
+.tagline{display:flex;gap:var(--cp-space-2);margin-top:var(--cp-space-3);padding-top:var(--cp-space-2);border-top:1px solid var(--cp-rule);font:var(--cp-size-sm)/1.4 var(--cp-font-text)}
+.tagline span{padding:2px 8px;border:1px solid #8b765a;border-radius:var(--cp-radius)}
+.saved{float:right;font:11px/1.4 var(--cp-font-text);letter-spacing:.06em;text-transform:uppercase;color:var(--cp-ink-soft)}
+
+/* Character sheet excerpt (frame level, one display for all reading places) */
+.sheetPart{display:grid;gap:var(--cp-space-5)}
+.traits{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:var(--cp-space-5)}
+.traits h4{margin:0 0 var(--cp-space-2);font:var(--cp-size-xs)/1.4 var(--cp-font-text);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-gold)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--cp-space-2);align-items:center;min-height:30px;border-bottom:var(--cp-hairline) dotted var(--cp-line)}
+.row span:first-child{overflow-wrap:break-word;hyphens:auto}
+.row small{display:block;color:var(--cp-text-muted);font-size:var(--cp-size-xs)}
+.dots{display:inline-flex;gap:4px}
+.dots i{width:11px;height:11px;border:1px solid var(--cp-text-faint);border-radius:50%}
+.dots i.on{background:var(--cp-gold);border-color:var(--cp-gold)}
+.missing{color:var(--cp-text-faint);font-variant-numeric:tabular-nums}
+
+/* Menu bar */
+.menubar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:var(--cp-hairline) solid var(--cp-line);background:var(--cp-surface-1)}
+.menubar>div{padding:var(--cp-space-4);border-right:var(--cp-hairline) solid var(--cp-line)}
+.menubar>div:last-child{border-right:0}
+.menubar h4{margin:0 0 var(--cp-space-2);font:var(--cp-size-xs)/1.4 var(--cp-font-text);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-gold)}
+.menubar a{display:flex;align-items:center;gap:var(--cp-space-2);min-height:40px;padding:0 var(--cp-space-2);border-left:2px solid transparent;color:var(--cp-text);text-decoration:none}
+.menubar a svg{width:18px;height:18px;flex:none}
+.menubar a:hover{background:var(--cp-surface-2)}
+.menubar a[aria-current=page]{border-left-color:var(--cp-gold);background:var(--cp-surface-2)}
+
+/* Empty state: one sentence, one action, no card. */
+.empty{display:grid;justify-items:start;gap:var(--cp-space-3);max-width:52ch;padding:var(--cp-space-6) 0}
+.empty svg{width:28px;height:28px;color:var(--cp-text-faint)}
+
+/* Table objects on a placeholder table top */
+.table{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--cp-space-6);align-items:center;padding:var(--cp-space-7) var(--cp-space-6);background:#2a2019;border-radius:var(--cp-radius)}
+.table>.note{position:absolute;top:var(--cp-space-2);left:var(--cp-space-3);font-size:var(--cp-size-xs);color:#b9a88f}
+.slip{justify-self:center;position:relative;width:min(240px,100%);min-height:200px;padding:30px 20px 18px;background:#efe6cf;color:var(--cp-ink);transform:rotate(-2.2deg);box-shadow:0 2px 0 #d8caa9,0 8px 16px #0008;font:16px/1.5 var(--cp-font-title)}
+.slip::before{content:'';position:absolute;top:10px;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#8a2f2a;box-shadow:0 2px 2px #0007}
+.slip small{display:block;margin-top:14px;font:11px/1.4 var(--cp-font-text);letter-spacing:.08em;text-transform:uppercase;color:var(--cp-ink-soft)}
+.tray{justify-self:center;position:relative;width:min(260px,100%);aspect-ratio:1;border-radius:50%;background:#4a3324;box-shadow:inset 0 0 0 10px #5c4030,inset 0 0 0 11px #2b1d14,0 10px 18px #0009;display:grid;place-items:center}
+.felt{width:72%;aspect-ratio:1;border-radius:50%;background:#1f3b34;box-shadow:inset 0 3px 10px #0009;position:relative}
+.die{position:absolute;width:34px;height:34px;display:grid;place-items:center;background:#e9e1cf;color:#2b231b;font:700 15px/1 var(--cp-font-text);clip-path:polygon(50% 0,100% 40%,50% 100%,0 40%);box-shadow:0 2px 3px #0008}
+.die.d1{left:24%;top:30%;transform:rotate(-12deg)}.die.d2{left:52%;top:42%;transform:rotate(18deg)}.die.d3{left:36%;top:60%;transform:rotate(4deg);background:#8a2f2a;color:#f5eddc}
+.objectLabel{margin-top:var(--cp-space-3);text-align:center;font-size:var(--cp-size-sm);color:#d9cbb4}
+
+.check{list-style:none;padding:0;margin:0;display:grid;gap:var(--cp-space-2)}
+.check li{padding-left:var(--cp-space-5);position:relative}
+.check li::before{content:'';position:absolute;left:0;top:.55em;width:10px;height:1px;background:var(--cp-gold)}
+
+@media (max-width:900px){.pairs,.levels{grid-template-columns:minmax(0,1fr)}.frames,.desk,.table{grid-template-columns:minmax(0,1fr)}.icons{grid-template-columns:repeat(3,minmax(0,1fr))}.menubar{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.menubar>div:nth-child(2){border-right:0}.menubar>div:nth-child(-n+2){border-bottom:var(--cp-hairline) solid var(--cp-line)}}
+@media (max-width:480px){h1{font-size:var(--cp-size-2xl)}h2{font-size:var(--cp-size-xl)}.menubar{grid-template-columns:minmax(0,1fr)}.menubar>div{border-right:0;border-bottom:var(--cp-hairline) solid var(--cp-line)}.marked{padding:var(--cp-space-4)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-notebook" viewBox="0 0 24 24"><rect x="7" y="3" width="13" height="18"/><path d="M4 6h5M4 10h5M4 14h5M4 18h5M11 8h6M11 11h6M11 14h4"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v12H3z"/><path d="M7 13h7M7 16h4"/></symbol>
+    <symbol id="i-place" viewBox="0 0 24 24"><path d="M12 21 6 12V7l6-4 6 4v5z"/><path d="M10 8h4v4h-4z"/></symbol>
+    <symbol id="i-character" viewBox="0 0 24 24"><path d="M9 4h6v7H9z"/><path d="M4 21v-3l4-4h8l4 4v3"/></symbol>
+    <symbol id="i-dice" viewBox="0 0 24 24"><path d="M12 3 20 10 12 21 4 10z"/><path d="M4 10l8 3 8-3M12 13v8"/></symbol>
+    <symbol id="i-letter" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12"/><path d="M3 6l9 7 9-7"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></symbol>
+    <symbol id="i-codex" viewBox="0 0 24 24"><path d="M5 4h12v16H5z"/><path d="M8 4v16M17 9h2v4h-2"/></symbol>
+    <symbol id="i-inventory" viewBox="0 0 24 24"><path d="M4 9h16v11H4z"/><path d="M9 9V6h6v3M4 13h16M11 13v3h2v-3"/></symbol>
+    <symbol id="i-vitals" viewBox="0 0 24 24"><path d="M12 3 18 12v3l-3 4H9l-3-4v-3z"/><path d="M10 14h4"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path d="M3 8h18v12H3z"/><path d="M5 8V4h14v4M9 13h6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/><path d="M12 11v6M12 7v1"/></symbol>
+  </defs>
+</svg>
+
+<main class="page" id="root" data-pair="1" data-family="teal">
+  <p class="orient">Etappe 3 · Musterseite · nur lokal</p>
+  <h1>ChroniPlay-Way</h1>
+  <p class="lead">Zwei Ebenen, die sich nicht mischen. Der Rahmen ist dunkel, flach und ruhig. Der Tisch ist warm und stofflich. Wähle oben Schriftpaar und Flächenfamilie. Die ganze Seite folgt deiner Wahl.</p>
+
+  <div class="switches" role="group" aria-label="Proben umschalten">
+    <div class="switch" role="group" aria-label="Schriftpaar"><span>Schriftpaar</span>
+      <button type="button" data-set-pair="1" aria-pressed="true">1 · Spectral + Plex</button>
+      <button type="button" data-set-pair="2" aria-pressed="false">2 · Fraunces + Source</button>
+      <button type="button" data-set-pair="3" aria-pressed="false">3 · Cormorant + Alegreya</button>
+    </div>
+    <div class="switch" role="group" aria-label="Flächenfamilie"><span>Flächen</span>
+      <button type="button" data-set-family="teal" aria-pressed="true">Tealgrau</button>
+      <button type="button" data-set-family="navy" aria-pressed="false">Marineblau</button>
+    </div>
+  </div>
+
+  <section aria-labelledby="s-type">
+    <div class="sectionHead"><p class="orient">Entscheidung 4</p><h2 id="s-type">Schriftprobe</h2><p>Eine Serif mit Charakter für Titel, eine ruhige Schrift für Fließtext und Notizen. Alle sechs Schriften liegen im Repo, Lizenz SIL OFL 1.1.</p></div>
+    <div class="pairs">
+      <article class="pair" data-pair="1" aria-current="true">
+        <span class="label">Paar 1 · Spectral + IBM Plex Sans</span>
+        <span class="title">Die Nacht hinterlässt Spuren.</span>
+        <span class="sub">Fallakte 17 · Hafen von Kleve</span>
+        <p class="body">Ilse, die Barkeeperin, hat den Fährmann gesehen. Er trug einen Siegelring. Wer hat den Brief geschickt?</p>
+        <p class="small">Notizbuch · Spielabendvorbereitung · Persönliches Archiv</p>
+        <p class="nums">Stärke 3 · Geschick 2 · Blut 8 / 13 · 1998-03-14</p>
+        <p class="why">Warum: Spectral wirkt wie eine gesetzte Akte, nicht wie ein Fantasy-Buch. Plex ist nüchtern, gut lesbar und hat klare Ziffern für Werte.</p>
+      </article>
+      <article class="pair" data-pair="2">
+        <span class="label">Paar 2 · Fraunces + Source Sans 3</span>
+        <span class="title">Die Nacht hinterlässt Spuren.</span>
+        <span class="sub">Fallakte 17 · Hafen von Kleve</span>
+        <p class="body">Ilse, die Barkeeperin, hat den Fährmann gesehen. Er trug einen Siegelring. Wer hat den Brief geschickt?</p>
+        <p class="small">Notizbuch · Spielabendvorbereitung · Persönliches Archiv</p>
+        <p class="nums">Stärke 3 · Geschick 2 · Blut 8 / 13 · 1998-03-14</p>
+        <p class="why">Warum: Fraunces hat Wärme und eine eigene Handschrift in den Rundungen. Source Sans bleibt dabei sehr ruhig.</p>
+      </article>
+      <article class="pair" data-pair="3">
+        <span class="label">Paar 3 · Cormorant Garamond + Alegreya Sans</span>
+        <span class="title">Die Nacht hinterlässt Spuren.</span>
+        <span class="sub">Fallakte 17 · Hafen von Kleve</span>
+        <p class="body">Ilse, die Barkeeperin, hat den Fährmann gesehen. Er trug einen Siegelring. Wer hat den Brief geschickt?</p>
+        <p class="small">Notizbuch · Spielabendvorbereitung · Persönliches Archiv</p>
+        <p class="nums">Stärke 3 · Geschick 2 · Blut 8 / 13 · 1998-03-14</p>
+        <p class="why">Warum zur Wahl: Cormorant ist im Code schon angedacht (--font-cormorant). Klassisch-gotisch, aber eine übliche Fantasy-Paarung. Klein gesetzt wird sie dünn.</p>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-color">
+    <div class="sectionHead"><p class="orient">Entscheidung 5</p><h2 id="s-color">Farbflächen</h2><p>Eine Grundfläche, ein Textton, Gold als Akzent. Blutrot nur für Gefahr, Clan und Warnung. Höchstens zwei Akzente je Ansicht. Die Kontrastwerte rechnet die Seite selbst aus.</p></div>
+    <div class="swatches" id="swatches"></div>
+    <div class="levels">
+      <div class="level l1"><p><strong>Fläche 1</strong> · Panels, Menüs</p><p>Fließtext</p><p class="muted">Nebentext</p><p style="color:var(--cp-gold)">Akzent Gold</p></div>
+      <div class="level l2"><p><strong>Fläche 2</strong> · Hover, aktive Zeile</p><p>Fließtext</p><p class="muted">Nebentext</p><p style="color:var(--cp-blood-text)">Warnung</p></div>
+      <div class="level l3"><p><strong>Fläche 3</strong> · nur kleine Flächen</p><p>Fließtext</p><p class="muted">Nebentext</p><p class="muted">„faint“ hier nicht verwenden</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-frame">
+    <div class="sectionHead"><p class="orient">Rahmenebene</p><h2 id="s-frame">Rahmen und Eckmarken</h2><p>Kantig, Radius 2 px, Linien 1 px. Eckmarken sind das Erkennungszeichen. Die Doppellinie steht nur an Hauptflächen. Ornament nur am Porträt und unter Abschnittstiteln.</p></div>
+    <div class="frames">
+      <div class="marked main"><span class="cm" aria-hidden="true"></span>
+        <p class="fileNo">AKTE CVK-0117 · CHARAKTER</p>
+        <h3 style="margin-top:var(--cp-space-2)">Dr. Helena Marquardt-Vogelsang</h3>
+        <p class="muted" style="margin-top:var(--cp-space-2)">Ventrue · 8. Generation · Domäne Kleve</p>
+        <p style="margin-top:var(--cp-space-4);max-width:56ch">Hauptkarte mit Eckmarken und Doppellinie. Der lange Name bricht um und wird nicht abgeschnitten.</p>
+      </div>
+      <div class="portrait">Porträt<br>Goldener Doppelrahmen</div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-icons">
+    <div class="sectionHead"><p class="orient">Entscheidung 4</p><h2 id="s-icons">Zwölf Probe-Icons</h2><p>Eigener Satz: 24er-Raster, Strich 1,5, eckige Enden und Ecken, keine Füllung. Für Menüs, Reiter und Leerzustände. Kleine Funktionssymbole (Schließen, Pfeile) dürfen Standard bleiben.</p></div>
+    <div class="icons" id="icons"></div>
+    <p class="muted" style="margin-top:var(--cp-space-3)">Unten dieselben Icons in Menügröße (20 px):</p>
+    <div class="icons" id="iconsSmall" style="margin-top:var(--cp-space-2)"></div>
+  </section>
+
+  <section aria-labelledby="s-desk">
+    <div class="sectionHead"><p class="orient">Tischebene und Rahmenebene</p><h2 id="s-desk">Notizbuch und Charakterbogen</h2><p>Links liegt das Notizbuch als Tischobjekt, rechts der Bogen in der Rahmenebene. Der Bogen nutzt eine Darstellung für alle lesenden Orte.</p></div>
+    <div class="desk">
+      <article class="paper" aria-label="Notizbuchseite"><div class="spiral" aria-hidden="true"></div><div class="sheet">
+        <div class="head"><span class="saved">Gespeichert</span><div>Thema <b>Der Abend im Hafen</b></div><div>Datum <b>8. November 2026</b></div></div>
+        <p class="lines">Ilse, die Barkeeperin, hat den Fährmann gesehen.
+Er trug einen Siegelring mit einem Turm.
+Offene Frage: Wer hat den Brief geschickt?</p>
+        <div class="tagline"><span>offene Frage</span><span>Hafen</span></div>
+      </div></article>
+      <div class="sheetPart marked"><span class="cm" aria-hidden="true"></span>
+        <p class="fileNo">BOGEN · ATTRIBUTE</p>
+        <div class="traits">
+          <div><h4>Körperlich</h4>
+            <div class="row"><span>Körperkraft</span><span class="dots" role="img" aria-label="Körperkraft: 3"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+            <div class="row"><span>Geschick<small>Spezialisierung: Messer</small></span><span class="dots" role="img" aria-label="Geschick: 2"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+            <div class="row"><span>Widerstandsfähigkeit</span><span class="dots" role="img" aria-label="Widerstandsfähigkeit: 0"><i></i><i></i><i></i><i></i><i></i></span></div>
+          </div>
+          <div><h4>Gesellschaftlich</h4>
+            <div class="row"><span>Charisma</span><span class="missing" aria-label="Charisma: nicht erfasst">–</span></div>
+            <div class="row"><span>Manipulation</span><span class="dots" role="img" aria-label="Manipulation: 6"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+            <div class="row"><span>Erscheinungsbild</span><span class="dots" role="img" aria-label="Erscheinungsbild: 1"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+          </div>
+          <div><h4>Geistig</h4>
+            <div class="row"><span>Wahrnehmung</span><span class="dots" role="img" aria-label="Wahrnehmung: 4"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+            <div class="row"><span>Intelligenz</span><span class="dots" role="img" aria-label="Intelligenz: 3"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+            <div class="row"><span>Heraldik und Siegelkunde der alten Hansestädte</span><span class="dots" role="img" aria-label="Heraldik und Siegelkunde der alten Hansestädte: 2"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+          </div>
+        </div>
+        <p class="muted" style="font-size:var(--cp-size-sm)">Fälle: 0 bleibt leer, über 5 wachsen die Punkte, fehlender Wert zeigt „–“, lange Namen brechen um.</p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-menu">
+    <div class="sectionHead"><p class="orient">Vorschlag für 4c, nicht gesetzt</p><h2 id="s-menu">Menüleiste</h2><p>Gruppen nach der Frage des Spielers, nicht nach der Technik. Sichtbare Beschriftung statt nur Tooltip. Die genaue Verteilung nimmst du vor dem Umbau ab.</p></div>
+    <nav class="menubar" aria-label="Menüprobe">
+      <div><h4>Heute Abend</h4><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-dice"/></svg>Spieltisch</a><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-letter"/></svg>Postfach</a></div>
+      <div><h4>Meine Figur</h4><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-character"/></svg>Charakterbogen</a><a href="#s-menu" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-notebook"/></svg>Notizbuch</a><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-inventory"/></svg>Inventar</a></div>
+      <div><h4>Meine Unterlagen</h4><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-file"/></svg>Spielabendvorbereitung</a><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-archive"/></svg>Persönliches Archiv</a></div>
+      <div><h4>Die Welt</h4><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-place"/></svg>Orte</a><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-map"/></svg>Karte</a><a href="#s-menu"><svg class="i" aria-hidden="true"><use href="#i-codex"/></svg>Codex Noctis</a></div>
+    </nav>
+  </section>
+
+  <section aria-labelledby="s-empty">
+    <div class="sectionHead"><p class="orient">Leerraum</p><h2 id="s-empty">Leerzustand</h2><p>Ein Satz, eine Handlung, kein Kasten. Abschnitte trennt Abstand.</p></div>
+    <div class="empty"><svg class="i" aria-hidden="true"><use href="#i-notebook"/></svg><h3>Noch keine Seite</h3><p class="muted">Halte fest, was am Abend geschah und welche Fragen offen sind.</p><button type="button" class="btn primary">Neue Seite</button></div>
+  </section>
+
+  <section aria-labelledby="s-table">
+    <div class="sectionHead"><p class="orient">Tischebene</p><h2 id="s-table">Tischobjekte</h2><p>Was auf dem Tisch liegt, sieht aus wie ein Ding, nicht wie ein Panel. Der Notizzettel ist hier nur ein Vorschlag, du willst ihn eigens schöner haben.</p></div>
+    <div class="table">
+      <span class="note">Platzhalter Tischplatte · im Spiel liegt hier das Tischbild der Szene</span>
+      <div><div class="slip">Treffen am Südtor, 23:40. Allein kommen.<small>Notizzettel · du und SL</small></div><p class="objectLabel">Notizzettel</p></div>
+      <div><div class="tray"><div class="felt"><span class="die d1">7</span><span class="die d2">3</span><span class="die d3">10</span></div></div><p class="objectLabel">Würfelschale</p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-check">
+    <div class="sectionHead"><p class="orient">Selbstprüfung</p><h2 id="s-check">Verbotsliste gegen diese Seite</h2></div>
+    <ul class="check">
+      <li>Keine Verläufe oder Leuchten als Dekor. Linien auf dem Papier und der Schatten der Tischobjekte zeigen Material.</li>
+      <li>Kein Milchglas, kein Blur, keine gestapelten Schatten auf der Rahmenebene.</li>
+      <li>Keine Emoji, keine Pill-Badges, kein Kachelraster aus Icon, Titel und Text.</li>
+      <li>Kein zentrierter Kopfbereich mit zwei Knöpfen, keine Floskeln, keine Ausrufezeichen.</li>
+      <li>Keine Hex-Werte außerhalb der Tokens. Ausnahmen sind die Tischobjekte, ihre Materialtöne werden bei Abnahme zu Tokens.</li>
+    </ul>
+  </section>
+</main>
+<script>
+(()=>{
+ const root=document.getElementById('root');
+ const icons=[['notebook','Notizbuch'],['file','Akte'],['place','Ort'],['character','Charakter'],['dice','Würfel'],['letter','Brief'],['map','Karte'],['codex','Codex'],['inventory','Inventar'],['vitals','Zustand'],['archive','Archiv'],['info','Kurz erklärt']];
+ const icon=(id,name,small)=>`<div class="icon${small?' small':''}"><svg class="i" aria-hidden="true"><use href="#i-${id}"/></svg><span>${name}</span></div>`;
+ document.getElementById('icons').innerHTML=icons.map(([i,n])=>icon(i,n)).join('');
+ document.getElementById('iconsSmall').innerHTML=icons.map(([i,n])=>icon(i,n,true)).join('');
+ const lum=h=>{const c=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4);return .2126*c[0]+.7152*c[1]+.0722*c[2];};
+ const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+ const token=n=>getComputedStyle(root).getPropertyValue(n).trim().slice(0,7);
+ const swatches=[['--cp-bg','Grund','--cp-text'],['--cp-surface-1','Fläche 1','--cp-text'],['--cp-surface-2','Fläche 2','--cp-text'],['--cp-surface-3','Fläche 3','--cp-text-muted'],['--cp-line','Linie','--cp-text'],['--cp-gold','Gold (Akzent)','--cp-bg'],['--cp-blood','Blutrot (Fläche)','--cp-text'],['--cp-paper','Papier','--cp-ink'],['--cp-ink-soft','Tinte hell','--cp-paper']];
+ function paint(){document.getElementById('swatches').innerHTML=swatches.map(([bg,name,fg])=>{const b=token(bg),f=token(fg);return `<div class="swatch" style="background:var(${bg});color:var(${fg})"><strong>${name}</strong><code>${bg}</code><code>${b}</code><span>Text ${fg.replace('--cp-','')}: ${ratio(f,b).toFixed(1)} : 1</span></div>`;}).join('');}
+ const set=(attr,value)=>{root.dataset[attr]=value;document.querySelectorAll(`[data-set-${attr}]`).forEach(b=>b.setAttribute('aria-pressed',String(b.dataset['set'+attr[0].toUpperCase()+attr.slice(1)]===value)));document.querySelectorAll('.pair').forEach(p=>p.setAttribute('aria-current',String(attr!=='pair'?p.getAttribute('aria-current')==='true':p.dataset.pair===value)));paint();};
+ document.querySelectorAll('[data-set-pair]').forEach(b=>b.addEventListener('click',()=>set('pair',b.dataset.setPair)));
+ document.querySelectorAll('[data-set-family]').forEach(b=>b.addEventListener('click',()=>set('family',b.dataset.setFamily)));
+ paint();
+})();
+</script>
+</body>
+</html>

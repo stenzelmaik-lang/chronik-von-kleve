@@ -454,3 +454,25 @@ body{background:#101418;color:#ece5d8;font-family:Arial,sans-serif;font-size:16p
 .dots .dot:disabled{font-size:0;line-height:0;width:15px;height:15px;padding:0;border:1.5px solid #6f6553;border-radius:50%;background:transparent;cursor:default;opacity:1;transform:none;text-shadow:none}
 .dots .dot.active:disabled{background:#d2ad6d;border-color:#d2ad6d;box-shadow:0 0 6px rgba(210,173,109,.35)}
 .character-sheet .dots .dot:disabled{width:16px;height:16px}
+
+/* ChroniPlay-Way · design tokens (Etappe 3, docs/design/CHRONIPLAY-WAY.md). Declared only: no existing rule reads
+   them yet, so adding them changes no page. Values are mirrored on prototypes/designgrundlage/musterseite.html
+   (tests/design-tokens.test.mjs keeps both identical). Frame level = dark surfaces; table level = paper and objects. */
+/* cp-tokens:start */
+:root{
+  --cp-bg:#0d1316;
+  --cp-surface-1:#111b1f;--cp-surface-2:#16242a;--cp-surface-3:#1c2e35;--cp-line:#2c3d43;--cp-line-strong:#3e5359;
+  --cp-navy-surface-1:#0f1824;--cp-navy-surface-2:#142135;--cp-navy-surface-3:#1b2b42;--cp-navy-line:#2a3a52;--cp-navy-line-strong:#3b4f6b;
+  --cp-text:#ece5d8;--cp-text-muted:#aba89e;--cp-text-faint:#8c948f;
+  --cp-gold:#d6b36f;--cp-gold-strong:#e4c589;--cp-gold-line:#d6b36f73;--cp-gold-wash:#d6b36f14;
+  --cp-blood:#9e2b2f;--cp-blood-text:#e8908a;
+  --cp-paper:#f5eddc;--cp-paper-edge:#e6d9bf;--cp-ink:#2f2a22;--cp-ink-soft:#6b6050;--cp-rule:#d9c7a6;--cp-ink-gold:#7a5a1e;
+  --cp-focus:#e4c589;
+  --cp-font-title:Georgia,'Times New Roman',serif;--cp-font-text:Arial,Helvetica,sans-serif;
+  --cp-size-xs:12px;--cp-size-sm:14px;--cp-size-base:16px;--cp-size-lg:19px;--cp-size-xl:24px;--cp-size-2xl:32px;--cp-size-3xl:44px;
+  --cp-leading:1.55;--cp-leading-title:1.15;--cp-tracking-caps:.14em;
+  --cp-space-1:4px;--cp-space-2:8px;--cp-space-3:12px;--cp-space-4:16px;--cp-space-5:24px;--cp-space-6:32px;--cp-space-7:48px;--cp-space-8:64px;
+  --cp-radius:2px;--cp-hairline:1px;--cp-corner:10px;
+  --cp-icon-stroke:1.5;--cp-duration:180ms;--cp-ease:cubic-bezier(.2,.7,.2,1);
+}
+/* cp-tokens:end */
