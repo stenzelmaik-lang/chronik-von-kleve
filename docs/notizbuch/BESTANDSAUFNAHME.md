@@ -264,6 +264,11 @@ Diese Punkte gehen den Vorgaben aus dem Auftrag vor, wo sie ihnen widersprechen.
    - Folge für 4a: Inventar und Eingesteckt nicht zusammenlegen, aber eindeutig benennen und verschiedene Symbole geben. Das Inventarsystem selbst ist ein eigener späterer Auftrag.
 7. Speicherwege der Figurnotizen und Umgang mit Ortsnotizen: Die Umsetzung entscheidet Claude Code in Etappe 2 und begründet sie in der Übergabe.
 
+8. **Erklärung im Bereich.** Der überarbeitete Bereich sagt dem Spieler kurz, was er dort tun kann und was er anlegen kann. Ein Info-Knopf öffnet eine kurze Anleitung.
+9. **Wozu das Notizbuch dient.** Der Spieler schreibt den Abend für sich nieder (was passiert ist, wie er es sich erklärt) und hält offene Fragen fest. Das ersetzt den Zweck des Journals. Alles, was der Spieler während des Abends selbst schreibt (Schnellnotiz, Ortsnotiz), gehört dazu.
+10. **Ohne laufenden Tisch nutzbar.** Notizbuch und Spielabendvorbereitung stehen jederzeit im Spielerbereich bereit: zum Vorbereiten und zum Nachlesen.
+11. **„Mein Zustand“ (Befund des Besitzers, kein Teil dieses Auftrags).** Die Anzeige braucht eine technische und grafische Überarbeitung. Eine animierte Fassung soll es geben, sie ist aber nicht am Live-Tisch angekommen. Als SL mit eigener Figur sieht der Besitzer seine Werte dort nicht. In welchem Branch die animierte Fassung liegt, ist nicht geprüft. Vorschlag: eigener Auftrag.
+
 **Offene Fragen an den Besitzer (vor Etappe 2):**
 
 - Wie weit reicht die SL-Einsicht ins Notizbuch? Vorschlag: Die SL kann Notizbuchseiten lesen, nie bearbeiten oder löschen, und der Spieler sieht das als Hinweis im Notizbuch. Alternative: Der Spieler kann einzelne Seiten als „nur für mich“ markieren.
