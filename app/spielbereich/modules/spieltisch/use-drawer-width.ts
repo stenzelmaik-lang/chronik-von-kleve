@@ -1,8 +1,8 @@
 "use client";
 import {useEffect,useRef,useState,type PointerEvent,type KeyboardEvent} from 'react';
 
-type Drawer='regie'|'context';
-const defaults={regie:460,context:392};
+type Drawer='regie'|'context'|'notebook';
+const defaults={regie:460,context:392,notebook:460};
 const minimum=320,maximum=960;
 const storageKey=(viewer:string,kind:Drawer)=>'chroniplay:drawer-width:'+viewer+':'+kind;
 const clamp=(width:number,viewport:number)=>Math.round(Math.min(Math.max(width,minimum),Math.min(maximum,Math.max(minimum,viewport-96))));
@@ -10,7 +10,7 @@ const clamp=(width:number,viewport:number)=>Math.round(Math.min(Math.max(width,m
 /** Personal layout only; shared stage coordinates and server state never change. */
 export function useDrawerWidth(viewer:string,kind:Drawer|null){
  const [viewport,setViewport]=useState(()=>typeof window==='undefined'?1440:window.innerWidth);
- const [preferred,setPreferred]=useState<Record<Drawer,number>>(()=>Object.fromEntries((['regie','context'] as const).map(key=>{
+ const [preferred,setPreferred]=useState<Record<Drawer,number>>(()=>Object.fromEntries((['regie','context','notebook'] as const).map(key=>{
   try{const value=Number(window.localStorage.getItem(storageKey(viewer,key)));if(Number.isFinite(value)&&value>=minimum&&value<=maximum)return [key,value];}catch{/* Optional local storage may be blocked. */}
   return [key,defaults[key]];
  })) as Record<Drawer,number>);

@@ -75,7 +75,7 @@ export function MessageCenter({ a,embedded=false,initialRecipient,showTrigger=tr
       await loadFolder("inbox");
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
-  async function keep(message:Message){setBusy(true);setError("");setNotice("");try{const r=await api<{noteId:string;existing:boolean}>("/api/messages","PATCH",{action:"to-notes",box:message.box,id:message.id});setNotice(r.existing?"Dieser Brief liegt bereits in „Meine Notizen“.":"Brief in „Meine Notizen“ übernommen. Dort kannst du ihn ergänzen und bearbeiten.");}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+  async function keep(message:Message){setBusy(true);setError("");setNotice("");try{const r=await api<{noteId:string;existing:boolean}>("/api/messages","PATCH",{action:"to-notes",box:message.box,id:message.id});setNotice(r.existing?"Dieser Brief liegt bereits in deinem Notizbuch.":"Brief in dein Notizbuch übernommen. Dort kannst du ihn ergänzen.");}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   function reply(message:Message){if(!message.senderId)return;setDraft({recipients:[message.senderId],title:mailSubject(message.title,"reply"),text:mailQuote(plainText(message),message,"reply"),files:[],replyToId:message.id});requestId.current=null;switchTo("compose");}
   function forward(message:Message){
     const files=(message.attachments||[]).filter(f=>f.forwardable),held=(message.attachments||[]).length-files.length;
@@ -108,7 +108,7 @@ export function MessageCenter({ a,embedded=false,initialRecipient,showTrigger=tr
         {selected.folder==="archive"?<button onClick={()=>void act("unarchive",[selected])} disabled={busy}><ArchiveRestore size={15}/>Zurücklegen</button>:<button onClick={()=>void act("archive",[selected])} disabled={busy}><Archive size={15}/>Archivieren</button>}
         <button onClick={()=>void act("trash",[selected])} disabled={busy}><Trash2 size={15}/>Löschen</button>
         {selected.box==="in"&&<button onClick={()=>void act("unread",[selected])} disabled={busy}><Mail size={15}/>Als ungelesen</button>}</>}
-      <button onClick={()=>void keep(selected)} disabled={busy}><NotebookPen size={15}/>In meine Notizen</button>
+      <button onClick={()=>void keep(selected)} disabled={busy}><NotebookPen size={15}/>Ins Notizbuch</button>
     </div>
     {confirmRemove&&<div className={styles.confirm} role="alertdialog" aria-label="Entfernen bestätigen"><p>Diesen Brief aus deinem Postfach entfernen? Er verschwindet nur bei dir. Andere Beteiligte behalten ihre Kopie, und eine Übernahme in „Meine Notizen“ bleibt erhalten.</p><div><button className={styles.danger} onClick={()=>void act("remove",[selected])} disabled={busy}>Endgültig aus meinem Postfach entfernen</button><button onClick={()=>setConfirmRemove(false)}>Abbrechen</button></div></div>}
     <p className="eyebrow">{selected.box==="out"?"Von dir · "+party(selected):selected.senderName} · {new Date(selected.createdAt).toLocaleString("de-DE")}</p><h3>{selected.title}</h3>

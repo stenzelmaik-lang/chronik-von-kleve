@@ -146,3 +146,4 @@
 .noteGrid strong{font-family:var(--font-cormorant),Georgia,serif;font-size:20px;font-weight:600}
 .noteGrid span{color:#b8c7c2;font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 @media(prefers-reduced-motion:reduce){.gallery>li,.hover,.dropzone{transition:none}.gallery>li:hover{transform:none}.spin{animation:none}}
+.navRow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:24px}.navRow .materialNav{margin-bottom:0}

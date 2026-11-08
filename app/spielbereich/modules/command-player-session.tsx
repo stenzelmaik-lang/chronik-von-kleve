@@ -10,7 +10,7 @@ import { ScenePlayerView } from './scene-player-view';
 import { Dices, NotebookPen, Users, Backpack } from 'lucide-react';
 import { SceneToolDrawer } from './scene-tool-drawer';
 import { DicePanel } from './dice';
-import { SceneQuickNote } from './scene-quick-note';
+import { Notebook } from './notebook/notebook';
 import { SceneCharacterContext } from './scene-character-context';
 import sceneStyles from './story-scene.module.css';
 import { LiveTable } from './live-table';
@@ -46,11 +46,11 @@ export function PlayerSession({ entries, a, onRefresh, preview }: { entries: Ent
     {!preview&&!loading&&!error&&<LiveTable key={`${a.campaignId}:${a.id}:${currentSession?.id||''}`} a={a} selectedSessionId={currentSession?.id||''}/>}
     {!preview && <SceneToolDrawer tools={[
       {id:'dice',label:'W10-Werkzeug · Rohwurf ohne Buchung',icon:Dices,content:<DicePanel/>},
-      {id:'note',label:'Private Schnellnotiz',icon:NotebookPen,content:<SceneQuickNote a={a} onSaved={onRefresh} embedded/>},
+      {id:'note',label:'Notizbuch',icon:NotebookPen,content:<Notebook a={a} layout="narrow"/>},
       {id:'character',label:'Charakter · Kurzansicht ohne Änderungen',icon:Users,content:<SceneCharacterContext characterId={characterId}/>},
       {id:'inventory',label:'Inventar · Kurzansicht ohne Änderungen',icon:Backpack,content:<SceneCharacterContext characterId={characterId} inventory/>},
     ]}/>}
-    {!preview && <nav className={styles.waitingActions} aria-label="Deine weiteren Spielmöglichkeiten"><a href="/spielbereich?bereich=charaktere">Charakter</a><a href="/spielbereich?bereich=inventar">Inventar</a><a href="/spielbereich?bereich=notizen">Meine Notizen</a><a href="/spielbereich?bereich=schauplaetze">Bekannte Orte</a></nav>}
+    {!preview && <nav className={styles.waitingActions} aria-label="Deine weiteren Spielmöglichkeiten"><a href="/spielbereich?bereich=charaktere">Charakter</a><a href="/spielbereich?bereich=inventar">Inventar</a><a href="/spielbereich?bereich=notizen">Notizbuch</a><a href="/spielbereich?bereich=schauplaetze">Bekannte Orte</a></nav>}
     {!loading&&!error&&<SessionPanel key={currentSession?currentSession.id+':'+currentSession.version:'none'} entries={currentSession?[currentSession]:[]} a={{ ...a, gm: false, role: 'player' }} onRefresh={onRefresh} compact showStage={!visible.scenes?.length}/>}
     <section className={styles.playerHandouts}><p className="eyebrow">FÜR DICH FREIGEGEBEN</p><h2>Hinweise & Handouts</h2>{visible.handouts.map(h => <article className={styles.handout} key={h.id}><h3>{h.title}</h3><p>{h.text || 'Kein Text hinterlegt. Zugehörige Dateien findest du im Dokumentbereich.'}</p></article>)}{!error && !visible.handouts.length && <p className={styles.muted}>Neue Freigaben erscheinen hier automatisch.</p>}</section>
     {!preview && <p className={styles.sync}>Abgleich alle zehn Sekunden und bei Rückkehr zum Fenster.</p>}

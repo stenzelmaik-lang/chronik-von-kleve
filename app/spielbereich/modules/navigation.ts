@@ -139,9 +139,9 @@ export const sections: Section[] = [
   },
   {
     id: "notizen",
-    name: "Archiv & Vorbereitung",
+    name: "Notizbuch",
     icon: NotebookPen,
-    desc: "Eigene Notizen und vorbereitetes Spielmaterial.",
+    desc: "Dein Notizbuch, deine Spielabendvorbereitung und dein persönliches Archiv.",
     group: "DEINE SPUREN",
   },
   {

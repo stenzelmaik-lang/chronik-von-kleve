@@ -56,12 +56,14 @@ test('layout resizing is only available in the explicit arrangement mode',()=>{
   const board=readFileSync(new URL('../app/spielbereich/modules/command-board.tsx',import.meta.url),'utf8');
   assert.equal((board.match(/<Separator disabled=\{!arranging\}/g)||[]).length,2);
 });
-test('private quick note drafts remain actor-scoped and require an explicit save',()=>{
-  const note=readFileSync(new URL('../app/spielbereich/modules/scene-quick-note.tsx',import.meta.url),'utf8');
-  assert.ok(note.includes("visibility:'private'"));
-  assert.ok(note.includes('${a.campaignId}:${a.id}'));
-  assert.ok(note.includes('Entwurf verwerfen'));
-  assert.ok(!note.includes('localStorage'));
+test('the session drawer uses the notebook: private pages, drafts in the shared player cache, no browser storage',()=>{
+  const player=readFileSync(new URL('../app/spielbereich/modules/command-player-session.tsx',import.meta.url),'utf8');
+  const notebook=readFileSync(new URL('../app/spielbereich/modules/notebook/notebook.tsx',import.meta.url),'utf8');
+  const route=readFileSync(new URL('../app/api/notebook/route.ts',import.meta.url),'utf8');
+  assert.ok(player.includes('<Notebook a={a} layout="narrow"/>'));
+  assert.ok(notebook.includes('currentPlayerDataScope()'));
+  assert.ok(!notebook.includes('localStorage'));
+  assert.ok(route.includes("VALUES(?,?,'notizen','private'"));
 });
 test('player read errors are not presented as an empty scene or unopened session',()=>{
   const player=readFileSync(new URL('../app/spielbereich/modules/command-player-session.tsx',import.meta.url),'utf8');

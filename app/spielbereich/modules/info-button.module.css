@@ -1,0 +1,14 @@
+.wrap{position:relative;display:inline-flex;vertical-align:middle}
+.trigger{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:0 11px;border:1px solid #6e614d;border-radius:3px;background:transparent;color:#d6b36f;font:13px Arial,sans-serif;cursor:pointer}
+.trigger:hover{border-color:#d6b36f}
+.trigger:focus-visible{outline:2px solid #d6b36f;outline-offset:3px}
+.panel{position:absolute;z-index:40;top:calc(100% + 8px);right:0;width:min(420px,calc(100vw - 32px));border:1px solid #6e614d;border-radius:3px;background:#101418;color:#ece5d8;box-shadow:0 10px 30px #0008;text-align:left}
+.panel header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px 8px;border-bottom:1px solid #30383d}
+.panel h2{margin:0;font:normal 19px Georgia,serif;color:#ece5d8}
+.panel header button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:3px;background:transparent;color:#aba89e;cursor:pointer}
+.panel header button:focus-visible{outline:2px solid #d6b36f}
+.body{padding:10px 16px 14px;font:14px/1.55 Arial,sans-serif;color:#d9d3c7}
+.body ol,.body ul{margin:0;padding-left:20px;display:grid;gap:6px}
+.body p{margin:8px 0 0}
+.body strong{color:#ece5d8}
+@media(max-width:560px){.panel{position:fixed;left:16px;right:16px;top:auto;bottom:16px;width:auto;max-height:70vh;overflow:auto}}

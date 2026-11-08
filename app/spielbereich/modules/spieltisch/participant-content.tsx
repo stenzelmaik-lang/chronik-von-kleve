@@ -9,16 +9,18 @@ import {CharacterReadOnly} from './character-readonly';
 import styles from './participants.module.css';
 const Inventory=lazy(()=>import('../inventory').then(m=>({default:m.InventoryPanel})));
 const Messages=lazy(()=>import('../message-center').then(m=>({default:m.MessageCenter})));
+const Notebook=lazy(()=>import('../notebook/notebook').then(m=>({default:m.Notebook})));
 type Data={member?:{id:string;name:string;avatar:string|null;presentation?:{pronouns?:string;banner?:string;introduction?:string;playStyles?:string[]}|null};own?:boolean;characters:{id:string;name:string}[];character?:{id:string;name:string;portrait:string|null;descriptions:{kind:string;content:string}[];tagline?:string;introduction?:string;gallery?:{url:string;caption?:string}[]}|null;selectedCharacter?:string|null;projection?:CharacterDetailProjection};
-export type ParticipantAction='profile'|'sheet'|'inventory'|'messages';
+export type ParticipantAction='profile'|'sheet'|'inventory'|'messages'|'notebook';
 export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessionId:string;memberId:string;action:ParticipantAction}){
  const [data,setData]=useState<Data|null>(null),[characterId,setCharacterId]=useState<string|null>(null),[tab,setTab]=useState<'human'|'character'>('character'),[error,setError]=useState(''),[reload,setReload]=useState(0);
  const select=useCallback((id:string|null)=>setCharacterId(id),[]);
  useEffect(()=>{
-  if(action==='messages')return;let active=true;queueMicrotask(()=>{if(active){setData(null);setError('');}});
+  if(action==='messages'||action==='notebook')return;let active=true;queueMicrotask(()=>{if(active){setData(null);setError('');}});
   const path='/api/live-participants?sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId)+'&view='+action+(characterId?'&characterId='+encodeURIComponent(characterId):'');
   api<Data>(path).then(next=>{if(active)setData(next);}).catch(e=>{if(active){setData(null);setError(e.message);}});return()=>{active=false;};
  },[action,memberId,sessionId,characterId,reload]);
+ if(action==='notebook')return <Suspense fallback={<p role="status">Notizbuch wird geladen …</p>}><Notebook a={a} layout="narrow" memberId={memberId}/></Suspense>;
  if(action==='messages')return <Suspense fallback={<p role="status">Nachrichten werden geladen …</p>}><Messages a={a} embedded initialRecipient={memberId===a.id?undefined:memberId}/></Suspense>;
  if(error)return <div role="alert"><p>{error}</p><button onClick={()=>setReload(n=>n+1)}>Erneut laden</button></div>;
  if(!data)return <p role="status">Ansicht wird geladen …</p>;

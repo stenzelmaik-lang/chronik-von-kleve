@@ -179,3 +179,4 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .tableMapPreview img{height:76px}
 .tablePlace>img{max-height:210px}
 .tablePlace details{margin-block:10px}
+.notebookHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.notebookHead>p{margin:0}

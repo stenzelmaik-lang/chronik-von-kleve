@@ -454,7 +454,7 @@ export default function Workspace({
       ) : section === "vorbereitung" ? (
         <MaterialPreparation key={dataScope} a={a}/>
       ) : section === "notizen" ? (
-        <PlayerArchive key={dataScope} a={a} notes={entries} onCreateNote={()=>create()} onOpenNote={note=>setEdit(structuredClone(note as typeof entries[number]))}/>
+        <PlayerArchive key={dataScope} a={a}/>
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (

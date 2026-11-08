@@ -25,6 +25,11 @@ export function activatePlayerDataScope(scope: string) {
   requests.clear();
 }
 
+/** The scope of the open player area, so embedded tools (e.g. the notebook at the table) keep drafts in it. */
+export function currentPlayerDataScope() {
+  return activeScope;
+}
+
 export function readPlayerData<T>(scope: string, key: string) {
   if (activeScope !== scope) return undefined;
   const entry = cache.get(fullKey(scope, key));
