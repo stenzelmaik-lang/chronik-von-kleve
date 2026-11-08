@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
 import { RichTextEditor, RichTextView } from "./rich-text";
+import { CharacterSheet } from "./character-sheet/character-sheet";
 import { CharacterPresentationEditor } from "./character-presentation-editor";
 import { CharacterProgression } from "./character-progression";
 import { CharacterLiveVitals } from "./character-live-vitals";
@@ -37,15 +38,10 @@ import { describeDataError, invalidatePlayerData, purgeProtectedPlayerData, read
 import {
   CharacterCompanionNote,
   CharacterDetailProjection,
-  CharacterListReadout,
-  Dots,
-  RatingGroup,
-  attrsGroups,
-  skillGroups,
 } from "./character";
 import { Choice, visibilityNames } from "./shared";
 import {activeCharacterBody} from "@/domain/character-selection";
-import {hybridPreparationNote,readSpecialties,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating} from "@/domain/character-specialties";
+import {hybridPreparationNote,readSpecialties} from "@/domain/character-specialties";
 import {useCommandConfirmation} from "./command-confirmation";
 
 const obj = (v: unknown) =>
@@ -562,103 +558,8 @@ export function CharacterDetail({
 
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
-          <div className="sheet-heading">
-            <p className="eyebrow">V20 CHARACTER SHEET</p>
-            <h3>Charakterbogen</h3>
-          </div>
-          <section className="sheet-block">
-            <div className="sheet-block-heading">
-              <span>01</span>
-              <h3>Attribute</h3>
-            </div>
-            <div className="sheet-columns attribute-columns">
-              {attrsGroups.map(([title, names]) => (
-                <RatingGroup
-                  key={title}
-                  title={title}
-                  names={names}
-                  values={obj(s.attributes) as Record<string, number>}
-                  disabled
-                />
-              ))}
-            </div>
-          </section>
-          {Object.keys(obj(s.attributes)).some(name=>!attrsGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Attribute" value={Object.entries(obj(s.attributes)).filter(([name])=>!attrsGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
-          <section className="sheet-block">
-            <div className="sheet-block-heading">
-              <span>02</span>
-              <h3>Fähigkeiten</h3>
-            </div>
-            <div className="sheet-columns ability-columns">
-              {skillGroups.map(([title, names]) => (
-                <RatingGroup
-                  key={title}
-                  title={title}
-                  names={names}
-                  values={obj(s.abilities) as Record<string, number>}
-                  disabled
-                />
-              ))}
-              {Object.keys(obj(s.abilities)).some(name=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name)))&&<CharacterListReadout label="Weitere gespeicherte Fähigkeiten" value={Object.entries(obj(s.abilities)).filter(([name])=>!skillGroups.some(([,names])=>(names as readonly string[]).includes(name))).map(([name,value])=>({name,value}))}/>}
-              {readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length > 0 && <section className="rating-section"><h4>Spezialisierungen</h4>{hybridPreparationNote()&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}{readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).map(sp=>{const sheetValues={attributes:s.attributes,skills:s.abilities,customAbilities:s.customAbilities},rating=traitRating(sheetValues,sp.target)??0;return <p className="muted" key={sp.id}><strong>{specialtyTargetKey(sp.target,sheetValues)}: {sp.name}</strong>{sp.scope?" – "+sp.scope:""}{sp.active===false?" (deaktiviert)":rating<SPECIALTY_MINIMUM_RATING?` (wirkt erst ab ${SPECIALTY_MINIMUM_RATING} Punkten)`:""}</p>;})}</section>}
-              {((Array.isArray(s.customAbilities) && s.customAbilities.length > 0) || (typeof s.customAbilities === "string" && s.customAbilities.trim())) && <CharacterListReadout label="Freie Fähigkeiten (Legacy)" value={s.customAbilities} />}
-            </div>
-          </section>
-          <section className="sheet-block">
-            <div className="sheet-block-heading">
-              <span>03</span>
-              <h3>Vorteile</h3>
-            </div>
-            <div className="sheet-columns advantage-columns">
-              <div>
-                <CharacterListReadout label="Disziplinen" value={s.disciplines} />
-                {Array.isArray(s.paths) && s.paths.length > 0 && <CharacterListReadout label="Pfade" value={(s.paths as Array<Record<string, unknown>>).map(row => ({ ...row, name: String(row.name ?? "") + (row.primary === true ? " · Primärpfad" : "") }))} />}
-              </div>
-              <CharacterListReadout label="Hintergründe" value={s.backgrounds} />
-              <RatingGroup
-                title="Tugenden"
-                names={["Gewissen", "Selbstbeherrschung", "Mut"]}
-                values={obj(s.virtues) as Record<string, number>}
-                disabled
-              />
-            </div>
-          </section>
-          <section className="sheet-block sheet-traits">
-            <div className="sheet-block-heading">
-              <span>04</span>
-              <h3>Vorzüge & Schwächen</h3>
-            </div>
-            <div className="sheet-columns">
-              <CharacterListReadout label="Vorzüge" value={s.merits} metric="cost" />
-              <CharacterListReadout label="Schwächen" value={s.flaws} metric="cost" />
-              <section className="rating-section">
-                <h4>Clansschwäche</h4>
-                <p className="muted preserve-lines">
-                  {String(s.clanWeakness || "Keine Clansschwäche hinterlegt.")}
-                </p>
-              </section>
-            </div>
-          </section>
-          <section className="sheet-block">
-            <div className="sheet-block-heading">
-              <span>05</span>
-              <h3>Menschlichkeit, Willenskraft & Blut</h3>
-            </div>
-            <div className="sheet-columns">
-              <section className="rating-section">
-                <h4>{String(s.humanityPath || "Menschlichkeit")}</h4>
-                {typeof s.humanity === "number" ? <Dots value={s.humanity} max={10} disabled label={String(s.humanityPath || "Menschlichkeit")}/> : <p className="muted">Noch nicht erfasst.</p>}
-              </section>
-              <section className="rating-section">
-                <h4>Willenskraft</h4>
-                {permanent > 0 ? <><Dots value={permanent} max={10} disabled label="Willenskraft permanent"/><p className="muted">Aktuell {temporary} von {permanent}</p></> : <p className="muted">Noch nicht erfasst.</p>}
-              </section>
-              <section className="rating-section">
-                <h4>Blutvorrat</h4>
-                {max > 0 ? <><p className="sheet-blood" aria-label={`Blutvorrat ${current} von ${max}`}>{Array.from({length:Math.min(max,50)},(_,index)=><span key={index} data-filled={index<current||undefined}/>)}</p><p className="muted">{current} / {max} · pro Runde {String(blood.perRound ?? "–")}</p></> : <p className="muted">Noch nicht erfasst.</p>}
-              </section>
-            </div>
-          </section>
+          {hybridPreparationNote()&&readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length>0&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}
+          <CharacterSheet identity={projection.identity} sheet={s} progression={projection.progression} layout="wide"/>
           {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
         </section>
 
