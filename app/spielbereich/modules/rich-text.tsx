@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Images use the protected authenticated file API. */
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type MouseEvent, type ReactNode, type ComponentType } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ClipboardEvent, type MouseEvent, type ReactNode } from "react";
 import {
   encodeRichText,
   htmlToRichText, htmlTextToRichText, inspectRichTextSource, richHtmlPrefix, richTextToHtml,
@@ -88,8 +88,6 @@ export function RichTextEditor({
   proseClassName,
   previewValue,
   disabled = false,
-  toolbar: CustomToolbar,
-  quietFooter = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -107,17 +105,11 @@ export function RichTextEditor({
   proseClassName?: string;
   previewValue?: string;
   disabled?: boolean;
-  /** Replaces the formatting toolbar of the visual editor (e.g. the slim quill strip of the journal). */
-  toolbar?: ComponentType<EditorTools>;
-  /** Only show the footer line when the text comes close to its limit. */
-  quietFooter?: boolean;
 }) {
   const [initialSource]=useState(()=>value.startsWith(richHtmlPrefix)?{raw:value.slice(richHtmlPrefix.length),...inspectRichTextSource(value.slice(richHtmlPrefix.length),maximumPlainLength)}:null);
   const [htmlMode,setHtmlMode]=useState(sourceOnly||initialSource!==null),[htmlDraft,setHtmlDraft]=useState(initialSource?.raw??(sourceOnly?richTextToHtml(value):'')),[htmlError,setHtmlError]=useState(initialSource?.error??''),[imageId,setImageId]=useState('');
   const [preview, setPreview] = useState(false);
   const helpId = useId();
-  const customToolbar = !!CustomToolbar;
-  const [formats, setFormats] = useState<EditorFormats>({ bold: false, italic: false, underline: false, heading: false, list: false });
   const editorRef = useRef<HTMLDivElement>(null);
   const lastEditorHtml = useRef('');
   const savedRange = useRef<Range | null>(null);
@@ -170,18 +162,6 @@ export function RichTextEditor({
     commit();
   }
 
-  // Active formats at the caret, for toolbars that show their state.
-  useEffect(() => {
-    if (!customToolbar) return;
-    const update = () => {
-      const editor = editorRef.current, selection = window.getSelection();
-      if (!editor || !selection?.anchorNode || !editor.contains(selection.anchorNode)) return;
-      setFormats({ bold: document.queryCommandState("bold"), italic: document.queryCommandState("italic"), underline: document.queryCommandState("underline"), list: document.queryCommandState("insertUnorderedList"), heading: /^h[23]$/i.test(String(document.queryCommandValue("formatBlock"))) });
-    };
-    document.addEventListener("selectionchange", update);
-    return () => document.removeEventListener("selectionchange", update);
-  }, [customToolbar]);
-
   function tableEdit(action:'row'|'column'|'removeRow'|'removeColumn'|'header') {
     const editor=editorRef.current;if(disabled||!editor)return;
     const selection=window.getSelection(),range=savedRange.current||(selection?.rangeCount?selection.getRangeAt(0):null),element=range?.startContainer instanceof Element?range.startContainer:range?.startContainer.parentElement;
@@ -232,7 +212,7 @@ export function RichTextEditor({
   }
   return <div className={`${styles.editor} ${htmlSource?styles.sourceEditor:''} ${preparationTools?styles.preparationEditor:''}`}>
     {htmlSource&&!preparationTools&&<strong className={styles.editorLabel}>{label}</strong>}
-    {compactTools&&!preparationTools&&!customToolbar&&<div className={styles.toolbar}><button type="button" aria-expanded={linkOpen} onMouseDown={preserveSelection} onClick={()=>setLinkOpen(!linkOpen)}>Link</button>{advanced&&<button type="button" aria-expanded={imageOpen} onMouseDown={preserveSelection} onClick={()=>setImageOpen(!imageOpen)}>Bild</button>}<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button></div>}
+    {compactTools&&!preparationTools&&<div className={styles.toolbar}><button type="button" aria-expanded={linkOpen} onMouseDown={preserveSelection} onClick={()=>setLinkOpen(!linkOpen)}>Link</button>{advanced&&<button type="button" aria-expanded={imageOpen} onMouseDown={preserveSelection} onClick={()=>setImageOpen(!imageOpen)}>Bild</button>}<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button></div>}
     {(htmlSource||advanced&&extraTools)&&<div className={styles.toolbar} aria-label={`${label} Ansicht`}>
       {!sourceOnly&&<button type="button" aria-pressed={!htmlMode&&!preview} disabled={htmlMode&&!!htmlError} onClick={()=>{setPreview(false);setHtmlMode(false);}}>Visuell</button>}
       <button type="button" aria-pressed={htmlMode&&!preview} onClick={()=>{if(!htmlMode)setHtmlDraft(value.startsWith(richHtmlPrefix)?value.slice(richHtmlPrefix.length):richTextToHtml(value));setPreview(false);setHtmlMode(true);}}>{htmlSource?'HTML-Quelltext':'HTML · Expertenansicht'}</button>
@@ -244,7 +224,7 @@ export function RichTextEditor({
       <textarea disabled={disabled} aria-label={label+' HTML'} aria-describedby={preparationTools?undefined:helpId} aria-invalid={!!htmlError} spellCheck={false} value={htmlDraft} onChange={e=>sourceChange(e.target.value)} rows={sourceOnly?7:16}/>
       {sourceOnly?<p className={styles.sourceHelp} id={helpId}>HTML für Absätze, Überschriften, Listen und Tabellen. Die Vorschau veröffentlicht nichts.</p>:htmlSource&&!preparationTools&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: Überschriften, Absätze, Hervorhebungen, Listen, Zitate, Links, Trennlinien, Tabellen mit Kopfzeilen und aufklappbare Abschnitte. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
     </>:<>
-    {CustomToolbar?<CustomToolbar command={command} preserveSelection={preserveSelection} formats={formats} label={label}/>:<div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
+    <div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h2>")} aria-label="Überschrift groß">H2</button>
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h3>")} aria-label="Überschrift klein">H3</button>
       <span aria-hidden="true" />
@@ -256,7 +236,7 @@ export function RichTextEditor({
       <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertOrderedList")} aria-label="Nummerierte Liste einfügen">1. Liste</button>
       {((htmlSource&&!preparationTools)||advanced&&extraTools)&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><th>Spalte 1</th><th>Spalte 2</th></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<details><summary>Weiterlesen</summary><p>Beschreibung</p></details><p><br></p>')}>Aufklappbarer Abschnitt</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<p class="cp-note">Hinweis</p>')}>Hinweiskasten</button></>}
       <label className={styles.colorControl}><span>Textfarbe</span><select aria-label="Textfarbe" defaultValue="#d6b36f" onMouseDown={()=>{const selection=window.getSelection();if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange();}} onChange={event => command("foreColor", event.target.value)}>{richTextColors.map(color => <option key={color} value={color}>{color === "#d6b36f" ? "Gold" : color === "#eee6d6" ? "Elfenbein" : color === "#a9c3cf" ? "Nebelblau" : "Rostrot"}</option>)}</select></label>
-    </div>}
+    </div>
     {htmlSource&&(!preparationTools||extraTools)&&!htmlMode&&!preview&&<div className={styles.toolbar} aria-label="Tabelle bearbeiten">{([['row','Zeile +'],['column','Spalte +'],['removeRow','Zeile entfernen'],['removeColumn','Spalte entfernen'],['header','Kopfzeile']] as const).map(([action,title])=><button type="button" key={action} onMouseDown={preserveSelection} onClick={()=>tableEdit(action)}>{title}</button>)}</div>}
     {!preparationTools&&!sourceOnly&&linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
     {!preparationTools&&advanced&&imageOpen&&<div className={styles.linkRow}><label>Geschütztes Bild<input aria-label={label+' Bilder suchen'} placeholder="Dateiname oder ID …" value={imageSearch} onChange={e=>setImageSearch(e.target.value)}/><select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')&&(f.name+' '+f.id).toLowerCase().includes(imageSearch.toLowerCase())).map(f=><option key={f.id} value={f.id}>{f.name} · {f.id}{f.visibility ? ` · Dateiregel: ${f.visibility==='group'?'Gruppe':f.visibility==='sl'?'SL':'Eigentümer'}` : ''}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
@@ -278,10 +258,8 @@ export function RichTextEditor({
       onMouseUp={() => { const editor=editorRef.current;if(editor){savedRange.current=window.getSelection()?.rangeCount?window.getSelection()!.getRangeAt(0).cloneRange():null;} }}
     />
     </>}{htmlError&&<p role="alert">{htmlError}</p>}
-    {(!quietFooter||limitExceeded||plainLength>maximumPlainLength*.9)&&<div className={styles.editorFooter}><span role={limitExceeded?"alert":undefined}>{limitExceeded?`Text zu lang: kürze auf höchstens ${maximumPlainLength} Zeichen, bevor du speicherst.`:htmlSource?"Gezählt wird nur sichtbarer Text. HTML wird sicher aufbereitet; die bestehende Freigabe bleibt unverändert.":advanced?"HTML wird als sichere Dokumentstruktur gespeichert; Scripts und externe Einbettungen entfallen.":"Überschriften, Listen, Hervorhebungen, Links und Kampagnenfarben."}</span><small data-over-limit={limitExceeded}>{plainLength}/{maximumPlainLength}</small></div>}
+    <div className={styles.editorFooter}><span role={limitExceeded?"alert":undefined}>{limitExceeded?`Text zu lang: kürze auf höchstens ${maximumPlainLength} Zeichen, bevor du speicherst.`:htmlSource?"Gezählt wird nur sichtbarer Text. HTML wird sicher aufbereitet; die bestehende Freigabe bleibt unverändert.":advanced?"HTML wird als sichere Dokumentstruktur gespeichert; Scripts und externe Einbettungen entfallen.":"Überschriften, Listen, Hervorhebungen, Links und Kampagnenfarben."}</span><small data-over-limit={limitExceeded}>{plainLength}/{maximumPlainLength}</small></div>
   </div>;
 }
 
 export { richTextToPlainText };
-export type EditorFormats = { bold: boolean; italic: boolean; underline: boolean; heading: boolean; list: boolean };
-export type EditorTools = { command: (action: string, argument?: string) => void; preserveSelection: (event: MouseEvent) => void; formats: EditorFormats; label: string };

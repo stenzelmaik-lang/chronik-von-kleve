@@ -27,12 +27,11 @@ export const healthLevels = [
   { name: "Schwer verwundet", modifier: "-2" }, { name: "Verkrüppelt", modifier: "-5" },
   { name: "Außer Gefecht", modifier: "–" },
 ] as const;
-export type CharacterCompanionNote = { id:string; title:string; text:string; visibility:string; version:number; createdAt:string; updatedAt:string; canEdit:boolean; journalKind?:'note'|'chronicle'; playDate?:string|null };
-export type CharacterUnboundNote = { id:string; title:string; text:string; updatedAt:string };
+export type CharacterCompanionNote = { id:string; title:string; text:string; visibility:string; version:number; createdAt:string; updatedAt:string; canEdit:boolean };
 export type CharacterCompanionMedia = { id:string; type:string; name:string; mime:string; visibility:string; src:string };
 export type CharacterCompanionRelationship = { id:string; targetId:string; name:string; type:string; status:string; favor:number|null; role:string; visibility:string };
 export type CharacterCompanionSession = { id:string; title:string; date:string; summary:string } | null;
-export type CharacterDetailProjection = { identity: Record<string, unknown>; sheet: Record<string, unknown>; roleplay: Record<string, unknown>; progression: Record<string, unknown>; permissions: Record<string, unknown>; revision: {version:number;updatedAt?:string}; companion?: {media:CharacterCompanionMedia[];notes:CharacterCompanionNote[];relationships:CharacterCompanionRelationship[];lastSession:CharacterCompanionSession;unboundNotes?:CharacterUnboundNote[]} };
+export type CharacterDetailProjection = { identity: Record<string, unknown>; sheet: Record<string, unknown>; roleplay: Record<string, unknown>; progression: Record<string, unknown>; permissions: Record<string, unknown>; revision: {version:number;updatedAt?:string}; companion?: {media:CharacterCompanionMedia[];notes:CharacterCompanionNote[];relationships:CharacterCompanionRelationship[];lastSession:CharacterCompanionSession} };
 type Item = {id?:string; name?:string; value?:number; cost?:number; category?:"Talent"|"Fertigkeit"|"Kenntnis"};
 const record=(v:unknown):Record<string,number>=>v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,number>:{};
 const list=(v:unknown):Item[]=>Array.isArray(v)?v as Item[]:[];

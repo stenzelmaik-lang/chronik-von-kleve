@@ -3,7 +3,6 @@ import type { Actor } from "@/domain/types";
 import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
 import { canEdit, canRead } from "./access";
 import { canManageCampaignCharacter } from '@/domain/character-access';
-import { journalKindOf } from '@/domain/journal';
 import {
   grantsFor,
   loadEntitiesForIds,
@@ -151,29 +150,8 @@ async function projectNotes(db: D1Database, a: Actor, characterId: string) {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         canEdit: row.owner_id === a.id,
-        journalKind: journalKindOf(body),
-        playDate: typeof body.playDate === "string" ? body.playDate : null,
       },
     ];
-  });
-}
-
-/**
- * Abenteuerjournal: the owner's own private notes without a character binding stay reachable in "Meine Notizen".
- * Only for the owner's personal projection; system records (messages, votes, table state) are excluded.
- */
-const systemNoteContexts = ["sl-message", "appointment-vote", "live-table", "live-table-signal", "live-table-event", "display-asset"];
-async function projectUnboundNotes(db: D1Database, a: Actor) {
-  const rows = await db
-    .prepare(
-      "SELECT * FROM records WHERE campaign_id=? AND owner_id=? AND kind='notizen' AND visibility='private' AND json_valid(body) AND json_extract(body,'$.characterId') IS NULL ORDER BY updated_at DESC LIMIT 100",
-    )
-    .bind(a.campaignId, a.id)
-    .all<LegacyRecordRow>();
-  return rows.results.flatMap((row) => {
-    const body = parseBody(row.body);
-    if (body.archived === true || systemNoteContexts.includes(String(body.context)) || body.sourceMessageId) return [];
-    return [{ id: row.id, title: row.title, text: stringValue(body.text), updatedAt: row.updated_at }];
   });
 }
 
@@ -285,11 +263,9 @@ export async function characterDetailProjectionWithCompanion(
   r: LegacyRecordRow,
   content: Record<string, unknown>,
   db: D1Database,
-  options: { unboundNotes?: boolean } = {},
 ) {
   const base = characterDetailProjection(a, r, content);
   if (!base) return null;
-  const own = r.owner_id === a.id;
   const grants = await grantsFor(db, a);
   const [media, notes, relationships, lastSession] = await Promise.all([
     projectMedia(db, a, content),
@@ -297,7 +273,6 @@ export async function characterDetailProjectionWithCompanion(
     projectRelationships(db, a, r.id, grants),
     projectLastSession(db, a, grants),
   ]);
-  const unboundNotes = options.unboundNotes && own ? await projectUnboundNotes(db, a) : undefined;
   return {
     ...base,
     identity: { ...base.identity, portraitRef: media.portraitRef },
@@ -306,7 +281,6 @@ export async function characterDetailProjectionWithCompanion(
       notes,
       relationships,
       lastSession,
-      ...(unboundNotes ? { unboundNotes } : {}),
     },
   };
 }

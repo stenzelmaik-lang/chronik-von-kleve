@@ -5,7 +5,6 @@ import {seedCodex} from '../tests/fixtures/codex-demo.mjs';
 import {seedLocationAreaDemo} from '../tests/fixtures/location-area-demo.mjs';
 import {seedSpieltischKaserne,syntheticWav} from '../tests/fixtures/spieltisch-kaserne.mjs';
 import {seedMaterial3} from '../tests/fixtures/material-3.mjs';
-import {seedJournalDemo} from '../tests/fixtures/journal-demo.mjs';
 import {importCodexSources} from './codex-import.mjs';
 import {CODEX_PRE_ALPHA_DECISION} from '../domain/codex.ts';
 import {engineFixture} from "../tests/fixtures/engine-character.mjs";
@@ -28,10 +27,7 @@ const storyWork=process.argv.includes('--story-workspace');
 const characterThree=process.argv.includes('--charakter-3');
 // Zustandswerte am Spieltisch: Spieltisch-Fixture plus bestätigte Charaktere für Spieler A und B.
 // W10-Hybrid Phase B: wie --ultio-pager, eigener Speicher und Port, zusätzlich die lokale Würfelvorschau (W10_HYBRID_PREVIEW).
-// Abenteuerjournal (AJ-01): like --ge-01 (started evening, checks), own store and port, plus the local journal switch and
-// a second own figure for Player A with sheet special cases.
-const journalDemo=process.argv.includes('--journal');
-const ge01Demo=process.argv.includes('--ge-01')||journalDemo;
+const ge01Demo=process.argv.includes('--ge-01');
 const w10Demo=process.argv.includes('--w10-hybrid')||ge01Demo;
 // Spielmaterial 3.0: wie --ultio-pager, eigener Speicher und Port, zusätzlich Darstellungs-Assets und Materialien für alle Abnahmefälle.
 const materialDemo=process.argv.includes('--material-3');
@@ -53,7 +49,7 @@ const codexAll=process.argv.includes('--codex-all')||codexPlayers;
 const codexDemo=process.argv.includes('--codex')||codexAll;
 const interactive=mailDemo||stageDemo||stageReleaseTest||areaDemo||codexDemo||npcDemo||storyWork||commandDemo||process.argv.includes('--command-center')||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
 const preserve=mailDemo||storyWork||commandDemo||stageDemo||process.argv.includes('--weekend')||accessDemo||inventoryDemo;
-const state=preserve?resolve(mailDemo?'.local-test/nachrichten':storyWork?'.local-work/story-workspace':journalDemo?'.local-test/journal':materialDemo?'.local-test/material-3':ge01Demo?'.local-test/ge-01':w10Demo?'.local-test/w10-hybrid':visionAssetsDemo?'.local-test/vision-assets':pagerDemo?'.local-test/ultio-pager':regieDemo?'.local-test/regie':vitalsDemo?'.local-test/zustandswerte':stageDemo?'.local-test/spieltisch-2':characterThree?'.local-test/charakter-3':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
+const state=preserve?resolve(mailDemo?'.local-test/nachrichten':storyWork?'.local-work/story-workspace':materialDemo?'.local-test/material-3':ge01Demo?'.local-test/ge-01':w10Demo?'.local-test/w10-hybrid':visionAssetsDemo?'.local-test/vision-assets':pagerDemo?'.local-test/ultio-pager':regieDemo?'.local-test/regie':vitalsDemo?'.local-test/zustandswerte':stageDemo?'.local-test/spieltisch-2':characterThree?'.local-test/charakter-3':commandDemo?'.local-test/command-center-2':inventoryDemo?'.local-test/inventory-2':accessDemo?'.local-test/closed-alpha-access':'.local-test/character-weekend'):join(tmpdir(),'cvk-phase-c-tests-'+randomUUID());
 const purpose=storyWork?'persistent-local-authoring':'synthetic-local-weekend';
 const marker=join(state,'synthetic-weekend.json');
 const migrations=['drizzle/0000_aromatic_network.sql','drizzle/0001_purple_blockbuster.sql','drizzle/0002_thick_mister_fear.sql','drizzle/0003_careful_leech.sql','drizzle/0004_role_membership_foundation.sql','drizzle/0005_phase_c_editorial_revisions.sql','drizzle/0006_auth_platform.sql','drizzle/0007_auth_profiles_closed_alpha.sql'];
@@ -65,7 +61,7 @@ if(resumed){const saved=JSON.parse(readFileSync(marker,'utf8'));if(saved.purpose
 else if(preserve&&existsSync(state)&&readdirSync(state).length)throw new Error('Unmarked local demo store: stop instead of overwriting existing data.');
 mkdirSync(state,{recursive:true});
 const cli='node_modules/wrangler/bin/wrangler.js',config='dist/server/wrangler.json';
-const defaultPort=mailDemo?8850:journalDemo?8897:materialDemo?8893:ge01Demo?8895:w10Demo?8878:visionAssetsDemo?8891:pagerDemo?8874:regieDemo?8870:vitalsDemo?8852:stageDemo?8830:stageReleaseTest?8820:characterThree?8846:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
+const defaultPort=mailDemo?8850:materialDemo?8893:ge01Demo?8895:w10Demo?8878:visionAssetsDemo?8891:pagerDemo?8874:regieDemo?8870:vitalsDemo?8852:stageDemo?8830:stageReleaseTest?8820:characterThree?8846:codexPlayers?8805:codexDemo?8804:storyWork?8802:commandDemo?8798:inventoryDemo?8796:accessDemo?8795:interactive?8794:8793;
 const port=process.env.CVK_TEST_PORT ? Number(process.env.CVK_TEST_PORT) : defaultPort;
 if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local test port');
 if(interactive){const probe=createServer();await new Promise((ok,fail)=>{probe.once('error',()=>fail(new Error('Der lokale Port '+port+' ist bereits belegt. Öffne die laufende Anwendung; kein anderer Prozess wird beendet.')));probe.listen(port,'127.0.0.1',()=>probe.close(ok));});}
@@ -92,7 +88,7 @@ const mf=new Miniflare(convertV4MiniflareOptions({
  modulesRoot:serverRoot,
  compatibilityDate:wrangler.compatibility_date,
  compatibilityFlags:wrangler.compatibility_flags,
- bindings:{...wrangler.vars,GM_EMAIL:'gm@sprint.invalid',AUTH_ACCESS_ENVIRONMENT:'local-test',...(w10Demo?{W10_HYBRID_PREVIEW:'local-only'}:{}),...(ge01Demo?{GE01_CHECKS:'local-only'}:{}),...(journalDemo?{AJ01_JOURNAL:'local-only'}:{})},
+ bindings:{...wrangler.vars,GM_EMAIL:'gm@sprint.invalid',AUTH_ACCESS_ENVIRONMENT:'local-test',...(w10Demo?{W10_HYBRID_PREVIEW:'local-only'}:{}),...(ge01Demo?{GE01_CHECKS:'local-only'}:{})},
  d1Databases:Object.fromEntries(wrangler.d1_databases.map(binding=>[binding.binding,binding.database_id])),
  r2Buckets:Object.fromEntries(wrangler.r2_buckets.map(binding=>[binding.binding,binding.bucket_name])),
  assets:{directory:resolve(dirname(config),wrangler.assets.directory),binding:'ASSETS',routerConfig:{has_user_worker:true,invoke_user_worker_ahead_of_assets:true}},
@@ -165,7 +161,6 @@ try{
   if(!characterResponse.ok)throw new Error('Synthetic character authoring failed '+characterResponse.status);
   const inventoryCharacterId=(await characterResponse.json()).id;
   if(inventoryDemo)await seedInventoryDemo(env.CVK_TEST_URL,playerCookie,inventoryCharacterId);
-  if(journalDemo)console.log('Synthetic journal fixture: '+JSON.stringify(await seedJournalDemo({base:env.CVK_TEST_URL,playerCookie,primaryCharacterId:inventoryCharacterId})));
   const engineDraft=await fetch(env.CVK_TEST_URL+'/api/records',{method:'POST',headers:{'Content-Type':'application/json',Origin:env.CVK_TEST_URL,Cookie:playerCookie},body:JSON.stringify({kind:'charaktere',title:'SYNTHETISCH – Character Engine A',visibility:'sl',body:{...engineFixture,player:'Demo Spieler A'}})});
   if(!engineDraft.ok)throw new Error('Synthetic engine draft failed '+engineDraft.status);
   const engineId=(await engineDraft.json()).id;
