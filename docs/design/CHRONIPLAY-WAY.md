@@ -1,6 +1,6 @@
 # ChroniPlay-Way
 
-Stand 08.11.2026 · Etappe 3 · **Vorschlag zur Abnahme, noch nicht angewendet**
+Stand 08.11.2026 · Etappe 3 · **abgenommen am 08.11.2026** (Schriftpaar Spectral + IBM Plex Sans, Flächenfamilie Tealgrau). Die Anwendung folgt in Etappe 4.
 
 Dieses Dokument legt die Bild- und Sprach-DNA von ChroniPlay fest. Es gilt erst nach Abnahme durch den Besitzer an der Musterseite (`prototypes/designgrundlage/musterseite.html`). Etappe 4 wendet es Schritt für Schritt an.
 

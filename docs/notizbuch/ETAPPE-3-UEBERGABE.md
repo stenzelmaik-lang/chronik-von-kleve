@@ -8,6 +8,14 @@ Stand 08.11.2026 · Claude Code (Opus 5.5) · lokal, nicht gepusht, nicht deploy
 | Basis | `claude/notizbuch` @ `da8598d` (Etappe 2, vom Besitzer am 08.11. abgenommen) |
 | Stopp | Der Besitzer nimmt die Musterseite ab, verwirft sie oder fordert Änderungen. Erst danach folgt Etappe 4. |
 
+## Abnahme durch den Besitzer (08.11.2026)
+
+- **Gewählt:** Schriftpaar 1 (Spectral + IBM Plex Sans) und die Flächenfamilie **Tealgrau**.
+- **Ohne Gegenrede, daher als Standard übernommen** (nach den Regeln des Auftrags): die Leitidee „Tischebene und Rahmenebene“ mit Akten-Vokabular, der Icon-Stil der zwölf Proben, die Glossar-Vorschläge „Überlieferungen“ und „Die Welt“. Der Besitzer kann das jederzeit ändern.
+- **Folge für Etappe 4:**
+  - Spectral und Plex ziehen selbst gehostet in die App.
+  - Die Marineblau-Tokens und die übrigen vier Schriften entfallen.
+
 ## Lieferung
 
 1. **[docs/design/CHRONIPLAY-WAY.md](../design/CHRONIPLAY-WAY.md)**: Leitidee (Tischebene und Rahmenebene, Sprache der Akte), acht prüfbare Bildregeln, gemessene Kontraste, Verbotsliste, Sprach-DNA, Token-Tabelle.
