@@ -225,7 +225,7 @@ Zählung mit einem Skript über alle versionierten Dateien in `app/` und `compon
 
 Die Vorgabe lautet: Seiten bleiben `records` mit `kind='notizen'` und `visibility='private'`, keine Migration, keine Schemaänderung. **Das trägt.** Die Ablage ist vorhanden, und Titel, `date`, `text` und frei erweiterbare Body-Felder (passthrough) genügen, auch für Schlagwörter (z. B. `body.tags`). Diese Punkte verlangen aber eine Entscheidung oder ausdrückliche Behandlung:
 
-1. **SL-Kampagnenexport enthält private Spielernotizen.** `GET /api/export?scope=campaign` (Knopf „Kampagne sichern“, `sl-workspace-shell.tsx:21`) exportiert alle `records` der Kampagne. Ausgenommen sind nur fremde Briefe und fremdes Material (`server/campaign-export.ts:25`). Private Notizen der Spieler sind also heute im SL-Export lesbar. Das widerspricht dem Grundsatz „die SL nie, auch nicht über Kampagnenexport“. Abhilfe heißt Änderung an Rechten bzw. Exportumfang, und die schließt der Auftrag eigentlich aus. **Der Besitzer muss entscheiden, ob Etappe 2 den Export um fremde private `notizen` kürzt.** Vorschlag: ja, analog zu `table-material`, mit Test. Ohne Entscheidung bleibt der Export unverändert, und die Übergabe nennt das als offenen Befund.
+1. *(Durch Entscheidung 5a.1 überholt: Spielnotizen dürfen für die SL einsehbar sein. Neu offen ist der E-Mail-Befund.)* **SL-Kampagnenexport enthält private Spielernotizen.** `GET /api/export?scope=campaign` (Knopf „Kampagne sichern“, `sl-workspace-shell.tsx:21`) exportiert alle `records` der Kampagne. Ausgenommen sind nur fremde Briefe und fremdes Material (`server/campaign-export.ts:25`). Private Notizen der Spieler sind also heute im SL-Export lesbar. Das widerspricht dem Grundsatz „die SL nie, auch nicht über Kampagnenexport“. Abhilfe heißt Änderung an Rechten bzw. Exportumfang, und die schließt der Auftrag eigentlich aus. **Der Besitzer muss entscheiden, ob Etappe 2 den Export um fremde private `notizen` kürzt.** Vorschlag: ja, analog zu `table-material`, mit Test. Ohne Entscheidung bleibt der Export unverändert, und die Übergabe nennt das als offenen Befund.
 2. **Notizen sind heute nicht nur privat.** Sichtbarkeit „Ich & Spielleitung“ bzw. „Gesamte Spielgruppe“ ist im `RecordEditor` und in der Charakterverwaltung wählbar. Vorschlag: Das Notizbuch zeigt alle **eigenen** Notizen mit `owner_id = ich`. Eine nicht private Seite trägt sichtbar „SL liest mit“ bzw. „Gruppe liest mit“. Neue Seiten sind immer privat, und das Notizbuch ändert die Sichtbarkeit nicht. Fremde Gruppennotizen erscheinen nicht.
 3. **Systemkontexte ausfiltern.** Neben den sechs heute gefilterten Kontexten gehört auch `display-asset` heraus, sonst sehen SL-Konten ihre Darstellungs-Assets als Seiten.
 4. **Archivierte Figurnotizen** (`archived:true`) erscheinen heute in der Liste. Vorschlag: im Notizbuch ausblenden, wie die Figurprojektion es tut.
@@ -239,6 +239,35 @@ Die Vorgabe lautet: Seiten bleiben `records` mit `kind='notizen'` und `visibilit
 12. **Spielerbereich:** Der Eintrag `notizen` öffnet heute auf „Vorbereitung“ (`player-archive.tsx:17`). Der Umbau auf „Notizbuch“ als ersten Reiter betrifft nur diese Komponente, Beschriftung und Kachel (`dashboard.tsx:191`). Die Kennung `notizen` bleibt.
 
 ---
+
+## 5a. Entscheidungen des Besitzers nach Durchsicht (08.11.2026, im Gespräch)
+
+Diese Punkte gehen den Vorgaben aus dem Auftrag vor, wo sie ihnen widersprechen.
+
+1. **Datenschutz statt Totalprivatheit.** Die SL soll alles einsehen können, was für das Spiel wichtig ist, damit sie Möglichkeiten und Probleme der Spieler erkennt. Gesperrt bleibt für die SL alles, was datenschutzrelevant ist (z. B. E-Mail-Adressen).
+   - Folge für das Notizbuch: Die Vorgabe „die SL nie“ aus dem Auftrag gilt nicht mehr wörtlich. Offen ist noch, wie weit die SL-Einsicht reicht (siehe offene Fragen unten).
+   - **Neuer Befund dazu:** Der SL-Kampagnenexport (`server/campaign-export.ts:6–18`) enthält die Tabelle `members` samt Spalte `email` (`db/schema.ts:25–29`), also die E-Mail-Adressen aller Mitglieder. Nach dieser Regel ist das datenschutzrelevant. Ob die SL die Adressen für die Mitgliederverwaltung braucht, ist nicht geprüft. Vorschlag: im Export weglassen. Das ist eine Rechteänderung und braucht eine eigene Freigabe.
+2. **„Archiv & Vorbereitung“ trennen und umbenennen.**
+   - Die Vorbereitung der SL bleibt im Command Center („Command Center · Vorbereitung“, Bereich `vorbereitung`, nur SL).
+   - Die Vorbereitung des Spielers heißt künftig **„Deine Spielabendvorbereitung“**: Material und Notizen, die der Spieler ins Spiel einbringen will. Die Seite erklärt das in einem Satz.
+   - Was übrig bleibt, heißt **„Persönliches Archiv“**.
+   - Die Kennung `notizen` und die vorhandenen `?bereich=`-Links bleiben gültig. Die Begriffe kommen ins Glossar (Etappe 3).
+3. **„Private Schnellnotiz“ geht im Notizbuch auf.** Der Besitzer kennt keinen Zweck, der dagegen spricht. Die Komponente wird in Etappe 2 ersetzt.
+4. **Geplante Bereiche bleiben.** Wirtschaft, Neuigkeiten, Händler und Galerie werden ausgebaut, eine eigene Galerie für Spieler kommt dazu. Kein Eintrag wird gestrichen, nur weil er heute kaum verlinkt ist.
+5. **„Meine Dateien“ und „Bilder & Dateien“** sollen zusammengeführt werden, sofern das technisch ohne Datenverlust geht. Das wird in Etappe 4c geprüft.
+6. **Inventar und „Eingesteckt“ sind zwei Stufen eines geplanten Inventarsystems, kein doppeltes Ziel.**
+   - Die SL spielt Gegenstände aus, die als Objekt **genau einmal** existieren.
+   - Gibt die SL einen Gegenstand frei, kann ein Spieler ihn einstecken, aber immer nur einer.
+   - Nur dieser Spieler kann ihn wieder ausspielen.
+   - Die SL kann den Gegenstand jederzeit aus dem Inventar zurückholen.
+   - Viele Gegenstände sollen vorbereitet werden.
+   - Folge für 4a: Inventar und Eingesteckt nicht zusammenlegen, aber eindeutig benennen und verschiedene Symbole geben. Das Inventarsystem selbst ist ein eigener späterer Auftrag.
+7. Speicherwege der Figurnotizen und Umgang mit Ortsnotizen: Die Umsetzung entscheidet Claude Code in Etappe 2 und begründet sie in der Übergabe.
+
+**Offene Fragen an den Besitzer (vor Etappe 2):**
+
+- Wie weit reicht die SL-Einsicht ins Notizbuch? Vorschlag: Die SL kann Notizbuchseiten lesen, nie bearbeiten oder löschen, und der Spieler sieht das als Hinweis im Notizbuch. Alternative: Der Spieler kann einzelne Seiten als „nur für mich“ markieren.
+- Was gehört ins „Persönliche Archiv“? Vorschlag: Das **Notizbuch** wird ein eigener Eintrag. Die **Spielabendvorbereitung** behält den heutigen Reiter „Vorbereitung“. Das **Persönliche Archiv** nimmt die eigenen Dateien auf und wird später mit „Bilder & Dateien“ zur Spielergalerie zusammengeführt.
 
 ## 6. Prüfungen
 
