@@ -45,7 +45,7 @@
 .ownHint:focus-visible{outline:2px solid #e7c47f;outline-offset:2px}
 /* Release GE-02: on phones the own toolbar wraps into two rows; the drawer starts below it instead of underneath, */
 /* …and to the right of the 56px tool rail, which otherwise covers its left edge. */
-@media(max-width:600px){.drawer{top:168px;left:64px;right:8px;width:auto;max-width:none;transform:none;max-height:calc(100dvh - 176px)}}
+@media(max-width:600px){.drawer{top:168px;left:calc(var(--rail-w,56px) + 8px);right:8px;width:auto;max-width:none;transform:none;max-height:calc(100dvh - 176px)}}
 @media(max-width:600px){.drawer{animation-name:lowerAside}.drawer[data-closing=true]{animation-name:raiseAside}}
 @keyframes lowerAside{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:none}}
 @keyframes raiseAside{to{opacity:0;transform:translateY(-24px)}}
@@ -70,3 +70,7 @@
 .figureGallery nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px}
 .playerTraits{display:flex;flex-wrap:wrap;gap:6px;padding:0;list-style:none}
 .playerTraits li{padding:3px 8px;border:1px solid #b79e6355;border-radius:12px;color:#ead6ad;font-size:12px}
+
+/* Etappe 4a: player names wrap to two lines instead of being cut off; the full name stays in title and aria-label. */
+@media(min-width:601px){.playerName{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;max-width:150px;white-space:normal;overflow:hidden;text-overflow:clip;overflow-wrap:anywhere;font-family:var(--cp-font-text)}}
+@media(min-width:601px) and (max-width:1100px){.playerName{max-width:110px}}

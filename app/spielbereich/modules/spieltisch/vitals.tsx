@@ -100,7 +100,7 @@ function useHits(round:RoundEntry[]){
 /** Live overview of the round: who is at the table, blood, willpower and damage. Values only; changes run elsewhere. */
 function RoundRows({round,crew,hits}:{round:RoundEntry[];crew:Crew;hits:string[]}){
  return <>{round.map(r=>{const presence=crew.find(m=>m.id===r.ownerId)?.presence||'offline',hit=hits.includes(r.id);return <span key={r.id} className={styles.roundRow} data-round-character={r.id} data-tone={healthTone({...r.health,penalty:r.health.penalty})} data-hit={hit||undefined}>
-  <span className={styles.roundName}><span className={styles.presenceDot} data-state={presence} title={presence}/>{r.title}{hit&&<b className={styles.hitLabel} role="status">Schaden!</b>}</span>
+  <span className={styles.roundName} title={r.title}><span className={styles.presenceDot} data-state={presence} title={presence}/>{r.title}{hit&&<b className={styles.hitLabel} role="status">Schaden!</b>}</span>
   <HealthBar h={{...r.health,penalty:r.health.penalty}} size="small"/>
   <small aria-label={`Blut ${r.blood.current??'–'} von ${r.blood.max??'–'}`}><Droplets size={11}/>{r.blood.current??'–'}/{r.blood.max??'–'}</small>
   <small aria-label={`Willenskraft ${r.willpower.temporary??'–'} von ${r.willpower.permanent??'–'}`}><Flame size={11}/>{r.willpower.temporary??'–'}/{r.willpower.permanent??'–'}</small>
@@ -133,7 +133,7 @@ function BodyHud({vitals,gm,crew,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot
  if(!c)return others.length?<button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen"><span className={styles.hudTitle}><Users size={14}/><span className={styles.hudName}>Am Tisch</span><ChevronRight size={14}/></span><span className={styles.roundBlock}><RoundRows round={others} crew={crew} hits={hits}/></span></button>:null;
  const b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,tone=healthTone(h);
  return <button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} data-tone={tone} onClick={onOpen} aria-label={`Zustand von ${c.title}: ${conditionLabel(h)}. Öffnen`}>
-  <span className={styles.hudTitle}><Heart size={15} className={styles.heart}/><span className={styles.hudName}>{c.title}</span><ChevronRight size={14}/></span>
+  <span className={styles.hudTitle}><Heart size={15} className={styles.heart}/><span className={styles.hudName} title={c.title}>{c.title}</span><ChevronRight size={14}/></span>
   <span className={styles.condition} data-tone={tone}><b>{conditionLabel(h)}</b>{h.status==='active'&&<small>{penaltyText(h.penalty)}</small>}</span>
   <HealthBar h={h}/>
   <span className={styles.bodyRow}><Droplets size={14} aria-hidden="true"/><span className={styles.resourceName}>Blut</span><BloodBar b={b}/><small>{b.current??'–'}/{b.max??'–'}</small></span>

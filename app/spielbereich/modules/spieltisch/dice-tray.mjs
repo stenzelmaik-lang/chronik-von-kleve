@@ -1,20 +1,21 @@
 import * as THREE from 'three';
 
-function fabricTexture(leather=false){
+// Etappe 4a (ChroniPlay-Way, table level): a dark wooden rim around green felt, like an object on the table.
+function fabricTexture(wood=false){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=256;
   const c=canvas.getContext('2d'),data=c.createImageData(256,256);
   for(let y=0;y<256;y++)for(let x=0;x<256;x++){
-    const grain=Math.sin(x*17.13+y*29.71)*Math.sin(x*7.37-y*13.51),weave=((x+y)%2)*3;
-    const base=leather?[17,18,22]:[16,50,58];
-    data.data.set([...base.map(v=>Math.max(0,v+grain*(leather?3:4)+weave*.4)),255],(y*256+x)*4);
+    const grain=wood?Math.sin(x*.06+Math.sin(y*.03)*2.4)*.6+Math.sin(x*.7+y*.05)*.15:Math.sin(x*17.13+y*29.71)*Math.sin(x*7.37-y*13.51),weave=wood?0:((x+y)%2)*3;
+    const base=wood?[56,38,26]:[31,59,52];
+    data.data.set([...base.map(v=>Math.max(0,v+grain*(wood?5:4)+weave*.4)),255],(y*256+x)*4);
   }
-  c.putImageData(data,0,0);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(leather?2:4,leather?2:4);return texture;
+  c.putImageData(data,0,0);const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.wrapS=texture.wrapT=THREE.RepeatWrapping;texture.repeat.set(wood?1:4,wood?1:4);return texture;
 }
 
 /** The rendered walls use the exact same eight segments as the physical tray. */
 export function addDiceTray(scene,tray,resources){
-  const felt=fabricTexture(),leather=fabricTexture(true),inside=new THREE.MeshStandardMaterial({color:0x96b0b3,map:felt,roughness:.96,envMapIntensity:.08}),outside=new THREE.MeshStandardMaterial({map:leather,roughness:.82,envMapIntensity:.15}),stitches=[];
-  resources.push(felt,leather,inside,outside);
+  const felt=fabricTexture(),wood=fabricTexture(true),inside=new THREE.MeshStandardMaterial({color:0xc9d6cd,map:felt,roughness:.96,envMapIntensity:.08}),outside=new THREE.MeshStandardMaterial({color:0x9c8c7c,map:wood,roughness:.72,envMapIntensity:.12}),stitches=[];
+  resources.push(felt,wood,inside,outside);
   const floorGeometry=new THREE.CylinderGeometry(tray.radius,tray.radius,.14,8),floor=new THREE.Mesh(floorGeometry,inside);floor.rotation.y=Math.PI/8;floor.position.y=-.07;floor.receiveShadow=true;scene.add(floor);resources.push(floorGeometry);
   for(const wall of tray.walls){
     const bodyGeometry=new THREE.BoxGeometry(.24,tray.wallHeight,wall.length),body=new THREE.Mesh(bodyGeometry,outside);body.position.set(wall.x,tray.wallHeight/2,wall.z);body.rotation.y=-wall.angle;body.castShadow=true;body.receiveShadow=true;scene.add(body);resources.push(bodyGeometry);
