@@ -27,6 +27,8 @@ type CharacterMediaBody = {
   fileId?: unknown;
   type?: unknown;
   ref?: unknown;
+  caption?: unknown;
+  shared?: unknown;
 };
 
 const mediaTypes = new Set(["portrait", "reference", "mood", "scene"]);
@@ -65,9 +67,9 @@ function characterMediaEntries(content: Record<string, unknown>) {
     .map((row) => {
       const fileId = stringValue(row.fileId);
       const type = stringValue(row.type, "reference");
-      return fileId && mediaTypes.has(type) ? { fileId, type } : null;
+      return fileId && mediaTypes.has(type) ? { fileId, type, caption: stringValue(row.caption).slice(0, 160), shared: row.shared === true } : null;
     })
-    .filter((row): row is { fileId: string; type: string } => row !== null)
+    .filter((row): row is { fileId: string; type: string; caption: string; shared: boolean } => row !== null)
     .slice(0, 8);
 }
 
@@ -111,6 +113,8 @@ export async function projectMedia(
       {
         id: file.id,
         type: row.type,
+        caption: row.caption,
+        shared: row.shared,
         name: file.name,
         mime: file.mime,
         visibility: file.visibility,

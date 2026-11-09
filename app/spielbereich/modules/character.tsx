@@ -28,7 +28,7 @@ export const healthLevels = [
   { name: "Außer Gefecht", modifier: "–" },
 ] as const;
 export type CharacterCompanionNote = { id:string; title:string; text:string; visibility:string; version:number; createdAt:string; updatedAt:string; canEdit:boolean };
-export type CharacterCompanionMedia = { id:string; type:string; name:string; mime:string; visibility:string; src:string };
+export type CharacterCompanionMedia = { id:string; type:string; caption?:string; shared?:boolean; name:string; mime:string; visibility:string; src:string };
 export type CharacterCompanionRelationship = { id:string; targetId:string; name:string; type:string; status:string; favor:number|null; role:string; visibility:string };
 export type CharacterCompanionSession = { id:string; title:string; date:string; summary:string } | null;
 export type CharacterDetailProjection = { identity: Record<string, unknown>; sheet: Record<string, unknown>; roleplay: Record<string, unknown>; progression: Record<string, unknown>; permissions: Record<string, unknown>; revision: {version:number;updatedAt?:string}; companion?: {media:CharacterCompanionMedia[];notes:CharacterCompanionNote[];relationships:CharacterCompanionRelationship[];lastSession:CharacterCompanionSession} };

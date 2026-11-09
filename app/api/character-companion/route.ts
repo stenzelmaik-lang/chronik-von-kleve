@@ -18,6 +18,8 @@ export const dynamic = "force-dynamic";
 
 const id = z.string().min(1).max(100);
 const visibility = z.enum(["private", "sl", "group"]);
+// One image list for the Charakterprofil: type, caption and group sharing per image, at most one portrait.
+const profileMedia = z.array(z.object({fileId:id,type:z.enum(['portrait','reference','mood','scene']),caption:z.string().max(160),shared:z.boolean()}).strict()).max(8).refine(list=>list.filter(m=>m.type==='portrait').length<=1&&new Set(list.map(m=>m.fileId)).size===list.length,'Höchstens ein Porträt und jedes Bild nur einmal.');
 const presentation = z.object({
   published: z.boolean(),
   tagline: z.string().trim().max(100),
@@ -28,7 +30,7 @@ const presentation = z.object({
 
 const schema = z.discriminatedUnion("action", [
   z.object({action:z.literal('presentation'),id,version:z.number().int().positive(),presentation}).strict(),
-  z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema,presentation:presentation.optional(),backgroundStory:z.string().max(90000).optional(),playGuide:z.string().max(90000).optional()}).strict(),
+  z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema,presentation:presentation.optional(),backgroundStory:z.string().max(90000).optional(),playGuide:z.string().max(90000).optional(),media:profileMedia.optional()}).strict(),
   z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({
@@ -205,6 +207,25 @@ export async function PATCH(req: Request) {
         const files=await Promise.all(data.presentation.gallery.map(item=>loadOwnedImage(db,a.campaignId,a.id,item.fileId)));
         if(files.some(file=>!['image/jpeg','image/png','image/webp'].includes(file.mime)))throw new HttpError(400,'Bitte JPG, PNG oder WebP auswählen.');
         body.presentation=data.presentation;
+      }
+      if(data.media){
+        // Images already linked to this character stay valid (also when the SL edits); new images must be the editor's own uploads.
+        const old=Array.isArray(body.characterMedia)?(body.characterMedia as Record<string,unknown>[]):[];
+        const legacy=Array.isArray((body.presentation as {gallery?:unknown}|undefined)?.gallery)?((body.presentation as {gallery:{fileId?:unknown}[]}).gallery):[];
+        const known=new Set([...old.map(m=>m.fileId),...legacy.map(m=>m.fileId)].filter((v):v is string=>typeof v==='string'));
+        const media=await Promise.all(data.media.map(async item=>{
+          const prior=old.find(m=>m.fileId===item.fileId);
+          if(known.has(item.fileId)&&prior)return {...prior,type:item.type,caption:item.caption,shared:item.shared};
+          const file=known.has(item.fileId)?await db.prepare('SELECT * FROM files WHERE id=? AND campaign_id=?').bind(item.fileId,a.campaignId).first<FileRow>():await loadOwnedImage(db,a.campaignId,a.id,item.fileId);
+          if(!file||!['image/jpeg','image/png','image/webp'].includes(file.mime))throw new HttpError(400,'Bitte JPG, PNG oder WebP auswählen.');
+          return {fileId:file.id,type:item.type,ref:'/api/files?id='+file.id,name:file.name,mime:file.mime,caption:item.caption,shared:item.shared};
+        }));
+        body.characterMedia=media;
+        const portrait=media.find(m=>m.type==='portrait');
+        if(portrait)body.image='/api/files?id='+portrait.fileId;
+        else if(typeof body.image==='string'&&body.image.startsWith('/api/files?'))delete body.image;
+        // The appearance gallery is merged into this list; it is not kept twice.
+        if(body.presentation&&typeof body.presentation==='object')body.presentation={...(body.presentation as object),gallery:[]};
       }
       if(data.backgroundStory!==undefined)body.text=data.backgroundStory;
       if(data.playGuide!==undefined)body.playGuide=data.playGuide;

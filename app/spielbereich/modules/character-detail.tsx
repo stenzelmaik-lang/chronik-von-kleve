@@ -22,7 +22,6 @@ import {
   Camera,
   Pencil,
   Plus,
-  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, api } from "./api-client";
@@ -30,17 +29,9 @@ import { describeDataError, invalidatePlayerData, purgeProtectedPlayerData, read
 import {
   CharacterDetailProjection,
 } from "./character";
-import { Choice, visibilityNames } from "./shared";
 import {activeCharacterBody} from "@/domain/character-selection";
 import {hybridPreparationNote,readSpecialties} from "@/domain/character-specialties";
 import {useCommandConfirmation} from "./command-confirmation";
-
-const mediaLabels: Record<string, string> = {
-  portrait: "Portrait",
-  reference: "Referenz",
-  mood: "Stimmung",
-  scene: "Szene",
-};
 
 export function CharacterDetail({
   a,
@@ -89,14 +80,11 @@ export function CharacterDetail({
     text: string;
     visibility: string;
   } | null>(null);
-  const [mediaType, setMediaType] = useState("portrait");
-  const [mediaVisibility, setMediaVisibility] = useState("private");
   const [companionBusy, setCompanionBusy] = useState(false);
   const [healthResetOpen, setHealthResetOpen] = useState(false);
   const [runtimeBusy, setRuntimeBusy] = useState(false);
   const runtimeLock = useRef(false);
   const portraitInput = useRef<HTMLInputElement>(null);
-  const mediaInput = useRef<HTMLInputElement>(null);
   const [archiveView,setArchiveView]=useState(false),[archivedId,setArchivedId]=useState<string|null>(null);
   const lifecycleConfirmation=useCommandConfirmation();
   const entries=useMemo(()=>allEntries.filter(e=>archiveView?!activeCharacterBody(e.body):activeCharacterBody(e.body)),[allEntries,archiveView]);
@@ -248,7 +236,7 @@ export function CharacterDetail({
     try {
       const form = new FormData();
       form.set("file", file);
-      form.set("visibility", mediaVisibility);
+      form.set("visibility", "private");
       const uploaded = await api<{ id: string }>("/api/files", "POST", form);
       await api("/api/character-companion", "PATCH", {
         action: "media",
@@ -259,7 +247,6 @@ export function CharacterDetail({
       });
       toast.success(type === "portrait" ? "Portrait gespeichert" : "Bild gespeichert");
       if (portraitInput.current) portraitInput.current.value = "";
-      if (mediaInput.current) mediaInput.current.value = "";
       invalidateCharacter();
       await reload(true);
       onRefresh?.();
@@ -443,49 +430,7 @@ export function CharacterDetail({
       </div>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
-      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onDirtyChange={d=>{presentationDirty.current=d;}} onSaved={()=>{presentationDirty.current=false;invalidateCharacter();void reload(true,true);onRefresh?.();}} backgroundStory={String(projection.roleplay.backgroundStory||"")} playGuide={String(projection.roleplay.playGuide||"")} images={<>
-            {canCompanion && (
-              <div className="companion-media-upload">
-                <Choice
-                  label="Typ"
-                  value={mediaType}
-                  onChange={setMediaType}
-                  options={Object.entries(mediaLabels)}
-                />
-                <Choice
-                  label="Sichtbarkeit"
-                  value={mediaVisibility}
-                  onChange={setMediaVisibility}
-                  options={Object.entries(visibilityNames)}
-                />
-                <label className="button">
-                  <Upload size={15} /> Bild hochladen
-                  <input
-                    ref={mediaInput}
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    disabled={companionBusy}
-                    onChange={(e) => void uploadMedia(e.target.files?.[0], mediaType)}
-                  />
-                </label>
-              </div>
-            )}
-            <div className="companion-media-strip">
-              {companion.media.length ? (
-                companion.media.map((item) => (
-                  <figure key={item.id}>
-                    <img src={item.src} alt={item.name} />
-                    <figcaption>
-                      <span>{mediaLabels[item.type] || item.type}</span>
-                      <small>{item.name}</small>
-                    </figcaption>
-                  </figure>
-                ))
-              ) : (
-                <p className="muted">Noch keine sicheren Charakterbilder verbunden.</p>
-              )}
-            </div>
-      </>} connections={<>
+      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onDirtyChange={d=>{presentationDirty.current=d;}} onSaved={()=>{presentationDirty.current=false;invalidateCharacter();void reload(true,true);onRefresh?.();}} backgroundStory={String(projection.roleplay.backgroundStory||"")} playGuide={String(projection.roleplay.playGuide||"")} media={companion.media} connections={<>
             {companion.relationships.length ? (
               <div className="relationship-list">
                 {companion.relationships.map((rel) => (
