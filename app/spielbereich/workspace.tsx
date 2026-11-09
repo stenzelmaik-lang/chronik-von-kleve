@@ -451,7 +451,7 @@ export default function Workspace({
           }}
         />
       ) : section === "galerie" ? (
-        surface === "sl" ? <MediaLibrary a={a} files={files} onRefresh={reload}/> : <PlayerGallery key={dataScope}/>
+        surface === "sl" ? <MediaLibrary a={a} files={files} onRefresh={reload}/> : <PlayerGallery key={dataScope} characterId={activeCharacterId}/>
       ) : section === "vorbereitung" ? (
         <MaterialPreparation key={dataScope} a={a}/>
       ) : section === "notizen" ? (

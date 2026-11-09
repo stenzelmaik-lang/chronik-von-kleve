@@ -17,3 +17,11 @@
 .close{top:12px;right:12px}.prev{left:12px;top:50%}.next{right:12px;top:50%}
 .close:focus-visible,.prev:focus-visible,.next:focus-visible{outline:2px solid var(--cp-focus,#e4c681);outline-offset:2px}
 @media(max-width:600px){.viewer{padding:56px 8px}.prev,.next{top:auto;bottom:12px}}
+
+.add{display:flex;flex-wrap:wrap;align-items:center;gap:var(--cp-space-3,12px);margin-bottom:var(--cp-space-4,16px)}
+.addButton{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 var(--cp-space-4,16px);border:var(--cp-hairline,1px) solid var(--cp-gold,#d6b36f);border-radius:var(--cp-radius,4px);color:var(--cp-gold,#d6b36f);font:600 14px var(--cp-font-text,sans-serif);cursor:pointer}
+.addButton:hover{background:var(--cp-gold-wash,rgba(214,179,111,.08))}
+.addButton:focus-within{outline:2px solid var(--cp-focus,#e4c681);outline-offset:2px}
+.addButton[aria-disabled]{opacity:.6;cursor:default}
+.addButton input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.add .hint{flex:1 1 280px}

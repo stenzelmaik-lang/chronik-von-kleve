@@ -61,6 +61,15 @@ check((await req(b,'/api/character-gallery?characterId='+encodeURIComponent(own.
 check((await req(b,'/api/character-gallery?characterId='+encodeURIComponent(own.id)+'&fileId='+uploads[1])).status===404,'Player B cannot load a private image through the gallery');
 check((await req(b,'/api/character-gallery?characterId='+encodeURIComponent(own.id)+'&fileId='+foreign)).status===404,'a file that is not in the character list is refused');
 check((await req(null,'/api/character-gallery')).status===401,'not signed in: gallery → 401');
+// Second way in from the gallery page: the picture joins the same image list, shared with the group.
+const galleryUpload=await upload(a,'SYNTHETIC_PROFILE_GALLERY.png');
+let gv=(await detail(a)).revision.version;
+check((await req(b,'/api/character-companion','PATCH',{action:'media',id:own.id,version:gv,fileId:galleryUpload,mediaType:'reference',shared:true})).status>=400,'Player B cannot add a picture to Player A\'s character');
+check((await req(a,'/api/character-companion','PATCH',{action:'media',id:own.id,version:gv,fileId:galleryUpload,mediaType:'reference',shared:true})).status===200,'the owner adds a picture from the gallery');
+const afterAdd=await detail(a);
+check(afterAdd.companion.media.some(m=>m.id===galleryUpload&&m.shared===true&&m.type==='reference'),'the gallery picture sits in the image list of the Charakterprofil, shared');
+check((await req(b,'/api/character-gallery')).text.includes(galleryUpload),'Player B sees the added picture in the gallery');
+uploads.push(galleryUpload);
 const sl=await detail(gm);
 check(sl.roleplay.profile.allies===marker+' geheim','the SL reads the full profile in its own projection');
 
@@ -83,6 +92,6 @@ check((await req(null,'/api/live-participants?sessionId=x&memberId=command-a&vie
 const latest=await detail(a);
 const empty={description:Object.fromEntries(Object.keys(profile.description).map(k=>[k,''])),allies:'',visibility:{description:'private',story:'private',drive:'private',allies:'private'}};
 check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:latest.revision.version,profile:empty,presentation:oldCard??{published:false,tagline:'',introduction:'',gallery:[]},backgroundStory:String(before.roleplay.backgroundStory||''),playGuide:String(before.roleplay.playGuide||''),media:oldMedia.map(m=>({fileId:m.id,type:m.type,caption:m.caption??'',shared:m.shared===true}))})).status===200,'the synthetic profile, card and texts are restored');
-const removed=[];for(const [who,fileId] of [[a,uploads[0]],[a,uploads[1]],[b,foreign]])removed.push((await req(who,'/api/files','DELETE',{id:fileId})).status);
+const removed=[];for(const [who,fileId] of [[a,uploads[0]],[a,uploads[1]],[a,uploads[2]],[b,foreign]])removed.push((await req(who,'/api/files','DELETE',{id:fileId})).status);
 check(removed.every(s=>s===200),'the synthetic images are deleted again');
 console.log('PROFILE checks passed: '+checks);

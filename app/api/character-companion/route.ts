@@ -47,6 +47,9 @@ const schema = z.discriminatedUnion("action", [
     version: z.number().int().positive(),
     fileId: id,
     mediaType: z.enum(["portrait", "reference", "mood", "scene"]),
+    // From the gallery: shared with the group right away, optional caption. Same image list as "Porträt & Referenzen".
+    shared: z.boolean().optional(),
+    caption: z.string().trim().max(160).optional(),
   }),
   z.object({
     action: z.literal("note.create"),
@@ -259,14 +262,18 @@ export async function PATCH(req: Request) {
           ? item.type !== "portrait" && item.fileId !== file.id
           : item.fileId !== file.id,
       );
+      if (media.length >= 8) throw new HttpError(400, "Höchstens 8 Bilder je Charakter. Entferne zuerst eines unter „Porträt & Referenzen“.");
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.mime)) throw new HttpError(400, "Bitte JPG, PNG oder WebP auswählen.");
       media.unshift({
         fileId: file.id,
         type: data.mediaType,
         ref: src,
         name: file.name,
         mime: file.mime,
+        ...(data.caption ? { caption: data.caption } : {}),
+        ...(data.shared !== undefined ? { shared: data.shared } : {}),
       });
-      body.characterMedia = media.slice(0, 8);
+      body.characterMedia = media;
       if (data.mediaType === "portrait") body.image = src;
       return json(await updateCharacterBody(db, character, data.version, body));
     }
