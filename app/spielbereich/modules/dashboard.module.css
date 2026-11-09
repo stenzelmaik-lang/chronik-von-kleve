@@ -164,3 +164,8 @@ button.recapLink{border:0;background:none;padding:0;cursor:pointer;font:inherit}
 .recapExcerpt :is(h1,h2,h3,h4){font-size:13px;margin:0 0 4px;color:var(--hub-text)}
 .recapExcerpt p{margin:0 0 4px;font-weight:400}
 .recapExcerpt div :is(h1,h2,h3,h4){font:600 13px/1.4 Arial,sans-serif;margin:0 0 4px;color:var(--hub-text)}
+
+.recapTeaser{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:0 0 10px;color:var(--hub-muted);font:15px/1.55 var(--cp-font-title,Georgia,serif)}
+.recapLinks{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
+button.recapMore{border:0;background:none;padding:0;color:var(--hub-muted);font:13px Arial,sans-serif;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+button.recapMore:hover{color:var(--hub-text)}
