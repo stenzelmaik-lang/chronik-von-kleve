@@ -26,22 +26,24 @@ function Boxes({ filled, total, label }: { filled: number | null; total: number 
  * The V20 sheet for every reading place: player area and SL view ("wide"), in-game menu ("narrow").
  * Reads the existing projection only; editing stays in the existing editor.
  */
-export function CharacterSheet({ identity, sheet, progression, layout }: { identity: Record<string, unknown>; sheet: Record<string, unknown>; progression?: Record<string, unknown>; layout: "wide" | "narrow" }) {
+export type SheetSection = "identity" | "attributes" | "abilities" | "advantages" | "resources";
+export function CharacterSheet({ identity, sheet, progression, layout, section, withIdentity = true }: { identity: Record<string, unknown>; sheet: Record<string, unknown>; progression?: Record<string, unknown>; layout: "wide" | "narrow"; section?: SheetSection; withIdentity?: boolean }) {
   const v = sheetView(identity, sheet, progression);
+  const show = (part: SheetSection) => !section || section === part;
   const wp = v.willpower, bl = v.blood;
   return <article className={`${styles.sheet} ${layout === "wide" ? styles.wide : styles.narrow}`} aria-label="Charakterbogen">
     <span className={styles.corners} aria-hidden="true" />
-    <p className={styles.orient}>V20 · Charakterbogen</p>
-    <dl className={styles.header}>{v.header.map(([k, value]) => <div key={k}><dt>{k}</dt><dd>{value}</dd></div>)}</dl>
+    {!section && <header className={styles.masthead}><p>V20 · Charakterbogen</p><h2>{String(identity.name || "Charakter")}</h2></header>}
+    {show("identity") && withIdentity && <dl className={styles.header}>{v.header.map(([k, value]) => <div key={k}><dt>{k}</dt><dd>{value}</dd></div>)}</dl>}
 
-    <section className={styles.block} aria-labelledby="cs-attributes"><h3 id="cs-attributes">Attribute</h3>
+    {show("attributes") && <section className={styles.block} aria-labelledby="cs-attributes"><h3 id="cs-attributes">Attribute</h3>
       <div className={styles.columns}>{v.attributes.map(g => <List key={g.title} title={g.title} rows={g.rows} />)}</div>
-    </section>
-    <section className={styles.block} aria-labelledby="cs-abilities"><h3 id="cs-abilities">Fähigkeiten</h3>
+    </section>}
+    {show("abilities") && <section className={styles.block} aria-labelledby="cs-abilities"><h3 id="cs-abilities">Fähigkeiten</h3>
       <div className={styles.columns}>{v.abilities.map(g => <List key={g.title} title={g.title} rows={g.rows} />)}</div>
       {(v.unassigned.length > 0 || v.legacyText.length > 0) && <div className={styles.columns}>{v.unassigned.length > 0 && <List title="Werte ohne Zuordnung" rows={v.unassigned} />}{v.legacyText.map((t, i) => <section key={i} className={styles.group}><h4>Freie Fähigkeiten (Altbestand)</h4><p className={styles.free}>{t}</p></section>)}</div>}
-    </section>
-    <section className={styles.block} aria-labelledby="cs-advantages"><h3 id="cs-advantages">Vorteile</h3>
+    </section>}
+    {show("advantages") && <><section className={styles.block} aria-labelledby="cs-advantages"><h3 id="cs-advantages">Vorteile</h3>
       <div className={styles.columns}>
         <div><List title="Disziplinen" rows={v.disciplines} />{v.paths.length > 0 && <List title="Pfade" rows={v.paths} />}</div>
         <List title="Hintergründe" rows={v.backgrounds} />
@@ -54,8 +56,8 @@ export function CharacterSheet({ identity, sheet, progression, layout }: { ident
         <Costs title="Schwächen" rows={v.flaws} />
         <section className={styles.group}><h4>Clansschwäche</h4><p className={styles.free}>{v.clanWeakness || "Keine Clansschwäche hinterlegt."}</p></section>
       </div>
-    </section>
-    <section className={styles.block} aria-labelledby="cs-state"><h3 id="cs-state">Menschlichkeit, Willenskraft, Blut, Gesundheit</h3>
+    </section></>}
+    {show("resources") && <section className={styles.block} aria-labelledby="cs-state"><h3 id="cs-state">Menschlichkeit, Willenskraft, Blut, Gesundheit</h3>
       <div className={styles.columns}>
         <section className={styles.group}><h4>{v.humanity.name}</h4><Dots value={v.humanity.value} slots={Math.max(10, v.humanity.value ?? 0)} label={v.humanity.name + ": " + (v.humanity.value ?? "nicht erfasst")} /></section>
         <section className={styles.group}><h4>Willenskraft</h4>
@@ -71,6 +73,6 @@ export function CharacterSheet({ identity, sheet, progression, layout }: { ident
         </section>
       </div>
       <p className={styles.small}>Erfahrung: {v.experience.free ?? "–"} frei · {v.experience.total ?? "–"} insgesamt</p>
-    </section>
+    </section>}
   </article>;
 }

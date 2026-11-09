@@ -100,3 +100,53 @@ Beim Durchsehen behoben:
 ## Ausdrücklich nicht getan
 
 Kein Push, kein Deployment, keine Migration, keine Datenänderung. Keine geänderten Routen, Rechte oder Projektionen. Das V20-Blatt ist nicht im Repo.
+
+
+## Nachbesserung nach Kritik des Besitzers (09.11.2026)
+
+**Kritik:**
+- Der Kopf des Bogens stand doppelt da.
+- Die Leiste mit Blut, Willenskraft und Gesundheit wanderte beim Scrollen mit und ist eigentlich sinnlos, weil diese Werte am Spieltisch gesteuert werden.
+- Am Tisch soll die Aufteilung in Reiter bleiben.
+- Die Optik war nicht schön genug, gewünscht ist mehr wie das V20-Blatt.
+- Statt der drei Knöpfe im Kopf soll dort das Clan-Banner hängen.
+- „Figurenprofil“ soll „Charakterprofil“ heißen.
+
+**Umgesetzt:**
+- **Live-Leiste entfernt:** Die Leiste mit Blut, Willenskraft, Gesundheit und Erfahrung ist aus der Charakteransicht (`CharacterDetail`) entfernt. Die Werte stehen lesend im Bogen, Erfahrung unter „Entwicklung“. Gesteuert werden sie am Spieltisch. Die Komponente `character-live-vitals.tsx` bleibt im Repo, wird hier aber nicht mehr eingebunden.
+- **Kopf ohne Knöpfe:** Die Knöpfe sind aus dem Charakterkopf in eine eigene Aktionsleiste darunter gewandert: Ausrüstung & Inventar, Charakter archivieren, Weitere Aktionen, Charakter wechseln. Im Kopf hängt jetzt das **Clan-Banner** (vorhandene Grafik der Spielerzentrale).
+- **Umbenennung:** Der Reiter heißt jetzt **„Charakterprofil“**.
+- **Kein doppelter Kopf mehr:** In der Spielerzentrale lässt der Bogen die Kopfdaten weg, die stehen schon im Charakterkopf.
+- **Ingame-Menü wieder mit Reitern:** Identität, Attribute, Fähigkeiten, Vorteile, Zustände & EP, Geschichte. Jeder Reiter zeigt seinen Abschnitt im neuen Bogenstil, die Probenauswahl ist unverändert.
+- **Optik nach dem V20-Blatt:**
+  - Zierrahmen mit Doppellinie und selbst gezeichneten Eckornamenten;
+  - Kopfzeile mit dem Namen der Figur;
+  - Abschnittstitel mittig mit Schmuckleisten links und rechts;
+  - Gruppentitel in gesperrten Versalien;
+  - Punkte wie gedruckte Kreise.
+
+  Alles als eigene SVG-Zeichnung im CSS, keine Verlagsgrafik, kein Farbverlauf.
+
+**Bilder:** ![](../design/4b/nachbesserung-1280-kopf-banner-bogen.jpg) ![](../design/4b/nachbesserung-1280-ingame-reiter.jpg)
+
+**Prüfungen:**
+
+| Prüfung | Ergebnis |
+|---|---|
+| typecheck | ohne Fehler |
+| ESLint auf den geänderten Dateien | ohne Befund |
+| `pnpm test` | 403/403 |
+| alle Testdateien | 517/523, dieselben 6 Altfälle |
+| Build | erfolgreich |
+| Browser 1280 px | Spielerzentrale und Ingame-Reiter geprüft |
+| `test:integration:run` und Rechtetest | **nicht erneut ausgeführt.** Seit dem letzten grünen Lauf auf `854c481` ist nur Oberfläche geändert, keine Route und keine Projektion |
+| Browser 375 px | nach der Nachbesserung **nicht** geprüft. Das Clan-Banner ist unter 700 px ausgeblendet |
+
+**Offen, besprochen mit dem Besitzer:** Neuordnung des ganzen Charakterbereichs als eigener Schritt mit Zieltabelle:
+- Charakterprofil mit den Feldern von Seite 2 (Vergangenheit, Antrieb, Haltung, Aussehen …);
+- Notizen und Verbindungen aus „Geschichte & Bilder“ in Notizbuch bzw. Archiv;
+- „Kontext für die nächste Nacht“ an einen anderen Ort;
+- Porträt und Referenzen überarbeiten;
+- „Aktive / Archivierte Charaktere“ neu gestalten;
+- Charakterprofil optisch angleichen;
+- die Bearbeitungsmaske entschlacken.

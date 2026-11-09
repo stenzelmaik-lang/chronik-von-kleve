@@ -7,8 +7,8 @@ import { RichTextEditor, RichTextView } from "./rich-text";
 import { CharacterSheet } from "./character-sheet/character-sheet";
 import { CharacterPresentationEditor } from "./character-presentation-editor";
 import { CharacterProgression } from "./character-progression";
-import { CharacterLiveVitals } from "./character-live-vitals";
 import studio from "./character-studio.module.css";
+import { clanSymbolFor } from "./clan-symbol";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,11 +44,6 @@ import {activeCharacterBody} from "@/domain/character-selection";
 import {hybridPreparationNote,readSpecialties} from "@/domain/character-specialties";
 import {useCommandConfirmation} from "./command-confirmation";
 
-const obj = (v: unknown) =>
-  v && typeof v === "object" && !Array.isArray(v)
-    ? (v as Record<string, unknown>)
-    : {};
-const n = (v: unknown) => (typeof v === "number" ? v : 0);
 const text = (v: unknown) => (typeof v === "string" ? v : "");
 const mediaLabels: Record<string, string> = {
   portrait: "Portrait",
@@ -91,7 +86,7 @@ export function CharacterDetail({
   const [projectionState, setProjection] = useState<CharacterDetailProjection | null>(
     null,
   );
-  const [state, setState] = useState("");
+  const [, setState] = useState("");
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -439,14 +434,6 @@ export function CharacterDetail({
   const s = projection.sheet;
   const archived=!activeCharacterBody(active.body);
   const permissions: CharacterDetailProjection["permissions"] = {...projection.permissions,...(archived?{canEdit:false,canEditCompanion:false,canChangeRuntimeValues:false,canCreateNotes:false}:{})};
-  const will = obj(s.willpower);
-  const blood = obj(s.blood);
-  const health = obj(s.health);
-  const max = n(blood.max);
-  const current = n(blood.current);
-  const permanent = n(will.permanent);
-  const temporary = n(will.temporary);
-  const canRuntime = permissions.canChangeRuntimeValues === true;
   const characterState = String(projection.progression.characterState ?? active.body.characterState ?? "");
   const canCompanion = permissions.canEditCompanion === true;
   const companion = projection.companion || {
@@ -497,7 +484,9 @@ export function CharacterDetail({
             ))}
           </dl>
         </div>
-        <div className="character-hero-actions">
+        {typeof i.clan==="string"&&i.clan.trim()&&<div className={studio.clanBanner} aria-label={"Clan "+i.clan}>{clanSymbolFor(i.clan.trim())&&<img src={clanSymbolFor(i.clan.trim())!} alt="" aria-hidden="true" width={48} height={48}/>}<span>{i.clan}</span></div>}
+      </header>
+      <nav className={studio.actionBar} aria-label="Charakteraktionen">
           {!inspection && !archived && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
           {entries.length > 1 && (
             <label className="character-active-select">
@@ -546,11 +535,9 @@ export function CharacterDetail({
             </label>
           )}
           </div></details>
-        </div>
-      </header>
-      <CharacterLiveVitals blood={current} bloodMax={max} bloodPerRound={blood.perRound} willpower={temporary} permanentWillpower={permanent} health={String(health.current || "Gesund")} freeXp={projection.progression.freeXp} totalXp={projection.progression.totalXp} editable={canRuntime} busy={runtimeBusy} status={state} onChange={(field,value)=>void runtime(field,value)} onResetHealth={()=>setHealthResetOpen(true)} onDevelopment={()=>{if(leavePresentation())setView("development");}}/>
+        </nav>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},...(!inspection&&!archived?[{id:"presentation",label:"Figurenprofil"}]:[]),{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},...(!inspection&&!archived?[{id:"presentation",label:"Charakterprofil"}]:[]),{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
@@ -559,7 +546,7 @@ export function CharacterDetail({
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
           {hybridPreparationNote()&&readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length>0&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}
-          <CharacterSheet identity={projection.identity} sheet={s} progression={projection.progression} layout="wide"/>
+          <CharacterSheet identity={projection.identity} sheet={s} progression={projection.progression} layout="wide" withIdentity={false}/>
           {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
         </section>
 
