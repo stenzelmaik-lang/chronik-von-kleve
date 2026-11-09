@@ -160,7 +160,7 @@ export function VitalsHud({vitals,gm,crew=[],onOpenBody,onOpenPressure,panelOpen
  </>;
 }
 
-function CharacterCard({c,vitals,gm,busy,run,stress=true}:{c:TableCharacter;vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run;stress?:boolean}){
+export function CharacterCard({c,vitals,gm,busy,run,stress=true}:{c:TableCharacter;vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run;stress?:boolean}){
  const allowed=(op:string)=>vitals.operations.includes(op as never)&&(gm||c.own);
  const act=(command:Record<string,unknown>)=>void run({characterId:c.id,command});
  const [damage,setDamage]=useState<{type:'bashing'|'lethal'|'aggravated';levels:number}>({type:'lethal',levels:1});

@@ -127,3 +127,8 @@
 /* Etappe 4a: names are never cut off; long names wrap (full name also in title and aria-label). */
 .hudName,.roundName,.pressureName>span{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:break-word;hyphens:auto}
 .hudTitle{font-family:var(--cp-font-title);align-items:flex-start}
+
+/* Regie · Spieler am Tisch */
+.playerBlock{display:grid;gap:8px;padding-bottom:14px;border-bottom:1px solid rgba(205,166,107,.18)}
+.playerOwner{margin:0;color:#9fa49b;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.playerDetail{padding:10px;border:1px solid rgba(205,166,107,.18);border-radius:4px;background:rgba(0,0,0,.18)}

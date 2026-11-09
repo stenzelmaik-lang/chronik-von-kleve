@@ -13,13 +13,15 @@ import {ThumbImage} from '../file-thumb';
 import {CheckDesk,ChecksSwitch} from './check-issue-form';
 import {pendingTargets,isTablePlayer} from '@/domain/live-checks';
 
-export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],['dialogue','Dialoge'],['interactions','Interaktionen'],['checks','Proben'],['whispers','Visionen & Briefe'],['secrets','Geheimnisse'],['consequences','Folgen'],['notes','SL-Notizen'],['material','Material']] as const;
+import {RegiePlayers} from './regie-players';
+export const regieTabs=[['narration','Erzählung'],['atmosphere','Atmosphäre'],['dialogue','Dialoge'],['interactions','Interaktionen'],['players','Spieler am Tisch'],['checks','Proben'],['whispers','Visionen & Briefe'],['secrets','Geheimnisse'],['consequences','Folgen'],['notes','SL-Notizen'],['material','Material']] as const;
 export type RegieTab=typeof regieTabs[number][0];
 
 type Props={deliveryBusy:boolean;crew:import('./types').Snapshot['crew'];onCommand:(body:Record<string,unknown>)=>unknown;onIssue:(body:Record<string,unknown>,audience:string[]|null)=>Promise<boolean>;checksEnabled:boolean;checksSwitch?:{on:boolean};checkState?:{checks:NonNullable<import('./types').Snapshot['checks']>;events:import('./types').DiceEvent[];figures?:{id:string;ownerId:string;title:string}[];onShow:(id:string)=>void};sessionId:string;sceneId:string;tab:RegieTab;onTab:(tab:RegieTab)=>void;busy:boolean;audience:string;
  onShowScene:(id:string)=>void;onShowMedia:(fileId:string)=>void;onStage:(kind:'npc'|'document',sourceId:string,sourceKind?:'entity'|'record')=>void;
  table:{objects:StageObject[];backdrop:string;backdropFileId:string;activeScene:string};
- onPlace:(sourceId:string,sourceKind:'entity'|'file'|'record',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void};
+ onPlace:(sourceId:string,sourceKind:'entity'|'file'|'record',title?:string)=>void;onRemove:(objectId:string)=>void;onBackdrop:(fileId:string|null)=>void;onActivate:(sceneId:string)=>void;
+ a?:import('@/domain/types').Actor;vitals?:import('./types').VitalsSnapshot;onVitals?:(action:import('./vitals').VitalsAction)=>Promise<boolean>};
 type Media=RegieContext['media'][number];
 const groups:[string,string,(m:Media)=>boolean,typeof ImageIcon][]=[
  ['Bilder · Polaroids','Fotos, die du als Bildkarte auf den Tisch legst.',m=>m.mime.startsWith('image/'),ImageIcon],
@@ -43,7 +45,7 @@ export function BackdropChoice({current,sceneImages,busy,onChoose}:{current:stri
  return sceneImages.length?<ul className={styles.backdropGrid} aria-label="Szenenbild">{sceneImages.map(tile)}</ul>:<p className={styles.empty}>Für diese Szene ist kein Szenenbild vorbereitet. Lege es in der Szene unter Atmosphäre fest.</p>;
 }
 
-export function Regie({crew,onCommand,onIssue,checksEnabled,checksSwitch,checkState,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate}:Props){
+export function Regie({crew,onCommand,onIssue,checksEnabled,checksSwitch,checkState,sessionId,sceneId,tab,onTab,busy,audience,onShowScene,onShowMedia,onStage,table,onPlace,onRemove,onBackdrop,onActivate,a,vitals,onVitals}:Props){
  const [preview,setPreview]=useState<Media|null>(null),previewDialog=useRef<HTMLDialogElement>(null);
  useEffect(()=>{if(preview&&!previewDialog.current?.open)previewDialog.current?.showModal();},[preview]);
  // Loaded scenes stay cached for the evening: switching back costs no request.
@@ -78,6 +80,7 @@ export function Regie({crew,onCommand,onIssue,checksEnabled,checksSwitch,checkSt
    {tab==='dialogue'&&<>{context.npcs.map(n=><article key={n.id} className={styles.npc}><img src={n.image} alt="" loading="lazy" onError={e=>{e.currentTarget.style.display='none';}}/><div><h3>{n.title}</h3>{n.summary&&<p>{n.summary}</p>}{n.cue&&<Text value={n.cue} empty=""/>}<button disabled={busy} onClick={()=>onStage('npc',n.id)}><UserPlus/> Privat auf Bühne legen</button></div></article>)}
     <Text value={s.dialogueNotes} empty={context.npcs.length?'Keine zusätzlichen Dialoghilfen.':'Keine NPCs oder Dialoge vorbereitet.'}/></>}
    {tab==='interactions'&&<><Text value={s.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={styles.note}><h3>{n.title}</h3><Text value={n.text} empty=""/></article>)}{checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.checkLink} onClick={()=>onTab('checks')}>Vorbereitete Proben ausgeben</button>}</>}
+   {tab==='players'&&a&&onVitals&&<RegiePlayers a={a} sessionId={sessionId} vitals={vitals} busy={busy} run={onVitals}/>}
    {tab==='checks'&&checksSwitch&&<ChecksSwitch on={checksSwitch.on} busy={busy} onSwitch={onIssue}/>}
    {tab==='checks'&&<CheckDesk sceneId={s.id} notes={context.notes} crew={crew} figures={checkState?.figures} checks={checkState?.checks||[]} events={checkState?.events||[]} checksEnabled={checksEnabled} busy={busy} onIssue={onIssue} onShow={checkState?.onShow}/>}
    {tab==='whispers'&&<DeliveryDesk items={context.whispers||[]} sceneId={s.id} version={s.version} sessionId={sessionId} crew={crew} objects={table.objects} onCommand={onCommand}/>}
