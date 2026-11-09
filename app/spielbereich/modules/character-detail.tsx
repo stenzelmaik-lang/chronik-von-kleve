@@ -454,39 +454,12 @@ export function CharacterDetail({
 
   return (
     <div className={`character-detail-page ${studio.studio} ${inspection?studio.inspection:""}`}>
-      {archiveNav}{lifecycleConfirmation.dialog}
+      {lifecycleConfirmation.dialog}
       {archived&&<p role="status" className="panel">Archivierter Charakter · Daten erhalten · vor Änderungen wiederherstellen.</p>}
       {refreshing && <p className="muted" role="status">Charakterbogen wird aktualisiert …</p>}
       {loadError && <div role="alert" className="error-box"><strong>{describeDataError(loadError).title}</strong><p>{loadError.message}</p><button className="button" onClick={() => void reload(true)}>Erneut versuchen</button></div>}
-      <header className="character-hero">
-        <div className="character-portrait">
-          {typeof i.portraitRef === "string" && i.portraitRef ? (
-            <img src={i.portraitRef} alt="Charakterporträt" />
-          ) : (
-            <>
-              <span>V20</span>
-              <small>PORTRÄT</small>
-            </>
-          )}
-        </div>
-        <div className="character-hero-copy">
-          <p className="eyebrow">{String(i.clan || "CHARAKTER")}</p>
-          <h2>{String(i.name || active.title)}</h2>
-          <p className="character-motto">
-            {String(i.concept || "Keine Charakteraussage hinterlegt.")}
-          </p>
-          <dl className={`character-identity ${studio.identityGrid}`}>
-            {identityFields.map(([label, value]) => (
-              <div key={label}>
-                <dt>{label}</dt>
-                <dd>{String(value ?? "Nicht angegeben")}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        {typeof i.clan==="string"&&i.clan.trim()&&<div className={studio.clanBanner} aria-label={"Clan "+i.clan}>{clanSymbolFor(i.clan.trim())&&<img src={clanSymbolFor(i.clan.trim())!} alt="" aria-hidden="true" width={48} height={48}/>}<span>{i.clan}</span></div>}
-      </header>
       <nav className={studio.actionBar} aria-label="Charakteraktionen">
+        <div className={studio.viewSwitch} role="group" aria-label="Charakterliste"><button type="button" aria-pressed={!archiveView} onClick={()=>void switchArchive(false)}>Aktive</button><button type="button" aria-pressed={archiveView} onClick={()=>void switchArchive(true)}>Archiviert ({allEntries.filter(e=>!activeCharacterBody(e.body)).length})</button></div>
           {!inspection && !archived && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
           {entries.length > 1 && (
             <label className="character-active-select">
@@ -536,6 +509,34 @@ export function CharacterDetail({
           )}
           </div></details>
         </nav>
+      <header className={"character-hero "+studio.heroBlock}>
+        <div className="character-portrait">
+          {typeof i.portraitRef === "string" && i.portraitRef ? (
+            <img src={i.portraitRef} alt="Charakterporträt" />
+          ) : (
+            <>
+              <span>V20</span>
+              <small>PORTRÄT</small>
+            </>
+          )}
+        </div>
+        <div className="character-hero-copy">
+          <p className="eyebrow">{String(i.clan || "CHARAKTER")}</p>
+          <h2>{String(i.name || active.title)}</h2>
+          <p className="character-motto">
+            {String(i.concept || "Keine Charakteraussage hinterlegt.")}
+          </p>
+          <dl className={`character-identity ${studio.identityGrid}`}>
+            {identityFields.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd>{String(value ?? "Nicht angegeben")}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        {typeof i.clan==="string"&&i.clan.trim()&&<div className={studio.clanBanner} aria-label={"Clan "+i.clan}>{clanSymbolFor(i.clan.trim())&&<img src={clanSymbolFor(i.clan.trim())!} alt="" aria-hidden="true" width={48} height={48}/>}<span>{i.clan}</span></div>}
+      </header>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
         {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},...(!inspection&&!archived?[{id:"presentation",label:"Charakterprofil"}]:[]),{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>

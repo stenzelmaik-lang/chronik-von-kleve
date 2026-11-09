@@ -33,7 +33,7 @@ export function CharacterSheet({ identity, sheet, progression, layout, section, 
   const wp = v.willpower, bl = v.blood;
   return <article className={`${styles.sheet} ${layout === "wide" ? styles.wide : styles.narrow}`} aria-label="Charakterbogen">
     <span className={styles.corners} aria-hidden="true" />
-    {!section && <header className={styles.masthead}><p>V20 · Charakterbogen</p><h2>{String(identity.name || "Charakter")}</h2></header>}
+    {!section && withIdentity && <header className={styles.masthead}><p>V20 · Charakterbogen</p><h2>{String(identity.name || "Charakter")}</h2></header>}
     {show("identity") && withIdentity && <dl className={styles.header}>{v.header.map(([k, value]) => <div key={k}><dt>{k}</dt><dd>{value}</dd></div>)}</dl>}
 
     {show("attributes") && <section className={styles.block} aria-labelledby="cs-attributes"><h3 id="cs-attributes">Attribute</h3>

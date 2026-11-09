@@ -150,3 +150,27 @@ Kein Push, kein Deployment, keine Migration, keine Datenänderung. Keine geände
 - „Aktive / Archivierte Charaktere“ neu gestalten;
 - Charakterprofil optisch angleichen;
 - die Bearbeitungsmaske entschlacken.
+
+## Zweite Nachbesserung (09.11.2026)
+
+**Wunsch des Besitzers:**
+- Die Menüführung soll nach oben und schön gestaltet sein.
+- „Aktive / Archivierte Charaktere“ soll dort aufgehen.
+- Der Kopf mit dem Clan-Banner soll als eigener Block im Bogenstil über dem Bogen stehen.
+- Die Bogen-Überschrift „V20 · Charakterbogen / Name“ soll wegfallen, weil der Name schon im Kopf steht.
+
+**Umgesetzt:**
+- **Menüleiste ganz oben** über dem Charakterkopf, auf der Rahmenebene:
+  - Umschalter „Aktive / Archiviert (n)“, ersetzt die beiden großen Knöpfe darüber;
+  - Ausrüstung & Inventar, Bogen bearbeiten (sofern berechtigt), Charakter archivieren, Weitere Aktionen, Charakterwahl;
+  - sichtbarer Fokusring.
+
+  Alle Ziele bleiben erreichbar. Im leeren Zustand (kein Charakter) steht der bisherige Umschalter weiter da.
+- **Charakterkopf als Block im Bogenstil:** Doppelrahmen, Eckornamente, Spectral-Titel, Feldnamen in Gold-Versalien, Clan-Banner hängt vom oberen Rand.
+- **Bogen-Überschrift** in der Spielerzentrale entfernt.
+
+**Bild:** ![](../design/4b/nachbesserung2-1280-menue-kopf-bogen.jpg)
+
+**Prüfungen:**
+- typecheck, ESLint und Build ohne Fehler, `pnpm test` 403/403, Browser bei 1280 px.
+- **Nicht geprüft:** 375 px, die Integrationsprüfung (nur Oberfläche geändert) und der leere Zustand im Browser.
