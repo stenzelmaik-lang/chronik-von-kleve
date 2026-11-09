@@ -79,3 +79,17 @@
 @media(max-width:600px) { .galleryGrid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 
 .galleryGrid { max-height:none; overflow:visible; }
+
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.blockControl select { min-height: 31px; padding: 0 8px; border: 1px solid rgba(205,166,107,.2); color: #e4dac8; background: #151d1f; font-size: 11px; }
+.toolbar > .colorControl { margin-left: 0; gap: 4px; }
+.swatch { width: 22px; height: 22px; padding: 0; border: 1px solid rgba(255,255,255,.35); border-radius: 50%; cursor: pointer; }
+.swatch:hover, .swatch:focus-visible { outline: 2px solid #d6b36f; outline-offset: 1px; }
+.wheel { position: relative; display: inline-grid; width: 26px; height: 26px; border-radius: 50%; overflow: hidden; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); border: 1px solid rgba(255,255,255,.35); cursor: pointer; }
+.wheel input { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); opacity: 0; cursor: pointer; }
+.wheel:focus-within { outline: 2px solid #d6b36f; outline-offset: 1px; }
+.content :global(.cp-subtitle), .editable :global(.cp-subtitle) { color: #b8c9ce; font-size: 1.05em; font-style: italic; letter-spacing: .02em; }
+.content :global(.cp-align-center), .editable :global(.cp-align-center) { text-align: center; }
+.content :global(.cp-align-right), .editable :global(.cp-align-right) { text-align: right; }
+.content blockquote, .editable blockquote { margin: .6em 0; padding: .2em 0 .2em 1em; border-left: 2px solid #c6a36c; color: #d8d0c1; font-style: italic; }
+.content hr, .editable hr { border: 0; border-top: 1px solid rgba(205,166,107,.35); margin: 1em 0; }

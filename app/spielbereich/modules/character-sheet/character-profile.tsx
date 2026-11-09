@@ -128,6 +128,7 @@ export function CharacterProfileEditor({ id, version, profile: storedProfile, ca
 
     <section className={sheet.block} aria-labelledby="cp-connections">
       <h3 id="cp-connections">Bekannte Verbindungen</h3>
+      <p className={styles.note}>Verbindungen zu NSCs und zu anderen Charakteren vergibt die SL. Eine Anfrage dafür stellst du später direkt hier.</p>
       <div className={styles.slot}>{connections}</div>
     </section>
 

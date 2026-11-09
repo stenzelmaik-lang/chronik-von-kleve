@@ -252,3 +252,13 @@ Geschichte und Spielhilfe bleiben, wo sie gespeichert waren (`text`, `playGuide`
 - Tisch: Kopfbild = freigegebenes Porträt, Bildstreifen = übrige freigegebene Bilder. Nicht freigegebene Bilder liefert der Tisch nicht aus (404).
 - Neue Bilder müssen eigene Uploads sein; bereits verknüpfte bleiben gültig, auch wenn die SL bearbeitet.
 - Nachweise: Typecheck sauber, `pnpm test` 406/406, Build grün, `tests/character-profile-integration.mjs` 24/24 in zwei Durchläufen hintereinander (Aufräumen geprüft, synthetische Bilder gelöscht), Sichtprüfung im Browser. `.local-test/ge-01` danach gelöscht.
+
+## Nachtrag 09.11.: Editor, Tisch-Galerie, Verbindungen
+
+- Texteditor (gilt überall, wo der normale Editor genutzt wird): Zeile „Link zur Auswahl“ entfernt (bleibt nur in den SL-Editoren mit erweiterten Werkzeugen). Neue Leiste: Rückgängig/Wiederholen, Absatzformat (Normaler Text, Große Überschrift, Kleine Überschrift, Untertitel, Zitat), Fett/Kursiv/Unterstrichen/Durchgestrichen, Ausrichtung links/zentriert/rechts, Aufzählung, nummerierte Liste, Trennlinie, vier Kampagnenfarben als Punkte plus Farbrad für jede freie Farbe, „Formatierung entfernen“.
+- Datenmodell: Farbe jetzt jede `#rrggbb` (sonst abgelehnt), neue Markierung `strike`, neue Klassen `cp-subtitle`, `cp-align-center`, `cp-align-right`. Bestehende Texte bleiben gültig. Tests: `tests/rich-text-editor-tools.test.mjs` (in `pnpm test`).
+- Spieltisch: neuer Eintrag „Galerie“ im Teilnehmermenü (für alle). Zeigt Porträt und alle freigegebenen Bilder mit Vorschaureihe, Blättern und Vollbild. Private Bilder erscheinen nicht.
+- Tischprofil: Überschriften heißen jetzt „Hintergrundgeschichte“ und „So spiele ich ihn“ wie im Bogen.
+- Bekannte Verbindungen (Vorgabe des Besitzers): NSC-Verbindungen und Beziehungen zu anderen Spielercharakteren vergibt die SL. Der Spieler stellt eine Anfrage, die SL prüft und verknüpft. Die Anfrage-Funktion ist noch nicht gebaut; im Profil steht ein Hinweis.
+- Nachweise: Typecheck sauber, `pnpm test` 408/408, Build grün, Profil-Integration 24/24, Browser: Überschrift, Untertitel, Zentrieren, Kampagnenfarbe und freie Farbe gesetzt, gespeichert und vom Server korrekt zurückgelesen; Tisch-Galerie als Spieler A geöffnet (2 freigegebene Bilder, privates fehlt). `.local-test/ge-01` gelöscht.
+- Bekannter Altfehler unverändert: `tests/location-area-rich-text.test.mjs` scheitert an ERR_MODULE_NOT_FOUND (Ortsdossier).

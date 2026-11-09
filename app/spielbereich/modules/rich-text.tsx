@@ -17,6 +17,9 @@ import {
 import { ProtectedImageGallery } from "./protected-image-gallery";
 import styles from "./rich-text.module.css";
 
+type BlockKind = "paragraph" | "heading2" | "heading3" | "subtitle" | "quote";
+const colorNames: Record<string, string> = { "#d6b36f": "Gold", "#eee6d6": "Elfenbein", "#a9c3cf": "Nebelblau", "#d38b82": "Rostrot" };
+
 function safeHref(value: string) {
   if (/^\/(?:sl\/command-center|spielbereich)(?:\?|$)/.test(value) && !value.includes("\\")) return value;
   try {
@@ -39,6 +42,7 @@ function inlineElements(parts: RichTextInline[], keyPrefix: string, flowing = fa
     if (part.bold) node = <strong>{node}</strong>;
     if (part.italic) node = <em>{node}</em>;
     if (part.underline) node = <u>{node}</u>;
+    if (part.strike) node = <s>{node}</s>;
     if (part.color) node = <span style={{ color: part.color }}>{node}</span>;
     if (part.className) node = <span className={part.className}>{node}</span>;
     if (part.href) { const href = safeHref(part.href); if (href) node = <a href={href} target="_blank" rel="noopener noreferrer">{node}</a>; }
@@ -162,6 +166,38 @@ export function RichTextEditor({
     commit();
   }
 
+  function keepSelection() {
+    const selection = window.getSelection();
+    if (selection?.rangeCount && editorRef.current?.contains(selection.anchorNode)) savedRange.current = selection.getRangeAt(0).cloneRange();
+  }
+
+  /** Blocks touched by the current selection (paragraphs, headings, quotes, lists). */
+  function selectedBlocks(): HTMLElement[] {
+    const editor = editorRef.current, selection = window.getSelection();
+    const range = savedRange.current || (selection?.rangeCount ? selection.getRangeAt(0) : null);
+    if (!editor || !range) return [];
+    const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
+    const blocks = Array.from(editor.querySelectorAll<HTMLElement>("p,h2,h3,blockquote,ul,ol,div")).filter(el => el !== editor && range.intersectsNode(el));
+    const own = start?.closest<HTMLElement>("p,h2,h3,blockquote,ul,ol,div");
+    if (own && own !== editor && editor.contains(own) && !blocks.includes(own)) blocks.push(own);
+    return blocks;
+  }
+
+  function blockFormat(kind: BlockKind) {
+    if (disabled || !kind) return;
+    command("formatBlock", kind === "heading2" ? "<h2>" : kind === "heading3" ? "<h3>" : kind === "quote" ? "<blockquote>" : "<p>");
+    for (const block of selectedBlocks()) block.classList.toggle("cp-subtitle", kind === "subtitle");
+    lastEditorHtml.current = ""; commit();
+  }
+
+  function align(side: "left" | "center" | "right") {
+    if (disabled) return;
+    // Loose text directly in the editor (first line of an empty editor) becomes a paragraph first.
+    if (!selectedBlocks().length) { command("formatBlock", "<p>"); keepSelection(); }
+    for (const block of selectedBlocks()) { block.classList.toggle("cp-align-center", side === "center"); block.classList.toggle("cp-align-right", side === "right"); if (!block.classList.length) block.removeAttribute("class"); }
+    savedRange.current = null; lastEditorHtml.current = ""; commit();
+  }
+
   function tableEdit(action:'row'|'column'|'removeRow'|'removeColumn'|'header') {
     const editor=editorRef.current;if(disabled||!editor)return;
     const selection=window.getSelection(),range=savedRange.current||(selection?.rangeCount?selection.getRangeAt(0):null),element=range?.startContainer instanceof Element?range.startContainer:range?.startContainer.parentElement;
@@ -212,7 +248,7 @@ export function RichTextEditor({
   }
   return <div className={`${styles.editor} ${htmlSource?styles.sourceEditor:''} ${preparationTools?styles.preparationEditor:''}`}>
     {htmlSource&&!preparationTools&&<strong className={styles.editorLabel}>{label}</strong>}
-    {compactTools&&!preparationTools&&<div className={styles.toolbar}><button type="button" aria-expanded={linkOpen} onMouseDown={preserveSelection} onClick={()=>setLinkOpen(!linkOpen)}>Link</button>{advanced&&<button type="button" aria-expanded={imageOpen} onMouseDown={preserveSelection} onClick={()=>setImageOpen(!imageOpen)}>Bild</button>}<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button></div>}
+    {compactTools&&!preparationTools&&<div className={styles.toolbar}>{advanced&&<button type="button" aria-expanded={linkOpen} onMouseDown={preserveSelection} onClick={()=>setLinkOpen(!linkOpen)}>Link</button>}{advanced&&<button type="button" aria-expanded={imageOpen} onMouseDown={preserveSelection} onClick={()=>setImageOpen(!imageOpen)}>Bild</button>}<button type="button" aria-expanded={extraTools} onClick={()=>setExtraTools(!extraTools)}>Weitere Formatierung</button></div>}
     {(htmlSource||advanced&&extraTools)&&<div className={styles.toolbar} aria-label={`${label} Ansicht`}>
       {!sourceOnly&&<button type="button" aria-pressed={!htmlMode&&!preview} disabled={htmlMode&&!!htmlError} onClick={()=>{setPreview(false);setHtmlMode(false);}}>Visuell</button>}
       <button type="button" aria-pressed={htmlMode&&!preview} onClick={()=>{if(!htmlMode)setHtmlDraft(value.startsWith(richHtmlPrefix)?value.slice(richHtmlPrefix.length):richTextToHtml(value));setPreview(false);setHtmlMode(true);}}>{htmlSource?'HTML-Quelltext':'HTML · Expertenansicht'}</button>
@@ -225,20 +261,33 @@ export function RichTextEditor({
       {sourceOnly?<p className={styles.sourceHelp} id={helpId}>HTML für Absätze, Überschriften, Listen und Tabellen. Die Vorschau veröffentlicht nichts.</p>:htmlSource&&!preparationTools&&<p className={styles.sourceHelp} id={helpId}>Erlaubt: Überschriften, Absätze, Hervorhebungen, Listen, Zitate, Links, Trennlinien, Tabellen mit Kopfzeilen und aufklappbare Abschnitte. Klassen: <code>cp-intro</code>, <code>cp-highlight</code>, <code>cp-note</code>, <code>cp-divider</code>. Beispiel: <code>{'<p class="cp-intro">Ein erster Eindruck.</p>'}</code></p>}
     </>:<>
     <div className={styles.toolbar} role="toolbar" aria-label={`${label} formatieren`}>
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h2>")} aria-label="Überschrift groß">H2</button>
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("formatBlock", "<h3>")} aria-label="Überschrift klein">H3</button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("undo")} aria-label="Rückgängig" title="Rückgängig">↶</button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("redo")} aria-label="Wiederholen" title="Wiederholen">↷</button>
       <span aria-hidden="true" />
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("bold")} aria-label="Fett formatieren"><strong>B</strong></button>
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("italic")} aria-label="Kursiv formatieren"><em>I</em></button>
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("underline")} aria-label="Unterstreichen"><u>U</u></button>
+      <label className={styles.blockControl}><span className={styles.srOnly}>Absatzformat</span><select aria-label="Absatzformat" value="" onMouseDown={keepSelection} onChange={event => { blockFormat(event.target.value as BlockKind); event.target.value = ""; }}><option value="" disabled>Absatzformat …</option><option value="paragraph">Normaler Text</option><option value="heading2">Große Überschrift</option><option value="heading3">Kleine Überschrift</option><option value="subtitle">Untertitel</option><option value="quote">Zitat</option></select></label>
       <span aria-hidden="true" />
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertUnorderedList")} aria-label="Aufzählung einfügen">• Liste</button>
-      <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertOrderedList")} aria-label="Nummerierte Liste einfügen">1. Liste</button>
-      {((htmlSource&&!preparationTools)||advanced&&extraTools)&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('formatBlock','<blockquote>')}>Zitat</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHorizontalRule')}>Trennlinie</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><th>Spalte 1</th><th>Spalte 2</th></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<details><summary>Weiterlesen</summary><p>Beschreibung</p></details><p><br></p>')}>Aufklappbarer Abschnitt</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<p class="cp-note">Hinweis</p>')}>Hinweiskasten</button></>}
-      <label className={styles.colorControl}><span>Textfarbe</span><select aria-label="Textfarbe" defaultValue="#d6b36f" onMouseDown={()=>{const selection=window.getSelection();if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange();}} onChange={event => command("foreColor", event.target.value)}>{richTextColors.map(color => <option key={color} value={color}>{color === "#d6b36f" ? "Gold" : color === "#eee6d6" ? "Elfenbein" : color === "#a9c3cf" ? "Nebelblau" : "Rostrot"}</option>)}</select></label>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("bold")} aria-label="Fett" title="Fett"><strong>F</strong></button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("italic")} aria-label="Kursiv" title="Kursiv"><em>K</em></button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("underline")} aria-label="Unterstrichen" title="Unterstrichen"><u>U</u></button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("strikeThrough")} aria-label="Durchgestrichen" title="Durchgestrichen"><s>S</s></button>
+      <span aria-hidden="true" />
+      <button type="button" onMouseDown={preserveSelection} onClick={() => align("left")} aria-label="Linksbündig" title="Linksbündig">⯇</button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => align("center")} aria-label="Zentriert" title="Zentriert">≡</button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => align("right")} aria-label="Rechtsbündig" title="Rechtsbündig">⯈</button>
+      <span aria-hidden="true" />
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertUnorderedList")} aria-label="Aufzählung" title="Aufzählung">• Liste</button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertOrderedList")} aria-label="Nummerierte Liste" title="Nummerierte Liste">1. Liste</button>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("insertHorizontalRule")} aria-label="Trennlinie" title="Trennlinie">―</button>
+      {((htmlSource&&!preparationTools)||advanced&&extraTools)&&<><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<table><tbody><tr><th>Spalte 1</th><th>Spalte 2</th></tr><tr><td>Inhalt</td><td>Inhalt</td></tr></tbody></table><p><br></p>')}>Tabelle</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<details><summary>Weiterlesen</summary><p>Beschreibung</p></details><p><br></p>')}>Aufklappbarer Abschnitt</button><button type="button" onMouseDown={preserveSelection} onClick={()=>command('insertHTML','<p class="cp-note">Hinweis</p>')}>Hinweiskasten</button></>}
+      <span aria-hidden="true" />
+      <div className={styles.colorControl} role="group" aria-label="Textfarbe">
+        {richTextColors.map(color => <button type="button" key={color} className={styles.swatch} style={{ background: color }} onMouseDown={preserveSelection} onClick={() => command("foreColor", color)} aria-label={"Textfarbe " + colorNames[color]} title={colorNames[color]} />)}
+        <label className={styles.wheel} title="Eigene Farbe wählen"><span className={styles.srOnly}>Eigene Textfarbe</span><input type="color" aria-label="Eigene Textfarbe" defaultValue="#d6b36f" onMouseDown={keepSelection} onFocus={keepSelection} onChange={event => command("foreColor", event.target.value)} /></label>
+      </div>
+      <button type="button" onMouseDown={preserveSelection} onClick={() => command("removeFormat")} aria-label="Formatierung entfernen" title="Formatierung entfernen">⌫ Format</button>
     </div>
     {htmlSource&&(!preparationTools||extraTools)&&!htmlMode&&!preview&&<div className={styles.toolbar} aria-label="Tabelle bearbeiten">{([['row','Zeile +'],['column','Spalte +'],['removeRow','Zeile entfernen'],['removeColumn','Spalte entfernen'],['header','Kopfzeile']] as const).map(([action,title])=><button type="button" key={action} onMouseDown={preserveSelection} onClick={()=>tableEdit(action)}>{title}</button>)}</div>}
-    {!preparationTools&&!sourceOnly&&linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
+    {!preparationTools&&!sourceOnly&&advanced&&linkOpen&&<div className={styles.linkRow}><label><span>Link zur Auswahl</span><input type="text" value={link} onChange={event => setLink(event.target.value)} onMouseDown={() => { const selection = window.getSelection(); if(selection?.rangeCount&&editorRef.current?.contains(selection.anchorNode))savedRange.current=selection.getRangeAt(0).cloneRange(); }} placeholder={advanced?"https://… oder /sl/command-center?story=…":"https://…"}/></label><button type="button" onMouseDown={preserveSelection} onClick={insertLink}>Link setzen</button></div>}
     {!preparationTools&&advanced&&imageOpen&&<div className={styles.linkRow}><label>Geschütztes Bild<input aria-label={label+' Bilder suchen'} placeholder="Dateiname oder ID …" value={imageSearch} onChange={e=>setImageSearch(e.target.value)}/><select aria-label={label+' Bild'} value={imageId} onChange={e=>setImageId(e.target.value)}><option value="">Vorhandenes Bild auswählen</option>{files.filter(f=>f.mime.startsWith('image/')&&(f.name+' '+f.id).toLowerCase().includes(imageSearch.toLowerCase())).map(f=><option key={f.id} value={f.id}>{f.name} · {f.id}{f.visibility ? ` · Dateiregel: ${f.visibility==='group'?'Gruppe':f.visibility==='sl'?'SL':'Eigentümer'}` : ''}</option>)}</select></label><button type="button" disabled={!imageId} onMouseDown={preserveSelection} onClick={()=>{command('insertHTML','<img src="/api/files?id='+imageId.replace(/[^a-zA-Z0-9_.-]/g,'')+'" alt="SL-Unterlage"><p><br></p>');setImageId('');}}>Bild einfügen</button></div>}
     {!preparationTools&&advanced&&imageOpen&&imageId&&<figure><img src={'/api/files?id='+encodeURIComponent(imageId)} alt="Vorschau des ausgewählten geschützten Bildes" style={{maxWidth:180,maxHeight:140,objectFit:'contain'}}/><figcaption>Geschützter Dateispeicher · Dateiregel: {files.find(file=>file.id===imageId)?.visibility==='group'?'Gruppe':files.find(file=>file.id===imageId)?.visibility==='sl'?'SL':files.find(file=>file.id===imageId)?.visibility==='private'?'Eigentümer':'nicht angegeben'}. Auswahl veröffentlicht nichts; der Server prüft den tatsächlichen Zugriff.</figcaption></figure>}
     <div
@@ -258,7 +307,7 @@ export function RichTextEditor({
       onMouseUp={() => { const editor=editorRef.current;if(editor){savedRange.current=window.getSelection()?.rangeCount?window.getSelection()!.getRangeAt(0).cloneRange():null;} }}
     />
     </>}{htmlError&&<p role="alert">{htmlError}</p>}
-    <div className={styles.editorFooter}><span role={limitExceeded?"alert":undefined}>{limitExceeded?`Text zu lang: kürze auf höchstens ${maximumPlainLength} Zeichen, bevor du speicherst.`:htmlSource?"Gezählt wird nur sichtbarer Text. HTML wird sicher aufbereitet; die bestehende Freigabe bleibt unverändert.":advanced?"HTML wird als sichere Dokumentstruktur gespeichert; Scripts und externe Einbettungen entfallen.":"Überschriften, Listen, Hervorhebungen, Links und Kampagnenfarben."}</span><small data-over-limit={limitExceeded}>{plainLength}/{maximumPlainLength}</small></div>
+    <div className={styles.editorFooter}><span role={limitExceeded?"alert":undefined}>{limitExceeded?`Text zu lang: kürze auf höchstens ${maximumPlainLength} Zeichen, bevor du speicherst.`:htmlSource?"Gezählt wird nur sichtbarer Text. HTML wird sicher aufbereitet; die bestehende Freigabe bleibt unverändert.":advanced?"HTML wird als sichere Dokumentstruktur gespeichert; Scripts und externe Einbettungen entfallen.":"Überschriften, Untertitel, Listen, Zitate, Ausrichtung und freie Farben."}</span><small data-over-limit={limitExceeded}>{plainLength}/{maximumPlainLength}</small></div>
   </div>;
 }
 

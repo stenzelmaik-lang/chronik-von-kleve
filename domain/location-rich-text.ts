@@ -2,10 +2,12 @@ import { parseFragment } from 'parse5';
 import { authoringSourceMax } from './authoring-limits.ts';
 export const richTextPrefix = "cvk-rich-v1:";
 
+/** Campaign presets offered first in the colour menu; any other #rrggbb colour from the colour wheel is allowed too. */
 export const richTextColors = ["#d6b36f", "#eee6d6", "#a9c3cf", "#d38b82"] as const;
-export type RichTextColor = (typeof richTextColors)[number];
+export type RichTextColor = string;
+export const isRichTextColor = (value: unknown): value is RichTextColor => typeof value === "string" && /^#[0-9a-f]{6}$/.test(value);
 
-export const richTextClasses = ["cp-intro", "cp-highlight", "cp-note", "cp-divider"] as const;
+export const richTextClasses = ["cp-intro", "cp-highlight", "cp-note", "cp-divider", "cp-subtitle", "cp-align-center", "cp-align-right"] as const;
 
 function allowedClasses(value: unknown): string | undefined {
   if (typeof value !== "string" || value.length > 200) return undefined;
@@ -18,6 +20,7 @@ export type RichTextInline = {
   bold?: true;
   italic?: true;
   underline?: true;
+  strike?: true;
   color?: RichTextColor;
   href?: string;
   className?: string;
@@ -52,10 +55,10 @@ const safeHref = (value: unknown): string | undefined => {
 function parseInline(value: unknown): RichTextInline | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
-  if (Object.keys(row).some(key => !["text", "bold", "italic", "underline", "color", "href", "className"].includes(key))) return null;
+  if (Object.keys(row).some(key => !["text", "bold", "italic", "underline", "strike", "color", "href", "className"].includes(key))) return null;
   if (typeof row.text !== "string" || row.text.length > 25000) return null;
-  if (row.bold !== undefined && row.bold !== true || row.italic !== undefined && row.italic !== true || row.underline !== undefined && row.underline !== true) return null;
-  if (row.color !== undefined && !richTextColors.includes(row.color as RichTextColor)) return null;
+  if (row.bold !== undefined && row.bold !== true || row.italic !== undefined && row.italic !== true || row.underline !== undefined && row.underline !== true || row.strike !== undefined && row.strike !== true) return null;
+  if (row.color !== undefined && !isRichTextColor(row.color)) return null;
   const href = row.href === undefined ? undefined : safeHref(row.href);
   if (row.href !== undefined && !href) return null;
   const className = allowedClasses(row.className);
@@ -65,6 +68,7 @@ function parseInline(value: unknown): RichTextInline | null {
     ...(row.bold ? { bold: true as const } : {}),
     ...(row.italic ? { italic: true as const } : {}),
     ...(row.underline ? { underline: true as const } : {}),
+    ...(row.strike ? { strike: true as const } : {}),
     ...(row.color ? { color: row.color as RichTextColor } : {}),
     ...(href ? { href } : {}),
     ...(className ? { className } : {}),
@@ -237,12 +241,12 @@ export function htmlToRichText(html:string):string {
     if(++visited>5000||depth>40)throw new Error('HTML zu komplex.');
     if(n.nodeName==='#text')return [{text:n.value||'',...marks}];
     const tag=n.tagName||'';if(forbidden.has(tag))return [];
-    const m={...marks};if(['b','strong'].includes(tag))m.bold=true;if(['i','em'].includes(tag))m.italic=true;if(tag==='u')m.underline=true;
+    const m={...marks};if(['b','strong'].includes(tag))m.bold=true;if(['i','em'].includes(tag))m.italic=true;if(tag==='u')m.underline=true;if(['s','strike','del'].includes(tag))m.strike=true;
     if(tag==='span'){
       const className=allowedClasses([marks.className,n.attrs?.find(a=>a.name==='class')?.value].filter(Boolean).join(' '));
       if(className)m.className=className;
     }
-    const color=n.attrs?.find(a=>a.name==='style')?.value.match(/(?:^|;)\s*color\s*:\s*(#[a-f0-9]{6}|rgb\([^)]*\))/i)?.[1]?.toLowerCase()||n.attrs?.find(a=>a.name==='color')?.value.toLowerCase();const rgb=color?.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);const normalized=rgb?'#'+rgb.slice(1).map(v=>Number(v).toString(16).padStart(2,'0')).join(''):color;if(normalized&&richTextColors.includes(normalized as RichTextColor))m.color=normalized as RichTextColor;
+    const color=n.attrs?.find(a=>a.name==='style')?.value.match(/(?:^|;)\s*color\s*:\s*(#[a-f0-9]{6}|rgb\([^)]*\))/i)?.[1]?.toLowerCase()||n.attrs?.find(a=>a.name==='color')?.value.toLowerCase();const rgb=color?.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);const normalized=rgb?'#'+rgb.slice(1).map(v=>Number(v).toString(16).padStart(2,'0')).join(''):color;if(isRichTextColor(normalized))m.color=normalized;
     if(tag==='a'){const href=safeHref(n.attrs?.find(a=>a.name==='href')?.value);if(href)m.href=href;}
     if(tag==='br')return [{text:'\n',...m}];
     const children:RichTextInline[]=[];
@@ -286,7 +290,7 @@ export function htmlToRichText(html:string):string {
       blocks.push({type:tag==='blockquote'?'quote':['h1','h2'].includes(tag)?'heading2':['h3','h4'].includes(tag)?'heading3':'paragraph',children:(n.childNodes?.length===1&&n.childNodes[0].tagName==='br')?[]:inline(n),...decoration});
       (n.childNodes||[]).filter(c=>c.tagName==='img'||c.tagName==='hr').forEach(c=>walk(c,depth+1));return;
     }
-    if(['span','a','b','strong','i','em','u','font'].includes(tag)){blocks.push({type:'paragraph',children:(n.childNodes?.length===1&&n.childNodes[0].tagName==='br')?[]:inline(n)});return;}
+    if(['span','a','b','strong','i','em','u','s','strike','del','font'].includes(tag)){blocks.push({type:'paragraph',children:(n.childNodes?.length===1&&n.childNodes[0].tagName==='br')?[]:inline(n)});return;}
     if(n.nodeName==='#text'){if(n.value?.trim())blocks.push({type:'paragraph',children:[{text:n.value}]});return;}
     (n.childNodes||[]).forEach(c=>walk(c,depth+1));
   };
@@ -309,7 +313,7 @@ export function richTextToHtml(value:string,flowing=false):string {
   const classes=(value:unknown)=>{const safe=allowedClasses(value);return safe?' class="'+safe+'"':'';};
   // Keep separately recorded hard breaks separate on export/reimport, even
   // when the following text starts with spaces. Other source whitespace stays literal.
-  const parts=(v:RichTextInline[])=>(flowing?proseInlineParts(v):v).map(p=>{let t=/^(?:\r?\n)+$/.test(p.text)?p.text.replace(/\r?\n/g,'<br>'):escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.className)t='<span'+classes(p.className)+'>'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
+  const parts=(v:RichTextInline[])=>(flowing?proseInlineParts(v):v).map(p=>{let t=/^(?:\r?\n)+$/.test(p.text)?p.text.replace(/\r?\n/g,'<br>'):escapeHtml(p.text);if(p.bold)t='<strong>'+t+'</strong>';if(p.italic)t='<em>'+t+'</em>';if(p.underline)t='<u>'+t+'</u>';if(p.strike)t='<s>'+t+'</s>';if(p.color)t='<span style="color:'+p.color+'">'+t+'</span>';if(p.className)t='<span'+classes(p.className)+'>'+t+'</span>';if(p.href)t='<a href="'+escapeHtml(p.href)+'">'+t+'</a>';return t;}).join('');
   return readRichText(value).blocks.map(b=>{
     const decoration=classes(b.className);
     if(b.type==='divider')return '<hr'+decoration+'>';

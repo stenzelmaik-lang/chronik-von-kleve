@@ -12,20 +12,26 @@ const Inventory=lazy(()=>import('../inventory').then(m=>({default:m.InventoryPan
 const Messages=lazy(()=>import('../message-center').then(m=>({default:m.MessageCenter})));
 const Notebook=lazy(()=>import('../notebook/notebook').then(m=>({default:m.Notebook})));
 type Data={member?:{id:string;name:string;avatar:string|null;presentation?:{pronouns?:string;banner?:string;introduction?:string;playStyles?:string[]}|null};own?:boolean;characters:{id:string;name:string}[];character?:{id:string;name:string;portrait:string|null;profile?:SharedProfile;descriptions:{kind:string;content:string}[];tagline?:string;introduction?:string;gallery?:{url:string;caption?:string}[]}|null;selectedCharacter?:string|null;projection?:CharacterDetailProjection};
-export type ParticipantAction='profile'|'sheet'|'inventory'|'messages'|'notebook';
+export type ParticipantAction='profile'|'gallery'|'sheet'|'inventory'|'messages'|'notebook';
 export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessionId:string;memberId:string;action:ParticipantAction}){
  const [data,setData]=useState<Data|null>(null),[characterId,setCharacterId]=useState<string|null>(null),[tab,setTab]=useState<'human'|'character'>('character'),[error,setError]=useState(''),[reload,setReload]=useState(0);
  const select=useCallback((id:string|null)=>setCharacterId(id),[]);
  useEffect(()=>{
   if(action==='messages'||action==='notebook')return;let active=true;queueMicrotask(()=>{if(active){setData(null);setError('');}});
-  const path='/api/live-participants?sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId)+'&view='+action+(characterId?'&characterId='+encodeURIComponent(characterId):'');
+  const path='/api/live-participants?sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId)+'&view='+(action==='gallery'?'profile':action)+(characterId?'&characterId='+encodeURIComponent(characterId):'');
   api<Data>(path).then(next=>{if(active)setData(next);}).catch(e=>{if(active){setData(null);setError(e.message);}});return()=>{active=false;};
  },[action,memberId,sessionId,characterId,reload]);
  if(action==='notebook')return <Suspense fallback={<p role="status">Notizbuch wird geladen …</p>}><Notebook a={a} layout="narrow" memberId={memberId}/></Suspense>;
  if(action==='messages')return <Suspense fallback={<p role="status">Nachrichten werden geladen …</p>}><Messages a={a} embedded initialRecipient={memberId===a.id?undefined:memberId}/></Suspense>;
  if(error)return <div role="alert"><p>{error}</p><button onClick={()=>setReload(n=>n+1)}>Erneut laden</button></div>;
  if(!data)return <p role="status">Ansicht wird geladen …</p>;
- const characterSelector=(data.characters.length>1||action==='profile'&&!data.selectedCharacter&&data.characters.length>0)&&<label className={styles.characterChoice}>Charakter<select aria-label="Charakter dieses Teilnehmers" value={characterId||data.selectedCharacter||''} onChange={e=>setCharacterId(e.target.value)}>{!data.selectedCharacter&&!characterId&&<option value="">Figur auswählen</option>}{data.characters.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>;
+ const characterSelector=(data.characters.length>1||(action==='profile'||action==='gallery')&&!data.selectedCharacter&&data.characters.length>0)&&<label className={styles.characterChoice}>Charakter<select aria-label="Charakter dieses Teilnehmers" value={characterId||data.selectedCharacter||''} onChange={e=>setCharacterId(e.target.value)}>{!data.selectedCharacter&&!characterId&&<option value="">Figur auswählen</option>}{data.characters.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>;
+ if(action==='gallery'){
+  // The character gallery at the table: portrait first, then every image the owner shared with the group.
+  const character=data.character;
+  const items=character?[...(character.portrait?[{url:character.portrait,caption:'Porträt'}]:[]),...(character.gallery??[])]:[];
+  return <>{characterSelector}{items.length?<FigureGallery key={character!.id} items={items} title={'Galerie · '+character!.name}/>:<p>Für diese Figur sind noch keine Bilder für die Gruppe freigegeben. Bilder gibst du im Charakterprofil unter „Porträt & Referenzen“ frei.</p>}</>;
+ }
  if(action==='profile'){
   const character=data.character;
   const person=data.member;
@@ -49,8 +55,8 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
      </div>}
      {character.profile?.description&&<div className={styles.figureText}><h4>Beschreibung</h4><dl className={styles.profileFacts}>{character.profile.description.map(row=><div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl></div>}
      {character.profile?.appearance&&<div className={styles.figureText}>{!character.profile.description&&<h4>Beschreibung</h4>}<p className={styles.preserve}>{character.profile.appearance}</p></div>}
-     {character.profile?.story&&<div className={styles.figureText}><h4>Geschichte</h4><RichTextView value={character.profile.story}/></div>}
-     {character.profile?.drive&&<div className={styles.figureText}><h4>Antrieb und Auftreten</h4><RichTextView value={character.profile.drive}/></div>}
+     {character.profile?.story&&<div className={styles.figureText}><h4>Hintergrundgeschichte</h4><RichTextView value={character.profile.story}/></div>}
+     {character.profile?.drive&&<div className={styles.figureText}><h4>So spiele ich ihn</h4><RichTextView value={character.profile.drive}/></div>}
      {character.profile?.allies&&<div className={styles.figureText}><h4>Verbündete & Kontakte</h4><p className={styles.preserve}>{character.profile.allies}</p></div>}
      {!!character.gallery?.length&&<FigureGallery key={character.id} items={character.gallery}/>}
     </section>:<p>Für diesen Teilnehmer ist noch keine Figur freigegeben.</p>}
@@ -75,15 +81,16 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
  </>;
 }
 
-function FigureGallery({items}:{items:NonNullable<NonNullable<Data['character']>['gallery']>}){
+function FigureGallery({items,title='Galerie'}:{items:{url:string;caption?:string}[];title?:string}){
  const [index,setIndex]=useState(0);
  const current=Math.min(index,items.length-1);
  const image=items[current];
  return <section className={styles.figureGallery} aria-label="Figurengalerie">
-  <h4>Galerie</h4>
+  <h4>{title}</h4>
   <figure><a href={image.url} target="_blank" rel="noreferrer" aria-label="Galeriebild in voller Größe öffnen"><img src={image.url} alt={image.caption||'Galeriebild der Figur'}/></a>
    {image.caption&&<figcaption>{image.caption}</figcaption>}
   </figure>
   {items.length>1&&<nav aria-label="Galeriebilder"><button type="button" disabled={current===0} onClick={()=>setIndex(current-1)}>Zurück</button><span aria-live="polite">{current+1} / {items.length}</span><button type="button" disabled={current===items.length-1} onClick={()=>setIndex(current+1)}>Weiter</button></nav>}
+  {items.length>1&&<div className={styles.galleryThumbs} role="group" aria-label="Bild wählen">{items.map((item,i)=><button type="button" key={item.url} aria-pressed={i===current} aria-label={'Bild '+(i+1)+(item.caption?': '+item.caption:'')} onClick={()=>setIndex(i)}><img src={item.url} alt=""/></button>)}</div>}
  </section>;
 }

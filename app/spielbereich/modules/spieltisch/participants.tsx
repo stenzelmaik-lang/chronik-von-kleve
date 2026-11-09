@@ -1,7 +1,7 @@
 'use client';
 /* eslint-disable @next/next/no-img-element -- Existing private participant avatar endpoint. */
 import {lazy,Suspense,useCallback,useEffect,useRef,useState,type ReactNode} from 'react';
-import {UserRound,ScrollText,Backpack,Mail,ChevronUp,Coffee,Armchair,Check,NotebookPen} from 'lucide-react';
+import {UserRound,ScrollText,Backpack,Mail,ChevronUp,Coffee,Armchair,Check,NotebookPen,Images} from 'lucide-react';
 import type {QuickAction} from './vitals';
 import type {Actor} from '@/domain/types';
 import {presenceLabels} from '@/domain/live-participants';
@@ -9,7 +9,7 @@ import type {Snapshot} from './types';
 import type {ParticipantAction} from './participant-content';
 import styles from './participants.module.css';
 const Content=lazy(()=>import('./participant-content').then(m=>({default:m.ParticipantContent})));
-const actions:{id:ParticipantAction;label:string;icon:typeof UserRound}[]=[{id:'profile',label:'Profil',icon:UserRound},{id:'sheet',label:'Charakterbogen',icon:ScrollText},{id:'inventory',label:'Inventar',icon:Backpack},{id:'messages',label:'Nachrichten',icon:Mail},{id:'notebook',label:'Notizbuch (lesen)',icon:NotebookPen}];
+const actions:{id:ParticipantAction;label:string;icon:typeof UserRound}[]=[{id:'profile',label:'Profil',icon:UserRound},{id:'gallery',label:'Galerie',icon:Images},{id:'sheet',label:'Charakterbogen',icon:ScrollText},{id:'inventory',label:'Inventar',icon:Backpack},{id:'messages',label:'Nachrichten',icon:Mail},{id:'notebook',label:'Notizbuch (lesen)',icon:NotebookPen}];
 function Tip({label,children}:{label:string;children:ReactNode}){return <span className={styles.tip}>{children}<span role="tooltip">{label}</span></span>;}
 /** The player's own values in the header menu: one simple choice and one button, nothing more. Rights stay server-side. */
 export type OwnQuick={title:string;actions:QuickAction[];onRun:(command:Record<string,unknown>)=>Promise<boolean>};
