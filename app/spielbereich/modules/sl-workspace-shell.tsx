@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @next/next/no-html-link-for-pages -- Crossing player and SL surfaces deliberately clears client context. */
-import { Clapperboard, Users, MapPin, Play, Images, FolderOpen, Download, UserRoundPlus } from 'lucide-react';
+import {Clapperboard, Users, MapPin, Play, Images, FolderOpen, Download, UserRoundPlus, BookOpen } from 'lucide-react';
 import type { Actor } from '@/domain/types';
 import { Toaster } from '@/components/ui/sonner';
 import {MessageCenter} from './message-center';
@@ -13,6 +13,7 @@ const preparationTools = [
   { name: 'Material', description: 'Dokumente und Unterlagen zum Ausspielen vorbereiten', section: 'vorbereitung', icon: FolderOpen },
   { name: 'NPCs', description: 'Nichtspielercharaktere anlegen, bearbeiten und freigeben', section: 'nscs', icon: UserRoundPlus },
   { name: 'Orte', description: 'Schauplätze, Bereiche und Räume verwalten', section: 'ortscms', icon: MapPin },
+  { name: 'Rückblicke', description: 'Spielabende zusammenfassen und für die Runde freigeben', section: 'rueckblick', icon: BookOpen },
 ];
 
 export function SLWorkspaceShell({a,section,navigate,children,preparationDirty=false}:{a:Actor;section:string;navigate:(id:string)=>void;children:React.ReactNode;preparationDirty?:boolean}) {

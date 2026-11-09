@@ -79,6 +79,7 @@ export const commandCenterLinks: { label: string; href: string; icon: LucideIcon
   { label: "Ortsverwaltung", href: "/sl/command-center?bereich=ortscms", icon: MapPin },
   { label: "Materialvorbereitung", href: "/sl/command-center?bereich=vorbereitung", icon: Library },
   { label: "Galerie (Dateien)", href: "/sl/command-center?bereich=galerie", icon: Images },
+  { label: "Rückblicke", href: "/sl/command-center?bereich=rueckblick", icon: BookOpen },
   { label: "Chronik-CMS", href: "/spielbereich?bereich=cms", icon: LayoutDashboard },
 ];
 

@@ -62,6 +62,7 @@ import { useNavigation } from "./modules/use-navigation";
 import { useWorkspaceData } from "./modules/use-workspace-data";
 import { WorldExperience } from "./modules/world-experience";
 import { PlayerGallery } from "./modules/player-gallery";
+import { RecapDesk } from "./modules/recap-desk";
 import {
   activatePlayerDataScope,
   clearPlayerDataScope,
@@ -269,7 +270,7 @@ export default function Workspace({
   return (
     <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
       {selectionError&&<p className="error-box" role="alert">Charakterwechsel nicht gespeichert: {selectionError}</p>}
-      {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && !(section === "galerie" && surface === "sl") && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
+      {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && !((section === "galerie" || section === "rueckblick") && surface === "sl") && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {surface === "sl" && a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -439,7 +440,7 @@ export default function Workspace({
       ) : section === "dashboard" ? (
         <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "rueckblick" ? (
-        <SessionRecap key={dataScope} dataScope={dataScope}/>
+        surface === "sl" && a.gm ? <RecapDesk key={dataScope}/> : <SessionRecap key={dataScope} dataScope={dataScope}/>
       ) : section === "termine" ? (
         <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope}/>
       ) : section === "chronik" ? (
