@@ -67,9 +67,13 @@ export function CharacterProfileEditor({ id, version, profile: storedProfile, ca
   const p = draft.profile, card = draft.presentation;
   const shared = sharedProfile({ profile: p, text: draft.backgroundStory, playGuide: draft.playGuide });
   const sharedNames = [card.published ? "Auftritt" : "", draft.media.some(m => m.shared) ? "Bilder" : "", shared.description || shared.appearance ? "Beschreibung" : "", shared.story ? "Geschichte" : "", shared.drive ? "So spiele ich ihn" : "", shared.allies ? "Verbündete & Kontakte" : ""].filter(Boolean);
-  const text = (value: string, label: string, onChange: (v: string) => void) => canEdit
-    ? <RichTextEditor value={value} onChange={onChange} label={label} placeholder="Schreib hier …" maximumPlainLength={30000} disabled={busy} />
-    : <RichTextView value={value || "Noch nichts hinterlegt."} />;
+  // Wide editing: write on the left, see the result on the right (stacked on narrow screens).
+  const text = (value: string, label: string, onChange: (v: string) => void, max = 30000) => canEdit
+    ? <div className={styles.split}>
+        <div className={styles.writePane}><RichTextEditor value={value} onChange={onChange} label={label} placeholder="Schreib hier …" maximumPlainLength={max} disabled={busy} /></div>
+        <aside className={styles.previewPane} aria-label={label + " · so sieht es aus"}><span className={styles.previewLabel}>So sieht es aus</span>{value.trim() ? <RichTextView value={value} readable /> : <p className={styles.note}>Noch leer.</p>}</aside>
+      </div>
+    : <RichTextView value={value || "Noch nichts hinterlegt."} readable />;
 
   return <article className={`${sheet.sheet} ${sheet.wide} ${styles.profile}`} aria-label="Charakterprofil">
     <span className={sheet.corners} aria-hidden="true" />
@@ -79,7 +83,7 @@ export function CharacterProfileEditor({ id, version, profile: storedProfile, ca
       <h3 id="cp-card">Auftritt</h3>
       <label className={styles.publish}><input type="checkbox" checked={card.published} disabled={off} onChange={e => set(d => { d.presentation.published = e.target.checked; })} /> Auftritt für die Gruppe sichtbar</label>
       <label className={`${styles.field} ${styles.wideField}`}><span>Kurzzeile</span><input value={card.tagline} maxLength={100} disabled={off} onChange={e => set(d => { d.presentation.tagline = e.target.value; })} /></label>
-      <label className={`${styles.field} ${styles.wideField}`}><span>Vorstellung</span><textarea rows={4} maxLength={1200} value={card.introduction} disabled={off} onChange={e => set(d => { d.presentation.introduction = e.target.value; })} /></label>
+      <div className={`${styles.field} ${styles.wideField}`}><span>Vorstellung</span>{text(card.introduction, "Vorstellung", v => set(d => { d.presentation.introduction = v; }), 1200)}</div>
     </section>
 
     <section className={sheet.block} aria-labelledby="cp-description">
@@ -136,7 +140,7 @@ export function CharacterProfileEditor({ id, version, profile: storedProfile, ca
       <h3 id="cp-preview">So sehen dich die anderen</h3>
       <div className={styles.preview}>
         {card.published && card.tagline && <p className={styles.previewTagline}>{card.tagline}</p>}
-        {card.published && card.introduction && <p>{card.introduction}</p>}
+        {card.published && card.introduction && <RichTextView value={card.introduction} readable />}
         <p className={styles.note}>{sharedNames.length ? "Am Spieltisch sichtbar: " + sharedNames.join(", ") + "." : "Am Spieltisch sieht die Gruppe noch nichts aus deinem Profil."}{dirty ? " Stand nach dem Speichern." : ""}</p>
       </div>
     </section>

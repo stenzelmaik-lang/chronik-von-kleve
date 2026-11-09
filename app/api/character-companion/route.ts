@@ -23,7 +23,8 @@ const profileMedia = z.array(z.object({fileId:id,type:z.enum(['portrait','refere
 const presentation = z.object({
   published: z.boolean(),
   tagline: z.string().trim().max(100),
-  introduction: z.string().trim().max(1200),
+  // Formatted like the other profile texts; 1200 visible characters, formatting is not counted.
+  introduction: z.string().trim().max(65000).refine(v=>isRichTextWithinLimit(v,1200),'Die Vorstellung ist zu lang.'),
   gallery: z.array(z.object({fileId:id,caption:z.string().trim().max(160)}).strict()).max(8)
     .refine(items=>new Set(items.map(item=>item.fileId)).size===items.length),
 }).strict();

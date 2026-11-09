@@ -38,3 +38,10 @@
 .preview p{margin:0;max-width:70ch}
 .gallery figure select{width:100%;min-height:30px;padding:2px 6px;border:var(--cp-hairline) solid var(--cp-line);border-radius:var(--cp-radius);background:var(--cp-surface-2);color:var(--cp-text);font:12px var(--cp-font-text)}
 .gallery figure[data-portrait="true"] img{border-color:var(--cp-gold)}
+
+/* Write left, live result right; one column on narrow screens. */
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--cp-space-5);align-items:start}
+.writePane{min-width:0}
+.previewPane{position:relative;min-width:0;min-height:100%;padding:var(--cp-space-5) var(--cp-space-4) var(--cp-space-4);border:var(--cp-hairline) solid var(--cp-gold-line);border-radius:var(--cp-radius);background:var(--cp-surface-2);color:var(--cp-text);font-family:var(--cp-font-title)}
+.previewLabel{position:absolute;top:-9px;left:12px;padding:0 6px;background:var(--cp-surface-1);color:var(--cp-gold);font:var(--cp-size-xs)/1.4 var(--cp-font-text);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase}
+@media(max-width:900px){.split{grid-template-columns:minmax(0,1fr)}}

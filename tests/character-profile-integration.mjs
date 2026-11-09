@@ -37,6 +37,11 @@ const after=await detail(a),card=(await req(a,'/api/character-companion?id='+enc
 check(String(after.roleplay.backgroundStory).includes(marker+' Geschichte')&&after.roleplay.playGuide===marker+' Spielweise'&&card.tagline===marker+' Zeile','the combined save reads back');
 check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:after.revision.version,profile,presentation:{published:false,tagline:'x',introduction:'',gallery:[{fileId:'fremd',caption:''}]}})).status>=400,'a gallery with a foreign file is refused');
 check((await req(b,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:after.revision.version,profile,backgroundStory:'b'})).status>=400,'Player B cannot overwrite the story through the profile save');
+// The introduction is formatted text now: 1200 visible characters, formatting does not count.
+const rich=t=>'cvk-rich-v1:'+JSON.stringify({version:1,blocks:[{type:'paragraph',children:[{text:t,bold:true,color:'#3fa7ff'}]}]});
+check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:after.revision.version,profile:storyShared,presentation:{published:false,tagline:'',introduction:rich('x'.repeat(1300)),gallery:[]}})).status===400,'an introduction over 1200 visible characters is refused');
+const introSaved=await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:after.revision.version,profile:storyShared,presentation:{published:false,tagline:marker+' Zeile',introduction:rich(marker+' Vorstellung '+'y'.repeat(1100)),gallery:[]}});
+check(introSaved.status===200&&String((await req(a,'/api/character-companion?id='+encodeURIComponent(own.id))).data.presentation.introduction).includes(marker+' Vorstellung'),'a formatted introduction within 1200 visible characters is stored');
 // One image list: portrait and references with caption and sharing per image, saved with the profile.
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jS1cAAAAASUVORK5CYII=','base64');
 async function upload(who,name){const form=new FormData();form.set('file',new Blob([png],{type:'image/png'}),name);form.set('visibility','private');const r=await fetch(base+'/api/files',{method:'POST',headers:{Origin:base,Cookie:who},body:form});assert.equal(r.status,200,'upload '+name);return (await r.json()).id;}

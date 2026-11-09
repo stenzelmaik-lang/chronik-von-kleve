@@ -10,6 +10,7 @@ import { CharacterManagementTools } from "./character-management-tools";
 import { CharacterAdmin, XpSummary } from "./character-admin";
 import { CharacterManagement } from "./character-management";
 import styles from "./character-studio.module.css";
+import sheet from "./character-sheet/character-sheet.module.css";
 
 const stateNames: Record<string, string> = { draft: "In Erschaffung", review: "Bei der Spielleitung", confirmed: "Bestätigt", legacy: "Bestehender Bogen" };
 const categories = { attribute: "Attribute", ability: "Fähigkeiten", customAbility:"Freie Fähigkeiten", virtue:"Tugenden", discipline: "Disziplinen", path: "Pfade", background: "Hintergründe", humanity: "Menschlichkeit", willpower: "Willenskraft" };
@@ -42,8 +43,11 @@ export function CharacterProgression({ id, revision, onChanged, onDirty, manage 
   const filtered = data?.targets.filter(t => t.category === category) || [];
   const selected = filtered.find(t => t.label === choice);
   if (!data) return <section className={styles.progression}><p role={error ? "alert" : "status"}>{error || "Entwicklungsstand wird geladen …"}</p>{error && <button className="button" onClick={() => setReload(n => n + 1)}>Erneut laden</button>}</section>;
-  return <section ref={root} className={styles.progression} aria-label={manage ? "SL-Charakterprüfung" : "Charakterentwicklung"}>
-    <header className={styles.progressHeader}><div><p className="eyebrow">{manage ? "SPIELLEITUNG · GESCHÜTZT" : "DEIN WEG DURCH DIE NACHT"}</p><h3>{manage ? "Verwaltung der Akte" : "Erfahrung & Entwicklung"}</h3></div><span className={styles.status}><ShieldCheck size={16}/>{stateNames[data.state]}</span><button className="button" aria-label="Entwicklungsstand neu laden" onClick={() => setReload(n => n + 1)}><RefreshCw size={15}/></button></header>
+  // The player view uses the same ornamented frame as the V20 sheet and the Charakterprofil.
+  return <section ref={root} className={manage ? styles.progression : `${styles.progression} ${sheet.sheet} ${sheet.wide} ${styles.framed}`} aria-label={manage ? "SL-Charakterprüfung" : "Charakterentwicklung"}>
+    {!manage && <span className={sheet.corners} aria-hidden="true" />}
+    {!manage && <div className={sheet.block}><h3>Erfahrung & Entwicklung</h3></div>}
+    <header className={styles.progressHeader}>{manage ? <div><p className="eyebrow">SPIELLEITUNG · GESCHÜTZT</p><h3>Verwaltung der Akte</h3></div> : <p className={styles.framedIntro}>Hier gibst du deine Erfahrungspunkte aus. Was die Regeln nicht direkt erlauben, geht als Antrag an die Spielleitung. Unten siehst du deinen Verlauf.</p>}<span className={styles.status}><ShieldCheck size={16}/>{stateNames[data.state]}</span><button className="button" aria-label="Entwicklungsstand neu laden" onClick={() => setReload(n => n + 1)}><RefreshCw size={15}/></button></header>
     {!manage&&<div className={styles.steps}>{["draft", "review", "confirmed"].map((state, index) => <span key={state} data-active={state === data.state}><b>0{index + 1}</b>{stateNames[state]}{index < 2 && <ChevronRight size={14}/>}</span>)}</div>}
     {error && !manage && <p className={styles.error} role="alert">{error}</p>}{notice && <p className={styles.notice} role="status">{notice}</p>}
     {manage&&data.canManage?<CharacterAdmin key={id+":"+data.version} data={data} busy={busy} error={error} command={command} onConfirm={()=>setApprovalCommand("confirm")}/>:<CharacterManagementTools key={id+":"+data.version} data={data} busy={busy} manage={false} campaignId={campaignId} error={error} command={command}/>}

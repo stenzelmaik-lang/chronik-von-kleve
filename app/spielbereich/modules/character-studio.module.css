@@ -210,3 +210,26 @@
 .tabLink:focus-visible{outline:2px solid var(--cp-focus);outline-offset:2px}
 @media(min-width:900px){.actionBar{flex-wrap:nowrap}.actionBar :global(.character-active-select){order:9;margin-left:auto}.actionBar :global(.character-active-select) select{max-width:220px}}
 .actionBar :global(.button),.actionBar>details>summary,.viewSwitch button,.actionBar :global(.character-active-select){white-space:nowrap}
+
+/* Entwicklung in the frame of the sheet and the Charakterprofil (design tokens, Spectral titles, gold lines). */
+.framed{margin-top:var(--cp-space-5);color:var(--cp-text);font:var(--cp-size-sm)/var(--cp-leading) var(--cp-font-text)}
+.framed .progressHeader{justify-content:center;text-align:center}
+.framedIntro{flex:1 1 100%;max-width:72ch;margin:0 auto;color:var(--cp-text-muted);font-size:var(--cp-size-sm)}
+.framed .status{border-color:var(--cp-gold-line);color:var(--cp-gold);border-radius:var(--cp-radius)}
+.framed .steps{justify-content:center;border-bottom-color:var(--cp-gold-line);margin-bottom:var(--cp-space-2)}
+.framed .steps b{color:var(--cp-gold)}
+.framed .steps span[data-active=true]{color:var(--cp-gold-strong,var(--cp-gold))}
+.framed .purchase select,.framed .fold textarea,.framed .requests input{border-color:var(--cp-gold-line);border-radius:var(--cp-radius);background:var(--cp-surface-2);color:var(--cp-text);font:14px var(--cp-font-text)}
+.framed .purchaseReview{border-color:var(--cp-gold-line);border-radius:var(--cp-radius);background:var(--cp-gold-wash,rgba(214,179,111,.06))}
+.framed .purchaseReview h4{font-family:var(--cp-font-title);font-weight:400;color:var(--cp-gold)}
+.framed .creationSummary{justify-content:center;text-align:center}
+.framed .creationSummary strong{color:var(--cp-gold)}
+.framed .explanation{justify-content:center;color:var(--cp-text-muted)}
+.framed .fold{border-top-color:var(--cp-gold-line)}
+.framed .fold summary{justify-content:center;font:400 var(--cp-size-lg)/1.3 var(--cp-font-title);letter-spacing:.04em;color:var(--cp-gold)}
+.framed .fold summary::before{content:"";width:40px;height:1px;background:var(--cp-gold-line)}
+.framed .fold summary::after{content:"";width:40px;height:1px;background:var(--cp-gold-line)}
+.framed .fold[open] summary::before{content:""}
+.framed .historyItem{padding:var(--cp-space-3) var(--cp-space-2);border-bottom-color:var(--cp-line)}
+.framed .historyItem strong{font-family:var(--cp-font-title);font-weight:400;color:var(--cp-text)}
+.framed .historyItem span{color:var(--cp-text-muted)}

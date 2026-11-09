@@ -49,7 +49,7 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
      </header>
      {(character.introduction||character.descriptions.length>0)&&<div className={styles.figureText}>
       <h4>Über die Figur</h4>
-      {character.introduction&&<p>{character.introduction}</p>}
+      {character.introduction&&<RichTextView value={character.introduction}/>}
       {character.descriptions.map((block,index)=><RichTextView key={index} value={block.content}/>)}
      </div>}
      {character.profile?.description&&<div className={styles.figureText}><h4>Beschreibung</h4><dl className={styles.profileFacts}>{character.profile.description.map(row=><div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl></div>}
