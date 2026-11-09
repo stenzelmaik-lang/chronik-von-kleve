@@ -28,6 +28,14 @@ check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.i
 
 check((await req(b,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:d.revision.version,profile})).status>=400,'Player B cannot change Player A\'s profile');
 check((await req(null,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:d.revision.version,profile})).status===401,'not signed in: save → 401');
+// One save writes the whole page: appearance card, story and play guide together with the profile.
+const before=await detail(a),oldCard=(await req(a,'/api/character-companion?id='+encodeURIComponent(own.id))).data.presentation;
+const together=await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:before.revision.version,profile:{...profile,visibility:{...profile.visibility,story:'group'}},presentation:{published:false,tagline:marker+' Zeile',introduction:'',gallery:[]},backgroundStory:'cvk-html-v1:<p>'+marker+' Geschichte</p>',playGuide:marker+' Spielweise'});
+check(together.status===200,'one save stores profile, appearance card, story and play guide');
+const after=await detail(a),card=(await req(a,'/api/character-companion?id='+encodeURIComponent(own.id))).data.presentation;
+check(String(after.roleplay.backgroundStory).includes(marker+' Geschichte')&&after.roleplay.playGuide===marker+' Spielweise'&&card.tagline===marker+' Zeile','the combined save reads back');
+check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:after.revision.version,profile,presentation:{published:false,tagline:'x',introduction:'',gallery:[{fileId:'fremd',caption:''}]}})).status>=400,'a gallery with a foreign file is refused');
+check((await req(b,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:after.revision.version,profile,backgroundStory:'b'})).status>=400,'Player B cannot overwrite the story through the profile save');
 const sl=await detail(gm);
 check(sl.roleplay.profile.allies===marker+' geheim','the SL reads the full profile in its own projection');
 
@@ -38,6 +46,7 @@ if(sessionId){
   if(seen.status===200){
     check(seen.text.includes(marker+' sichtbar'),'Player B sees the block Player A shared with the group');
     check(!seen.text.includes(marker+' geheim'),'Player B does not see the private block');
+    check(seen.text.includes(marker+' Geschichte')&&!seen.text.includes(marker+' Spielweise'),'Player B sees the shared story, not the private play guide');
   }else console.log('SKIP PROFILE table view not reachable for Player B: '+seen.status);
 }else console.log('SKIP PROFILE no running evening on this instance');
 check((await req(null,'/api/live-participants?sessionId=x&memberId=command-a&view=profile')).status===401,'not signed in: table profile → 401');
@@ -45,5 +54,5 @@ check((await req(null,'/api/live-participants?sessionId=x&memberId=command-a&vie
 // Restore an empty profile so the instance stays as it was.
 const latest=await detail(a);
 const empty={description:Object.fromEntries(Object.keys(profile.description).map(k=>[k,''])),allies:'',visibility:{description:'private',story:'private',drive:'private',allies:'private'}};
-check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:latest.revision.version,profile:empty})).status===200,'the synthetic profile is cleared again');
+check((await req(a,'/api/character-companion','PATCH',{action:'profile',id:own.id,version:latest.revision.version,profile:empty,presentation:oldCard??{published:false,tagline:'',introduction:'',gallery:[]},backgroundStory:String(before.roleplay.backgroundStory||''),playGuide:String(before.roleplay.playGuide||'')})).status===200,'the synthetic profile, card and texts are restored');
 console.log('PROFILE checks passed: '+checks);

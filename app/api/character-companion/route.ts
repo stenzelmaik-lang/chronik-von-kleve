@@ -28,7 +28,7 @@ const presentation = z.object({
 
 const schema = z.discriminatedUnion("action", [
   z.object({action:z.literal('presentation'),id,version:z.number().int().positive(),presentation}).strict(),
-  z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema}).strict(),
+  z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema,presentation:presentation.optional(),backgroundStory:z.string().max(90000).optional(),playGuide:z.string().max(90000).optional()}).strict(),
   z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({
@@ -195,9 +195,19 @@ export async function PATCH(req: Request) {
       return json(await updateCharacterBody(db, character, data.version, body));
     }
     // Charakterprofil (page 2 of the sheet): only the owner (or a managing SL) writes; the rest of the body stays as stored.
+    // One save for the whole Charakterprofil: description, allies, sharing, appearance card, story and play guide.
     if(data.action==='profile'){
       const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
       if(!canEdit(a,character))throw new HttpError(403,'Charakter nicht editierbar.');
+      if((data.backgroundStory!==undefined&&!isRichTextWithinLimit(data.backgroundStory,30000))||(data.playGuide!==undefined&&!isRichTextWithinLimit(data.playGuide,30000)))
+        throw new HttpError(400,'Der formatierte Text ist zu lang.');
+      if(data.presentation){
+        const files=await Promise.all(data.presentation.gallery.map(item=>loadOwnedImage(db,a.campaignId,a.id,item.fileId)));
+        if(files.some(file=>!['image/jpeg','image/png','image/webp'].includes(file.mime)))throw new HttpError(400,'Bitte JPG, PNG oder WebP auswählen.');
+        body.presentation=data.presentation;
+      }
+      if(data.backgroundStory!==undefined)body.text=data.backgroundStory;
+      if(data.playGuide!==undefined)body.playGuide=data.playGuide;
       body.profile=data.profile;
       return json(await updateCharacterBody(db,character,data.version,body));
     }

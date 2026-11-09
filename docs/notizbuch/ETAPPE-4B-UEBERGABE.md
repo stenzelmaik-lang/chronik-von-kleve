@@ -235,3 +235,12 @@ Geschichte und Spielhilfe bleiben, wo sie gespeichert waren (`text`, `playGuide`
 - Ort der „Bekannten Verbindungen“ (Entscheidung 2); sie stehen vorerst lesend im Profil.
 - Die alten Textblöcke unter dem Profil (Vergangenheit, Stimme, Porträt, Verbindungen) und der Auftritt-Editor („Figuren-Galerie“) haben noch ihre alte Optik bzw. Benennung.
 - 375 px ist nicht geprüft.
+
+## Nachtrag 09.11.: Charakterprofil als ein System
+
+- Ein Rahmen, ein Speichern-Knopf: Auftritt (Kurzzeile, Vorstellung, Galerie, Sichtbarkeit), Beschreibung, Hintergrundgeschichte, „So spiele ich ihn“, Verbündete & Kontakte, Porträt & Referenzen, Bekannte Verbindungen, Vorschau „So sehen dich die anderen“.
+- Server: `action:'profile'` speichert Profil, Auftritt, Geschichte und Spielweise in einem versionsgeschützten Schreibvorgang (Galerie nur mit eigenen Dateien).
+- Entfernt als Doppelung: der alte Companion-Abschnitt (Geschichte/Spielweise mit eigenen Bearbeiten-Knöpfen), der separate Auftritt-Editor (`character-presentation-editor.tsx` gelöscht), der Block „Geschichte und Antrieb“ (nur Freigabe).
+- Schutz: Ungespeicherte Profiländerungen blockieren das automatische Nachladen und fragen vor Reiterwechsel, Charakterwechsel und Bild-Upload nach.
+- Nachweise: Typecheck sauber, ESLint ohne neue Warnungen, `pnpm test` 406/406, `tests/character-profile-integration.mjs` 17/17 (lokal `--ge-01`), Build grün, Sichtprüfung breit und 375 px ohne Überlauf. Lokale Testdaten `.local-test/ge-01` danach gelöscht.
+- Offen: Zwei Bildquellen (Auftritt-Galerie = Bildstreifen am Tisch, öffentliches Porträt aus „Porträt & Referenzen“ = Kopfbild). Zusammenlegen braucht eine Serveränderung, wartet auf Entscheidung.

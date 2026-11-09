@@ -3,10 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
-import { RichTextEditor, RichTextView } from "./rich-text";
 import { CharacterSheet } from "./character-sheet/character-sheet";
 import { CharacterProfileEditor } from "./character-sheet/character-profile";
-import { CharacterPresentationEditor } from "./character-presentation-editor";
 import { CharacterProgression } from "./character-progression";
 import studio from "./character-studio.module.css";
 import { clanSymbolFor } from "./clan-symbol";
@@ -21,15 +19,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  BookOpen,
   Camera,
-  MessageSquareText,
   Pencil,
   Plus,
-  Save,
   Upload,
-  Users,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError, api } from "./api-client";
@@ -42,7 +35,6 @@ import {activeCharacterBody} from "@/domain/character-selection";
 import {hybridPreparationNote,readSpecialties} from "@/domain/character-specialties";
 import {useCommandConfirmation} from "./command-confirmation";
 
-const text = (v: unknown) => (typeof v === "string" ? v : "");
 const mediaLabels: Record<string, string> = {
   portrait: "Portrait",
   reference: "Referenz",
@@ -77,7 +69,7 @@ export function CharacterDetail({
   const presentationDirty=useRef(false);
   function leavePresentation(){
     if(!presentationDirty.current)return true;
-    if(!window.confirm('Ungespeicherte Änderungen am Figurenprofil verwerfen?'))return false;
+    if(!window.confirm('Ungespeicherte Änderungen am Charakterprofil verwerfen?'))return false;
     presentationDirty.current=false;
     return true;
   }
@@ -90,9 +82,6 @@ export function CharacterDetail({
   const [refreshing, setRefreshing] = useState(false);
   const [loadedCharacterId, setLoadedCharacterId] = useState<string | null>(null);
   const loadVersion = useRef(0);
-  const [roleEdit, setRoleEdit] = useState<"story" | "play" | null>(null);
-  const [storyDraft, setStoryDraft] = useState("");
-  const [playDraft, setPlayDraft] = useState("");
   const [noteDraft, setNoteDraft] = useState<{
     id?: string;
     version?: number;
@@ -112,7 +101,7 @@ export function CharacterDetail({
   const lifecycleConfirmation=useCommandConfirmation();
   const entries=useMemo(()=>allEntries.filter(e=>archiveView?!activeCharacterBody(e.body):activeCharacterBody(e.body)),[allEntries,archiveView]);
   const selected=archiveView?archivedId:activeCharacterId;
-  async function abandonDrafts(){if(!leavePresentation())return false;if((roleEdit||noteDraft)&&!await lifecycleConfirmation.ask('Ungespeicherte Texte verwerfen und die Charakteransicht wechseln?'))return false;setRoleEdit(null);setNoteDraft(null);setView('sheet');return true;}
+  async function abandonDrafts(){if(!leavePresentation())return false;if(noteDraft&&!await lifecycleConfirmation.ask('Ungespeicherte Texte verwerfen und die Charakteransicht wechseln?'))return false;setNoteDraft(null);setView('sheet');return true;}
   async function chooseCharacter(id:string|null){if(!await abandonDrafts())return;if(archiveView)setArchivedId(id);else onActiveCharacterChange(id);}
   async function switchArchive(archive:boolean){if(!await abandonDrafts())return;setArchiveView(archive);}
   const archiveNav=<nav className="character-archive-nav" aria-label="Charakterverwaltung"><button className="button" aria-pressed={!archiveView} onClick={()=>void switchArchive(false)}>Aktive Charaktere</button><button className="button" aria-pressed={archiveView} onClick={()=>void switchArchive(true)}>Archivierte Charaktere ({allEntries.filter(e=>!activeCharacterBody(e.body)).length})</button></nav>;
@@ -179,17 +168,17 @@ export function CharacterDetail({
   useEffect(() => {
     // Refresh only the selected dossier. Editing and local writes take priority;
     // the existing version guards still protect concurrent updates.
-    if (!active?.id || roleEdit || noteDraft || companionBusy || runtimeBusy) return;
+    if (!active?.id || noteDraft || companionBusy || runtimeBusy) return;
     let running=false;
     const sync=async()=>{
-      if(running||runtimeLock.current||document.visibilityState!=="visible")return;
+      if(running||runtimeLock.current||presentationDirty.current||document.visibilityState!=="visible")return;
       running=true;
       try { await reload(true,true); } finally { running=false; }
     };
     window.addEventListener("focus",sync);
     const timer=window.setInterval(()=>void sync(),10000);
     return()=>{window.removeEventListener("focus",sync);window.clearInterval(timer);loadVersion.current+=1;};
-  }, [selected, active?.version, roleEdit, noteDraft, companionBusy, runtimeBusy]);
+  }, [selected, active?.version, noteDraft, companionBusy, runtimeBusy]);
 
   function invalidateCharacter() {
     if (!active?.id) return;
@@ -253,39 +242,8 @@ export function CharacterDetail({
     await runtime("health", "Gesund");
   }
 
-  function beginRoleEdit(which: "story" | "play") {
-    setStoryDraft(text(projection?.roleplay.backgroundStory));
-    setPlayDraft(text(projection?.roleplay.playGuide));
-    setRoleEdit(which);
-  }
-
-  async function saveRoleplay() {
-    if (!active?.id || !projection) return;
-    setCompanionBusy(true);
-    try {
-      await api("/api/character-companion", "PATCH", {
-        action: "roleplay",
-        id: active.id,
-        version: projection.revision.version,
-        backgroundStory: storyDraft,
-        playGuide: playDraft,
-      });
-      toast.success("Companion gespeichert");
-      setRoleEdit(null);
-      invalidateCharacter();
-      await reload(true);
-      onRefresh?.();
-    } catch (e) {
-      toast.error((e as Error).message);
-      invalidateCharacter();
-      await reload(true);
-    } finally {
-      setCompanionBusy(false);
-    }
-  }
-
   async function uploadMedia(file: File | undefined, type: string) {
-    if (!file || !active?.id || !projection) return;
+    if (!file || !active?.id || !projection || !leavePresentation()) return;
     setCompanionBusy(true);
     try {
       const form = new FormData();
@@ -479,104 +437,13 @@ export function CharacterDetail({
       </header>
       <div className={studio.tabRow}>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"presentation",label:"Charakterprofil"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"presentation",label:"Charakterprofil"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
       {!inspection && !archived && <a className={studio.tabLink} href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
       </div>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
-      {!inspection&&!archived&&view==="presentation"&&<CharacterPresentationEditor key={active.id} id={active.id!} title={active.title} onDirty={dirty=>{presentationDirty.current=dirty;}} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
-      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onSaved={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
-
-      <div className="character-layout" hidden={view!=="sheet"}>
-        <section className="character-sheet">
-          {hybridPreparationNote()&&readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length>0&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}
-          <CharacterSheet identity={projection.identity} sheet={s} progression={projection.progression} layout="wide" withIdentity={false}/>
-          {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
-        </section>
-
-
-      </div>
-
-      <section className="character-companion" hidden={view!=="presentation"}>
-        <div className="companion-column companion-column-left">
-          <article className="companion-panel companion-story">
-            <header>
-              <span className="companion-icon">
-                <BookOpen size={18} />
-              </span>
-              <div>
-                <p className="eyebrow">HINTERGRUNDGESCHICHTE</p>
-                <h3>Vergangenheit & Antrieb</h3>
-              </div>
-              {canCompanion && (
-                <button className="button" onClick={() => beginRoleEdit("story")}>
-                  <Pencil size={15} /> Bearbeiten
-                </button>
-              )}
-            </header>
-            {roleEdit === "story" ? (
-              <div className="companion-edit">
-                <RichTextEditor placeholder="Erzähle die Vergangenheit deiner Figur …" label="Hintergrundgeschichte" value={storyDraft} onChange={setStoryDraft} maximumPlainLength={20000}/>
-                <div className="companion-actions">
-                  <button className="button primary" disabled={companionBusy} onClick={() => void saveRoleplay()}>
-                    <Save size={15} /> Speichern
-                  </button>
-                  <button className="button" disabled={companionBusy} onClick={() => setRoleEdit(null)}>
-                    <X size={15} /> Abbrechen
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <RichTextView value={text(projection.roleplay.backgroundStory) || "Noch keine Hintergrundgeschichte hinterlegt."}/>
-            )}
-          </article>
-
-          <article className="companion-panel companion-play">
-            <header>
-              <span className="companion-icon">
-                <MessageSquareText size={18} />
-              </span>
-              <div>
-                <p className="eyebrow">SO SPIELE ICH IHN</p>
-                <h3>Stimme, Haltung, Reflexe</h3>
-              </div>
-              {canCompanion && (
-                <button className="button" onClick={() => beginRoleEdit("play")}>
-                  <Pencil size={15} /> Bearbeiten
-                </button>
-              )}
-            </header>
-            {roleEdit === "play" ? (
-              <div className="companion-edit">
-                <RichTextEditor placeholder="Stimme, Haltung und Ziele …" label="Spielhilfe" value={playDraft} onChange={setPlayDraft} maximumPlainLength={20000}/>
-                <div className="companion-actions">
-                  <button className="button primary" disabled={companionBusy} onClick={() => void saveRoleplay()}>
-                    <Save size={15} /> Speichern
-                  </button>
-                  <button className="button" disabled={companionBusy} onClick={() => setRoleEdit(null)}>
-                    <X size={15} /> Abbrechen
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <RichTextView value={text(projection.roleplay.playGuide) || "Noch keine Spielhilfe hinterlegt."}/>
-            )}
-          </article>
-
-        </div>
-
-        <div className="companion-column companion-column-right">
-          <article className="companion-panel companion-media">
-            <header>
-              <span className="companion-icon">
-                <Camera size={18} />
-              </span>
-              <div>
-                <p className="eyebrow">CHARAKTERBILDER</p>
-                <h3>Portrait & Referenzen</h3>
-              </div>
-            </header>
+      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onDirtyChange={d=>{presentationDirty.current=d;}} onSaved={()=>{presentationDirty.current=false;invalidateCharacter();void reload(true,true);onRefresh?.();}} backgroundStory={String(projection.roleplay.backgroundStory||"")} playGuide={String(projection.roleplay.playGuide||"")} images={<>
             {canCompanion && (
               <div className="companion-media-upload">
                 <Choice
@@ -618,18 +485,7 @@ export function CharacterDetail({
                 <p className="muted">Noch keine sicheren Charakterbilder verbunden.</p>
               )}
             </div>
-          </article>
-
-          <article className="companion-panel companion-relationships">
-            <header>
-              <span className="companion-icon">
-                <Users size={18} />
-              </span>
-              <div>
-                <p className="eyebrow">BEZIEHUNGEN & KONTAKTE</p>
-                <h3>Bekannte Verbindungen</h3>
-              </div>
-            </header>
+      </>} connections={<>
             {companion.relationships.length ? (
               <div className="relationship-list">
                 {companion.relationships.map((rel) => (
@@ -647,10 +503,18 @@ export function CharacterDetail({
             ) : (
               <p className="muted">Noch keine erlaubten Beziehungen sichtbar.</p>
             )}
-          </article>
+      </>}/>}
 
-        </div>
-      </section>
+      <div className="character-layout" hidden={view!=="sheet"}>
+        <section className="character-sheet">
+          {hybridPreparationNote()&&readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length>0&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}
+          <CharacterSheet identity={projection.identity} sheet={s} progression={projection.progression} layout="wide" withIdentity={false}/>
+          {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
+        </section>
+
+
+      </div>
+
       <AlertDialog open={healthResetOpen} onOpenChange={setHealthResetOpen}>
         <AlertDialogContent className={studio.editor}>
           <AlertDialogHeader>
