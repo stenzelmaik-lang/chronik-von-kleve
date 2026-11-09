@@ -22,7 +22,7 @@ Typecheck sauber; `pnpm test` 408/408; Gesamtlauf `tests/*.test.mjs` 522/528 (6 
 `/anmelden` 200, `/spielbereich` 307, `/api/character-companion`, `/api/character-detail`, `/api/live-participants` je 401. Neue Client-Bundles (Charakterprofil-Bilderliste, Farbrad) werden von chroniplay.cc ausgeliefert. Nicht geprüft: angemeldete Live-Begehung (macht der Besitzer), echtes Mobilgerät.
 
 ## Rückweg
-`wrangler rollback 240e208e-a57f-4f46-9d07-1992ecca6373 --name chronik-von-kleve` (keine Schemaänderung). Hinweis: Neu gespeicherte Profile, Bilderlisten und freie Farben bleiben in den Daten; die Vorversion ignoriert unbekannte Profilfelder, Texte mit freien Farben zeigt sie ohne diese Farbe.
+`wrangler rollback 240e208e-a57f-4f46-9d07-1992ecca6373 --name chronik-von-kleve` (keine Schemaänderung). Hinweis: Neu gespeicherte Profile, Bilderlisten und Texte bleiben in den Daten. Die Vorversion kennt freie Farben, Durchstreichen und die neuen Absatzklassen nicht; solche Texte zeigt sie möglicherweise nicht formatiert an (nicht geprüft).
 
 ## Offen
 `main` enthält den Live-Stand noch nicht. Veraltet: `tests/zustandswerte-runde-browser.mjs` nutzt die entfernte Schnellbuchung „Eigene Werte steuern“.
