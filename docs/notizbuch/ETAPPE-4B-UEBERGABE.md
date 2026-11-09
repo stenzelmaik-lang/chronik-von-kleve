@@ -174,3 +174,17 @@ Kein Push, kein Deployment, keine Migration, keine Datenänderung. Keine geände
 **Prüfungen:**
 - typecheck, ESLint und Build ohne Fehler, `pnpm test` 403/403, Browser bei 1280 px.
 - **Nicht geprüft:** 375 px, die Integrationsprüfung (nur Oberfläche geändert) und der leere Zustand im Browser.
+
+## Dritte Nachbesserung (09.11.2026)
+
+**Umgesetzt:**
+- „Ausrüstung & Inventar“ steht jetzt bei den Reitern (rechts neben V20-Bogen, Geschichte & Bilder, Charakterprofil, Entwicklung), weil es zur Spielfigur gehört.
+- Die Menüleiste oben ist auf breiten Bildschirmen einzeilig, ohne Umbruch in den Knöpfen.
+
+**Bild:** ![](../design/4b/nachbesserung3-1280-reiter-inventar.jpg). Die Aufnahme zeigt den Stand vor der Regel gegen den Umbruch.
+
+**Prüfung:**
+- Build und Browser bei 1280 px. Die zuletzt ergänzte Regel gegen Umbrüche in den Knöpfen ist **per Vorschau im Browser** geprüft (gleiche Regel ins Seiten-CSS gesetzt), nicht nach einem neuen Build.
+- `pnpm test` 403/403.
+
+**Zieltabelle zur Neuordnung:** [docs/design/CHARAKTERBEREICH-ZIELTABELLE.md](../design/CHARAKTERBEREICH-ZIELTABELLE.md).

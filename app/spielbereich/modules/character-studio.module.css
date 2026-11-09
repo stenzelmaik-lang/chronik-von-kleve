@@ -202,3 +202,11 @@
 .heroBlock dd{font:var(--cp-size-base)/1.4 var(--cp-font-title)!important;color:var(--cp-text)!important}
 .heroBlock .clanBanner{margin-top:calc(-1 * var(--cp-space-6) - 1px)}
 @media(max-width:700px){.viewSwitch{border-right:0;margin-right:0;padding-right:0;width:100%}.viewSwitch button{flex:1}.heroBlock{padding:var(--cp-space-5) var(--cp-space-4)!important}}
+/* Owner 09.11.2026 (3): equipment belongs to the playing character, so it sits with the tabs; the top bar is one line. */
+.tabRow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--cp-space-2) var(--cp-space-4);border-bottom:var(--cp-hairline) solid var(--cp-line)}
+.tabRow>nav{flex:1 1 auto;margin-bottom:0;border-bottom:0}
+.tabLink{display:inline-flex;align-items:center;min-height:38px;padding:6px 12px;color:var(--cp-text-muted);font:13px var(--cp-font-text);text-decoration:none;border:var(--cp-hairline) solid var(--cp-line);border-radius:var(--cp-radius)}
+.tabLink:hover{color:var(--cp-text);border-color:var(--cp-gold-line)}
+.tabLink:focus-visible{outline:2px solid var(--cp-focus);outline-offset:2px}
+@media(min-width:900px){.actionBar{flex-wrap:nowrap}.actionBar :global(.character-active-select){order:9;margin-left:auto}.actionBar :global(.character-active-select) select{max-width:220px}}
+.actionBar :global(.button),.actionBar>details>summary,.viewSwitch button,.actionBar :global(.character-active-select){white-space:nowrap}

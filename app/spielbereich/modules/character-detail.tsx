@@ -460,7 +460,6 @@ export function CharacterDetail({
       {loadError && <div role="alert" className="error-box"><strong>{describeDataError(loadError).title}</strong><p>{loadError.message}</p><button className="button" onClick={() => void reload(true)}>Erneut versuchen</button></div>}
       <nav className={studio.actionBar} aria-label="Charakteraktionen">
         <div className={studio.viewSwitch} role="group" aria-label="Charakterliste"><button type="button" aria-pressed={!archiveView} onClick={()=>void switchArchive(false)}>Aktive</button><button type="button" aria-pressed={archiveView} onClick={()=>void switchArchive(true)}>Archiviert ({allEntries.filter(e=>!activeCharacterBody(e.body)).length})</button></div>
-          {!inspection && !archived && <a className="button" href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
           {entries.length > 1 && (
             <label className="character-active-select">
               <span>{inspection ? "Charakter in SL-Inspektion" : "Aktiver Charakter"}</span>
@@ -537,9 +536,12 @@ export function CharacterDetail({
         </div>
         {typeof i.clan==="string"&&i.clan.trim()&&<div className={studio.clanBanner} aria-label={"Clan "+i.clan}>{clanSymbolFor(i.clan.trim())&&<img src={clanSymbolFor(i.clan.trim())!} alt="" aria-hidden="true" width={48} height={48}/>}<span>{i.clan}</span></div>}
       </header>
+      <div className={studio.tabRow}>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
         {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},...(!inspection&&!archived?[{id:"presentation",label:"Charakterprofil"}]:[]),{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
+      {!inspection && !archived && <a className={studio.tabLink} href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
+      </div>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
       {!inspection&&!archived&&view==="presentation"&&<CharacterPresentationEditor key={active.id} id={active.id!} title={active.title} onDirty={dirty=>{presentationDirty.current=dirty;}} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
