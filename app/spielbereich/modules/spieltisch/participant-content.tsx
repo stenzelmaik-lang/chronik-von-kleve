@@ -29,7 +29,7 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
   // The character gallery at the table: portrait first, then every image the owner shared with the group.
   const character=data.character;
   const items=character?[...(character.portrait?[{url:character.portrait,caption:'Porträt'}]:[]),...(character.gallery??[])]:[];
-  return <>{items.length?<FigureGallery key={character!.id} items={items} title={'Galerie · '+character!.name}/>:<p>Für diese Figur sind noch keine Bilder für die Gruppe freigegeben. Bilder gibst du im Charakterprofil unter „Porträt & Referenzen“ frei.</p>}</>;
+  return <>{items.length?<FigureGallery key={character!.id} items={items} title={'Galerie · '+character!.name}/>:<p>Für diesen Charakter sind noch keine Bilder für die Gruppe freigegeben. Bilder gibst du im Charakterprofil unter „Porträt & Referenzen“ frei.</p>}</>;
  }
  if(action==='profile'){
   const character=data.character;
@@ -37,28 +37,27 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
   const profile=person?.presentation;
   return <>
    <nav className={styles.sectionTabs} aria-label="Profilbereiche">
-    <button aria-pressed={tab==='character'} onClick={()=>setTab('character')}>Figur</button>
+    <button aria-pressed={tab==='character'} onClick={()=>setTab('character')}>Charakter</button>
     <button aria-pressed={tab==='human'} onClick={()=>setTab('human')}>Spielerprofil</button>
    </nav>
    {tab==='character'?<>
     
-    {character?<section className={styles.figureCard} aria-label="Figurenvorstellung">
+    {character?<section className={styles.figureCard} aria-label="Charaktervorstellung">
      <header>
       {character.portrait&&<img className={styles.figureHero} src={character.portrait} alt=""/>}
-      <div><p className={styles.caption}>Figur der Chronik</p><h3>{character.name}</h3>{character.tagline&&<p>{character.tagline}</p>}</div>
+      <div><p className={styles.caption}>Kainskind der Chronik</p><h3>{character.name}</h3>{character.tagline&&<p>{character.tagline}</p>}</div>
      </header>
+     {character.profile?.description&&<div className={styles.figureText}><h4>Beschreibung</h4><dl className={styles.profileFacts}>{character.profile.description.map(row=><div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl></div>}
+     {character.profile?.appearance&&<div className={styles.figureText}>{!character.profile.description&&<h4>Beschreibung</h4>}<p className={styles.preserve}>{character.profile.appearance}</p></div>}
      {(character.introduction||character.descriptions.length>0)&&<div className={styles.figureText}>
-      <h4>Über die Figur</h4>
+      <h4>Über den Charakter</h4>
       {character.introduction&&<RichTextView value={character.introduction}/>}
       {character.descriptions.map((block,index)=><RichTextView key={index} value={block.content}/>)}
      </div>}
-     {character.profile?.description&&<div className={styles.figureText}><h4>Beschreibung</h4><dl className={styles.profileFacts}>{character.profile.description.map(row=><div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl></div>}
-     {character.profile?.appearance&&<div className={styles.figureText}>{!character.profile.description&&<h4>Beschreibung</h4>}<p className={styles.preserve}>{character.profile.appearance}</p></div>}
      {character.profile?.story&&<div className={styles.figureText}><h4>Hintergrundgeschichte</h4><RichTextView value={character.profile.story}/></div>}
      {character.profile?.drive&&<div className={styles.figureText}><h4>So spiele ich ihn</h4><RichTextView value={character.profile.drive}/></div>}
      {character.profile?.allies&&<div className={styles.figureText}><h4>Verbündete & Kontakte</h4><p className={styles.preserve}>{character.profile.allies}</p></div>}
-     {!!character.gallery?.length&&<FigureGallery key={character.id} items={character.gallery}/>}
-    </section>:<p>Für diesen Teilnehmer ist noch keine Figur freigegeben.</p>}
+    </section>:<p>Für diesen Teilnehmer ist noch kein Charakter freigegeben.</p>}
    </>:<section className={styles.figureCard} aria-label="Spielervorstellung">
     <header data-banner={profile?.banner??'fog'}>
      {person?.avatar&&<img className={styles.playerPortrait} src={person.avatar} alt=""/>}
@@ -84,9 +83,9 @@ function FigureGallery({items,title='Galerie'}:{items:{url:string;caption?:strin
  const [index,setIndex]=useState(0);
  const current=Math.min(index,items.length-1);
  const image=items[current];
- return <section className={styles.figureGallery} aria-label="Figurengalerie">
+ return <section className={styles.figureGallery} aria-label="Charaktergalerie">
   <h4>{title}</h4>
-  <figure><a href={image.url} target="_blank" rel="noreferrer" aria-label="Galeriebild in voller Größe öffnen"><img src={image.url} alt={image.caption||'Galeriebild der Figur'}/></a>
+  <figure><a href={image.url} target="_blank" rel="noreferrer" aria-label="Galeriebild in voller Größe öffnen"><img src={image.url} alt={image.caption||'Galeriebild des Charakters'}/></a>
    {image.caption&&<figcaption>{image.caption}</figcaption>}
   </figure>
   {items.length>1&&<nav aria-label="Galeriebilder"><button type="button" disabled={current===0} onClick={()=>setIndex(current-1)}>Zurück</button><span aria-live="polite">{current+1} / {items.length}</span><button type="button" disabled={current===items.length-1} onClick={()=>setIndex(current+1)}>Weiter</button></nav>}
