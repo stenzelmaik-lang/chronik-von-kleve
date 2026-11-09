@@ -479,3 +479,9 @@ body{background:#101418;color:#ece5d8;font-family:Arial,sans-serif;font-size:16p
   --cp-icon-stroke:1.5;--cp-duration:180ms;--cp-ease:cubic-bezier(.2,.7,.2,1);
 }
 /* cp-tokens:end */
+
+/* Chronik · Zeitstrahl: years as markers, calm teasers, readable full text. */
+.chronicle-year{margin:18px 0 6px;padding-left:56px;font:400 22px/1.2 var(--cp-font-title,Georgia,serif);color:var(--cp-gold,#d6b36f);letter-spacing:.04em}
+.chronicle-teaser{font:15px/1.6 var(--cp-font-title,Georgia,serif);color:var(--cp-text-muted,#b5bdb6)}
+.chronicle-read{max-width:68ch;margin-top:10px;font:16px/1.7 var(--cp-font-title,Georgia,serif)}
+.chronicle-event[data-recap] .chronicle-event-index{border-color:var(--cp-gold,#d6b36f);color:var(--cp-gold,#d6b36f)}

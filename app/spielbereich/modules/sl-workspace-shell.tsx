@@ -14,7 +14,7 @@ const preparationTools = [
   { name: 'Material', description: 'Dokumente und Unterlagen zum Ausspielen vorbereiten', section: 'vorbereitung', icon: FolderOpen },
   { name: 'NPCs', description: 'Nichtspielercharaktere anlegen, bearbeiten und freigeben', section: 'nscs', icon: UserRoundPlus },
   { name: 'Orte', description: 'Schauplätze, Bereiche und Räume verwalten', section: 'ortscms', icon: MapPin },
-  { name: 'Rückblicke', description: 'Spielabende zusammenfassen und für die Runde freigeben', section: 'rueckblick', icon: BookOpen },
+  { name: 'Rückblicke & Chronik', description: 'Spielabende zusammenfassen, Ereignisse der Domäne festhalten', section: 'rueckblick', icon: BookOpen },
 ];
 
 export function SLWorkspaceShell({a,section,navigate,children,preparationDirty=false}:{a:Actor;section:string;navigate:(id:string)=>void;children:React.ReactNode;preparationDirty?:boolean}) {

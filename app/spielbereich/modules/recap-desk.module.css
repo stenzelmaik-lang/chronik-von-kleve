@@ -28,3 +28,9 @@
 .overview small{color:var(--cp-text-muted,#9fa49b);font-size:12px}
 .badge{justify-self:start;padding:1px 8px;border:1px solid var(--cp-line,#b99a6155);border-radius:999px;color:var(--cp-text-muted,#9fa49b);font-size:11px}
 .badge[data-released]{border-color:#3f9a6a;color:#8fe0b0}
+.newButtons{display:flex;flex-wrap:wrap;gap:8px}
+.kindSwitch{display:inline-flex;flex-wrap:wrap;gap:4px;justify-self:start}
+.kindSwitch button{padding:6px 12px;border:1px solid var(--cp-line,#b99a6133);border-radius:999px;background:transparent;color:var(--cp-text-muted,#9fa49b);font:13px var(--cp-font-text,sans-serif);cursor:pointer}
+.kindSwitch button[aria-checked="true"],.kindSwitch button[aria-selected="true"]{border-color:var(--cp-gold,#d6b36f);background:var(--cp-gold-wash,rgba(214,179,111,.1));color:var(--cp-gold,#d6b36f)}
+.tags{display:flex;gap:4px;flex-wrap:wrap}
+.badge[data-kind="rueckblick"]{border-color:var(--cp-gold,#d6b36f);color:var(--cp-gold,#d6b36f)}

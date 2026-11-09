@@ -9,6 +9,13 @@ import { BookOpen, ChevronRight, Feather } from "lucide-react";
 import { useState } from "react";
 
 import type { Entry } from "@/domain/legacy";
+import { RichTextView } from "./rich-text";
+import { richTeaser } from "./rich-teaser";
+
+const dateOf = (e: Entry) => String(e.body?.date || e.updated_at || "");
+const niceDate = (e: Entry) => { const t = Date.parse(dateOf(e)); return Number.isFinite(t) ? new Date(t).toLocaleDateString("de-DE", { dateStyle: "long" }) : "Ohne Datum"; };
+const yearOf = (e: Entry) => { const t = Date.parse(dateOf(e)); return Number.isFinite(t) ? String(new Date(t).getFullYear()) : "Ohne Datum"; };
+const isRecap = (e: Entry) => e.body?.type === "rueckblick";
 
 export function ChroniclePanel({
   entries,
@@ -51,7 +58,7 @@ export function ChroniclePanel({
           <p className="eyebrow">AKTUELLE FASSUNG</p>
           <h3>{latest?.title || "Noch kein Kapitel geöffnet"}</h3>
           <p className="muted">
-            {latest?.body?.summary ||
+            {richTeaser(latest?.body?.summary || latest?.body?.text, 200) ||
               "Die Spielleitung baut die Chronik hier Schritt für Schritt auf."}
           </p>
         </div>
@@ -83,7 +90,9 @@ export function ChroniclePanel({
       ) : (
         <div className="chronicle-timeline">
           {visible.map((entry, i) => (
-            <article className="chronicle-event" key={entry.id || entry.title}>
+            <div key={entry.id || entry.title} className="chronicle-event-wrap">
+            {(i === 0 || yearOf(visible[i - 1]) !== yearOf(entry)) && <h3 className="chronicle-year">{yearOf(entry)}</h3>}
+            <article className="chronicle-event" data-recap={isRecap(entry) || undefined}>
               <div className="chronicle-event-rail">
                 <span className="chronicle-event-index">
                   {String(i + 1).padStart(2, "0")}
@@ -92,7 +101,8 @@ export function ChroniclePanel({
               </div>
               <div className="chronicle-event-body">
                 <div className="chronicle-event-meta">
-                  <span>{entry.body?.date || "Ohne Datum"}</span>
+                  <span>{niceDate(entry)}</span>
+                  {isRecap(entry) && <span className="badge">Rückblick</span>}
                   <span className="badge">
                     {entry.visibility === "group"
                       ? "Freigegeben"
@@ -103,25 +113,25 @@ export function ChroniclePanel({
                   )}
                 </div>
                 <h3>{entry.title}</h3>
-                <p>
-                  {entry.body?.summary ||
-                    entry.body?.text?.slice(0, 240) ||
+                <p className="chronicle-teaser">
+                  {richTeaser(entry.body?.summary || entry.body?.text) ||
                     "Dieser Eintrag bewahrt eine Spur der Domäne."}
                 </p>
                 {entry.body?.text && (
                   <details>
                     <summary>Lesetext einblenden</summary>
-                    <p>{String(entry.body.text)}</p>
+                    <div className="chronicle-read"><RichTextView value={String(entry.body.text)} readable /></div>
                   </details>
                 )}
-                <button
+                {isRecap(entry) ? <a className="button" href={`/spielbereich?bereich=rueckblick&session=${encodeURIComponent(entry.id || "")}`}>Rückblick lesen <ChevronRight size={15} /></a> : <button
                   className="button"
                   onClick={() => onOpen(structuredClone(entry))}
                 >
                   Eintrag öffnen <ChevronRight size={15} />
-                </button>
+                </button>}
               </div>
             </article>
+            </div>
           ))}
         </div>
       )}
