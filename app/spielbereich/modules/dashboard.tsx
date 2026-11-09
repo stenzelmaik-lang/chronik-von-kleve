@@ -17,6 +17,7 @@ import { useLive } from "./live-state";
 import { GalleryPreview } from "./gallery-preview";
 import { safeImage } from "./shared";
 import { xpBalance } from "@/domain/character-engine";
+import { characterLedger, ledgerDelta } from "@/domain/character-management";
 import {
   describeDataError,
   readPlayerData,
@@ -147,6 +148,11 @@ export function DashboardPanel({
   const xpTitle = engineXp ? `${xpBalance(char!.body)} freie XP` : char?.body.xp !== undefined ? `${char.body.xp} XP · Bestandsangabe` : char ? "Noch keine XP-Angabe" : "Kein Charakter ausgewählt";
   const xpDescription = engineXp ? "Verfügbar für deine Entwicklung." : char?.body.xp !== undefined ? "Bestandsangabe; kein bestätigter XP-Ledger-Saldo." : "Deine vorhandenen Erfahrungswerte erscheinen hier.";
   const openInbox = () => window.dispatchEvent(new CustomEvent('chroniplay:open-inbox'));
+  // XP at a glance: received, spent and free, from the confirmed ledger.
+  const ledger = engineXp ? characterLedger(char!.body) : [];
+  const xpBar = engineXp ? { earned: ledger.reduce((t, r) => t + Math.max(0, ledgerDelta(r)), 0), spent: ledger.reduce((t, r) => t + Math.max(0, -ledgerDelta(r)), 0), free: xpBalance(char!.body) } : null;
+  // Straight to the development tab of the character, not to the sheet.
+  const openDevelopment = () => { const url = new URL(window.location.href); url.searchParams.set('ansicht', 'entwicklung'); history.replaceState(null, '', url); onNavigate('charaktere'); };
   const portrait = safeImage(view.portrait);
   const clanName = typeof char?.body.clan === "string" ? char.body.clan.trim() : "";
   const clanSymbol = clanSymbolFor(clanName);
@@ -181,7 +187,7 @@ export function DashboardPanel({
         </section>
       </div>
       <div className={styles.information}>
-        <section className={styles.info} aria-labelledby="overview-xp"><h2 id="overview-xp"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/13-icon-entwicklung.svg" alt="" aria-hidden="true"/>Erfahrung & Fortschritt</h2><h3>{xpTitle}</h3><p>{xpDescription}</p><button type="button" onClick={()=>onNavigate('charaktere')}>Entwicklung ansehen<ArrowRight size={15} aria-hidden="true"/></button></section>
+        <section className={styles.info} aria-labelledby="overview-xp"><h2 id="overview-xp"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/13-icon-entwicklung.svg" alt="" aria-hidden="true"/>Erfahrung & Fortschritt</h2><h3>{xpTitle}</h3>{xpBar?<div className={styles.xpBar} role="img" aria-label={`${xpBar.earned} XP erhalten, ${xpBar.spent} verbraucht, ${xpBar.free} frei`}><div className={styles.xpTrack}><span className={styles.xpSpent} style={{width:`${xpBar.earned?Math.min(100,xpBar.spent/xpBar.earned*100):0}%`}}/><span className={styles.xpFree} style={{width:`${xpBar.earned?Math.max(0,xpBar.free/xpBar.earned*100):0}%`}}/></div><dl><div><dt>Erhalten</dt><dd>{xpBar.earned}</dd></div><div><dt>Verbraucht</dt><dd>{xpBar.spent}</dd></div><div data-free><dt>Frei</dt><dd>{xpBar.free}</dd></div></dl></div>:<p>{xpDescription}</p>}<button type="button" onClick={openDevelopment}>Entwicklung ansehen<ArrowRight size={15} aria-hidden="true"/></button></section>
         <section className={styles.info} aria-labelledby="overview-last"><h2 id="overview-last"><BookOpen size={18} aria-hidden="true"/>Letzter Spielabend</h2><h3>{view.lastSession?.title || 'Die Chronik wartet'}</h3>{view.lastSession?.body.summary ? <div className={styles.summary}><RichTextView value={String(view.lastSession.body.summary)}/></div> : <p>{view.lastSession ? 'Noch keine Zusammenfassung freigegeben.' : 'Noch kein vergangener Spielabend freigegeben.'}</p>}{view.lastSession&&<a className={styles.recapLink} href={`/spielbereich?bereich=rueckblick&session=${encodeURIComponent(view.lastSession.id!)}${activeCharacterId?'&character='+encodeURIComponent(activeCharacterId):''}`}>Zusammenfassung lesen<ArrowRight size={15} aria-hidden="true"/></a>}<button type="button" className={styles.recapLink} onClick={()=>onNavigate('rueckblick')}>Alle Rückblicke<ArrowRight size={15} aria-hidden="true"/></button></section>
         <section className={styles.info} aria-labelledby="overview-gallery"><h2 id="overview-gallery"><Images size={18} aria-hidden="true"/>Galerie</h2><GalleryPreview onOpen={()=>onNavigate('galerie')}/></section>
       </div>

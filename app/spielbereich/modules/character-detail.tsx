@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Camera,
+  Eye,
   Pencil,
   Plus,
 } from "lucide-react";
@@ -56,8 +57,11 @@ export function CharacterDetail({
   onEdit: (e: Entry) => void;
   onRefresh?: () => void;
 }) {
-  const [view, setView] = useState(initialView);
+  // ?ansicht=entwicklung (from the XP tile on the Zuflucht) opens the development tab directly.
+  const [view, setView] = useState(()=>typeof window!=="undefined"&&new URLSearchParams(window.location.search).get("ansicht")==="entwicklung"?"development":initialView);
   const presentationDirty=useRef(false);
+  // The development link is a one-off: drop ?ansicht= so a reload shows the sheet again.
+  useEffect(()=>{const url=new URL(window.location.href);if(url.searchParams.has("ansicht")){url.searchParams.delete("ansicht");history.replaceState(null,"",url);}},[]);
   function leavePresentation(){
     if(!presentationDirty.current)return true;
     if(!window.confirm('Ungespeicherte Änderungen am Charakterprofil verwerfen?'))return false;
@@ -380,6 +384,7 @@ export function CharacterDetail({
           {active.owner_id===a.id&&!inspection&&<button className="button" disabled={companionBusy} onClick={()=>void changeLifecycle(!archived)}>{archived?"Charakter wiederherstellen":"Charakter archivieren"}</button>}
           <details className={studio.heroUtilities}><summary>Weitere Aktionen</summary><div>
           <button className="button" onClick={onCreate}><Plus size={15}/>Neuer Charakter</button>
+          <button className="button" onClick={()=>{if(!leavePresentation())return;onEdit({...structuredClone(active),canEdit:false});}}><Eye size={15}/>Charaktererstellung ansehen</button>
           {canCompanion && (
             <label className="button character-upload-trigger">
               <Camera size={16} /> Portrait ändern

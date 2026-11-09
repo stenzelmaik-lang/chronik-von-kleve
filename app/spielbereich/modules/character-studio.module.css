@@ -233,3 +233,7 @@
 .framed .historyItem{padding:var(--cp-space-3) var(--cp-space-2);border-bottom-color:var(--cp-line)}
 .framed .historyItem strong{font-family:var(--cp-font-title);font-weight:400;color:var(--cp-text)}
 .framed .historyItem span{color:var(--cp-text-muted)}
+
+.framed .purchase{max-width:760px;width:100%;margin:var(--cp-space-4) auto}
+.framed .purchase label{color:var(--cp-gold);font:var(--cp-size-xs)/1.4 var(--cp-font-text);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase}
+.framed .form{max-width:760px;width:100%;margin-left:auto;margin-right:auto}

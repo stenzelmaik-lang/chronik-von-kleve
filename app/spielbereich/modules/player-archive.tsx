@@ -37,7 +37,7 @@ function ArchiveHelp(){
 export function PlayerArchive({a}:{a:Actor}){
  const [tab,choose]=useState<Tab>('notizbuch'),[files,setFiles]=useState<StoredFile[]>([]),[fileError,setFileError]=useState('');
  // The workspace only loads files for the gallery section; the archive fetches its own list.
- const loadFiles=useCallback(()=>{api<{files:StoredFile[]}>('/api/files').then(r=>{setFiles(r.files);setFileError('');}).catch(e=>setFileError((e as Error).message));},[]);
+ const loadFiles=useCallback(()=>{api<{files:(StoredFile&{section?:string|null})[]}>('/api/files').then(r=>{setFiles(r.files.filter(f=>f.visibility!=='sl'&&!f.section));setFileError('');}).catch(e=>setFileError((e as Error).message));},[]);
  useEffect(()=>{if(tab==='archiv')loadFiles();},[tab,loadFiles]);
  let body:ReactNode;
  if(tab==='vorbereitung')body=<TableMaterialLibrary a={a}/>;
