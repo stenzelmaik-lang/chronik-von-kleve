@@ -29,3 +29,18 @@
 .inviteEntry{margin:10px 0 18px}
 .inviteEntry a{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid #b79e6370;border-radius:6px;color:#ead6ad;text-decoration:none}
 .inviteEntry a:hover,.inviteEntry a:focus-visible{background:#b79e6320}
+
+/* Header: switch to the live table (with live state), to the Zuflucht, campaign backup. */
+.headerActions{display:flex;align-items:center;gap:8px;margin-left:12px}
+.headerActions a{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 10px;border:1px solid transparent;border-radius:4px;color:#d6b779;text-decoration:none;white-space:nowrap}
+.headerActions a:hover{border-color:#695b3e;color:#f2d096}
+.headerActions a:focus-visible{outline:2px solid #e4c681;outline-offset:2px}
+.headerActions .tableLink{border-color:#b99a61;background:rgba(214,179,111,.12);color:#f2d096;font-weight:600}
+.headerActions small{padding:1px 7px;border:1px solid #b99a6155;border-radius:999px;color:#9fa49b;font-size:10px;font-weight:400}
+.headerActions small[data-live]{border-color:#3f9a6a;color:#8fe0b0}
+.headerActions small[data-live]::before{content:"";display:inline-block;width:6px;height:6px;margin-right:4px;border-radius:50%;background:#4cc485;vertical-align:1px}
+/* Work tiles: calm cards in the design tokens. */
+.managementNav{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.managementNav>button,.managementNav>a{border-color:rgba(185,154,97,.22);background:rgba(255,255,255,.015)}
+.managementNav strong{font-family:var(--cp-font-title,Georgia,serif);font-weight:400;font-size:16px;letter-spacing:.01em}
+@media(max-width:900px){.headerActions{margin-left:auto;flex-wrap:wrap}.headerActions a{padding:4px 6px}}
