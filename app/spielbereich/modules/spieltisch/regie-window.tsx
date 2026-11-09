@@ -19,6 +19,8 @@ import {sendStageCommand,type Audience} from './stage-client';
 import {effectLabels} from './atmosphere';
 import {TableMaterialLibrary} from '../table-material-library';
 import {RegieVitals} from './regie-vitals';
+import {RegiePlayers} from './regie-players';
+import {presenceLabels} from '@/domain/live-participants';
 import {RegieAmbience,RegieScenePlaylist} from './regie-ambience';
 import {RegieMaterials} from '../material/regie-materials';
 import type {RegieContext,Snapshot,StageObject,PreparedPager,PagerMessage} from './types';
@@ -275,7 +277,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
   {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
-   <main className={styles.studioHost} data-scene={s!.id}><RegieStudio state={layout} toolbar={toolbar} area={area} onArea={chooseArea} contextKey={a.campaignId+':'+a.id+':'+s!.id} sceneTitle={s!.title} place={context.place?.title} pending={openTargets}
+   <main className={styles.studioHost} data-scene={s!.id}><RegieStudio presence={<section className={styles.presence} aria-label="Spieler am Tisch"><h3>Am Tisch</h3>{(snapshot?.crew||[]).length?<ul>{(snapshot?.crew||[]).map(m=><li key={m.id} data-state={m.presence}><span aria-hidden="true"/>{m.name}<small>{presenceLabels[m.presence]}</small></li>)}</ul>:<p>Noch niemand am Tisch.</p>}</section>} state={layout} toolbar={toolbar} area={area} onArea={chooseArea} contextKey={a.campaignId+':'+a.id+':'+s!.id} sceneTitle={s!.title} place={context.place?.title} pending={openTargets}
     editUrl={'/sl/command-center?bereich=sitzung&scene='+encodeURIComponent(s!.id)}
     readingTools={<div className={styles.textTools}><div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div></div>}
     prepared={(context.materials||[]).map(m=>({id:m.elementId,title:m.title,area:sceneMaterialArea}))}
@@ -349,6 +351,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     </Block>
 
 
+    <Block title="Spieler & Charaktere" area="players"><RegiePlayers a={a} sessionId={room!.sessionId} vitals={snapshot?.vitals} busy={busy} run={payload=>run({action:'vitals',...payload},null,'')}/></Block>
     <Block title="Zustände der Runde" area="vitals">{snapshot?.vitals?<RegieVitals vitals={snapshot.vitals} crew={snapshot.crew} busy={busy} run={(body,done)=>run(body,null,done||'')}/>:<p className={regieStyles.empty}>Zustandswerte werden geladen …</p>}</Block>
     <Block title="Atmosphäre auf dem Tisch" area="effects">
      {effectControls}

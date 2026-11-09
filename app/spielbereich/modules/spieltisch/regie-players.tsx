@@ -16,8 +16,11 @@ const Content=lazy(()=>import('./participant-content').then(m=>({default:m.Parti
 export function RegiePlayers({a,sessionId,vitals,busy,run}:{a:Actor;sessionId:string;vitals?:VitalsSnapshot;busy:boolean;run:(action:VitalsAction)=>Promise<boolean>}){
  const [open,setOpen]=useState<Record<string,'inventory'|'sheet'|'connections'|null>>({});
  if(!vitals)return <p className={styles.hint}>Zustandswerte werden geladen …</p>;
- if(!vitals.characters.length)return <p className={styles.hint}>Noch kein spielbereiter Charakter an diesem Tisch. Entwürfe in Prüfung erscheinen erst nach Bestätigung.</p>;
+ const hidden=vitals.settings?.hideGmCharacters!==false;
+ const gmSwitch=vitals.settings&&<label className={styles.gmSwitch}><input type="checkbox" checked={!hidden} disabled={busy} onChange={e=>void run({expectedVersion:vitals.version,table:{op:'settings',hideGmCharacters:!e.target.checked}})}/><span><strong>SL-Charaktere am Tisch zeigen</strong><small>{hidden?'Ausgeblendet: Niemand sieht sie am Tisch, auch du nicht.':'Eingeblendet: Sie stehen in der Runde wie alle anderen.'}</small></span></label>;
+ if(!vitals.characters.length)return <div className={styles.panel}>{gmSwitch}<p className={styles.hint}>Noch kein spielbereiter Charakter an diesem Tisch. Entwürfe in Prüfung erscheinen erst nach Bestätigung.</p></div>;
  return <div className={styles.panel}>
+  {gmSwitch}
   {vitals.characters.map(c=><div key={c.id} className={styles.playerBlock}>
    <p className={styles.playerOwner}>{c.ownerName}</p>
    <CharacterCard c={c} vitals={vitals} gm busy={busy} run={run}/>

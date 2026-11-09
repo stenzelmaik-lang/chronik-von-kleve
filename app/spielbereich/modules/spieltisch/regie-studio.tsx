@@ -2,12 +2,12 @@
 
 import {Children,isValidElement,useCallback,useEffect,useLayoutEffect,useRef,useState,type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
-import {ArrowLeft,ArrowRight,BookOpen,ChevronRight,Dices,EyeOff,Layers,LayoutGrid,Maximize2,Minimize2,PanelRightClose,Radio,RotateCcw,StretchHorizontal,Volume2,X,Zap,Keyboard,Pencil} from 'lucide-react';
+import {ArrowLeft,ArrowRight,BookOpen,ChevronRight,Dices,EyeOff,Layers,LayoutGrid,Maximize2,Minimize2,PanelRightClose,Radio,RotateCcw,StretchHorizontal,Volume2,X,Zap,Keyboard,Pencil,Users} from 'lucide-react';
 import {regieGroups,regieAreaLabels,regieAreaOf,regieGroupOf,type RegieGroup} from '@/domain/regie-studio';
 import {Block,type TileProps,type useRegieLayout} from './regie-tiles';
 import styles from './regie-studio.module.css';
 
-const groupIcons={scene:BookOpen,interaction:Layers,mood:Volume2,checks:Dices,table:LayoutGrid};
+const groupIcons={scene:BookOpen,interaction:Layers,mood:Volume2,checks:Dices,players:Users,table:LayoutGrid};
 const quickTools=[['Szenenmaterial','Material',Layers,'M'],['effects','Effekte',Zap,'E'],['Pager · spontan','Pager',Radio,'P']] as const;
 const readingAreas=regieGroups[0].areas as readonly string[];
 
@@ -42,9 +42,10 @@ function StudioPane({id,title,children,active,drawer,focus,wide,contextKey,onFoc
  </section>;
 }
 
-export function RegieStudio({children,area,onArea,state,toolbar,contextKey,sceneTitle,place,prepared,status,pending=0,readingTools,editUrl}:{
+export function RegieStudio({children,area,onArea,state,toolbar,contextKey,sceneTitle,place,prepared,status,pending=0,readingTools,editUrl,presence}:{
  children:ReactNode;area:string;onArea:(area:string)=>void;state:ReturnType<typeof useRegieLayout>;toolbar:HTMLDivElement|null;
  contextKey:string;sceneTitle:string;place?:string;prepared:{id:string;title:string;area:string}[];status:ReactNode;pending?:number;readingTools?:ReactNode;editUrl:string;
+ /** Always visible: who is at the table and whether they are online. */ presence?:ReactNode;
 }){
  const elements=Children.toArray(children).filter(isValidElement<TileProps>).filter(item=>item.type===Block);
  const blocks=new Map(elements.map(item=>[item.props.area||item.props.title,item.props]));
@@ -81,7 +82,7 @@ export function RegieStudio({children,area,onArea,state,toolbar,contextKey,scene
    if(!event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.isComposing)return;
    if(event.target instanceof HTMLElement&&event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
    const n=Number(event.key),tool=quickTools.find(item=>item[3].toLowerCase()===event.key.toLowerCase());
-   if(n>=1&&n<=5){event.preventDefault();goGroup(regieGroups[n-1].id);}
+   if(n>=1&&n<=regieGroups.length){event.preventDefault();goGroup(regieGroups[n-1].id);}
    else if(tool){event.preventDefault();openQuick(tool[0]);}
    else if(event.key.toLowerCase()==='f'){event.preventDefault();setFocus(old=>old?null:active);}
   };
@@ -107,6 +108,7 @@ export function RegieStudio({children,area,onArea,state,toolbar,contextKey,scene
   </div></details>,toolbar)}
   <nav className={styles.navigation} aria-label="Arbeitsansichten der Regie">
    {regieGroups.map((item,index)=>{const Icon=groupIcons[item.id];return <button type="button" key={item.id} aria-current={group===item.id?'page':undefined} title={'Alt+'+(index+1)} onClick={()=>goGroup(item.id)}><Icon size={19}/><span>{item.title}</span>{item.id==='checks'&&pending>0?<b aria-label={pending+' Würfe ausstehend'}>{pending}</b>:<kbd aria-hidden="true">{index+1}</kbd>}</button>;})}
+   {presence}
    <button type="button" className={styles.helpButton} aria-expanded={help} onClick={()=>setHelp(value=>!value)}><Keyboard size={18}/><span>Tastenkürzel</span></button>
   </nav>
   <div className={styles.work}>

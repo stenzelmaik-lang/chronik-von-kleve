@@ -33,6 +33,7 @@ const presentation = z.object({
 const schema = z.discriminatedUnion("action", [
   z.object({action:z.literal('presentation'),id,version:z.number().int().positive(),presentation}).strict(),
   // Bekannte Verbindungen: the player asks, the SL decides and links the character with an NPC or another character.
+  z.object({action:z.literal('individual'),id,version:z.number().int().positive(),individualInfo:z.string().max(65000)}).strict(),
   z.object({action:z.literal('connection.request'),id,version:z.number().int().positive(),targetId:id.optional(),targetName:z.string().trim().min(1).max(120),note:z.string().trim().max(600)}).strict(),
   z.object({action:z.literal('connection.decide'),id,version:z.number().int().positive(),requestId:id,decision:z.enum(['approved','rejected']),targetId:id.optional(),visibility:z.enum(['group','sl']).optional(),answer:z.string().trim().max(600).optional()}).strict(),
   z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema,presentation:presentation.optional(),backgroundStory:z.string().max(90000).optional(),playGuide:z.string().max(90000).optional(),media:profileMedia.optional()}).strict(),
@@ -207,6 +208,13 @@ export async function PATCH(req: Request) {
     }
     // Charakterprofil (page 2 of the sheet): only the owner (or a managing SL) writes; the rest of the body stays as stored.
     // One save for the whole Charakterprofil: description, allies, sharing, appearance card, story and play guide.
+    if(data.action==='individual'){
+      const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
+      if(!canEdit(a,character))throw new HttpError(403,'Charakter nicht editierbar.');
+      if(!isRichTextWithinLimit(data.individualInfo,20000))throw new HttpError(400,'Die individuellen Angaben sind zu lang.');
+      body.individualInfo=data.individualInfo;
+      return json(await updateCharacterBody(db,character,data.version,body));
+    }
     if(data.action==='connection.request'){
       const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
       if(character.owner_id!==a.id)throw new HttpError(403,'Nur der Besitzer stellt Anfragen für seinen Charakter.');

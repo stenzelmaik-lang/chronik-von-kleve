@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { PROFILE_BLOCKS, PROFILE_DESCRIPTION_FIELDS, readProfile, sharedProfile, type CharacterProfile, type ProfileBlock } from "@/domain/character-profile";
 import { api } from "../api-client";
-import { ConnectionRequestForm, type ConnectionRequest } from "../connection-requests";
+import { ConnectionDesk, ConnectionRequestForm, type ConnectionRequest } from "../connection-requests";
 import { RichTextEditor, RichTextView } from "../rich-text";
 import sheet from "./character-sheet.module.css";
 import styles from "./character-profile.module.css";
@@ -32,7 +32,7 @@ function Share({ block, value, disabled, onChange }: { block: ProfileBlock; valu
  * Charakterprofil, page 2 of the V20 sheet, as one system: appearance card, description, story, how the character is
  * played, allies, images and known connections in one frame. One save writes the whole profile; images upload at once.
  */
-export function CharacterProfileEditor({ id, version, profile: storedProfile, canEdit, onSaved, onDirtyChange, backgroundStory, playGuide, media, connections, requests = [], isOwner = false }: { id: string; version: number; profile: unknown; canEdit: boolean; onSaved: () => void; onDirtyChange?: (dirty: boolean) => void; backgroundStory: string; playGuide: string; media: { id: string; type: string; caption?: string; shared?: boolean }[]; connections: ReactNode; requests?: ConnectionRequest[]; isOwner?: boolean }) {
+export function CharacterProfileEditor({ id, version, profile: storedProfile, canEdit, onSaved, onDirtyChange, backgroundStory, playGuide, media, connections, requests = [], isOwner = false, slDesk = false }: { id: string; version: number; profile: unknown; canEdit: boolean; onSaved: () => void; onDirtyChange?: (dirty: boolean) => void; backgroundStory: string; playGuide: string; media: { id: string; type: string; caption?: string; shared?: boolean }[]; connections: ReactNode; requests?: ConnectionRequest[]; isOwner?: boolean; slDesk?: boolean }) {
   const [initial, setInitial] = useState<Draft | null>(null), [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false), [status, setStatus] = useState(""), [loadError, setLoadError] = useState("");
   useEffect(() => {
@@ -135,7 +135,7 @@ export function CharacterProfileEditor({ id, version, profile: storedProfile, ca
       <h3 id="cp-connections">Bekannte Verbindungen</h3>
       <p className={styles.note}>Verbindungen zu NSCs und zu anderen Charakteren vergibt die SL. Frag sie hier an; die SL entscheidet in der Regie.</p>
       <div className={styles.slot}>{connections}</div>
-      <ConnectionRequestForm characterId={id} version={version} requests={requests} canRequest={canEdit && isOwner} blocked={dirty ? "Speichere zuerst dein Profil." : undefined} onSaved={onSaved} />
+      {slDesk ? <ConnectionDesk characterId={id} /> : <ConnectionRequestForm characterId={id} version={version} requests={requests} canRequest={canEdit && isOwner} blocked={dirty ? "Speichere zuerst dein Profil." : undefined} onSaved={onSaved} />}
     </section>
 
     <section className={sheet.block} aria-labelledby="cp-preview">

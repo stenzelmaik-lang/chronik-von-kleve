@@ -5,6 +5,7 @@ import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
 import { CharacterSheet } from "./character-sheet/character-sheet";
 import { CharacterProfileEditor } from "./character-sheet/character-profile";
+import { IndividualInfo } from "./character-sheet/individual-info";
 import { CharacterProgression } from "./character-progression";
 import studio from "./character-studio.module.css";
 import { clanSymbolFor } from "./clan-symbol";
@@ -429,13 +430,13 @@ export function CharacterDetail({
       </header>
       <div className={studio.tabRow}>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"presentation",label:"Charakterprofil"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"presentation",label:"Charakterprofil"},{id:"individual",label:"Individuelle Angaben"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
       {!inspection && !archived && <a className={studio.tabLink} href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
       </div>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
-      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onDirtyChange={d=>{presentationDirty.current=d;}} onSaved={()=>{presentationDirty.current=false;invalidateCharacter();void reload(true,true);onRefresh?.();}} backgroundStory={String(projection.roleplay.backgroundStory||"")} playGuide={String(projection.roleplay.playGuide||"")} media={companion.media} requests={(projection.roleplay.connectionRequests as import("./connection-requests").ConnectionRequest[]|undefined)??[]} isOwner={active.owner_id===a.id} connections={<>
+      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onDirtyChange={d=>{presentationDirty.current=d;}} onSaved={()=>{presentationDirty.current=false;invalidateCharacter();void reload(true,true);onRefresh?.();}} backgroundStory={String(projection.roleplay.backgroundStory||"")} playGuide={String(projection.roleplay.playGuide||"")} media={companion.media} requests={(projection.roleplay.connectionRequests as import("./connection-requests").ConnectionRequest[]|undefined)??[]} isOwner={active.owner_id===a.id} slDesk={inspection&&a.gm} connections={<>
             {companion.relationships.length ? (
               <div className="relationship-list">
                 {companion.relationships.map((rel) => (
@@ -455,11 +456,11 @@ export function CharacterDetail({
             )}
       </>}/>}
 
+      {view==="individual"&&<IndividualInfo key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} value={String(s.individualInfo||"")} canEdit={!archived&&active.owner_id===a.id} onSaved={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
           {hybridPreparationNote()&&readSpecialties({specialties:s.specialties,customAbilities:s.customAbilities}).length>0&&<p className="muted" data-hybrid-preparation>{hybridPreparationNote()}</p>}
           <CharacterSheet identity={projection.identity} sheet={s} progression={projection.progression} layout="wide" withIdentity={false}/>
-          {!!s.individualInfo&&<section className="sheet-block"><h3>Individuelle Angaben</h3><p className="preserve-lines">{String(s.individualInfo)}</p></section>}
         </section>
 
 

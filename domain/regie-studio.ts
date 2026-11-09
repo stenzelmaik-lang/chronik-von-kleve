@@ -2,8 +2,9 @@
 export const regieGroups = [
   {id:'scene', title:'Szene führen', areas:['narration','dialogue','atmosphere','interactions','secrets','consequences','notes']},
   {id:'interaction', title:'Interaktion', areas:['Szenenmaterial','material','pager','Pager · spontan','whispers','images','pdfs','handouts']},
-  {id:'mood', title:'Stimmung', areas:['effects','sound','recordings','music','video','backdrop','vitals']},
+  {id:'mood', title:'Stimmung', areas:['effects','sound','recordings','music','video','backdrop']},
   {id:'checks', title:'Proben & NPCs', areas:['checks','npcs','figures']},
+  {id:'players', title:'Spieler am Tisch', areas:['players','vitals']},
   {id:'table', title:'Tischblick', areas:['table']},
 ] as const;
 export type RegieGroup = typeof regieGroups[number]['id'];
@@ -16,7 +17,7 @@ export const regieAreaLabels:Record<string,string> = {
   whispers:'Visionen & Briefe', images:'Bilder', pdfs:'Dokumente', handouts:'Handout-Akten',
   effects:'Effekte', sound:'Ambiente', recordings:'Tonaufnahmen', music:'Hintergrundmusik',
   video:'Video', backdrop:'Hintergrund', vitals:'Zustände', checks:'Proben', npcs:'Szenen-NPCs',
-  figures:'Standardfiguren & Würfel', table:'Auf dem Tisch',
+  figures:'Standardfiguren & Würfel', players:'Spieler & Charaktere', table:'Auf dem Tisch',
 };
 export function regieGroupOf(area:string):RegieGroup {
   return regieGroups.find(group=>(group.areas as readonly string[]).includes(area))?.id || 'scene';

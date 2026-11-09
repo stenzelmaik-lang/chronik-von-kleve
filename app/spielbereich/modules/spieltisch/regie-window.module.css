@@ -240,3 +240,15 @@
 .tile:modal [data-text-area]{max-width:78ch;margin-inline:auto;font-size:1.25em}
 @media(max-width:1000px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.grid{grid-template-columns:minmax(0,1fr)}.tile[data-wide=true]{grid-column:span 1}}
+
+/* Always visible in the Regie sidebar: who is at the table and their state. */
+.presence{margin:10px 8px 0;padding:10px;border:1px solid rgba(205,166,107,.22);border-radius:6px;background:rgba(0,0,0,.18)}
+.presence h3{margin:0 0 6px;color:#d6b36f;font:600 11px/1.3 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase}
+.presence ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.presence li{display:grid;grid-template-columns:8px 1fr;gap:2px 8px;align-items:center;color:#ece5d8;font-size:13px}
+.presence li>span{width:8px;height:8px;border-radius:50%;background:#6b7280}
+.presence li[data-state="connected"]>span{background:#4cc485}
+.presence li[data-state="afk"]>span{background:#e0b14a}
+.presence li small{grid-column:2;color:#9fa49b;font-size:11px}
+.presence p{margin:0;color:#9fa49b;font-size:12px}
+.presence{margin-bottom:64px;max-height:38vh;overflow:auto}

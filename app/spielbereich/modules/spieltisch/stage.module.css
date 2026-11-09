@@ -225,3 +225,12 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .stickySwatch[data-color="gruen"]{background:#bfe6a5}.stickySwatch[data-color="orange"]{background:#fbc48a}.stickySwatch[data-color="lila"]{background:#d6c2f0}
 .stickyObject:nth-of-type(odd) .stickyPaper{transform:rotate(-1.2deg)}
 .stickyObject:nth-of-type(even) .stickyPaper{transform:rotate(1deg)}
+
+/* Saved note: just paper and text; a slim top with grip, pen and eye. */
+.stickyTop{display:flex;align-items:center;gap:6px;flex-shrink:0;min-height:30px;padding:4px 6px 0 4px}
+.stickyTop .stickyGrip{width:auto;height:26px;padding:0 4px;background:transparent}
+.stickyTools{display:inline-flex;gap:2px;margin-left:auto}
+.stickyTools button{display:grid;place-items:center;width:28px;height:26px;padding:0;border:0;border-radius:4px;background:transparent;color:rgba(40,34,20,.7);cursor:pointer}
+.stickyTools button:hover,.stickyTools button:focus-visible{background:rgba(0,0,0,.08);color:rgba(40,34,20,.95)}
+.stickyOwner{margin-right:auto;color:rgba(40,34,20,.65);font:11px Arial,sans-serif}
+.stickyTop>svg{color:rgba(40,34,20,.55)}

@@ -70,6 +70,11 @@ const afterAdd=await detail(a);
 check(afterAdd.companion.media.some(m=>m.id===galleryUpload&&m.shared===true&&m.type==='reference'),'the gallery picture sits in the image list of the Charakterprofil, shared');
 check((await req(b,'/api/character-gallery')).text.includes(galleryUpload),'Player B sees the added picture in the gallery');
 uploads.push(galleryUpload);
+// Individuelle Angaben: the owner writes them on their own tab; other players cannot.
+let iv=(await detail(a)).revision.version;
+check((await req(b,'/api/character-companion','PATCH',{action:'individual',id:own.id,version:iv,individualInfo:'fremd'})).status>=400,'Player B cannot write the individual notes of Player A');
+check((await req(a,'/api/character-companion','PATCH',{action:'individual',id:own.id,version:iv,individualInfo:marker+' Rückseite'})).status===200,'the owner saves the individual notes');
+check(String((await detail(a)).sheet.individualInfo||'').includes(marker+' Rückseite'),'the individual notes read back');
 // Bekannte Verbindungen: the owner asks, only the SL decides and links.
 let cv=(await detail(a)).revision.version;
 check((await req(b,'/api/character-companion','PATCH',{action:'connection.request',id:own.id,version:cv,targetName:'Fremd',note:''})).status===403,'Player B cannot ask for connections of Player A\'s character');
