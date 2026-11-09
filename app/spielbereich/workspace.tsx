@@ -270,7 +270,7 @@ export default function Workspace({
   return (
     <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
       {selectionError&&<p className="error-box" role="alert">Charakterwechsel nicht gespeichert: {selectionError}</p>}
-      {!worldExperienceActive && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && !((section === "galerie" || section === "rueckblick") && surface === "sl") && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
+      {!worldExperienceActive && section !== "chronik" && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && !((section === "galerie" || section === "rueckblick") && surface === "sl") && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
         <div>
           <p className="eyebrow">
             {surface === "sl" && a.gm ? "DIE CHRONIK IN DEINER HAND" : "DEIN ORT IN DER NACHT"}
@@ -444,13 +444,7 @@ export default function Workspace({
       ) : section === "termine" ? (
         <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope}/>
       ) : section === "chronik" ? (
-        <ChroniclePanel
-          entries={entries}
-          onOpen={(e) => {
-            setFormError("");
-            setEdit(structuredClone(e));
-          }}
-        />
+        <ChroniclePanel entries={entries} />
       ) : section === "galerie" ? (
         surface === "sl" ? <MediaLibrary a={a} files={files} onRefresh={reload}/> : <PlayerGallery key={dataScope} characterId={activeCharacterId}/>
       ) : section === "vorbereitung" ? (

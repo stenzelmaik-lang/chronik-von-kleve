@@ -1,140 +1,147 @@
 "use client";
+
 import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { BookOpen, ChevronRight, Feather } from "lucide-react";
-import { useState } from "react";
-
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import type { Entry } from "@/domain/legacy";
-import { RichTextView } from "./rich-text";
+import { ArrowUpRight, BookOpen, X } from "lucide-react";
+import { useRef, useState } from "react";
 import { richTeaser } from "./rich-teaser";
+import { RichTextView } from "./rich-text";
+import styles from "./chronicle.module.css";
 
-const dateOf = (e: Entry) => String(e.body?.date || e.updated_at || "");
-const niceDate = (e: Entry) => { const t = Date.parse(dateOf(e)); return Number.isFinite(t) ? new Date(t).toLocaleDateString("de-DE", { dateStyle: "long" }) : "Ohne Datum"; };
-const yearOf = (e: Entry) => { const t = Date.parse(dateOf(e)); return Number.isFinite(t) ? String(new Date(t).getFullYear()) : "Ohne Datum"; };
-const isRecap = (e: Entry) => e.body?.type === "rueckblick";
+const dateFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "long", timeZone: "UTC" });
+const undated = "Ohne Datum";
 
-export function ChroniclePanel({
-  entries,
-  onOpen,
-}: {
-  entries: Entry[];
-  onOpen: (e: Entry) => void;
-}) {
-  const [filter, setFilter] = useState<"all" | "live">("all");
-  const ordered = [...entries].sort((a, b) =>
-    String(b.body?.date || b.updated_at || "").localeCompare(
-      String(a.body?.date || a.updated_at || ""),
-    ),
-  );
-  const visible =
-    filter === "live"
-      ? ordered.filter((e) => e.visibility === "group")
-      : ordered;
-  const latest = ordered[0];
+function chronicleDate(entry: Entry) {
+  const time = Date.parse(String(entry.body?.date || entry.updated_at || ""));
+  const date = Number.isFinite(time) ? new Date(time) : null;
+  return {
+    time: date?.getTime() ?? Number.MIN_SAFE_INTEGER,
+    year: date ? String(date.getUTCFullYear()) : undated,
+    label: date ? dateFormat.format(date) : undated,
+    iso: date?.toISOString().split("T")[0],
+  };
+}
+
+function yearId(year: string) {
+  return "chronik-jahr-" + (year === undated ? "undatiert" : year);
+}
+
+export function ChroniclePanel({ entries }: { entries: Entry[] }) {
+  const [releasedOnly, setReleasedOnly] = useState(false);
+  const [selected, setSelected] = useState<Entry | null>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const showVisibility = entries.some((entry) => entry.visibility !== "group");
+  const visible = entries
+    .filter((entry) => !releasedOnly || entry.visibility === "group")
+    .map((entry) => ({ entry, date: chronicleDate(entry) }))
+    .sort((a, b) => b.date.time - a.date.time);
+  const years = new Map<string, typeof visible>();
+  for (const item of visible) {
+    const year = years.get(item.date.year);
+    if (year) year.push(item);
+    else years.set(item.date.year, [item]);
+  }
+
   return (
-    <div className="chronicle-stack">
-      <section className="chronicle-hero">
+    <div className={styles.page}>
+      <header className={styles.masthead}>
         <div>
-          <p className="eyebrow">
-            <BookOpen size={14} /> CHRONIK · FALLAKTE 01
-          </p>
-          <h2>Die Nacht hinterlässt Spuren.</h2>
-          <p>
-            Kapitel, Wendepunkte und Gerüchte liegen hier in einer gemeinsamen
-            Abfolge. Öffne einen Eintrag, wenn du tiefer in die Szene willst.
-          </p>
+          <p className={styles.kicker}>Chronik von Kleve</p>
+          <h1>Die Nacht hinterlässt Spuren.</h1>
+          <p className={styles.intro}>Ereignisse, Beobachtungen und Rückblicke aus der Domäne.</p>
         </div>
-        <div className="chronicle-seal">
-          <span>{String(ordered.length).padStart(2, "0")}</span>
-          <small>SPUREN</small>
+      </header>
+
+      <div className={styles.toolbar}>
+        <div className={styles.timelineLabel}>
+          <h2 id="chronik-zeitstrahl">Zeitstrahl</h2>
+          <p aria-live="polite">{visible.length} {visible.length === 1 ? "Eintrag" : "Einträge"} · Neueste zuerst</p>
         </div>
-      </section>
-      <section className="chronicle-toolbar">
-        <div>
-          <p className="eyebrow">AKTUELLE FASSUNG</p>
-          <h3>{latest?.title || "Noch kein Kapitel geöffnet"}</h3>
-          <p className="muted">
-            {richTeaser(latest?.body?.summary || latest?.body?.text, 200) ||
-              "Die Spielleitung baut die Chronik hier Schritt für Schritt auf."}
-          </p>
-        </div>
-        <div className="chronicle-filters">
-          <button
-            className={filter === "all" ? "button primary" : "button"}
-            onClick={() => setFilter("all")}
-          >
-            Alle Einträge
-          </button>
-          <button
-            className={filter === "live" ? "button primary" : "button"}
-            onClick={() => setFilter("live")}
-          >
+        {showVisibility && (
+          <label className={styles.filter}>
+            <input type="checkbox" checked={releasedOnly} onChange={(event) => setReleasedOnly(event.target.checked)} />
             Nur freigegeben
-          </button>
-        </div>
-      </section>
+          </label>
+        )}
+        {years.size > 1 && (
+          <nav className={styles.yearNav} aria-label="Zu einem Jahr springen">
+            {Array.from(years.keys(), (year) => <a key={year} href={"#" + yearId(year)}>{year}</a>)}
+          </nav>
+        )}
+      </div>
+
       {visible.length === 0 ? (
         <Empty className="empty-night">
           <EmptyHeader>
-            <Feather size={34} className="text-primary mb-3" />
-            <EmptyTitle>Noch keine freigegebenen Spuren</EmptyTitle>
-            <EmptyDescription>
-              Die Spielleitung kann im CMS die ersten Kapitel veröffentlichen.
-            </EmptyDescription>
+            <BookOpen size={32} aria-hidden="true" className="text-primary mb-3" />
+            <EmptyTitle>Noch keine {releasedOnly ? "freigegebenen " : ""}Einträge</EmptyTitle>
+            <EmptyDescription>Hier erscheinen die Ereignisse der Domäne, sobald sie eingetragen sind.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="chronicle-timeline">
-          {visible.map((entry, i) => (
-            <div key={entry.id || entry.title} className="chronicle-event-wrap">
-            {(i === 0 || yearOf(visible[i - 1]) !== yearOf(entry)) && <h3 className="chronicle-year">{yearOf(entry)}</h3>}
-            <article className="chronicle-event" data-recap={isRecap(entry) || undefined}>
-              <div className="chronicle-event-rail">
-                <span className="chronicle-event-index">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="chronicle-event-line" />
-              </div>
-              <div className="chronicle-event-body">
-                <div className="chronicle-event-meta">
-                  <span>{niceDate(entry)}</span>
-                  {isRecap(entry) && <span className="badge">Rückblick</span>}
-                  <span className="badge">
-                    {entry.visibility === "group"
-                      ? "Freigegeben"
-                      : "Spielleitung"}
-                  </span>
-                  {entry.body?.source && (
-                    <span>{String(entry.body.source)}</span>
-                  )}
-                </div>
-                <h3>{entry.title}</h3>
-                <p className="chronicle-teaser">
-                  {richTeaser(entry.body?.summary || entry.body?.text) ||
-                    "Dieser Eintrag bewahrt eine Spur der Domäne."}
-                </p>
-                {entry.body?.text && (
-                  <details>
-                    <summary>Lesetext einblenden</summary>
-                    <div className="chronicle-read"><RichTextView value={String(entry.body.text)} readable /></div>
-                  </details>
-                )}
-                {isRecap(entry) ? <a className="button" href={`/spielbereich?bereich=rueckblick&session=${encodeURIComponent(entry.id || "")}`}>Rückblick lesen <ChevronRight size={15} /></a> : <button
-                  className="button"
-                  onClick={() => onOpen(structuredClone(entry))}
-                >
-                  Eintrag öffnen <ChevronRight size={15} />
-                </button>}
-              </div>
-            </article>
-            </div>
+        <div className={styles.timeline} aria-labelledby="chronik-zeitstrahl">
+          {Array.from(years, ([year, items]) => (
+            <section className={styles.year} key={year} aria-labelledby={yearId(year)}>
+              <h3 id={yearId(year)} className={styles.yearLabel}>{year}</h3>
+              <ol className={styles.events}>
+                {items.map(({ entry, date }) => {
+                  const recap = entry.body?.type === "rueckblick";
+                  const teaser = richTeaser(entry.body?.summary || entry.body?.text, 175);
+                  const action = <>Eintrag öffnen <ArrowUpRight size={15} aria-hidden="true" /></>;
+                  return (
+                    <li key={entry.id || entry.title} className={styles.event}>
+                      <article className={styles.card} data-recap={recap || undefined}>
+                        <div className={styles.meta}>
+                          {date.iso ? <time dateTime={date.iso}>{date.label}</time> : <span>{date.label}</span>}
+                          {recap && <span className={styles.tag}>Rückblick</span>}
+                          {showVisibility && <span className={styles.tag}>{entry.visibility === "group" ? "Freigegeben" : "Spielleitung"}</span>}
+                          {entry.body?.source && <span className={styles.source}>{String(entry.body.source)}</span>}
+                        </div>
+                        <h4>{entry.title}</h4>
+                        {teaser && <p className={styles.teaser}>{teaser}</p>}
+                        {recap && entry.id ? (
+                          <a className={styles.open} aria-label={"Eintrag öffnen: " + entry.title} href={"/spielbereich?bereich=rueckblick&session=" + encodeURIComponent(entry.id)}>{action}</a>
+                        ) : (
+                          <button type="button" className={styles.open} aria-label={"Eintrag öffnen: " + entry.title} onClick={(event) => {
+                            opener.current = event.currentTarget;
+                            setSelected(entry);
+                          }}>{action}</button>
+                        )}
+                      </article>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
           ))}
         </div>
       )}
+
+      <Dialog open={selected !== null} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        {selected && (
+          <DialogContent
+            className={styles.reader}
+            showCloseButton={false}
+            onOpenAutoFocus={(event) => { event.preventDefault(); heading.current?.focus(); }}
+            onCloseAutoFocus={(event) => { event.preventDefault(); opener.current?.focus(); }}
+          >
+            <header className={styles.readerHeader}>
+              <DialogDescription className={styles.readerDate}>{chronicleDate(selected).label}</DialogDescription>
+              <DialogTitle ref={heading} tabIndex={-1} className={styles.readerTitle}>{selected.title}</DialogTitle>
+              <DialogClose className={styles.close} aria-label="Eintrag schließen"><X size={20} aria-hidden="true" /></DialogClose>
+            </header>
+            <RichTextView value={String(selected.body?.text || selected.body?.summary || "Zu diesem Eintrag gibt es keinen Lesetext.")} readable className={styles.readerText} />
+          </DialogContent>
+        )}
+      </Dialog>
     </div>
   );
 }
