@@ -26,7 +26,8 @@ function MediaView({file,url}:{file:LiveMedia;url:string}){
 }
 export function LiveSession({a}:{a:Actor}){
  const [stageOpen,setStageOpen]=useState(true);
- const exitStage=useCallback(()=>setStageOpen(false),[]);
+ // Leaving the table in the player area goes straight back to the Zuflucht (4c), no in-between page.
+ const exitStage=useCallback(()=>{setStageOpen(false);if(window.location.pathname.startsWith('/spielbereich')){const url=new URL(window.location.href);url.searchParams.set('bereich','dashboard');url.searchParams.delete('session');history.pushState(null,'',url);window.dispatchEvent(new PopStateEvent('popstate'));}},[]);
  const [sessionId,setSessionId]=useState(''),[selected,setSelected]=useState(''),[title,setTitle]=useState('Spielabend');
  const [data,setData]=useState<Snapshot|null>(null),[error,setError]=useState(''),[syncError,setSyncError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [catalog,setCatalog]=useState<{sessions:{id:string;title:string}[];scenes:SceneSummary[]}>({sessions:[],scenes:[]}),[sceneId,setSceneId]=useState(''),[scene,setScene]=useState<SceneView|null>(null);

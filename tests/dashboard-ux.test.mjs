@@ -20,15 +20,15 @@ test('overview reuses existing destinations and distinguishes legacy XP',()=>{
   assert.ok(dashboard.includes('chroniplay:open-inbox'));
   const nav=readFileSync(new URL('../app/spielbereich/modules/navigation.ts',import.meta.url),'utf8');
   assert.ok(!shell.includes('Chronik erkunden'),'4c: Die Welt steht im Menü, nicht in der Kopfleiste');
-  assert.ok(shell.includes('aria-label="Hauptmenü"')&&shell.includes('menuSections('));
+  assert.ok(shell.includes('label="Die Welt"'));
   assert.ok(shell.includes('showTrigger={false}'));
   for(const id of ['wuerfel','weltkarte'])assert.match(nav,new RegExp('id: "'+id+'"[^}]*mainNav: false'),id+' stays reachable but leaves the menu');
-  assert.ok(!shell.includes('Zur Spielerzentrale'),'4c: the menu has the Spielerzentrale');
+  assert.ok(!shell.includes('Zur Spielerzentrale'),'4c: Zuflucht steht fest in der Kopfleiste');
   assert.ok(!shell.includes('Journal & mehr'));
 });
 
 test('mobile icon actions retain accessible names and neutral context',()=>{
-  assert.ok(shell.includes('aria-label="ChroniPlay – Spielerzentrale"'));
+  assert.ok(shell.includes('aria-label="ChroniPlay – Zuflucht"'));
   assert.ok(command.includes('Veröffentlichten Gruppenblick öffnen'));
   assert.ok(!shell.includes('Aktive Nacht'));
   assert.ok(shell.includes('Kontomenü'));

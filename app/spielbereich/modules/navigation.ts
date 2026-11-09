@@ -36,7 +36,7 @@ type Section = {
 
 export const sections: Section[] = [
   // Mein Abend
-  { id: "dashboard", name: "Spielerzentrale", icon: PanelTop, desc: "Alles Wichtige für deine nächste Nacht.", group: "Mein Abend" },
+  { id: "dashboard", name: "Zuflucht", icon: PanelTop, desc: "Alles Wichtige für deine nächste Nacht.", group: "Mein Abend" },
   { id: "sitzung", name: "Spieltisch", icon: Radio, desc: "Der Spielabend live: Bühne, Szenen und Würfel.", group: "Mein Abend" },
   { id: "termine", name: "Termine", icon: CalendarDays, desc: "Kalender, Spielabende und gemeinsame Terminabstimmung.", group: "Mein Abend" },
   { id: "rueckblick", name: "Rückblicke", icon: BookOpen, desc: "Freigegebene Zusammenfassungen vergangener Spielabende.", group: "Mein Abend" },
@@ -68,10 +68,19 @@ export const sections: Section[] = [
 /** Menu groups in display order (4c). */
 export const navGroups = ["Mein Abend", "Mein Charakter", "Meine Seiten", "Die Welt", "Spielleitung"];
 
-/** Entries of the player menu for one role; the server still checks every area. */
-export function menuSections(gm: boolean, canManageLocations: boolean) {
-  return navGroups.map(group => ({ group, items: sections.filter(s => s.group === group && s.mainNav !== false && (!s.gmOnly || gm) && (!s.cmsAccessOnly || canManageLocations)) })).filter(g => g.items.length);
-}
+/** "Die Welt" dropdown and world bar in the header (4c, version 3), in this order. */
+export const worldSections = ["schauplaetze", "chronik", "nscs", "archiv", "regelwerk", "neuigkeiten", "haendler"].map(id => sections.find(s => s.id === id)!);
+
+/** "Command Center" dropdown, only for the SL: jump straight into a work area. */
+export const commandCenterLinks: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: "Spieltisch-Regie", href: "/sl/command-center?bereich=sitzung", icon: Radio },
+  { label: "Charaktere", href: "/sl/command-center?bereich=charaktere", icon: Users },
+  { label: "Persönlichkeiten (NSC)", href: "/sl/command-center?bereich=nscs", icon: Users },
+  { label: "Ortsverwaltung", href: "/sl/command-center?bereich=ortscms", icon: MapPin },
+  { label: "Materialvorbereitung", href: "/sl/command-center?bereich=vorbereitung", icon: Library },
+  { label: "Galerie (Dateien)", href: "/sl/command-center?bereich=galerie", icon: Images },
+  { label: "Chronik-CMS", href: "/spielbereich?bereich=cms", icon: LayoutDashboard },
+];
 
 export const personal = [
   "charaktere",

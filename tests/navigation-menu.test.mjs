@@ -1,26 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {menuSections,navGroups,sections} from '../app/spielbereich/modules/navigation.ts';
+import {readFileSync} from 'node:fs';
+import {commandCenterLinks,sections,worldSections} from '../app/spielbereich/modules/navigation.ts';
 
-const ids=groups=>groups.flatMap(g=>g.items.map(i=>i.id));
+const shell=readFileSync(new URL('../app/spielbereich/modules/shell.tsx',import.meta.url),'utf8');
 
-test('players see four groups without the Spielleitung, and no hidden areas', () => {
-  const menu=menuSections(false,false);
-  assert.deepEqual(menu.map(g=>g.group),['Mein Abend','Mein Charakter','Meine Seiten','Die Welt']);
-  for(const id of ['vorbereitung','cms','ortscms','wuerfel','weltkarte'])assert.ok(!ids(menu).includes(id),id+' is not in the player menu');
-  for(const id of ['dashboard','sitzung','termine','rueckblick','charaktere','inventar','gefallen','wirtschaft','notizen','galerie','chronik','schauplaetze','nscs','archiv','regelwerk','neuigkeiten','haendler'])assert.ok(ids(menu).includes(id),id+' is in the player menu');
+test('header (4c v3): Zuflucht and Spieltisch with live state, world and command center as dropdowns, no side menu', () => {
+  assert.ok(shell.includes('<span>Zuflucht</span>')&&shell.includes('<span>Spieltisch</span>'));
+  assert.ok(shell.includes("live?'live':'nicht live'"));
+  assert.ok(shell.includes('label="Die Welt"')&&shell.includes('label="Command Center"'));
+  assert.ok(/a\.gm&&<Dropdown label="Command Center"/.test(shell),'only the SL sees the command center dropdown');
+  assert.ok(!shell.includes('PlayerMenu')&&!shell.includes('Hauptmenü'),'no side menu');
+  assert.ok(!shell.includes('Chronik erkunden')&&!shell.includes('Zur Spielerzentrale'));
 });
 
-test('the SL gets the Spielleitung group; place editing needs the CMS right', () => {
-  assert.deepEqual(ids(menuSections(true,false)).filter(id=>['vorbereitung','cms','ortscms'].includes(id)),['vorbereitung','cms']);
-  assert.deepEqual(ids(menuSections(true,true)).filter(id=>['vorbereitung','cms','ortscms'].includes(id)),['vorbereitung','cms','ortscms']);
-  assert.deepEqual(ids(menuSections(false,true)).filter(id=>['vorbereitung','cms','ortscms'].includes(id)),['ortscms'],'an editor sees only the place editing');
+test('the world dropdown is sorted as agreed and the command center jumps into its areas', () => {
+  assert.deepEqual(worldSections.map(s=>s.name),['Orte','Chronik','Persönlichkeiten','Überlieferungen','Codex Noctis','Neuigkeiten','Händler']);
+  assert.deepEqual(commandCenterLinks.map(l=>l.label),['Spieltisch-Regie','Charaktere','Persönlichkeiten (NSC)','Ortsverwaltung','Materialvorbereitung','Galerie (Dateien)','Chronik-CMS']);
+  assert.ok(commandCenterLinks.every(l=>/^\/(sl\/command-center|spielbereich)\?bereich=[a-z]+$/.test(l.href)));
 });
 
-test('names follow the glossary and every area has exactly one entry', () => {
+test('names follow the glossary; retired names are gone', () => {
   const name=id=>sections.find(s=>s.id===id).name;
-  assert.equal(name('dashboard'),'Spielerzentrale');assert.equal(name('sitzung'),'Spieltisch');assert.equal(name('schauplaetze'),'Orte');assert.equal(name('archiv'),'Überlieferungen');assert.equal(name('galerie'),'Galerie');
+  assert.equal(name('dashboard'),'Zuflucht');assert.equal(name('sitzung'),'Spieltisch');assert.equal(name('schauplaetze'),'Orte');assert.equal(name('archiv'),'Überlieferungen');assert.equal(name('galerie'),'Galerie');
   assert.equal(new Set(sections.map(s=>s.id)).size,sections.length);
-  assert.ok(sections.every(s=>s.mainNav===false||navGroups.includes(s.group)),'every menu entry has a known group');
-  assert.ok(!sections.some(s=>/Bilder & Dateien|Schauplätze|Chronik erkunden/.test(s.name)),'retired names are gone');
+  assert.ok(!sections.some(s=>/Spielerzentrale|Bilder & Dateien|Schauplätze|Chronik erkunden/.test(s.name)));
 });

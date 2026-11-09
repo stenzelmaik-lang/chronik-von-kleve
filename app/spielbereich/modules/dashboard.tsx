@@ -2,7 +2,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, CalendarDays, CheckSquare, BookOpen, UserRound, Repeat2 } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckSquare, BookOpen, UserRound, Repeat2, Images, Scale, Coins } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { Entry } from "@/domain/legacy";
@@ -13,6 +13,8 @@ import styles from "./dashboard.module.css";
 import { RichTextView } from "./rich-text";
 import {DashboardCalendar} from "./dashboard-calendar";
 import { clanSymbolFor } from "./clan-symbol";
+import { useLive } from "./live-state";
+import { GalleryPreview } from "./gallery-preview";
 import { safeImage } from "./shared";
 import { xpBalance } from "@/domain/character-engine";
 import {
@@ -64,6 +66,7 @@ export function DashboardPanel({
   activeCharacterId: string | null;
   onActiveCharacterChange: (id: string | null) => void;
 }) {
+  const live = useLive();
   const key = keyFor(activeCharacterId);
   const resultKey = `${dataScope}\u0000${key}`;
   const cached = readPlayerData<DashboardData>(dataScope, key);
@@ -151,7 +154,7 @@ export function DashboardPanel({
     <div className={styles.overview}>
       {refreshing && <p role="status" className="muted">Wird aktualisiert …</p>}
       {error && <div role="alert" className="error-box"><strong>{describeDataError(error).title}</strong><p>{error.message}</p><button className="button" onClick={retry}>Erneut versuchen</button></div>}
-      <header className={styles.heading}><h1>Deine Chronik</h1><p>Dein Platz in der Nacht.</p></header>
+      <header className={styles.heading}><h1>Zuflucht</h1><p>Dein Platz in der Nacht.</p></header>
       <div className={styles.top}>
         <section className={styles.character} aria-labelledby="overview-character">
           {view.characterCount>1&&<label className={styles.characterSwitch}><Repeat2 size={15} aria-hidden="true"/><span className="sr-only">Charakter wechseln</span><select aria-label="Aktiver Charakter" value={activeCharacterId||''} onChange={event=>onActiveCharacterChange(event.target.value||null)}><option value="">Charakter wechseln …</option>{view.characters.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>}
@@ -167,7 +170,7 @@ export function DashboardPanel({
               {typeof char?.body.text==='string'&&char.body.text.trim()&&<details className={styles.characterBackground}><summary>Charakterhintergrund</summary><RichTextView value={char.body.text}/></details>}
             </div>
           </div>
-          <button type="button" className={styles.enter} onClick={()=>onNavigate('sitzung')}><BookOpen size={20} aria-hidden="true"/>Spieltisch betreten<ArrowRight size={18} aria-hidden="true"/></button>
+          <button type="button" className={styles.enter} data-live={live||undefined} onClick={()=>onNavigate('sitzung')}><BookOpen size={20} aria-hidden="true"/>Spieltisch betreten{live!==null&&<small className={styles.liveState}>{live?'live':'nicht live'}</small>}<ArrowRight size={18} aria-hidden="true"/></button>
         </section>
         <section className={styles.next} aria-labelledby="overview-next">
           <h2 id="overview-next"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/12-icon-kalender.svg" alt="" aria-hidden="true"/>Nächster Abend</h2>
@@ -179,8 +182,8 @@ export function DashboardPanel({
       </div>
       <div className={styles.information}>
         <section className={styles.info} aria-labelledby="overview-xp"><h2 id="overview-xp"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/13-icon-entwicklung.svg" alt="" aria-hidden="true"/>Erfahrung & Fortschritt</h2><h3>{xpTitle}</h3><p>{xpDescription}</p><button type="button" onClick={()=>onNavigate('charaktere')}>Entwicklung ansehen<ArrowRight size={15} aria-hidden="true"/></button></section>
-        <section className={styles.info} aria-labelledby="overview-last"><h2 id="overview-last"><BookOpen size={18} aria-hidden="true"/>Letzter Spielabend</h2><h3>{view.lastSession?.title || 'Die Chronik wartet'}</h3>{view.lastSession?.body.summary ? <div className={styles.summary}><RichTextView value={String(view.lastSession.body.summary)}/></div> : <p>{view.lastSession ? 'Noch keine Zusammenfassung freigegeben.' : 'Noch kein vergangener Spielabend freigegeben.'}</p>}{view.lastSession&&<a className={styles.recapLink} href={`/spielbereich?bereich=rueckblick&session=${encodeURIComponent(view.lastSession.id!)}${activeCharacterId?'&character='+encodeURIComponent(activeCharacterId):''}`}>Zusammenfassung lesen<ArrowRight size={15} aria-hidden="true"/></a>}</section>
-        <section className={`${styles.info} ${styles.reserved}`} aria-labelledby="overview-reserved"><h2 id="overview-reserved">Weitere Chronik-Informationen</h2><p>Für diesen Bereich wurde noch kein Inhalt festgelegt.</p></section>
+        <section className={styles.info} aria-labelledby="overview-last"><h2 id="overview-last"><BookOpen size={18} aria-hidden="true"/>Letzter Spielabend</h2><h3>{view.lastSession?.title || 'Die Chronik wartet'}</h3>{view.lastSession?.body.summary ? <div className={styles.summary}><RichTextView value={String(view.lastSession.body.summary)}/></div> : <p>{view.lastSession ? 'Noch keine Zusammenfassung freigegeben.' : 'Noch kein vergangener Spielabend freigegeben.'}</p>}{view.lastSession&&<a className={styles.recapLink} href={`/spielbereich?bereich=rueckblick&session=${encodeURIComponent(view.lastSession.id!)}${activeCharacterId?'&character='+encodeURIComponent(activeCharacterId):''}`}>Zusammenfassung lesen<ArrowRight size={15} aria-hidden="true"/></a>}<button type="button" className={styles.recapLink} onClick={()=>onNavigate('rueckblick')}>Alle Rückblicke<ArrowRight size={15} aria-hidden="true"/></button></section>
+        <section className={styles.info} aria-labelledby="overview-gallery"><h2 id="overview-gallery"><Images size={18} aria-hidden="true"/>Galerie</h2><GalleryPreview onOpen={()=>onNavigate('galerie')}/></section>
       </div>
       <section className={styles.preparation} aria-labelledby="overview-preparation">
         <h2 id="overview-preparation">Meine Vorbereitung</h2>
@@ -189,6 +192,9 @@ export function DashboardPanel({
           <button type="button" onClick={()=>onNavigate('inventar')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/09-icon-inventar.svg" alt="" aria-hidden="true"/><strong>Inventar</strong><span>Ausrüstung & Besitz</span></button>
           <button type="button" onClick={openInbox}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/10-icon-postfach.svg" alt="" aria-hidden="true"/><strong>Postfach</strong><span>Persönliche Nachrichten</span></button>
           <button type="button" onClick={()=>onNavigate('notizen')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/11-icon-archiv.svg" alt="" aria-hidden="true"/><strong>Notizbuch</strong><span>Notizen, Vorbereitung, Archiv</span></button>
+          <button type="button" onClick={()=>onNavigate('galerie')}><Images className={styles.tileIcon} aria-hidden="true"/><strong>Galerie</strong><span>Bilder der Runde</span></button>
+          <button type="button" onClick={()=>onNavigate('gefallen')}><Scale className={styles.tileIcon} aria-hidden="true"/><strong>Gefallen</strong><span>Schulden und Versprechen</span></button>
+          <button type="button" onClick={()=>onNavigate('wirtschaft')}><Coins className={styles.tileIcon} aria-hidden="true"/><strong>Wirtschaft</strong><span>Vermögen und Ausgaben</span></button>
         </div>
       </section>
     </div>

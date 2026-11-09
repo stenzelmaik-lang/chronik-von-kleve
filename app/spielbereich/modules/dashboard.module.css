@@ -118,3 +118,15 @@
 @media(prefers-reduced-motion:reduce){
   .preparationLinks button:hover{transform:none}
 }
+
+/* 4c Zuflucht: live state at the table button, gallery preview, seven tiles. */
+.liveState{margin-left:6px;padding:1px 8px;border:1px solid rgba(255,255,255,.25);border-radius:999px;font:600 11px/1.4 Arial,sans-serif;letter-spacing:.04em;opacity:.85}
+.enter[data-live] .liveState{border-color:#4cc485;color:#d6ffe6;opacity:1}
+.enter[data-live] .liveState::before{content:"";display:inline-block;width:7px;height:7px;margin-right:5px;border-radius:50%;background:#4cc485;vertical-align:0}
+.galleryPreview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:4px 0 10px}
+.galleryPreview img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid var(--hub-edge);border-radius:4px}
+.preparationLinks{grid-template-columns:repeat(7,minmax(0,1fr))}
+@media(max-width:1100px){.preparationLinks{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.preparationLinks svg.tileIcon{color:#d5c198;stroke-width:1.5}
+button.recapLink{border:0;background:none;padding:0;cursor:pointer;font:inherit}
+@media(max-width:720px){.preparationLinks{grid-template-columns:repeat(2,minmax(0,1fr))}}
