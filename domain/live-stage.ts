@@ -7,7 +7,9 @@ import type {Actor,Entity} from './types';
 export const stageTiltMax=40;
 const rectSchema=z.object({x:z.number().min(0).max(1),y:z.number().min(0).max(1),w:z.number().min(.1).max(.65),h:z.number().min(.13).max(.85),r:z.number().min(-stageTiltMax).max(stageTiltMax).optional()}).strict().refine(r=>r.x+r.w<=1.00001&&r.y+r.h<=1.00001,'Objekt muss auf der Bühne bleiben.');
 const base={id:z.string().min(1).max(160),title:z.string().max(200),rect:rectSchema};
-const note=z.object({...base,kind:z.literal('note'),visibility:z.enum(['private','group']),ownerId:z.string().min(1),ownerName:z.string().max(200),content:z.string().max(3000),revision:z.number().int().positive()}).strict();
+/** Paper colours of a sticky note; older notes without a colour stay yellow. */
+export const noteColors=['gelb','rosa','blau','gruen','orange','lila'] as const;
+const note=z.object({...base,kind:z.literal('note'),visibility:z.enum(['private','group']),ownerId:z.string().min(1),ownerName:z.string().max(200),content:z.string().max(3000),revision:z.number().int().positive(),color:z.enum(noteColors).optional()}).strict();
 /** How a file-backed table object is staged: photo card, cassette player, screen or paper. */
 export const stageMediaKinds=['image','audio','video','pdf','pages'] as const;
 export type StageMedia=typeof stageMediaKinds[number];
@@ -104,6 +106,7 @@ export const stageCommandSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('activateScene'),sceneId:z.string().min(1).max(160)}).strict(),
  z.object({action:z.literal('move'),id:z.string(),rect:rectSchema,expectedRevision:z.number().int().positive().optional()}).strict(),
  z.object({action:z.literal('edit'),id:z.string(),content:z.string().max(3000),expectedRevision:z.number().int().positive()}).strict(),
+ z.object({action:z.literal('color'),id:z.string(),color:z.enum(noteColors),expectedRevision:z.number().int().positive()}).strict(),
  z.object({action:z.literal('visibility'),id:z.string(),visibility:z.enum(['private','group']).optional(),visible:z.boolean().optional(),expectedRevision:z.number().int().positive().optional(),recipients:z.array(z.string()).max(30).nullable().optional()}).strict(),
  z.object({action:z.literal('remove'),id:z.string(),expectedRevision:z.number().int().positive().optional()}).strict(),
  z.object({action:z.literal('withdrawAudio')}).strict(),
@@ -224,11 +227,13 @@ export function changeStageObjects(state:StageState,a:Pick<Actor,'id'|'name'|'gm
    if(c.action==='documentEdit')throw Object.assign(Error('Kein ausfüllbares Dokument.'),{status:400});
    if(c.expectedRevision!==o.revision)throw Object.assign(Error('Notizzettel inzwischen geändert.'),{status:409});
    if(c.action==='edit')o.content=c.content;
+   else if(c.action==='color')o.color=c.color;
    else if(c.action==='move')o.rect=c.rect;
    else if(c.action==='visibility'){if(!c.visibility)throw Object.assign(Error('Notizsichtbarkeit fehlt.'),{status:400});o.visibility=c.visibility;}
    else next.objects=next.objects.filter(item=>item.id!==o.id);
    o.revision++;
   }else{
+   if(c.action==='color')throw Object.assign(Error('Nur Notizzettel haben eine Farbe.'),{status:400});
    if(!a.gm&&o.ownerId!==a.id)throw Object.assign(Error('Nur eigene Unterlagen dürfen verändert werden.'),{status:403});
    if(o.presentation&&c.action==='documentEdit')throw Object.assign(Error('Persönliche Inhalte werden in der Szenenvorbereitung bearbeitet.'),{status:400});
    if(o.presentation&&c.action==='visibility')throw Object.assign(Error('Empfänger persönlicher Inhalte werden in der Szenenvorbereitung festgelegt.'),{status:400});

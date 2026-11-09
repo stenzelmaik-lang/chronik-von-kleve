@@ -206,3 +206,22 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 /* Etappe 4a: the static dice tray (no WebGL) is the same table object as the 3D one: wooden rim, green felt. */
 .diceStaticTray{background:#1f3b34;border-color:#5c4030;box-shadow:inset 0 0 0 2px #2b1d14,inset 0 4px 14px #0008}
 .staticDie{background:#e9e1cf;color:#2b231b;text-shadow:none;font-family:var(--cp-font-text)}
+
+/* Sticky notes like real torn-off notes: paper colours, a slightly torn top edge, adhesive shade, lifted corner. */
+.stickyPaper{--note:#f6e27a;--note-deep:#e9cf55;--note-ink:#3a3320;background:linear-gradient(178deg,var(--note) 0%,var(--note) 70%,var(--note-deep) 100%);color:var(--note-ink);border-radius:0 0 3px 18px/0 0 3px 6px;box-shadow:0 1px 1px rgba(0,0,0,.18),0 10px 18px -6px rgba(0,0,0,.45),inset 0 22px 18px -18px rgba(0,0,0,.14);clip-path:polygon(0 3px,4% 0,8% 3px,12% 1px,16% 3px,20% 0,24% 2px,28% 0,32% 3px,36% 1px,40% 3px,44% 0,48% 2px,52% 0,56% 3px,60% 1px,64% 3px,68% 0,72% 2px,76% 0,80% 3px,84% 1px,88% 3px,92% 0,96% 2px,100% 0,100% 100%,0 100%)}
+.stickyPaper[data-color="gelb"]{--note:#f6e27a;--note-deep:#e9cf55}
+.stickyPaper[data-color="rosa"]{--note:#f7b8c8;--note-deep:#eb98ad}
+.stickyPaper[data-color="blau"]{--note:#a9d7f2;--note-deep:#86c2e6}
+.stickyPaper[data-color="gruen"]{--note:#bfe6a5;--note-deep:#a1d684}
+.stickyPaper[data-color="orange"]{--note:#fbc48a;--note-deep:#f3a967}
+.stickyPaper[data-color="lila"]{--note:#d6c2f0;--note-deep:#bfa5e6}
+.stickyPaper .stickyGrip{background:rgba(0,0,0,.06);color:rgba(40,34,20,.75)}
+.stickyPaper .stickyText{font:18px/1.45 "Segoe Print","Bradley Hand","Comic Sans MS",cursive;color:var(--note-ink)}
+.stickyPaper .stickyActions{border-top-color:rgba(0,0,0,.1);flex-wrap:wrap}
+.stickyColors{display:inline-flex;gap:4px;margin-right:auto}
+.stickySwatch{width:16px;height:16px;padding:0;border:1px solid rgba(0,0,0,.35);border-radius:50%;cursor:pointer}
+.stickySwatch[aria-pressed="true"]{outline:2px solid rgba(0,0,0,.65);outline-offset:1px}
+.stickySwatch[data-color="gelb"]{background:#f6e27a}.stickySwatch[data-color="rosa"]{background:#f7b8c8}.stickySwatch[data-color="blau"]{background:#a9d7f2}
+.stickySwatch[data-color="gruen"]{background:#bfe6a5}.stickySwatch[data-color="orange"]{background:#fbc48a}.stickySwatch[data-color="lila"]{background:#d6c2f0}
+.stickyObject:nth-of-type(odd) .stickyPaper{transform:rotate(-1.2deg)}
+.stickyObject:nth-of-type(even) .stickyPaper{transform:rotate(1deg)}
