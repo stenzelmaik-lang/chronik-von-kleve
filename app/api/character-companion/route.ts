@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
 import { isRichTextWithinLimit } from "@/domain/location-rich-text";
+import { profileSchema } from "@/domain/character-profile";
 import {account} from '@/server/account-profile';
 import {
   actor,
@@ -27,6 +28,7 @@ const presentation = z.object({
 
 const schema = z.discriminatedUnion("action", [
   z.object({action:z.literal('presentation'),id,version:z.number().int().positive(),presentation}).strict(),
+  z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema}).strict(),
   z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({
@@ -191,6 +193,13 @@ export async function PATCH(req: Request) {
       body.text = data.backgroundStory;
       body.playGuide = data.playGuide;
       return json(await updateCharacterBody(db, character, data.version, body));
+    }
+    // Charakterprofil (page 2 of the sheet): only the owner (or a managing SL) writes; the rest of the body stays as stored.
+    if(data.action==='profile'){
+      const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
+      if(!canEdit(a,character))throw new HttpError(403,'Charakter nicht editierbar.');
+      body.profile=data.profile;
+      return json(await updateCharacterBody(db,character,data.version,body));
     }
     if(data.action==='presentation'){
       const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);

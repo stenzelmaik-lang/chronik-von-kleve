@@ -1,3 +1,4 @@
+import {sharedProfile,hasSharedProfile} from '@/domain/character-profile';
 import {env} from 'cloudflare:workers';
 import {database,HttpError,canRead,type Actor} from './access';
 import {stageRoom} from './live-stage';
@@ -28,7 +29,7 @@ export async function participantIdentity(a:Actor,memberId:string){
   }:null};
 }
 export async function participantCharacters(a:Actor,memberId:string,publicOnly=false){
- const rows=await database().prepare("SELECT r.* FROM records r JOIN entities e ON e.id=r.id AND e.campaign_id=r.campaign_id WHERE r.campaign_id=? AND r.owner_id=? AND r.kind='charaktere' AND e.canon_status<>'GM_SECRET' AND (?=1 OR (COALESCE(e.default_visibility,'')<>'sl_secret' AND (json_extract(r.body,'$.presentation.published')=1 OR (json_type(r.body,'$.presentation') IS NULL AND r.visibility='group' AND COALESCE(json_extract(r.body,'$.discovered'),1)<>0 AND COALESCE(json_extract(r.body,'$.content_unlocked'),1)<>0)))) ORDER BY r.created_at,r.id").bind(a.campaignId,memberId,!publicOnly&&(a.id===memberId||a.gm)?1:0).all<LegacyRecordRow>();
+ const rows=await database().prepare("SELECT r.* FROM records r JOIN entities e ON e.id=r.id AND e.campaign_id=r.campaign_id WHERE r.campaign_id=? AND r.owner_id=? AND r.kind='charaktere' AND e.canon_status<>'GM_SECRET' AND (?=1 OR (COALESCE(e.default_visibility,'')<>'sl_secret' AND (json_extract(r.body,'$.presentation.published')=1 OR json_extract(r.body,'$.profile.visibility.description')='group' OR json_extract(r.body,'$.profile.visibility.story')='group' OR json_extract(r.body,'$.profile.visibility.drive')='group' OR json_extract(r.body,'$.profile.visibility.allies')='group' OR (json_type(r.body,'$.presentation') IS NULL AND r.visibility='group' AND COALESCE(json_extract(r.body,'$.discovered'),1)<>0 AND COALESCE(json_extract(r.body,'$.content_unlocked'),1)<>0)))) ORDER BY r.created_at,r.id").bind(a.campaignId,memberId,!publicOnly&&(a.id===memberId||a.gm)?1:0).all<LegacyRecordRow>();
  return rows.results.filter(r=>{const b=JSON.parse(r.body);return b.archived!==true&&b.recoveryOnly!==true&&b.lifecycleStatus!=='ARCHIVED';});
 }
 async function portrait(a:Actor,row:LegacyRecordRow,publicOnly=false){
@@ -55,12 +56,15 @@ export async function participantView(a:Actor,sessionId:string,memberId:string,v
   const blocks=row&&!figure?(await database().prepare("SELECT kind,content,visibility FROM entity_content_blocks WHERE entity_id=? AND campaign_id=? AND visibility='player_visible' AND kind IN ('summary','description','appearance','biography') ORDER BY position,id").bind(row.id,a.campaignId).all<{kind:string;content:string;visibility:string}>()).results:[];
   const gallery=row&&figure?await participantGallery(a,sessionId,memberId,row,figure.gallery):[];
   const legacy=row&&!figure?publicCharacterCard(row,blocks):null;
-  const character=row&&(figure||legacy)?{
+  // Charakterprofil: only blocks the owner shared with the group (the SL and the owner see the full profile in the sheet).
+  const shared=row?sharedProfile(body):{};
+  const character=row&&(figure||legacy||hasSharedProfile(shared))?{
    id:row.id,name:row.title,
    descriptions:legacy?.descriptions??[],
    tagline:typeof figure?.tagline==='string'?figure.tagline:'',
    introduction:typeof figure?.introduction==='string'?figure.introduction:'',
    gallery,portrait:await portrait(a,row,true)??gallery[0]?.url??null,
+   profile:shared,
   }:null;
   return {member:{id:memberId,name:identity.name,avatar:identity.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId):null,presentation:identity.presentation},own:a.id===memberId,characters,selectedCharacter:row?.id??null,character};
  }

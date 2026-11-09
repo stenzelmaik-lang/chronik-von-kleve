@@ -188,3 +188,50 @@ Kein Push, kein Deployment, keine Migration, keine Datenänderung. Keine geände
 - `pnpm test` 403/403.
 
 **Zieltabelle zur Neuordnung:** [docs/design/CHARAKTERBEREICH-ZIELTABELLE.md](../design/CHARAKTERBEREICH-ZIELTABELLE.md).
+
+## Charakterprofil ausgebaut (09.11.2026, Freigabe des Besitzers „Ja, ausbauen“)
+
+Grundlage: [Zieltabelle](../design/CHARAKTERBEREICH-ZIELTABELLE.md), Entscheidung 1.
+
+**Daten** (keine Migration, keine neue Tabelle): Neues Feld `profile` im Charakter-Body:
+- `description` (Alter, Sieht aus wie, Todestag, Geschlecht, Ethnische Herkunft, Nationalität, Haarfarbe, Augenfarbe, Größe, Gewicht, Aussehen);
+- `allies` (Verbündete & Kontakte);
+- `visibility` je Block (Beschreibung, Geschichte, Antrieb und Auftreten, Verbündete & Kontakte): `private` (Spieler und SL) oder `group`.
+
+Geschichte und Spielhilfe bleiben, wo sie gespeichert waren (`text`, `playGuide`). Regeln stehen in `domain/character-profile.ts`.
+
+**Rechte:**
+- **Schreiben:** `PATCH /api/character-companion {action:'profile'}`, nur Besitzer oder zuständige SL (`canEdit`), mit Versionsprüfung (409) und strengem Schema.
+- **Eigene Ansicht und SL-Projektion:** das ganze Profil (`roleplay.profile`).
+- **Andere Spieler am Tisch** (`/api/live-participants?view=profile`): nur Blöcke mit `group`, nur gefüllte Felder.
+- **Erweiterung der Tischliste:** Ein Charakter erscheint jetzt auch dann in der Tischansicht anderer, wenn er nur Profilblöcke freigibt (bisher nur mit veröffentlichtem „Auftritt“).
+
+**Oberfläche:**
+- Reiter **„Charakterprofil“** für alle, auch in der SL-Ansicht, dort lesend bzw. nach Rechten. Der Reiter „Geschichte & Bilder“ entfällt.
+- Im Profil, in dieser Reihenfolge:
+  - Auftritt (bestehender Editor);
+  - **Seite 2 im Bogenstil:** Beschreibung, Verbündete & Kontakte, Freigabe für Geschichte und Antrieb;
+  - darunter die bisherigen Texte: Vergangenheit & Antrieb, Stimme/Haltung/Reflexe, Porträt & Referenzen, Bekannte Verbindungen.
+- **Entfernt:** „Privat und geteilt“ (die Seiten sind im Notizbuch) und „Kontext für die nächste Nacht“ (steht in der Spielerzentrale). Entscheidung 3 der Zieltabelle als Standard übernommen.
+- **Am Tisch** zeigt die Spielerleiste unter „Profil“ die freigegebenen Blöcke.
+
+**Tests:**
+- `tests/character-profile.test.mjs`, 3 Tests in `pnpm test`: Vorgaben privat, nur freigegebene Blöcke, Schema-Grenzen.
+- `tests/character-profile-integration.mjs`, **12/12** gegen `--ge-01`: Besitzer speichert und liest, veraltete Version 409, unbekannte Felder 400, Spieler B kann nicht schreiben, nicht angemeldet 401, SL liest alles, Spieler B sieht am Tisch nur den freigegebenen Block, Aufräumen.
+
+**Prüfungen:**
+
+| Prüfung | Ergebnis |
+|---|---|
+| typecheck, ESLint, Build | ohne Fehler |
+| `pnpm test` | 406/406 |
+| alle Testdateien | 520/526, dieselben 6 Altfälle |
+| `pnpm run test:integration:run` | Exit 0 |
+| Browser | Charakterprofil bei 1280 px angesehen |
+
+![](../design/4b/charakterprofil-1280.jpg)
+
+**Offen:**
+- Ort der „Bekannten Verbindungen“ (Entscheidung 2); sie stehen vorerst lesend im Profil.
+- Die alten Textblöcke unter dem Profil (Vergangenheit, Stimme, Porträt, Verbindungen) und der Auftritt-Editor („Figuren-Galerie“) haben noch ihre alte Optik bzw. Benennung.
+- 375 px ist nicht geprüft.

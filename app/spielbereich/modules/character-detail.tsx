@@ -5,6 +5,7 @@ import type { Entry } from "@/domain/legacy";
 import type { Actor } from "@/domain/types";
 import { RichTextEditor, RichTextView } from "./rich-text";
 import { CharacterSheet } from "./character-sheet/character-sheet";
+import { CharacterProfileEditor } from "./character-sheet/character-profile";
 import { CharacterPresentationEditor } from "./character-presentation-editor";
 import { CharacterProgression } from "./character-progression";
 import studio from "./character-studio.module.css";
@@ -21,13 +22,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   BookOpen,
-  CalendarDays,
   Camera,
   MessageSquareText,
   Pencil,
   Plus,
   Save,
-  Trash2,
   Upload,
   Users,
   X,
@@ -36,7 +35,6 @@ import { toast } from "sonner";
 import { ApiError, api } from "./api-client";
 import { describeDataError, invalidatePlayerData, purgeProtectedPlayerData, readPlayerData, requestPlayerData } from "./player-data-cache";
 import {
-  CharacterCompanionNote,
   CharacterDetailProjection,
 } from "./character";
 import { Choice, visibilityNames } from "./shared";
@@ -316,65 +314,8 @@ export function CharacterDetail({
     }
   }
 
-  function editNote(note?: CharacterCompanionNote) {
-    setNoteDraft({
-      id: note?.id,
-      version: note?.version,
-      title: note?.title || "",
-      text: note?.text || "",
-      visibility: note?.visibility || "private",
-    });
-  }
 
-  async function saveNote() {
-    if (!active?.id || !noteDraft) return;
-    setCompanionBusy(true);
-    try {
-      await api("/api/character-companion", "PATCH", {
-        action: noteDraft.id ? "note.update" : "note.create",
-        characterId: active.id,
-        noteId: noteDraft.id,
-        version: noteDraft.version,
-        title: noteDraft.title,
-        text: noteDraft.text,
-        visibility: noteDraft.visibility,
-      });
-      toast.success("Notiz gespeichert");
-      setNoteDraft(null);
-      invalidateCharacter();
-      await reload(true);
-      onRefresh?.();
-    } catch (e) {
-      toast.error((e as Error).message);
-      invalidateCharacter();
-      await reload(true);
-    } finally {
-      setCompanionBusy(false);
-    }
-  }
 
-  async function archiveNote(note: CharacterCompanionNote) {
-    if (!active?.id) return;
-    setCompanionBusy(true);
-    try {
-      await api("/api/character-companion", "PATCH", {
-        action: "note.archive",
-        characterId: active.id,
-        noteId: note.id,
-        version: note.version,
-      });
-      toast.success("Notiz archiviert");
-      invalidateCharacter();
-      await reload(true);
-      onRefresh?.();
-    } catch (e) {
-      toast.error((e as Error).message);
-      invalidateCharacter();
-      await reload(true);
-    } finally {
-      setCompanionBusy(false);
-    }
-  }
 
   async function changeLifecycle(archive:boolean){
     if(!active?.id||companionBusy)return;
@@ -538,13 +479,14 @@ export function CharacterDetail({
       </header>
       <div className={studio.tabRow}>
       <nav className={studio.tabs} role="tablist" aria-label="Charakteransicht">
-        {[{id:"sheet",label:"V20-Bogen"},{id:"story",label:"Geschichte & Bilder"},...(!inspection&&!archived?[{id:"presentation",label:"Charakterprofil"}]:[]),{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
+        {[{id:"sheet",label:"V20-Bogen"},{id:"presentation",label:"Charakterprofil"},{id:"development",label:"Entwicklung"},...(inspection&&a.gm?[{id:"management",label:"Verwaltung"}]:[])].filter(tab=>!archived||!["development","management"].includes(tab.id)).map(tab=><button type="button" role="tab" aria-selected={view===tab.id} key={tab.id} onClick={()=>{if(view!==tab.id&&!leavePresentation())return;if(roleEdit&&view!==tab.id&&!window.confirm("Ungespeicherte Texte bleiben nur während dieses Bearbeitungsvorgangs erhalten. Ansicht wechseln?"))return;setView(tab.id);}}>{tab.label}</button>)}
       </nav>
       {!inspection && !archived && <a className={studio.tabLink} href={`/spielbereich?bereich=inventar&character=${encodeURIComponent(active.id || "")}`}>Ausrüstung & Inventar</a>}
       </div>
       {!archived&&(view==="development"||view==="management")&&<CharacterProgression key={active.id} id={active.id!} campaignId={a.campaignId} revision={projection.revision.version} manage={view==="management"} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
       {!inspection&&!archived&&view==="presentation"&&<CharacterPresentationEditor key={active.id} id={active.id!} title={active.title} onDirty={dirty=>{presentationDirty.current=dirty;}} onChanged={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
+      {view==="presentation"&&<CharacterProfileEditor key={active.id+":"+projection.revision.version} id={active.id!} version={projection.revision.version} profile={projection.roleplay.profile} canEdit={!archived&&projection.permissions.canEditCompanion===true} onSaved={()=>{invalidateCharacter();void reload(true,true);onRefresh?.();}}/>}
 
       <div className="character-layout" hidden={view!=="sheet"}>
         <section className="character-sheet">
@@ -556,7 +498,7 @@ export function CharacterDetail({
 
       </div>
 
-      <section className="character-companion" hidden={view!=="story"}>
+      <section className="character-companion" hidden={view!=="presentation"}>
         <div className="companion-column companion-column-left">
           <article className="companion-panel companion-story">
             <header>
@@ -622,78 +564,6 @@ export function CharacterDetail({
             )}
           </article>
 
-          <article className="companion-panel companion-notes">
-            <header>
-              <span className="companion-icon">
-                <MessageSquareText size={18} />
-              </span>
-              <div>
-                <p className="eyebrow">AKTUELLE NOTIZEN</p>
-                <h3>Privat und geteilt</h3>
-              </div>
-              {permissions.canCreateNotes === true && (
-                <button className="button" onClick={() => editNote()}>
-                  <Plus size={15} /> Notiz
-                </button>
-              )}
-            </header>
-            {noteDraft && (
-              <div className="companion-note-form">
-                <label className="field">
-                  <span>Titel</span>
-                  <input
-                    value={noteDraft.title}
-                    onChange={(e) => setNoteDraft({ ...noteDraft, title: e.target.value })}
-                    maxLength={120}
-                  />
-                </label>
-                <Choice
-                  label="Sichtbarkeit"
-                  value={noteDraft.visibility}
-                  onChange={(value) => setNoteDraft({ ...noteDraft, visibility: value })}
-                  options={Object.entries(visibilityNames)}
-                />
-                <label className="field wide">
-                  <span>Notiz</span>
-                  <RichTextEditor placeholder="Deine persönliche Aufzeichnung …" label="Persönliches Dokument" value={noteDraft.text} onChange={value=>setNoteDraft({...noteDraft,text:value})} maximumPlainLength={20000}/>
-                </label>
-                <div className="companion-actions wide">
-                  <button className="button primary" disabled={companionBusy || !noteDraft.text.trim()} onClick={() => void saveNote()}>
-                    <Save size={15} /> Speichern
-                  </button>
-                  <button className="button" disabled={companionBusy} onClick={() => setNoteDraft(null)}>
-                    <X size={15} /> Abbrechen
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="companion-note-list">
-              {companion.notes.length ? (
-                companion.notes.map((note) => (
-                  <section className="companion-note" key={note.id}>
-                    <div>
-                      <span className="badge">{visibilityNames[note.visibility] || note.visibility}</span>
-                      <h4>{note.title}</h4>
-                      <RichTextView value={note.text}/>
-                      <small>Geändert {new Date(note.updatedAt).toLocaleDateString("de-DE")}</small>
-                    </div>
-                    {!archived && note.canEdit && (
-                      <div className="companion-note-actions">
-                        <button className="button" onClick={() => editNote(note)}>
-                          <Pencil size={14} /> Bearbeiten
-                        </button>
-                        <button className="danger-link" onClick={() => void archiveNote(note)}>
-                          <Trash2 size={14} /> Archivieren
-                        </button>
-                      </div>
-                    )}
-                  </section>
-                ))
-              ) : (
-                <p className="muted">Noch keine Character-Notizen hinterlegt.</p>
-              )}
-            </div>
-          </article>
         </div>
 
         <div className="companion-column companion-column-right">
@@ -779,26 +649,6 @@ export function CharacterDetail({
             )}
           </article>
 
-          <article className="companion-panel companion-session">
-            <header>
-              <span className="companion-icon">
-                <CalendarDays size={18} />
-              </span>
-              <div>
-                <p className="eyebrow">LETZTE SITZUNG</p>
-                <h3>Kontext für die nächste Nacht</h3>
-              </div>
-            </header>
-            {companion.lastSession ? (
-              <div className="last-session-card">
-                <span className="date-label">{companion.lastSession.date || "Datum offen"}</span>
-                <h4>{companion.lastSession.title}</h4>
-                <p>{companion.lastSession.summary || "Keine player-sichere Zusammenfassung hinterlegt."}</p>
-              </div>
-            ) : (
-              <p className="muted">Noch kein freigegebener Sitzungskontext vorhanden.</p>
-            )}
-          </article>
         </div>
       </section>
       <AlertDialog open={healthResetOpen} onOpenChange={setHealthResetOpen}>

@@ -3,6 +3,7 @@
 import {lazy,Suspense,useCallback,useEffect,useState} from 'react';
 import type {Actor} from '@/domain/types';
 import type {CharacterDetailProjection} from '../character';
+import type {SharedProfile} from '@/domain/character-profile';
 import {api} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {CharacterReadOnly} from './character-readonly';
@@ -10,7 +11,7 @@ import styles from './participants.module.css';
 const Inventory=lazy(()=>import('../inventory').then(m=>({default:m.InventoryPanel})));
 const Messages=lazy(()=>import('../message-center').then(m=>({default:m.MessageCenter})));
 const Notebook=lazy(()=>import('../notebook/notebook').then(m=>({default:m.Notebook})));
-type Data={member?:{id:string;name:string;avatar:string|null;presentation?:{pronouns?:string;banner?:string;introduction?:string;playStyles?:string[]}|null};own?:boolean;characters:{id:string;name:string}[];character?:{id:string;name:string;portrait:string|null;descriptions:{kind:string;content:string}[];tagline?:string;introduction?:string;gallery?:{url:string;caption?:string}[]}|null;selectedCharacter?:string|null;projection?:CharacterDetailProjection};
+type Data={member?:{id:string;name:string;avatar:string|null;presentation?:{pronouns?:string;banner?:string;introduction?:string;playStyles?:string[]}|null};own?:boolean;characters:{id:string;name:string}[];character?:{id:string;name:string;portrait:string|null;profile?:SharedProfile;descriptions:{kind:string;content:string}[];tagline?:string;introduction?:string;gallery?:{url:string;caption?:string}[]}|null;selectedCharacter?:string|null;projection?:CharacterDetailProjection};
 export type ParticipantAction='profile'|'sheet'|'inventory'|'messages'|'notebook';
 export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessionId:string;memberId:string;action:ParticipantAction}){
  const [data,setData]=useState<Data|null>(null),[characterId,setCharacterId]=useState<string|null>(null),[tab,setTab]=useState<'human'|'character'>('character'),[error,setError]=useState(''),[reload,setReload]=useState(0);
@@ -46,6 +47,11 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
       {character.introduction&&<p>{character.introduction}</p>}
       {character.descriptions.map((block,index)=><RichTextView key={index} value={block.content}/>)}
      </div>}
+     {character.profile?.description&&<div className={styles.figureText}><h4>Beschreibung</h4><dl className={styles.profileFacts}>{character.profile.description.map(row=><div key={row.label}><dt>{row.label}</dt><dd>{row.value}</dd></div>)}</dl></div>}
+     {character.profile?.appearance&&<div className={styles.figureText}>{!character.profile.description&&<h4>Beschreibung</h4>}<p className={styles.preserve}>{character.profile.appearance}</p></div>}
+     {character.profile?.story&&<div className={styles.figureText}><h4>Geschichte</h4><RichTextView value={character.profile.story}/></div>}
+     {character.profile?.drive&&<div className={styles.figureText}><h4>Antrieb und Auftreten</h4><RichTextView value={character.profile.drive}/></div>}
+     {character.profile?.allies&&<div className={styles.figureText}><h4>Verbündete & Kontakte</h4><p className={styles.preserve}>{character.profile.allies}</p></div>}
      {!!character.gallery?.length&&<FigureGallery key={character.id} items={character.gallery}/>}
     </section>:<p>Für diesen Teilnehmer ist noch keine Figur freigegeben.</p>}
    </>:<section className={styles.figureCard} aria-label="Spielervorstellung">

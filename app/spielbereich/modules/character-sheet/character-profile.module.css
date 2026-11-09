@@ -1,0 +1,22 @@
+/* Charakterprofil: page 2 in the same frame as the sheet (character-sheet.module.css provides frame and section titles). */
+.profile{margin-top:var(--cp-space-5)}
+.intro{margin:0;max-width:72ch;justify-self:center;text-align:center;color:var(--cp-text-muted);font:var(--cp-size-sm)/var(--cp-leading) var(--cp-font-text)}
+.srOnly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.share{justify-self:center}
+.share select{min-height:34px;padding:4px 10px;border:var(--cp-hairline) solid var(--cp-gold-line);border-radius:var(--cp-radius);background:var(--cp-surface-2);color:var(--cp-gold);font:12px var(--cp-font-text);letter-spacing:.04em}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--cp-space-3) var(--cp-space-5)}
+.field{display:grid;gap:4px;min-width:0}
+.field>span{font:var(--cp-size-xs)/1.4 var(--cp-font-text);letter-spacing:var(--cp-tracking-caps);text-transform:uppercase;color:var(--cp-gold)}
+.field input,.field textarea{width:100%;min-width:0;padding:6px 2px;border:0;border-bottom:var(--cp-hairline) solid var(--cp-line-strong);border-radius:0;background:transparent;color:var(--cp-text);font:var(--cp-size-base)/1.5 var(--cp-font-title)}
+.field textarea{padding:8px;border:var(--cp-hairline) solid var(--cp-line);border-radius:var(--cp-radius);resize:vertical}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--cp-gold)}
+.field input:disabled,.field textarea:disabled{opacity:1;color:var(--cp-text)}
+.wideField{grid-column:1/-1}
+.note{margin:0;text-align:center;color:var(--cp-text-muted);font-size:var(--cp-size-sm)}
+.sharingRow{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--cp-space-3)}
+.sharingRow>span{font-family:var(--cp-font-title);font-size:var(--cp-size-lg)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:var(--cp-space-3)}
+.save{min-height:40px;padding:0 var(--cp-space-5);border:var(--cp-hairline) solid var(--cp-gold);border-radius:var(--cp-radius);background:var(--cp-gold);color:var(--cp-bg);font:700 14px var(--cp-font-text);cursor:pointer}
+.save:disabled{opacity:.5;cursor:default}
+.save:focus-visible,.share select:focus-visible{outline:2px solid var(--cp-focus);outline-offset:2px}
+.status{color:var(--cp-text-muted);font-size:var(--cp-size-sm)}
