@@ -84,7 +84,7 @@ export async function participantView(a:Actor,sessionId:string,memberId:string,v
 }
 type GalleryFile={id:string;key:string;mime:string};
 
-async function galleryFiles(a:Actor,ownerId:string,ids:string[]){
+export async function galleryFiles(a:Actor,ownerId:string,ids:string[]){
  if(!ids.length)return [];
  const placeholders=ids.map(()=>'?').join(',');
  return (await database().prepare(`SELECT id,key,mime FROM files WHERE owner_id=? AND campaign_id=? AND mime IN ('image/png','image/jpeg','image/webp') AND id IN (${placeholders})`).bind(ownerId,a.campaignId,...ids).all<GalleryFile>()).results;
@@ -96,7 +96,7 @@ function galleryEntries(value:unknown):{fileId:string;caption:string}[]{
 }
 
 /** Images the owner shared at the table: the one image list of the Charakterprofil, plus a not yet merged appearance gallery. */
-function sharedImages(body:Record<string,unknown>){
+export function sharedImages(body:Record<string,unknown>){
  const media=(Array.isArray(body.characterMedia)?body.characterMedia:[]).slice(0,8).filter((m:Record<string,unknown>)=>m&&m.shared===true&&typeof m.fileId==='string').map((m:Record<string,unknown>)=>({fileId:String(m.fileId),caption:typeof m.caption==='string'?m.caption:'',portrait:m.type==='portrait'}));
  const presentation=body.presentation as {published?:unknown;gallery?:unknown}|undefined;
  const legacy=presentation?.published===true?galleryEntries(presentation.gallery).filter(item=>!media.some(m=>m.fileId===item.fileId)).map(item=>({...item,portrait:false})):[];

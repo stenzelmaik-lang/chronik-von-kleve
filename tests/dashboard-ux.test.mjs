@@ -19,10 +19,11 @@ test('overview reuses existing destinations and distinguishes legacy XP',()=>{
   for(const destination of ['sitzung','charaktere','inventar','notizen','termine'])assert.ok(dashboard.includes(`onNavigate('${destination}')`));
   assert.ok(dashboard.includes('chroniplay:open-inbox'));
   const nav=readFileSync(new URL('../app/spielbereich/modules/navigation.ts',import.meta.url),'utf8');
-  assert.ok(shell.includes('Chronik erkunden'));
+  assert.ok(!shell.includes('Chronik erkunden'),'4c: Die Welt steht im Menü, nicht in der Kopfleiste');
+  assert.ok(shell.includes('aria-label="Hauptmenü"')&&shell.includes('menuSections('));
   assert.ok(shell.includes('showTrigger={false}'));
-  for(const id of ['sitzung','wuerfel','charaktere','inventar'])assert.match(nav,new RegExp(`id: "${id}",\\s+mainNav: false`));
-  assert.ok(shell.includes('Zur Spielerzentrale'));
+  for(const id of ['wuerfel','weltkarte'])assert.match(nav,new RegExp('id: "'+id+'"[^}]*mainNav: false'),id+' stays reachable but leaves the menu');
+  assert.ok(!shell.includes('Zur Spielerzentrale'),'4c: the menu has the Spielerzentrale');
   assert.ok(!shell.includes('Journal & mehr'));
 });
 

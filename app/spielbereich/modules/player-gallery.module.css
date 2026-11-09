@@ -1,0 +1,19 @@
+.gallery{display:grid;gap:var(--cp-space-6,32px)}
+.character h2{margin:0 0 var(--cp-space-3,12px);font:400 var(--cp-size-xl,24px)/1.2 var(--cp-font-title,serif);color:var(--cp-gold,#d6b36f)}
+.character ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--cp-space-3,12px)}
+.character button{position:relative;display:block;width:100%;padding:0;border:var(--cp-hairline,1px) solid var(--cp-gold-line,rgba(214,179,111,.35));background:var(--cp-surface-1,#0c151a);cursor:zoom-in;overflow:hidden}
+.character img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.character button span{position:absolute;inset:auto 0 0 0;padding:6px 8px;background:linear-gradient(transparent,rgba(0,0,0,.75));color:var(--cp-text,#ece5d8);font:12px var(--cp-font-text,sans-serif);text-align:left}
+.character button:focus-visible{outline:2px solid var(--cp-focus,#e4c681);outline-offset:2px}
+.empty{display:grid;gap:8px;max-width:60ch}
+.empty p{margin:0}
+.hint{color:var(--cp-text-muted,#9fa49b);font-size:var(--cp-size-sm,14px)}
+.viewer{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:56px 64px;background:rgba(4,8,10,.92)}
+.viewer figure{margin:0;display:grid;gap:10px;justify-items:center;max-width:100%;max-height:100%}
+.viewer img{max-width:100%;max-height:calc(100vh - 160px);object-fit:contain;border:var(--cp-hairline,1px) solid var(--cp-gold-line,rgba(214,179,111,.35))}
+.viewer figcaption{color:var(--cp-text,#ece5d8);font:14px var(--cp-font-text,sans-serif);text-align:center}
+.viewer small{color:var(--cp-text-muted,#9fa49b);margin-left:8px}
+.close,.prev,.next{position:absolute;display:grid;place-items:center;width:44px;height:44px;border:var(--cp-hairline,1px) solid var(--cp-line,#b99a6133);border-radius:999px;background:var(--cp-surface-1,#0c151a);color:var(--cp-text,#ece5d8);cursor:pointer}
+.close{top:12px;right:12px}.prev{left:12px;top:50%}.next{right:12px;top:50%}
+.close:focus-visible,.prev:focus-visible,.next:focus-visible{outline:2px solid var(--cp-focus,#e4c681);outline-offset:2px}
+@media(max-width:600px){.viewer{padding:56px 8px}.prev,.next{top:auto;bottom:12px}}

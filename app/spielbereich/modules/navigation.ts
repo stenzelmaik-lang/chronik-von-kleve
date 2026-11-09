@@ -30,165 +30,48 @@ type Section = {
   gmOnly?: boolean;
   cmsAccessOnly?: boolean;
   mainNav?: boolean;
+  /** Planned area that stays in the menu with the note "im Aufbau". */
+  wip?: boolean;
 };
 
 export const sections: Section[] = [
-  {id:"vorbereitung",name:"Materialvorbereitung",icon:Library,desc:"Eigene Dokumente und Material für den Tisch vorbereiten.",gmOnly:true},
-  {id:"rueckblick",name:"Spielabend-Rückblick",icon:BookOpen,desc:"Freigegebene Zusammenfassung eines vergangenen Spielabends.",mainNav:false},
-  {
-    id: "dashboard",
-    name: "Übersicht",
-    icon: PanelTop,
-    desc: "Alles Wichtige für deine nächste Nacht.",
-    group: "SPIELTISCH",
-  },
-  {
-    id: "charaktere",
-    mainNav: false,
-    name: "Charaktere",
-    icon: Users,
-    desc: "Deine Kainskinder und ihre Geschichten.",
-    group: "SPIELTISCH",
-  },
-  {
-    id: "inventar",
-    mainNav: false,
-    name: "Inventar",
-    icon: ShoppingBag,
-    desc: "Ausrüstung, Waffen und Dinge mit Geschichte.",
-    group: "SPIELTISCH",
-  },
-  {
-    id: "sitzung",
-    mainNav: false,
-    name: "Sitzung",
-    icon: Radio,
-    desc: "Live-Szenen, Initiative und der Spieltisch.",
-    group: "SPIELTISCH",
-  },
-  {
-    id: "wuerfel",
-    mainNav: false,
-    name: "Würfel",
-    icon: Dices,
-    desc: "Lass das Schicksal entscheiden.",
-    group: "SPIELTISCH",
-  },
-  {
-    id: "chronik",
-    name: "Chronik",
-    icon: BookOpen,
-    desc: "Die Ereignisse der Domäne Kleve.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "schauplaetze",
-    name: "Schauplätze",
-    icon: MapPin,
-    desc: "Jeder Ort bewahrt seine Geschichte.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "weltkarte",
-    name: "Weltkarte",
-    icon: Compass,
-    desc: "Entdecke Kleve und seine verborgenen Wege.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "nscs",
-    name: "Persönlichkeiten",
-    icon: Users,
-    desc: "Verbündete, Rivalen und unbekannte Absichten.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "archiv",
-    name: "Archiv",
-    icon: Library,
-    desc: "Dokumente und Überlieferungen.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "regelwerk",
-    name: "Codex Noctis",
-    icon: ScrollText,
-    desc: "Das Wissen für euren Spielabend.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "haendler",
-    name: "Händler",
-    icon: Store,
-    desc: "Angebote und Kontakte.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "termine",
-    name: "Termine",
-    icon: CalendarDays,
-    desc: "Kalender, Spielabende und gemeinsame Terminabstimmung.",
-    group: "DEINE SPUREN",
-  },
-  {
-    id: "neuigkeiten",
-    name: "Neuigkeiten",
-    icon: Newspaper,
-    desc: "Nachrichten aus der Domäne.",
-    group: "SPIELWELT",
-  },
-  {
-    id: "notizen",
-    name: "Notizbuch",
-    icon: NotebookPen,
-    desc: "Dein Notizbuch, deine Spielabendvorbereitung und dein persönliches Archiv.",
-    group: "DEINE SPUREN",
-  },
-  {
-    id: "gefallen",
-    name: "Gefallen",
-    icon: Scale,
-    desc: "Schulden und Versprechen der Nacht.",
-    group: "DEINE SPUREN",
-  },
-  {
-    id: "wirtschaft",
-    name: "Wirtschaft",
-    icon: Coins,
-    desc: "Vermögen, Ausgaben und die Ökonomie der Nacht.",
-    group: "DEINE SPUREN",
-  },
-  {
-    id: "galerie",
-    name: "Bilder & Dateien",
-    icon: Images,
-    desc: "Porträts, Erinnerungen und Handouts.",
-    group: "DEINE SPUREN",
-  },
-  {
-    id: "cms",
-    name: "Chronik-CMS",
-    icon: LayoutDashboard,
-    desc: "Inhalte kuratieren, freigeben und ordnen.",
-    group: "SPIELLEITUNG",
-    gmOnly: true,
-  },
-  {
-    id: "ortscms",
-    name: "Ortsverwaltung",
-    icon: MapPin,
-    desc: "Bestehende Orte sicher bearbeiten und gezielt freigeben.",
-    group: "SPIELLEITUNG",
-    cmsAccessOnly: true,
-  },
+  // Mein Abend
+  { id: "dashboard", name: "Spielerzentrale", icon: PanelTop, desc: "Alles Wichtige für deine nächste Nacht.", group: "Mein Abend" },
+  { id: "sitzung", name: "Spieltisch", icon: Radio, desc: "Der Spielabend live: Bühne, Szenen und Würfel.", group: "Mein Abend" },
+  { id: "termine", name: "Termine", icon: CalendarDays, desc: "Kalender, Spielabende und gemeinsame Terminabstimmung.", group: "Mein Abend" },
+  { id: "rueckblick", name: "Rückblicke", icon: BookOpen, desc: "Freigegebene Zusammenfassungen vergangener Spielabende.", group: "Mein Abend" },
+  // Mein Charakter
+  { id: "charaktere", name: "Charakter", icon: Users, desc: "Dein Charakterbogen, dein Charakterprofil und deine Entwicklung.", group: "Mein Charakter" },
+  { id: "inventar", name: "Inventar", icon: ShoppingBag, desc: "Ausrüstung, Waffen und Dinge mit Geschichte.", group: "Mein Charakter" },
+  { id: "gefallen", name: "Gefallen", icon: Scale, desc: "Schulden und Versprechen der Nacht.", group: "Mein Charakter" },
+  { id: "wirtschaft", name: "Wirtschaft", icon: Coins, desc: "Vermögen, Ausgaben und die Ökonomie der Nacht.", group: "Mein Charakter", wip: true },
+  // Meine Seiten (das Postfach ist ein Fenster und steht als Aktion im Menü)
+  { id: "notizen", name: "Notizbuch", icon: NotebookPen, desc: "Dein Notizbuch, deine Spielabendvorbereitung und dein persönliches Archiv.", group: "Meine Seiten" },
+  { id: "galerie", name: "Galerie", icon: Images, desc: "Die Bilder, die eure Charaktere mit der Runde teilen.", group: "Meine Seiten" },
+  // Die Welt
+  { id: "chronik", name: "Chronik", icon: BookOpen, desc: "Die Ereignisse der Domäne Kleve.", group: "Die Welt" },
+  { id: "schauplaetze", name: "Orte", icon: MapPin, desc: "Jeder Ort bewahrt seine Geschichte. Als Liste oder auf der Karte.", group: "Die Welt" },
+  { id: "nscs", name: "Persönlichkeiten", icon: Users, desc: "Verbündete, Rivalen und unbekannte Absichten.", group: "Die Welt" },
+  { id: "archiv", name: "Überlieferungen", icon: Library, desc: "Dokumente und Handouts, die die Spielleitung freigegeben hat.", group: "Die Welt" },
+  { id: "regelwerk", name: "Codex Noctis", icon: ScrollText, desc: "Das Wissen für euren Spielabend.", group: "Die Welt" },
+  { id: "neuigkeiten", name: "Neuigkeiten", icon: Newspaper, desc: "Nachrichten aus der Domäne.", group: "Die Welt", wip: true },
+  { id: "haendler", name: "Händler", icon: Store, desc: "Angebote und Kontakte.", group: "Die Welt", wip: true },
+  // Spielleitung
+  { id: "vorbereitung", name: "Materialvorbereitung", icon: Library, desc: "Eigene Dokumente und Material für den Tisch vorbereiten.", group: "Spielleitung", gmOnly: true },
+  { id: "cms", name: "Chronik-CMS", icon: LayoutDashboard, desc: "Inhalte kuratieren, freigeben und ordnen.", group: "Spielleitung", gmOnly: true },
+  { id: "ortscms", name: "Ortsverwaltung", icon: MapPin, desc: "Bestehende Orte sicher bearbeiten und gezielt freigeben.", group: "Spielleitung", cmsAccessOnly: true },
+  // Weiter per Link erreichbar, aber nicht im Menü
+  { id: "weltkarte", name: "Orte", icon: Compass, desc: "Entdecke Kleve und seine verborgenen Wege.", mainNav: false },
+  { id: "wuerfel", name: "Würfel", icon: Dices, desc: "Lass das Schicksal entscheiden. Gewürfelt wird am Spieltisch.", mainNav: false },
 ];
 
-export const navGroups = [
-  "SPIELTISCH",
-  "SPIELWELT",
-  "DEINE SPUREN",
-  "SPIELLEITUNG",
-];
+/** Menu groups in display order (4c). */
+export const navGroups = ["Mein Abend", "Mein Charakter", "Meine Seiten", "Die Welt", "Spielleitung"];
+
+/** Entries of the player menu for one role; the server still checks every area. */
+export function menuSections(gm: boolean, canManageLocations: boolean) {
+  return navGroups.map(group => ({ group, items: sections.filter(s => s.group === group && s.mainNav !== false && (!s.gmOnly || gm) && (!s.cmsAccessOnly || canManageLocations)) })).filter(g => g.items.length);
+}
 
 export const personal = [
   "charaktere",
