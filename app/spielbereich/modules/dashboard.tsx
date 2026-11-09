@@ -15,6 +15,7 @@ import {DashboardCalendar} from "./dashboard-calendar";
 import { clanSymbolFor } from "./clan-symbol";
 import { useLive } from "./live-state";
 import { GalleryPreview } from "./gallery-preview";
+import { DashboardPoll } from "./dashboard-poll";
 import { safeImage } from "./shared";
 import { xpBalance } from "@/domain/character-engine";
 import { characterLedger, ledgerDelta } from "@/domain/character-management";
@@ -56,6 +57,7 @@ function keyFor(characterId: string | null) {
 }
 
 export function DashboardPanel({
+  a,
   onNavigate,
   dataScope,
   activeCharacterId,
@@ -179,11 +181,12 @@ export function DashboardPanel({
           <button type="button" className={styles.enter} data-live={live||undefined} onClick={()=>onNavigate('sitzung')}><BookOpen size={20} aria-hidden="true"/>Spieltisch betreten{live!==null&&<small className={styles.liveState}>{live?'live':'nicht live'}</small>}<ArrowRight size={18} aria-hidden="true"/></button>
         </section>
         <section className={styles.next} aria-labelledby="overview-next">
-          <h2 id="overview-next"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/12-icon-kalender.svg" alt="" aria-hidden="true"/>Nächster Abend</h2>
+          <h2 id="overview-next"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/12-icon-kalender.svg" alt="" aria-hidden="true"/>{view.openPoll?"Terminabstimmung":"Nächster Abend"}</h2>
+          {view.openPoll?<DashboardPoll a={a} pollId={view.openPoll.id!} onChanged={retry}/>:<>
           <DashboardCalendar entries={view.calendarEntries} onOpen={()=>onNavigate('termine')}/>
           {next ? <><h3>{next.title}</h3>{typeof next.body.date==='string'&&Number.isFinite(Date.parse(next.body.date))&&<time dateTime={next.body.date}>{new Date(next.body.date).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})}</time>}</> : <p>Noch kein Spieltermin festgelegt.</p>}
-          {view.openPoll && <p className={styles.pollTitle}>{view.openPoll.title}</p>}
-          <div className={styles.calendarLinks}>{view.openPoll&&<button type="button" onClick={()=>onNavigate('termine')}><CheckSquare size={16} aria-hidden="true"/>An Abstimmung teilnehmen</button>}<button type="button" onClick={()=>onNavigate('termine')}><CalendarDays size={16} aria-hidden="true"/>Kalender öffnen<ArrowRight size={14} aria-hidden="true"/></button></div>
+                    <div className={styles.calendarLinks}>{view.openPoll&&<button type="button" onClick={()=>onNavigate('termine')}><CheckSquare size={16} aria-hidden="true"/>An Abstimmung teilnehmen</button>}<button type="button" onClick={()=>onNavigate('termine')}><CalendarDays size={16} aria-hidden="true"/>Kalender öffnen<ArrowRight size={14} aria-hidden="true"/></button></div>
+</>}
         </section>
       </div>
       <div className={styles.information}>

@@ -141,3 +141,18 @@ button.recapLink{border:0;background:none;padding:0;cursor:pointer;font:inherit}
 .xpBar dt{font:11px/1.3 Arial,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--hub-muted)}
 .xpBar dd{margin:0;font:400 20px/1.1 Georgia,serif;color:var(--hub-text)}
 .xpBar div[data-free] dd{color:#d6b36f}
+
+/* Zuflucht · Terminabstimmung in place of the calendar while a poll is open. */
+.pollBlock{display:grid;gap:10px}
+.pollNote{margin:0;color:var(--hub-muted);font-size:13px}
+.pollOptions{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.pollOptions li{display:grid;grid-template-columns:1fr;gap:6px;padding:10px;border:1px solid var(--hub-edge);border-radius:8px;background:rgba(255,255,255,.02)}
+.pollOptions li>div:first-child{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pollOptions strong{font:400 15px/1.3 Georgia,serif;color:var(--hub-text)}
+.pollOptions small{color:var(--hub-muted);font-size:12px}
+.pollChoices{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.pollChoices button{min-height:30px;border:1px solid var(--hub-edge);border-radius:6px;background:transparent;color:var(--hub-text);font:13px Arial,sans-serif;cursor:pointer}
+.pollChoices button[aria-pressed="true"][data-choice="yes"]{border-color:#4cc485;background:rgba(76,196,133,.18);color:#d6ffe6}
+.pollChoices button[aria-pressed="true"][data-choice="maybe"]{border-color:#e0b14a;background:rgba(224,177,74,.16);color:#ffeec4}
+.pollChoices button[aria-pressed="true"][data-choice="no"]{border-color:#c46a5e;background:rgba(196,106,94,.16);color:#ffd9d3}
+.pollFix{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;border:1px solid #d6b36f;border-radius:6px;background:rgba(214,179,111,.12);color:#f2d096;font:13px Arial,sans-serif;cursor:pointer}
