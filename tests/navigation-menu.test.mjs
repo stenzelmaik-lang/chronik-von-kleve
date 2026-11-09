@@ -17,7 +17,7 @@ test('header (4c v3): Zuflucht, world and command center as dropdowns, Kampagnen
 
 test('the world dropdown is sorted as agreed and the command center jumps into its areas', () => {
   assert.deepEqual(worldSections.map(s=>s.name),['Orte','Chronik','Persönlichkeiten','Überlieferungen','Codex Noctis','Neuigkeiten','Händler']);
-  assert.deepEqual(commandCenterLinks.map(l=>l.label),['Spieltisch-Regie','Charaktere','Persönlichkeiten (NSC)','Ortsverwaltung','Materialvorbereitung','Galerie (Dateien)','Chronik-CMS']);
+  assert.deepEqual(commandCenterLinks.map(l=>l.label),['Spieltisch-Regie','Charaktere','Persönlichkeiten (NSC)','Ortsverwaltung','Materialvorbereitung','Galerie (Dateien)','Rückblicke','Chronik-CMS']);
   assert.ok(commandCenterLinks.every(l=>/^\/(sl\/command-center|spielbereich)\?bereich=[a-z]+$/.test(l.href)));
 });
 

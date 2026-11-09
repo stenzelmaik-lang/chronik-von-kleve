@@ -3,6 +3,7 @@ import type { FileRow, LegacyRecordRow } from "@/domain/legacy";
 import { isRichTextWithinLimit } from "@/domain/location-rich-text";
 import { profileSchema } from "@/domain/character-profile";
 import {account} from '@/server/account-profile';
+import {createRelationship} from "@/server/relationships";
 import {
   actor,
   canEdit,
@@ -31,6 +32,9 @@ const presentation = z.object({
 
 const schema = z.discriminatedUnion("action", [
   z.object({action:z.literal('presentation'),id,version:z.number().int().positive(),presentation}).strict(),
+  // Bekannte Verbindungen: the player asks, the SL decides and links the character with an NPC or another character.
+  z.object({action:z.literal('connection.request'),id,version:z.number().int().positive(),targetId:id.optional(),targetName:z.string().trim().min(1).max(120),note:z.string().trim().max(600)}).strict(),
+  z.object({action:z.literal('connection.decide'),id,version:z.number().int().positive(),requestId:id,decision:z.enum(['approved','rejected']),targetId:id.optional(),visibility:z.enum(['group','sl']).optional(),answer:z.string().trim().max(600).optional()}).strict(),
   z.object({action:z.literal('profile'),id,version:z.number().int().positive(),profile:profileSchema,presentation:presentation.optional(),backgroundStory:z.string().max(90000).optional(),playGuide:z.string().max(90000).optional(),media:profileMedia.optional()}).strict(),
   z.object({action:z.literal('character.archive'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
   z.object({action:z.literal('character.restore'),id,version:z.number().int().positive(),confirmed:z.literal(true)}).strict(),
@@ -86,7 +90,7 @@ function parseBody(row: Pick<LegacyRecordRow, "body">): Record<string, unknown> 
   }
 }
 
-async function loadCharacter(db: D1Database, actorId: string, campaignId: string, characterId: string, allowArchived=false) {
+async function loadCharacter(db: D1Database, actorId: string, campaignId: string, characterId: string, allowArchived=false, slAccess=false) {
   const character = await db
     .prepare("SELECT * FROM records WHERE id=? AND campaign_id=? AND kind='charaktere'")
     .bind(characterId, campaignId)
@@ -99,7 +103,8 @@ async function loadCharacter(db: D1Database, actorId: string, campaignId: string
   const body = parseBody(character);
   if (entity?.canon_status === "GM_SECRET" || body.recoveryOnly === true)
     throw new HttpError(404, "Charakter nicht gefunden.");
-  if (character.owner_id !== actorId)
+  // slAccess: only for decisions the SL takes (checked by the caller), e.g. known connections.
+  if (!slAccess && character.owner_id !== actorId)
     throw new HttpError(403, "Nur der Besitzer bearbeitet diese Companion-Daten.");
   if(!allowArchived&&(body.archived===true||body.lifecycleStatus==='ARCHIVED'))throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
   return { character, body };
@@ -202,6 +207,29 @@ export async function PATCH(req: Request) {
     }
     // Charakterprofil (page 2 of the sheet): only the owner (or a managing SL) writes; the rest of the body stays as stored.
     // One save for the whole Charakterprofil: description, allies, sharing, appearance card, story and play guide.
+    if(data.action==='connection.request'){
+      const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
+      if(character.owner_id!==a.id)throw new HttpError(403,'Nur der Besitzer stellt Anfragen für seinen Charakter.');
+      const list=Array.isArray(body.connectionRequests)?(body.connectionRequests as Record<string,unknown>[]):[];
+      if(list.filter(r=>r.status==='pending').length>=10)throw new HttpError(400,'Höchstens 10 offene Anfragen. Warte auf die Entscheidung der Spielleitung.');
+      body.connectionRequests=[...list,{id:crypto.randomUUID(),targetId:data.targetId??null,targetName:data.targetName,note:data.note,status:'pending',createdAt:new Date().toISOString()}].slice(-40);
+      return json(await updateCharacterBody(db,character,data.version,body));
+    }
+    if(data.action==='connection.decide'){
+      if(!(a.gm&&a.status==='active'&&['campaign_owner','campaign_gm'].includes(a.role)))throw new HttpError(403,'Nur die Spielleitung entscheidet über Verbindungen.');
+      const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id,true,true);
+      const list=Array.isArray(body.connectionRequests)?(body.connectionRequests as Record<string,unknown>[]):[];
+      const request=list.find(r=>r.id===data.requestId);
+      if(!request||request.status!=='pending')throw new HttpError(404,'Anfrage nicht gefunden oder schon entschieden.');
+      let relationshipId:string|null=null;
+      if(data.decision==='approved'){
+        const targetId=data.targetId??(typeof request.targetId==='string'?request.targetId:undefined);
+        if(!targetId)throw new HttpError(400,'Bitte wähle die Person, mit der der Charakter verbunden wird.');
+        relationshipId=(await createRelationship(db,a,{sourceId:character.id,targetId,type:'related_to',visibility:data.visibility??'group',note:String(request.note||'')||undefined})).id;
+      }
+      body.connectionRequests=list.map(r=>r.id===data.requestId?{...r,status:data.decision,decidedAt:new Date().toISOString(),answer:data.answer||'',relationshipId}:r);
+      return json(await updateCharacterBody(db,character,data.version,body));
+    }
     if(data.action==='profile'){
       const {character,body}=await loadCharacter(db,a.id,a.campaignId,data.id);
       if(!canEdit(a,character))throw new HttpError(403,'Charakter nicht editierbar.');

@@ -70,6 +70,31 @@ const afterAdd=await detail(a);
 check(afterAdd.companion.media.some(m=>m.id===galleryUpload&&m.shared===true&&m.type==='reference'),'the gallery picture sits in the image list of the Charakterprofil, shared');
 check((await req(b,'/api/character-gallery')).text.includes(galleryUpload),'Player B sees the added picture in the gallery');
 uploads.push(galleryUpload);
+// Bekannte Verbindungen: the owner asks, only the SL decides and links.
+let cv=(await detail(a)).revision.version;
+check((await req(b,'/api/character-companion','PATCH',{action:'connection.request',id:own.id,version:cv,targetName:'Fremd',note:''})).status===403,'Player B cannot ask for connections of Player A\'s character');
+check((await req(a,'/api/character-companion','PATCH',{action:'connection.request',id:own.id,version:cv,targetName:marker+' Kontakt',note:'alte Schuld'})).status===200,'the owner asks for a known connection');
+const asked=await detail(a),request=asked.roleplay.connectionRequests.find(r=>r.targetName===marker+' Kontakt');
+check(request&&request.status==='pending','the request waits for the SL');
+check((await req(a,'/api/character-companion','PATCH',{action:'connection.decide',id:own.id,version:asked.revision.version,requestId:request.id,decision:'approved',targetId:'x'})).status===403,'the owner cannot approve the own request');
+const npc=(await req(gm,'/api/entities?type=NPC&view=sl')).data?.entities?.[0];
+if(npc){
+  const decided=await req(gm,'/api/character-companion','PATCH',{action:'connection.decide',id:own.id,version:asked.revision.version,requestId:request.id,decision:'approved',targetId:npc.id,visibility:'group'});
+  check(decided.status===200,'the SL approves and links the character with an NPC');
+  const linked=await detail(a);
+  check(linked.roleplay.connectionRequests.find(r=>r.id===request.id).status==='approved','the player sees the request as approved');
+  // The player lists the connection only if the NPC is released to players; the SL always sees it.
+  const rel=(await detail(gm)).companion.relationships.find(r=>r.targetId===npc.id);
+  check(!!rel,'the SL sees the new connection');
+  if(rel)check((await req(gm,'/api/relationships','DELETE',{id:rel.id})).status===200,'the SL removes the test connection again');
+}else console.log('SKIP PROFILE no NPC in this instance');
+// Rückblicke: a draft stays with the SL, a released recap reaches the players.
+const recap=await req(gm,'/api/records','POST',{kind:'chronik',title:marker+' Rückblick',visibility:'sl',body:{type:'rueckblick',date:'2026-11-08',text:'Entwurf'}});
+check(recap.status===200,'the SL saves a recap draft');
+check(!(await req(a,'/api/records?kind=chronik')).text.includes(marker+' Rückblick'),'players do not see a recap draft');
+check((await req(a,'/api/records','POST',{kind:'chronik',title:'forged',visibility:'group',body:{type:'rueckblick'}})).status===403,'players cannot write recaps');
+check((await req(gm,'/api/records','POST',{id:recap.data.id,version:recap.data.version,kind:'chronik',title:marker+' Rückblick',visibility:'group',body:{type:'rueckblick',date:'2026-11-08',text:'Freigegeben'}})).status===200,'the SL releases the recap');
+check((await req(a,'/api/records?kind=chronik')).text.includes(marker+' Rückblick'),'players read the released recap');
 const sl=await detail(gm);
 check(sl.roleplay.profile.allies===marker+' geheim','the SL reads the full profile in its own projection');
 
