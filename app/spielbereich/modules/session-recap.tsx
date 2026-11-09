@@ -4,7 +4,11 @@ import type {Entry} from '@/domain/legacy';
 import {api} from './api-client';
 import {RichTextView} from './rich-text';
 import {requestPlayerData} from './player-data-cache';
+import {richTextToPlainText} from '@/domain/location-rich-text';
+import sheet from './character-sheet/character-sheet.module.css';
+import styles from './session-recap.module.css';
 
+const excerpt=(text:string)=>{const plain=richTextToPlainText(text).replace(/\s+/g,' ').trim();return plain.length>220?plain.slice(0,220).replace(/\s\S*$/,'')+' …':plain;};
 const when=(e:Entry)=>Date.parse(String(e.body.date||e.body.datetime||e.body.start||e.updated_at));
 
 /** Rückblicke: without a chosen evening the list of past evenings (newest first), with one the released summary. */
@@ -16,13 +20,15 @@ export function SessionRecap({dataScope}:{dataScope:string}){
   if(error)return <p role="alert" className="error-box">{error}</p>;
   if(!records)return <p role="status">Rückblicke werden geladen …</p>;
   const past=records.filter(e=>Number.isFinite(when(e))&&when(e)<=now).sort((x,y)=>when(y)-when(x));
+  // Older evenings appear only with a summary of their own; recaps of the SL come first.
+  const withSummary=past.filter(e=>typeof e.body.summary==='string'&&e.body.summary.trim());
   const recap=id?recaps.find(e=>e.id===id):undefined;
-  if(recap)return <article className="panel"><button type="button" className="button" onClick={()=>choose(null)}>Alle Rückblicke</button><h2>{recap.title}</h2><p className="muted">Rückblick der Spielleitung · {new Date(when(recap)).toLocaleDateString('de-DE',{dateStyle:'long'})}</p><RichTextView value={String(recap.body.text||'')} readable/></article>;
+  if(recap)return <div className={styles.reader}><button type="button" className={styles.back} onClick={()=>choose(null)}>← Alle Rückblicke</button><article className={`${sheet.sheet} ${sheet.wide} ${styles.page}`}><span className={sheet.corners} aria-hidden="true"/><header className={styles.pageHead}><p>Rückblick der Spielleitung · {new Date(when(recap)).toLocaleDateString('de-DE',{dateStyle:'long'})}</p><h2>{recap.title}</h2></header><div className={styles.text}><RichTextView value={String(recap.body.text||'')} readable/></div></article></div>;
   if(id){
     const entry=past.find(e=>e.id===id);
     if(!entry)return <><p role="alert" className="error-box">Dieser vergangene Spielabend ist nicht verfügbar.</p><button type="button" className="button" onClick={()=>choose(null)}>Alle Rückblicke</button></>;
-    return <article className="panel"><button type="button" className="button" onClick={()=>choose(null)}>Alle Rückblicke</button><h2>{entry.title}</h2><p className="muted">Freigegebener Rückblick · {new Date(when(entry)).toLocaleDateString('de-DE',{dateStyle:'long'})}</p><RichTextView value={String(entry.body.summary||entry.body.text||'Noch keine Zusammenfassung freigegeben.')}/></article>;
+    return <div className={styles.reader}><button type="button" className={styles.back} onClick={()=>choose(null)}>← Alle Rückblicke</button><article className={`${sheet.sheet} ${sheet.wide} ${styles.page}`}><span className={sheet.corners} aria-hidden="true"/><header className={styles.pageHead}><p>Spielabend · {new Date(when(entry)).toLocaleDateString('de-DE',{dateStyle:'long'})}</p><h2>{entry.title}</h2></header><div className={styles.text}><RichTextView value={String(entry.body.summary||entry.body.text||'Noch keine Zusammenfassung freigegeben.')} readable/></div></article></div>;
   }
-  if(!past.length&&!recaps.length)return <p className="muted">Noch gibt es keinen vergangenen Spielabend.</p>;
-  return <>{!!recaps.length&&<ul className="panel" style={{listStyle:'none',display:'grid',gap:8}} aria-label="Rückblicke der Spielleitung">{recaps.map(e=><li key={e.id}><button type="button" className="button" onClick={()=>choose(e.id!)}>{e.title} · {new Date(when(e)).toLocaleDateString('de-DE',{dateStyle:'long'})}</button></li>)}</ul>}{!!past.length&&<ul className="panel" style={{listStyle:'none',display:'grid',gap:8}} aria-label="Vergangene Spielabende">{past.map(e=><li key={e.id}><button type="button" className="button" onClick={()=>choose(e.id!)}>{e.title} · {new Date(when(e)).toLocaleDateString('de-DE',{dateStyle:'long'})}{e.body.summary?'':' · noch ohne Rückblick'}</button></li>)}</ul>}</>;
+  if(!withSummary.length&&!recaps.length)return <p className="muted">Noch hat die Spielleitung keinen Rückblick freigegeben.</p>;
+  return <>{!!recaps.length&&<ul className={styles.cards} aria-label="Rückblicke der Spielleitung">{recaps.map(e=><li key={e.id}><button type="button" onClick={()=>choose(e.id!)}><small>{new Date(when(e)).toLocaleDateString('de-DE',{dateStyle:'long'})}</small><strong>{e.title}</strong><span>{excerpt(String(e.body.text||''))}</span><em>Weiterlesen →</em></button></li>)}</ul>}{!!withSummary.length&&<ul className={styles.cards} aria-label="Vergangene Spielabende">{withSummary.map(e=><li key={e.id}><button type="button" onClick={()=>choose(e.id!)}><small>{new Date(when(e)).toLocaleDateString('de-DE',{dateStyle:'long'})}</small><strong>{e.title}</strong><span>{excerpt(String(e.body.summary||''))}</span><em>Weiterlesen →</em></button></li>)}</ul>}</>;
 }

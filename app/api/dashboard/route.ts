@@ -8,7 +8,7 @@ import {selectedCharacter as persistedSelection} from '@/server/character-select
 import {currentUserFromContext} from '@/server/platform-auth';
 
 export const dynamic = "force-dynamic";
-const kinds = ["charaktere", "termine", "wirtschaft", "gefallen", "notizen", "sitzungen", "neuigkeiten"];
+const kinds = ["charaktere", "termine", "wirtschaft", "gefallen", "notizen", "sitzungen", "neuigkeiten", "chronik"];
 
 function dateOf(entry: Entry) {
   const body = entry.body as Record<string, unknown>;
@@ -97,6 +97,8 @@ export async function GET(req: Request) {
       nextSession: upcoming,
       calendarEntries:by('termine').filter(entry=>available(entry)&&dateOf(entry)!==null).map(entry=>({id:entry.id,title:entry.title,date:entry.body.date||entry.body.datetime||entry.body.start})),
       lastSession: sessions.find(session => (dateOf(session) ?? Date.parse(session.updated_at || '')) <= now) || null,
+      // Newest released Rückblick of the SL (player view: drafts are never included).
+      latestRecap: by('chronik').filter(entry => entry.body.type === 'rueckblick').sort((x, y) => (dateOf(y) ?? Date.parse(y.updated_at || '')) - (dateOf(x) ?? Date.parse(x.updated_at || '')))[0] || null,
       openPoll: by('termine').find(entry => available(entry) && entry.body.scheduleKind === 'poll' && entry.body.pollClosed !== true) || null,
       inbox: {unread:inbox.unread, latest:latest ? {title:latest.title,senderName:latest.senderName,createdAt:latest.createdAt} : null},
       economy: by("wirtschaft").find(available) || null,

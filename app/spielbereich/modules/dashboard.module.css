@@ -156,3 +156,11 @@ button.recapLink{border:0;background:none;padding:0;cursor:pointer;font:inherit}
 .pollChoices button[aria-pressed="true"][data-choice="maybe"]{border-color:#e0b14a;background:rgba(224,177,74,.16);color:#ffeec4}
 .pollChoices button[aria-pressed="true"][data-choice="no"]{border-color:#c46a5e;background:rgba(196,106,94,.16);color:#ffd9d3}
 .pollFix{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;border:1px solid #d6b36f;border-radius:6px;background:rgba(214,179,111,.12);color:#f2d096;font:13px Arial,sans-serif;cursor:pointer}
+
+/* Letzter Rückblick: a short, faded excerpt; the full text is on the Rückblicke page. */
+.recapDate{margin:-4px 0 6px;color:var(--hub-muted);font-size:12px}
+.recapExcerpt{position:relative;max-height:7.5em;overflow:hidden;font-size:13px;line-height:1.5;color:var(--hub-muted)}
+.recapExcerpt::after{content:"";position:absolute;inset:auto 0 0 0;height:2.5em;background:linear-gradient(transparent,var(--hub-surface,#14211f))}
+.recapExcerpt :is(h1,h2,h3,h4){font-size:13px;margin:0 0 4px;color:var(--hub-text)}
+.recapExcerpt p{margin:0 0 4px;font-weight:400}
+.recapExcerpt div :is(h1,h2,h3,h4){font:600 13px/1.4 Arial,sans-serif;margin:0 0 4px;color:var(--hub-text)}
