@@ -243,4 +243,12 @@ Geschichte und Spielhilfe bleiben, wo sie gespeichert waren (`text`, `playGuide`
 - Entfernt als Doppelung: der alte Companion-Abschnitt (Geschichte/Spielweise mit eigenen Bearbeiten-Knöpfen), der separate Auftritt-Editor (`character-presentation-editor.tsx` gelöscht), der Block „Geschichte und Antrieb“ (nur Freigabe).
 - Schutz: Ungespeicherte Profiländerungen blockieren das automatische Nachladen und fragen vor Reiterwechsel, Charakterwechsel und Bild-Upload nach.
 - Nachweise: Typecheck sauber, ESLint ohne neue Warnungen, `pnpm test` 406/406, `tests/character-profile-integration.mjs` 17/17 (lokal `--ge-01`), Build grün, Sichtprüfung breit und 375 px ohne Überlauf. Lokale Testdaten `.local-test/ge-01` danach gelöscht.
-- Offen: Zwei Bildquellen (Auftritt-Galerie = Bildstreifen am Tisch, öffentliches Porträt aus „Porträt & Referenzen“ = Kopfbild). Zusammenlegen braucht eine Serveränderung, wartet auf Entscheidung.
+
+## Nachtrag 09.11.: Eine Bildverwaltung
+
+- Entscheidung des Besitzers: Auftritt-Galerie und „Porträt & Referenzen“ werden eins.
+- Im Profil gibt es nur noch „Porträt & Referenzen“: bis zu 8 Bilder, je Bild Art (Porträt, Referenz, Stimmung, Szene), Bildunterschrift und Sichtbarkeit („Nur ich und die SL“ / „Für die Gruppe sichtbar“), höchstens ein Porträt. Gespeichert mit „Profil speichern“ in `body.characterMedia`; das Porträt wird zum Charakterbild.
+- Die Galerie im Auftritt ist entfernt. Vorhandene Galeriebilder erscheinen beim Öffnen in der Bilderliste (freigegeben, wenn der Auftritt veröffentlicht war) und werden beim nächsten Speichern übernommen; die alte Galerie wird dabei geleert. Bis dahin zeigt der Tisch sie weiter, eine Migration ist nicht nötig.
+- Tisch: Kopfbild = freigegebenes Porträt, Bildstreifen = übrige freigegebene Bilder. Nicht freigegebene Bilder liefert der Tisch nicht aus (404).
+- Neue Bilder müssen eigene Uploads sein; bereits verknüpfte bleiben gültig, auch wenn die SL bearbeitet.
+- Nachweise: Typecheck sauber, `pnpm test` 406/406, Build grün, `tests/character-profile-integration.mjs` 24/24 in zwei Durchläufen hintereinander (Aufräumen geprüft, synthetische Bilder gelöscht), Sichtprüfung im Browser. `.local-test/ge-01` danach gelöscht.
