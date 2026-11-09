@@ -25,12 +25,11 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
  if(action==='messages')return <Suspense fallback={<p role="status">Nachrichten werden geladen …</p>}><Messages a={a} embedded initialRecipient={memberId===a.id?undefined:memberId}/></Suspense>;
  if(error)return <div role="alert"><p>{error}</p><button onClick={()=>setReload(n=>n+1)}>Erneut laden</button></div>;
  if(!data)return <p role="status">Ansicht wird geladen …</p>;
- const characterSelector=(data.characters.length>1||(action==='profile'||action==='gallery')&&!data.selectedCharacter&&data.characters.length>0)&&<label className={styles.characterChoice}>Charakter<select aria-label="Charakter dieses Teilnehmers" value={characterId||data.selectedCharacter||''} onChange={e=>setCharacterId(e.target.value)}>{!data.selectedCharacter&&!characterId&&<option value="">Figur auswählen</option>}{data.characters.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>;
  if(action==='gallery'){
   // The character gallery at the table: portrait first, then every image the owner shared with the group.
   const character=data.character;
   const items=character?[...(character.portrait?[{url:character.portrait,caption:'Porträt'}]:[]),...(character.gallery??[])]:[];
-  return <>{characterSelector}{items.length?<FigureGallery key={character!.id} items={items} title={'Galerie · '+character!.name}/>:<p>Für diese Figur sind noch keine Bilder für die Gruppe freigegeben. Bilder gibst du im Charakterprofil unter „Porträt & Referenzen“ frei.</p>}</>;
+  return <>{items.length?<FigureGallery key={character!.id} items={items} title={'Galerie · '+character!.name}/>:<p>Für diese Figur sind noch keine Bilder für die Gruppe freigegeben. Bilder gibst du im Charakterprofil unter „Porträt & Referenzen“ frei.</p>}</>;
  }
  if(action==='profile'){
   const character=data.character;
@@ -42,7 +41,7 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
     <button aria-pressed={tab==='human'} onClick={()=>setTab('human')}>Spielerprofil</button>
    </nav>
    {tab==='character'?<>
-    {characterSelector}
+    
     {character?<section className={styles.figureCard} aria-label="Figurenvorstellung">
      <header>
       {character.portrait&&<img className={styles.figureHero} src={character.portrait} alt=""/>}
@@ -73,7 +72,7 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
   </>;
  }
  return <>
-  {characterSelector}
+  
   {action==='sheet'?(data.projection?<CharacterReadOnly projection={data.projection}/>:<p>Kein berechtigter Charakterbogen vorhanden.</p>):
    data.selectedCharacter?<Suspense fallback={<p role="status">Inventar wird geladen …</p>}>
     <Inventory embedded inspection={a.gm&&memberId!==a.id} dataScope={a.campaignId+':'+a.id+':'+a.role+':stage:'+memberId} activeCharacterId={data.selectedCharacter} onActiveCharacterChange={select}/>
