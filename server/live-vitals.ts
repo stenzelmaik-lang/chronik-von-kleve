@@ -1,6 +1,6 @@
 import {database,gmOnly,HttpError,canRead,type Actor} from './access';
 import {saveEngine} from './character-engine-service';
-import {liveMembers,type LiveRoom} from './live-game';
+import {liveMembers,isGmMembership,type LiveRoom} from './live-game';
 import type {LegacyRecordRow} from '@/domain/legacy';
 import {activeCharacterBody} from '@/domain/character-selection';
 import {readVitals,applyVitals,mayOperate,allowedOperations,applyTableVitals,tableVitalsSchema,emptyTableVitals,stressBand,masqueradeView,masqueradeRisk,roundViewOf,damageByOf,VitalsError,type VitalsCommand,type TableCommand,type TableVitals,type CharacterVitals} from '@/domain/character-vitals';
@@ -53,8 +53,11 @@ function masqueradePart(gm:boolean,state:TableVitals){
  return view==='risk'?{masqueradeRisk:lage}:{};
 }
 export async function vitalsSnapshot(a:Actor,room:LiveRoom){
- const [state,characters,members]=await Promise.all([readTableVitals(a.campaignId),tableCharacters(a,room),liveMembers(a)]);
+ const [state,allCharacters,members]=await Promise.all([readTableVitals(a.campaignId),tableCharacters(a,room),liveMembers(a)]);
  const name=(id:string)=>members.find(m=>m.id===id)?.name||'Teilnehmer';
+ // SL characters are control characters: by default nobody sees them at the table, the SL included.
+ const hideGm=state.hideGmCharacters??true,gmIds=new Set(members.filter(m=>isGmMembership(m.membershipRole)).map(m=>m.id));
+ const characters=hideGm?allCharacters.filter(c=>!gmIds.has(c.row.owner_id)):allCharacters;
  const visible=characters.filter(c=>a.gm?canRead(a,c.row):c.row.owner_id===a.id||state.shared.includes(c.row.id));
  const views:TableCharacterView[]=visible.map(c=>({id:c.row.id,title:c.row.title,ownerId:c.row.owner_id,ownerName:name(c.row.owner_id),own:c.row.owner_id===a.id,shared:state.shared.includes(c.row.id),version:c.row.version,vitals:readVitals(c.body),stress:personalStress(state,c.row.id)}));
  const band=stressBand(state.stress),view=masqueradeView(state),roundView=roundViewOf(state),playerDamage=damageByOf(state)==='player';
@@ -73,7 +76,7 @@ export async function vitalsSnapshot(a:Actor,room:LiveRoom){
   // Die genaue Maskerade-Stufe erhalten Spieler nur bei „exact“; bei „risk“ nur die grobe Lage, bei „hidden“ nichts.
   ...masqueradePart(a.gm,state),
   characters:views,
-  ...(a.gm?{settings:{masqueradeVisible:state.masquerade.visible,masqueradeView:view,nightlyWillpower:state.nightlyWillpower,shared:state.shared},log:state.log,history}:{}),
+  ...(a.gm?{settings:{masqueradeVisible:state.masquerade.visible,masqueradeView:view,nightlyWillpower:state.nightlyWillpower,shared:state.shared,hideGmCharacters:hideGm},log:state.log,history}:{}),
  };
 }
 

@@ -122,14 +122,9 @@ function useReserve(){
 }
 function BodyHud({vitals,gm,crew,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;crew:Crew;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
  const round=vitals.round||[],hits=useHits(round),reserve=useReserve();
- if(gm){
-  return <button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen">
-   <span className={styles.hudTitle}><Heart size={14}/><span className={styles.hudName}>Runde · {round.length} Figur{round.length===1?'':'en'}</span><ChevronRight size={14}/></span>
-   <span className={styles.roundBlock}><RoundRows round={round} crew={crew} hits={hits}/></span>
-   {!round.length&&<small className={styles.more}>Noch keine spielbereite Figur</small>}
-  </button>;
- }
- const c=vitals.characters.find(x=>x.own),others=round.filter(r=>!r.own);
+ // The SL sees every character in the Regie; at the table only an own character counts (hidden by default).
+ if(gm&&!vitals.characters.some(x=>x.own))return null;
+ const c=vitals.characters.find(x=>x.own),others=gm?[]:round.filter(r=>!r.own);
  if(!c)return others.length?<button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Zustände der Runde öffnen"><span className={styles.hudTitle}><Users size={14}/><span className={styles.hudName}>Am Tisch</span><ChevronRight size={14}/></span><span className={styles.roundBlock}><RoundRows round={others} crew={crew} hits={hits}/></span></button>:null;
  const b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,tone=healthTone(h);
  return <button ref={reserve} type="button" className={`${styles.hudBox} ${styles.bodyHud}`} data-hidden={hidden} data-panel={panelOpen} data-tone={tone} onClick={onOpen} aria-label={`Zustand von ${c.title}: ${conditionLabel(h)}. Öffnen`}>
@@ -156,16 +151,16 @@ function PressureHud({vitals,gm,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;
 }
 
 /** Always visible on the table: two separate parts, body and pressure, plus the wound vignette for the own view. */
-export function VitalsHud({vitals,gm,crew=[],onOpen,panelOpen,hideBody,hidePressure}:{vitals:VitalsSnapshot;gm:boolean;crew?:Crew;onOpen:()=>void;panelOpen:boolean;hideBody:boolean;hidePressure:boolean}){
+export function VitalsHud({vitals,gm,crew=[],onOpenBody,onOpenPressure,panelOpen,hideBody,hidePressure}:{vitals:VitalsSnapshot;gm:boolean;crew?:Crew;onOpenBody:()=>void;onOpenPressure:()=>void;panelOpen:boolean;hideBody:boolean;hidePressure:boolean}){
  const own=gm?undefined:vitals.characters.find(c=>c.own);
  return <>
   {own&&<WoundVignette c={own}/>}
-  <BodyHud vitals={vitals} gm={gm} crew={crew} onOpen={onOpen} hidden={hideBody} panelOpen={panelOpen}/>
-  <PressureHud vitals={vitals} gm={gm} onOpen={onOpen} hidden={hidePressure} panelOpen={panelOpen}/>
+  <BodyHud vitals={vitals} gm={gm} crew={crew} onOpen={onOpenBody} hidden={hideBody} panelOpen={panelOpen}/>
+  <PressureHud vitals={vitals} gm={gm} onOpen={onOpenPressure} hidden={hidePressure} panelOpen={panelOpen}/>
  </>;
 }
 
-function CharacterCard({c,vitals,gm,busy,run}:{c:TableCharacter;vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run}){
+function CharacterCard({c,vitals,gm,busy,run,stress=true}:{c:TableCharacter;vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run;stress?:boolean}){
  const allowed=(op:string)=>vitals.operations.includes(op as never)&&(gm||c.own);
  const act=(command:Record<string,unknown>)=>void run({characterId:c.id,command});
  const [damage,setDamage]=useState<{type:'bashing'|'lethal'|'aggravated';levels:number}>({type:'lethal',levels:1});
@@ -186,10 +181,10 @@ function CharacterCard({c,vitals,gm,busy,run}:{c:TableCharacter;vitals:VitalsSna
     {gm&&<button type="button" disabled={busy||!h.track.length} onClick={()=>act({op:'heal',levels:1})}><Minus size={14}/>1 Stufe entfernen</button>}</div>
    {allowed('damage')&&<form className={styles.damage} onSubmit={e=>{e.preventDefault();act({op:'damage',...damage});}}><label>Art<select value={damage.type} onChange={e=>setDamage(d=>({...d,type:e.target.value as typeof d.type}))}><option value="bashing">Wucht (/)</option><option value="lethal">Tödlich (X)</option><option value="aggravated">Schwer (*)</option></select></label><label>Stufen<input type="number" min={1} max={10} value={damage.levels} onChange={e=>setDamage(d=>({...d,levels:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}/></label><button type="submit" disabled={lock}>Schaden eintragen</button><small>Nach dem Aufsaugen; Wucht bei Vampiren bereits halbiert.</small></form>}
   </div>
-  <div className={styles.trait}><h4><Activity size={15}/>Persönlicher Stress <small>{c.stress.value} / {stressMaximum} · {c.stress.label}</small></h4><StressBar value={c.stress.value}/>
+  {stress&&<div className={styles.trait}><h4><Activity size={15}/>Persönlicher Stress <small>{c.stress.value} / {stressMaximum} · {c.stress.label}</small></h4><StressBar value={c.stress.value}/>
    <p className={styles.hint}>{personalStressEffect}</p>
    {gm&&<div className={styles.actions}><button type="button" disabled={busy||c.stress.value===0} onClick={()=>void run({expectedVersion:vitals.version,table:{op:'personalStress',characterId:c.id,delta:-1}})}><Minus size={14}/>Stress −1</button><button type="button" disabled={busy||c.stress.value===stressMaximum} onClick={()=>void run({expectedVersion:vitals.version,table:{op:'personalStress',characterId:c.id,delta:1}})}><Plus size={14}/>Stress +1</button></div>}
-  </div>
+  </div>}
   {gm&&<footer className={styles.footer}>
    <Confirm label="Gesundheit zurücksetzen" confirm="Wirklich alle Wunden entfernen" busy={busy} icon={<RotateCcw size={14}/>} onConfirm={()=>act({op:'reset',target:'health'})}/>
    <Confirm label="Willenskraft voll" confirm="Vorrat auf permanent setzen" busy={busy} icon={<RotateCcw size={14}/>} onConfirm={()=>act({op:'reset',target:'willpower'})}/>
@@ -201,11 +196,16 @@ function CharacterCard({c,vitals,gm,busy,run}:{c:TableCharacter;vitals:VitalsSna
 }
 
 /** Drawer content: full condition sheet for players, overview with quick actions for the SL. */
-export function VitalsPanel({vitals,gm,busy,run}:{vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run}){
+export function VitalsPanel({vitals,gm,busy,run,part='pressure'}:{vitals:VitalsSnapshot;gm:boolean;busy:boolean;run:Run;part?:'body'|'pressure'}){
  const table=(t:Record<string,unknown>)=>void run({expectedVersion:vitals.version,table:t});
  const profile=controlProfiles[vitals.profile as ControlProfile];
- const own=vitals.characters.filter(c=>c.own),others=vitals.characters.filter(c=>!c.own);
+ const own=vitals.characters.filter(c=>c.own);
+ if(part==='body')return <div className={styles.panel}>
+  {own.length?own.map(c=><CharacterCard key={c.id} c={c} vitals={vitals} gm={gm} busy={busy} run={run} stress={false}/>):<p className={styles.hint}>{gm?'Dein SL-Charakter ist am Tisch ausgeblendet. Einblenden kannst du ihn unter „Druck“ → „Steuerung & Freigaben“.':'Für dich ist an diesem Tisch kein spielbereiter Charakter hinterlegt.'}</p>}
+  {!gm&&<p className={styles.hint}>Steuerung „{profile.label}“: {profile.description}</p>}
+ </div>;
  return <div className={styles.panel}>
+  {own.map(c=><section key={c.id} className={styles.group} aria-label={'Persönlicher Stress '+c.title}><h3><User size={15}/>Persönlicher Stress{own.length>1?' · '+c.title:''} <small>{c.stress.value} / {stressMaximum} · {c.stress.label}</small></h3><StressBar value={c.stress.value}/><p className={styles.hint}>{personalStressEffect}</p></section>)}
   <section className={styles.group} aria-label="Gruppenwerte">
    <h3><Activity size={15}/>Gruppenstress <small>{vitals.stress.value} / {stressMaximum} · {vitals.stress.label}</small></h3><StressBar value={vitals.stress.value}/>
    <p className={styles.hint}>{vitals.stress.effect}</p>
@@ -218,10 +218,6 @@ export function VitalsPanel({vitals,gm,busy,run}:{vitals:VitalsSnapshot;gm:boole
     <Confirm label="Alle −1 Willenskraft" confirm="Bruchpunkt anwenden" busy={busy} icon={<Flame size={14}/>} onConfirm={()=>void run({group:'willpower'})}/>
    </div>}
   </section>
-  {!vitals.characters.length&&<p className={styles.hint}>{gm?'Noch keine spielbereite Figur an diesem Tisch. Entwürfe in Prüfung erscheinen erst nach Bestätigung.':'Für dich ist an diesem Tisch kein spielbereiter Charakter hinterlegt.'}</p>}
-  {own.map(c=><CharacterCard key={c.id} c={c} vitals={vitals} gm={gm} busy={busy} run={run}/>)}
-  {others.map(c=><CharacterCard key={c.id} c={c} vitals={vitals} gm={gm} busy={busy} run={run}/>)}
-  {!gm&&<p className={styles.hint}>Steuerung „{profile.label}“: {profile.description}</p>}
   {gm&&vitals.settings&&<details className={styles.settings}><summary>Steuerung & Freigaben</summary>
    <fieldset><legend>Wer bucht was?</legend>{(Object.keys(controlProfiles) as ControlProfile[]).map(id=><label key={id}><input type="radio" name="vitals-profile" checked={vitals.profile===id} disabled={busy} onChange={()=>table({op:'settings',profile:id})}/><span><b>{controlProfiles[id].label}</b> {controlProfiles[id].description}</span></label>)}</fieldset>
    <fieldset><legend>Maskerade für Spieler</legend>{masqueradeViews.map((id:MasqueradeView)=><label key={id}><input type="radio" name="vitals-masquerade" checked={vitals.settings!.masqueradeView===id} disabled={busy} onChange={()=>table({op:'settings',masqueradeView:id})}/><span>{masqueradeViewLabels[id]}{id==='risk'?' (Gewahrt, Aufmerksamkeit, In Gefahr, Bruch droht)':''}</span></label>)}</fieldset>
@@ -229,6 +225,7 @@ export function VitalsPanel({vitals,gm,busy,run}:{vitals:VitalsSnapshot;gm:boole
    <fieldset><legend>Blut, Willenskraft und Schaden der Runde</legend>{roundViews.map(id=><label key={id}><input type="radio" name="vitals-round" checked={vitals.roundView===id} disabled={busy} onChange={()=>table({op:'settings',roundView:id})}/><span>{roundViewLabels[id]}{id==='all'?' (Übersicht unten links; alles andere bleibt privat)':''}</span></label>)}</fieldset>
    <fieldset><legend>Wer trägt Schaden ein?</legend>{damageModes.map(id=><label key={id}><input type="radio" name="vitals-damage" checked={vitals.damageBy===id} disabled={busy} onChange={()=>table({op:'settings',damageBy:id})}/><span>{damageModeLabels[id]}{id==='player'?' – die SL kann immer korrigieren':''}</span></label>)}</fieldset>
    <label className={styles.check}><input type="checkbox" checked={vitals.settings.nightlyWillpower} disabled={busy} onChange={e=>table({op:'settings',nightlyWillpower:e.target.checked})}/>Neue Nacht: +1 Willenskraft (V20-Option der SL)</label>
+   <label className={styles.check}><input type="checkbox" checked={vitals.settings.hideGmCharacters!==false} disabled={busy} onChange={e=>table({op:'settings',hideGmCharacters:e.target.checked})}/>SL-Charaktere am Tisch ausblenden (für alle, auch für dich)</label>
   </details>}
   {gm&&(!!vitals.history?.length||!!vitals.log?.length)&&<details className={styles.settings}><summary>Verlauf</summary><ol className={styles.log}>
    {[...(vitals.history||[]).map(h=>({id:h.id,at:h.at,text:`${h.character}: ${h.text}`,actor:h.actor})),...(vitals.log||[]).map(l=>({id:l.id,at:l.at,text:l.text,actor:l.actor}))].sort((x,y)=>y.at.localeCompare(x.at)).slice(0,25).map(e=><li key={e.id}><time dateTime={e.at}>{new Date(e.at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}</time> {e.text}<small> · {e.actor}</small></li>)}

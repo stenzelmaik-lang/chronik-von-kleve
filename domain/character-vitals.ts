@@ -212,6 +212,8 @@ export const tableVitalsSchema=z.object({
  // Round settings, optional so older table states stay valid: who sees blood, willpower and damage of the whole
  // round (default: everyone) and who enters damage (default: the player for the own character; the SL always may).
  roundView:z.enum(['all','shared']).optional(),damageBy:z.enum(['player','sl']).optional(),
+ // Characters of the SL are control characters: hidden at the table unless the SL shows them (default hidden).
+ hideGmCharacters:z.boolean().optional(),
 }).strict();
 export const roundViews=['all','shared'] as const;
 export type RoundView=typeof roundViews[number];
@@ -230,7 +232,7 @@ export const tableCommandSchema=z.discriminatedUnion('op',[
  z.object({op:z.literal('stress'),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(stressMaximum).optional(),note:z.string().trim().max(200).optional()}).strict(),
  z.object({op:z.literal('masquerade'),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(10).optional(),note:z.string().trim().max(200).optional()}).strict(),
  z.object({op:z.literal('personalStress'),characterId:z.string().min(1).max(160),delta:z.number().int().min(-10).max(10).optional(),value:z.number().int().min(0).max(stressMaximum).optional(),note:z.string().trim().max(200).optional()}).strict(),
- z.object({op:z.literal('settings'),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]).optional(),masqueradeMax:z.number().int().min(1).max(10).optional(),masqueradeVisible:z.boolean().optional(),masqueradeView:z.enum(masqueradeViews).optional(),nightlyWillpower:z.boolean().optional(),share:z.object({characterId:z.string().min(1).max(160),shared:z.boolean()}).strict().optional(),roundView:z.enum(roundViews).optional(),damageBy:z.enum(damageModes).optional()}).strict(),
+ z.object({op:z.literal('settings'),profile:z.enum(controlProfileIds as [ControlProfile,...ControlProfile[]]).optional(),masqueradeMax:z.number().int().min(1).max(10).optional(),masqueradeVisible:z.boolean().optional(),masqueradeView:z.enum(masqueradeViews).optional(),nightlyWillpower:z.boolean().optional(),hideGmCharacters:z.boolean().optional(),share:z.object({characterId:z.string().min(1).max(160),shared:z.boolean()}).strict().optional(),roundView:z.enum(roundViews).optional(),damageBy:z.enum(damageModes).optional()}).strict(),
 ]);
 export type TableCommand=z.infer<typeof tableCommandSchema>;
 export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,at:string,id:string,characterTitle=''):TableVitals{
@@ -254,6 +256,7 @@ export function applyTableVitals(state:TableVitals,c:TableCommand,actor:string,a
   if(c.masqueradeVisible!==undefined){next.masquerade.visible=c.masqueradeVisible;next.masquerade.view=c.masqueradeVisible?'exact':'hidden';}
   if(c.masqueradeView){next.masquerade.view=c.masqueradeView;next.masquerade.visible=c.masqueradeView==='exact';}
   if(c.nightlyWillpower!==undefined)next.nightlyWillpower=c.nightlyWillpower;
+  if(c.hideGmCharacters!==undefined)next.hideGmCharacters=c.hideGmCharacters;
   if(c.roundView)next.roundView=c.roundView;
   if(c.damageBy)next.damageBy=c.damageBy;
   if(c.share)next.shared=c.share.shared?[...new Set([...next.shared,c.share.characterId])]:next.shared.filter(id=>id!==c.share!.characterId);
