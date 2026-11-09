@@ -16,3 +16,9 @@
 .live[data-live]{border-color:#3f9a6a;color:#8fe0b0}
 .live[data-live]::before{content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#4cc485;vertical-align:1px}
 @media(max-width:700px){.dropdown>div{left:auto;right:0;min-width:min(260px,90vw)}}
+
+/* Kampagnen sits left beside the campaign name: one step before the landing page. */
+.campaigns{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:5px 9px;border:1px solid transparent;border-radius:6px;color:#dfd9cc;font:13px/1.4 Arial,sans-serif;text-decoration:none;white-space:nowrap}
+.campaigns:hover{border-color:#b99a6155;color:#f1e8d7}
+.campaigns:focus-visible{outline:2px solid #e4c681;outline-offset:2px}
+@media(max-width:700px){.campaigns span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}}

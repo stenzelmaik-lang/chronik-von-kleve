@@ -192,7 +192,6 @@ export function DashboardPanel({
           <button type="button" onClick={()=>onNavigate('inventar')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/09-icon-inventar.svg" alt="" aria-hidden="true"/><strong>Inventar</strong><span>Ausrüstung & Besitz</span></button>
           <button type="button" onClick={openInbox}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/10-icon-postfach.svg" alt="" aria-hidden="true"/><strong>Postfach</strong><span>Persönliche Nachrichten</span></button>
           <button type="button" onClick={()=>onNavigate('notizen')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/11-icon-archiv.svg" alt="" aria-hidden="true"/><strong>Notizbuch</strong><span>Notizen, Vorbereitung, Archiv</span></button>
-          <button type="button" onClick={()=>onNavigate('galerie')}><Images className={styles.tileIcon} aria-hidden="true"/><strong>Galerie</strong><span>Bilder der Runde</span></button>
           <button type="button" onClick={()=>onNavigate('gefallen')}><Scale className={styles.tileIcon} aria-hidden="true"/><strong>Gefallen</strong><span>Schulden und Versprechen</span></button>
           <button type="button" onClick={()=>onNavigate('wirtschaft')}><Coins className={styles.tileIcon} aria-hidden="true"/><strong>Wirtschaft</strong><span>Vermögen und Ausgaben</span></button>
         </div>

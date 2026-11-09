@@ -5,9 +5,10 @@ import {commandCenterLinks,sections,worldSections} from '../app/spielbereich/mod
 
 const shell=readFileSync(new URL('../app/spielbereich/modules/shell.tsx',import.meta.url),'utf8');
 
-test('header (4c v3): Zuflucht and Spieltisch with live state, world and command center as dropdowns, no side menu', () => {
-  assert.ok(shell.includes('<span>Zuflucht</span>')&&shell.includes('<span>Spieltisch</span>'));
-  assert.ok(shell.includes("live?'live':'nicht live'"));
+test('header (4c v3): Zuflucht, world and command center as dropdowns, Kampagnen beside the campaign name, no side menu', () => {
+  assert.ok(shell.includes('<span>Zuflucht</span>'));
+  assert.ok(!shell.includes('<span>Spieltisch</span>'),'the table is entered with the button on the Zuflucht');
+  assert.ok(shell.indexOf('<span>Kampagnen</span>')<shell.indexOf('aria-label="Hauptnavigation"'),'Kampagnen sits left beside the campaign name');
   assert.ok(shell.includes('label="Die Welt"')&&shell.includes('label="Command Center"'));
   assert.ok(/a\.gm&&<Dropdown label="Command Center"/.test(shell),'only the SL sees the command center dropdown');
   assert.ok(!shell.includes('PlayerMenu')&&!shell.includes('Hauptmenü'),'no side menu');
