@@ -1,29 +1,38 @@
 # ChroniPlay – Chronik von Kleve
 
-Private Pre-Alpha für die bestehende Spielrunde. Stand: **26. Oktober 2026**.
+ChroniPlay verbindet Spieltisch, Live-Regie und Vorbereitung für Pen-&-Paper-Runden. Die geschlossene Alpha läuft mit der bestehenden Spielrunde von „Chronik von Kleve“. [ChroniPlay öffnen](https://chroniplay.cc/)
 
-Die Anwendung läuft mit React/Vinext auf Cloudflare Workers, D1 und privatem R2-Speicher. Bestehende ChroniPlay-Konten und serverseitige Rollen steuern den Zugang.
+## Live-Stand und Weiterentwicklung
 
-## Aktueller Entwicklungsstand
+Der am **7. November 2026** abgeglichene Live-Stand ist als Quellcode auf GitHub gesichert. Neue Releases bauen auf diesem Stand auf. [Live-Quellbranch](https://github.com/stenzelmaik-lang/chronik-von-kleve/tree/codex/live-source-2026-11-07) · [Geprüfter Quellcommit `5e6ae31`](https://github.com/stenzelmaik-lang/chronik-von-kleve/commit/5e6ae3164e701538d8240671ae92bc549eeace9b)
 
-- M1-Kernmodell: Entities, Content-Blöcke, Beziehungen und getrennte Spieler-/SL-Projektionen.
-- NPC-Akten: Karten, Lesedossier, Bearbeitung, Bilder und gezielte Inhaltsfreigaben.
-- Codex: Bibliothek mit 15 Quellen, Reader, Originalseiten, Kapitel und Volltextsuche; Inhalte und Suchergebnisse bleiben geschützt.
-- Spieltisch: Sitzungen, Szenen, Medien, Würfel und gemeinsames Whiteboard. Für zuverlässige Bildschirmübertragung über das Internet ist weiterhin ein Relay erforderlich.
-- Ortsverwaltung: Hauptorte → Bereiche → Räume, HTML-Beschreibungen, geschützte Bilder und Freigaben.
-- Ortsdossier 2.0: getrennte Spieler-/SL-Ansicht, formatierte interne Kapitel, Suche und lesender Schnellzugriff vom Spieltisch.
+Das **Abenteuerjournal (AJ-01)** liegt auf einem eigenen Entwicklungsbranch. Vor der Veröffentlichung wird es mit dem Live-Quellstand zusammengeführt und gemeinsam mit den bestehenden Figurenprofilen und Tischfunktionen geprüft. [Journal-Branch](https://github.com/stenzelmaik-lang/chronik-von-kleve/tree/claude/chroniplay-abenteuerjournal-23ec22)
 
-Der frühere README-Verweis auf Sites-Version 39 beschreibt den historischen Ausgangspunkt, nicht den heutigen Funktionsstand. Der Hauptbranch enthält die zusammengeführten Entwicklungsstände; ein GitHub-Commit allein ist kein Nachweis einer Live-Veröffentlichung.
+## Funktionen der Alpha
+
+- **Spieltisch.** Gemeinsame Bühne mit Würfeln, Whiteboard und Karte. Spieler öffnen Figuren- und Spielerprofile am Tisch und nutzen freigegebene Medien und Tonaufnahmen. Für zuverlässige Bildschirmübertragung über das Internet ist ein Relay erforderlich.
+- **Live-Regie.** Die Spielleitung führt durch Szenen, liest Erzählung und Dialoge, spielt Material aus und sieht im Tischblick die laufenden Freigaben. Szenenwechsel beenden die bisherige Musik. Schnellzugriffe steuern Musik und Effekte, Zustandskarten zeigen die Werte der Runde.
+- **Command Center.** Die Spielleitung bereitet Spielabende, Szenen, Material und Standardfiguren vor. In der Ortsredaktion pflegt sie Hauptorte, Bereiche, Räume und deren Freigaben und Kartenpositionen.
+- **Spielwelt und Wissen.** Ortsdossiers und NPC-Akten haben getrennte Spieler- und SL-Ansichten. Der Codex bietet einen Reader und Volltextsuche für freigegebene Inhalte.
+
+Die Anwendung nutzt React und Vinext auf Cloudflare Workers mit D1 und privatem R2-Speicher. ChroniPlay-Konten und serverseitige Rollen steuern den Zugriff.
 
 ## Dokumentation
 
 - [Projektstatus und Abnahmegrenzen](docs/PROJECT_STATUS.md)
 - [Dauerhaftes Ortsdossier-System: Funktionen und geprüfte Bedienung](docs/ortsdossier-system.md)
 - [Ortsdossier 2.0: Bedienung, Datenerhalt und Prüfungen](docs/location-dossier-2.md)
-- [Release-Markierung Ortsdossier 2.0](https://github.com/stenzelmaik-lang/chronik-von-kleve/tree/pre-alpha-2026-10-26-ortsdossier-2) – wird erst nach erfolgreicher Veröffentlichung gesetzt.
 
 ## Entwicklung und Prüfungen
 
-Node.js ab 22.13, Abhängigkeiten laut Lockfile. `pnpm run typecheck`, `pnpm run build` und `pnpm run test:integration` prüfen Typen, Build und den isolierten lokalen HTTP-Ablauf. Für sämtliche Unit-/Schema-Tests alle `tests/*.test.mjs` mit dem Node-Test-Runner ausführen; das historische `pnpm test` führt nur eine Teilmenge aus.
+Vorausgesetzt sind Node.js ab 22.13 und die in `package.json` festgelegte pnpm-Version.
 
-Lokale Tests verwenden eigene D1-/R2-Bestände und synthetische Konten. Private Importbestände, Sicherungen, Zugangsdaten und Release-Protokolle gehören nicht ins Repository. Produktionsänderungen erfolgen nur mit gesonderter Ausführungsfreigabe.
+```sh
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm test
+pnpm run build
+pnpm run test:integration:run
+```
+
+Die lokalen Integrationstests verwenden eigene D1- und R2-Bestände mit synthetischen Konten. Private Importbestände, Sicherungen und Zugangsdaten bleiben außerhalb des Repositorys. Live-Veröffentlichungen erfordern eine gesonderte Freigabe.
