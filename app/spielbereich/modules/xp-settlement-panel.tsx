@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Actor } from "@/domain/types";
 import { api } from "./api-client";
 import styles from "./xp-settlement-panel.module.css";
@@ -115,7 +115,7 @@ export function XpSettlementPanel({a}:{a:Actor}) {
   const total=entries.reduce((sum,entry)=>sum+entry.rewards.reduce((n,r)=>n+r.amount,0),0);
   const selectedSession=catalog?.playedSessions.find(s=>s.id===selected);
 
-  async function register(event:React.FormEvent) {
+  async function register(event:FormEvent) {
     event.preventDefault();setBusy(true);setError("");setNotice("");
     try{
       const reply=await api<{session:{id:string};created:boolean}>("/api/character-engine","POST",
@@ -175,7 +175,7 @@ export function XpSettlementPanel({a}:{a:Actor}) {
             <input required type="date" value={playedOn} onChange={e=>setPlayedOn(e.target.value)}/>
           </label>
           <button className="button" disabled={busy||!recordId||!playedOn}>Gespielten Abend registrieren</button>
-          <p className={styles.hint}>Ein Kalendereintrag allein zählt nicht als gespielter Abend. Der Sitzungseintrag muss „Abgeschlossen“ sein.</p>
+          <p className={styles.hint}>Ein Kalendereintrag allein zählt nicht als gespielter Abend. Der Sitzungseintrag muss im alten System „Abgeschlossen“ oder im modernen Vorbereitungsbereich „completed“ sein.</p>
         </form>
       </div>
       {!selectedSession?<p className={styles.empty}>Bitte zuerst einen tatsächlich gespielten Abend registrieren.</p>:receiptLoading?
