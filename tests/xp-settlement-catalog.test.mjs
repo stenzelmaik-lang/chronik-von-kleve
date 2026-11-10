@@ -14,6 +14,8 @@ test('Catalog lists played evenings with their own IDs and original session titl
   assert.equal(result.playedSessions[1].sessionRecordId, 'sitzung-1');
   assert.equal(result.playedSessions[0].settlementStatus, null);
   assert.ok(result.sessionRecords.some(r => r.id === 'sitzung-neu'));
+  assert.ok(result.sessionRecords.some(r => r.id === 'sitzung-modern'));
+  assert.ok(!result.sessionRecords.some(r => r.id === 'sitzung-modern-active'));
   assert.ok(result.sessionRecords.every(r => r.id !== 'sitzung-laeuft'));
 });
 
@@ -23,7 +25,7 @@ test('Catalog does not expose archived, secret, foreign or unconfirmed character
   assert.deepEqual(result.characters.map(c => c.id), ['char-a','char-b','char-c']);
   assert.ok(result.characters.every(c => c.confirmed));
   assert.ok(!result.playedSessions.some(s => s.id === 'abend-fremd'));
-  assert.deepEqual(result.storylines.map(s => s.id), ['bogen-1','bogen-2']);
+  assert.deepEqual(result.storylines.map(s => s.id), ['bogen-1','bogen-2','plot-1']);
 });
 
 test('Catalog includes the permanent settlement status without changing the receipt', async () => {
@@ -54,4 +56,14 @@ test('Receipt reversal listing is campaign isolated and ignores unrelated refere
   const amended = appendCharacterXp(body('char-a'), {id:'storno-unrelated',kind:'correction',amount:1,reason:'Unrelated',createdAt:now});
   sql.prepare('UPDATE records SET body=? WHERE id=?').run(JSON.stringify(amended),'char-a');
   assert.deepEqual(await receiptReversals(db,'andere-chronik',receipt),[]);
+});
+
+test('Native plot dossiers can receive a story reward and are identified by their own ID', async () => {
+  const { db } = setupRewardDb();
+  const result = await bookSessionSettlement(db, {campaignId,actorId:'gm',sessionId:'abend-1',now,entries:[
+    {characterId:'char-a',attended:true,rewards:[{type:'story',storyId:'plot-1',amount:2,reason:'Dossier-Handlung abgeschlossen'}]},
+  ]});
+  assert.equal(result.status,'complete');
+  const receipt = await readSessionSettlement(db,campaignId,'abend-1');
+  assert.equal(receipt.participants[0].rewards[0].scopeId,'plot-1');
 });
