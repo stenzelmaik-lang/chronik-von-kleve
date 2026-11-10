@@ -165,6 +165,15 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   const sessionAfter=await storedSession();
   check(JSON.stringify(sessionAfter)===JSON.stringify(sessionBefore),'PLAYED registration leaves the existing session record unchanged');
   const evening=registered.d.session.id,evening2=registeredSecond.d.session.id;
+  // Alpha 2.0: only the SL may see the compact XP desk catalog of played evenings, eligible sheets and story arcs.
+  check((await req('/api/character-engine?xpCatalog=1',undefined)).s===401,'XPC anonymous catalog read rejected');
+  check((await req('/api/character-engine?xpCatalog=1','a')).s===403,'XPC player cannot inspect settlement catalog');
+  const catalog=(await req('/api/character-engine?xpCatalog=1','gm'));
+  check(catalog.s===200&&catalog.d.playedSessions.some(p=>p.id===evening&&p.settlementStatus===null)&&
+    catalog.d.playedSessions.some(p=>p.id===evening2)&&catalog.d.sessionRecords.some(p=>p.id===sessionRecord)&&
+    catalog.d.storylines.some(p=>p.id===arc.d.id),'XPC SL catalog lists registered evenings and real storylines');
+  check(catalog.d.characters.some(c=>c.id===tid&&c.confirmed)&&!catalog.d.characters.some(c=>c.id===running),
+    'XPC eligible confirmed character list excludes unrelated records');
   const rewardData={id:tid,action:'xp_reward',type:'session',sessionId:evening,amount:4,reason:'Synthetic session settlement'};
   const reward=(who,extra={})=>req('/api/character-engine',who,'POST',{...rewardData,...extra});
   const story={type:'story',storyId:arc.d.id,amount:2};
@@ -227,6 +236,9 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check(changed.s===207&&of(changed,tid).status==='failed'&&of(changed,tid).rewards[0].code===409&&of(changed,fid).status==='already_booked'&&(await tget()).d.xp.available===10,'XPS another amount for a booked source fails for that character only');
   check((await tcmd('gm','xp_correction',{operationId:randomUUID(),amount:-3,referenceId:of(partial,tid).rewards[0].entryId,reason:'Synthetic settlement reversal'})).s===200,'XPS a settled reward can be reversed through the existing path');
   const afterReversal=await settle('gm',entries);
+  const reversalReceipt=(await receiptOf('gm')).d;
+  check(reversalReceipt.reversedRewards.some(r=>r.characterId===tid&&r.ledgerEntryId===of(partial,tid).rewards[0].entryId),
+    'XPC SL receipt explicitly identifies an XP correction as reversed');
   check(afterReversal.s===200&&of(afterReversal,tid).rewards[0].status==='already_booked'&&of(afterReversal,tid).rewards[0].reversed===true&&(await tget()).d.xp.available===7,'XPS a reversed reward is not recreated by a repeated settlement');
   // The persistent receipt: participants, attendance, categories, reasons, SL, timestamps and the ledger entry of every booked reward.
   const receipt=(await receiptOf('gm')).d.settlement,part=characterId=>receipt.participants.find(p=>p.characterId===characterId);
