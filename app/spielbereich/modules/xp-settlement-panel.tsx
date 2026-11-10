@@ -241,13 +241,13 @@ export function XpSettlementPanel({a}:{a:Actor}) {
         {preview&&!invalid&&<section className={styles.preview} aria-label="Vorschau der EP-Vergabe">
           <h3>Vor der endgültigen Buchung</h3>
           <p>Alle angegebenen Beträge sind einmalige Quellenbuchungen. Bereits gebuchte Beträge werden nicht erneut hinzugefügt.</p>
-          <ul>{entries.map(entry=><li key={entry.characterId}><strong>{catalog.characters.find(c=>c.id===entry.characterId)?.title??entry.characterId}:</strong> {entry.attended?"anwesend":"abwesend"} · {entry.rewards.reduce((n,r)=>n+r.amount,0)} EP · {entry.rewards.length} Vergaben</li>)}</ul>
+          <ul>{entries.map(entry=><li key={entry.characterId}><strong>{catalog?.characters.find(c=>c.id===entry.characterId)?.title??entry.characterId}:</strong> {entry.attended?"anwesend":"abwesend"} · {entry.rewards.reduce((n,r)=>n+r.amount,0)} EP · {entry.rewards.length} Vergaben</li>)}</ul>
           <button className="button primary" disabled={busy||!entries.length} onClick={()=>void book()}>{busy?"Wird verbucht …":"EP für alle bestätigen"}</button>
         </section>}
         {result&&<section className={styles.card} role="status"><h3>Ergebnis der letzten Buchung</h3>
           <p>{result.complete&&result.receipt.status==="complete"?"Gesamter Beleg und letzter Aufruf vollständig.":"Nicht alle angeforderten Vergaben erfolgreich: aktuellen Aufruf und Beleg getrennt prüfen."} Neu: {result.totals.booked}, bereits vorhanden: {result.totals.alreadyBooked}, fehlgeschlagen: {result.totals.failed}.</p>
           {result.characters.filter(c=>c.status==="failed").map(c=><p key={c.characterId} className={styles.error}>{catalog?.characters.find(x=>x.id===c.characterId)?.title??c.characterId}: {c.rewards.filter(r=>r.error).map(r=>r.error).join("; ")}</p>)}
-          {result.receipt.status!=="complete"&&<button className="button" disabled={busy} onClick={()=>{setPreview(true);setNotice("Bitte dieselbe Abrechnung erneut bestätigen, um fehlgeschlagene Buchungen sicher fortzusetzen.");}}>Erneut prüfen</button>}
+          {(!result.complete||result.receipt.status!=="complete")&&<button className="button" disabled={busy} onClick={()=>{setPreview(true);setNotice("Bitte dieselbe Abrechnung erneut bestätigen, um fehlgeschlagene Buchungen sicher fortzusetzen.");}}>Erneut prüfen</button>}
         </section>}
         {receipt&&<section className={styles.card}><h3>Dauerhafter Abrechnungsbeleg</h3>
           <p className={styles.subtle}>Status: {receipt.status} · Revision {receipt.revision}. Gegenbuchungen werden im Ledger geführt und hier als „storniert“ markiert.</p>
