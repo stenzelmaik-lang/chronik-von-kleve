@@ -138,7 +138,7 @@ export function XpSettlementPanel({a}:{a:Actor}) {
       ]);
       setCatalog(nextCatalog);setReceipt(nextReceipt.settlement);setReversals(nextReceipt.reversedRewards??[]);
       setRows(draftsFor(nextCatalog.characters,nextReceipt.settlement));
-      setNotice(response.receipt.status==="complete"?"Abrechnungsbeleg vollständig.":"Abrechnung nicht vollständig – fehlgeschlagene Zeilen prüfen und erneut senden.");
+      setNotice(response.complete&&response.receipt.status==="complete"?"Alle angeforderten Vergaben sind gebucht; der Beleg ist vollständig.":"Achtung: Die angeforderte Abrechnung konnte nicht vollständig verarbeitet werden. Einzelne Fehler und den Beleg prüfen.");
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
   }
 
@@ -245,7 +245,7 @@ export function XpSettlementPanel({a}:{a:Actor}) {
           <button className="button primary" disabled={busy||!entries.length} onClick={()=>void book()}>{busy?"Wird verbucht …":"EP für alle bestätigen"}</button>
         </section>}
         {result&&<section className={styles.card} role="status"><h3>Ergebnis der letzten Buchung</h3>
-          <p>{result.receipt.status==="complete"?"Gesamter Beleg vollständig.":"Der Beleg enthält noch offene oder fehlgeschlagene Vergaben."} Neu: {result.totals.booked}, bereits vorhanden: {result.totals.alreadyBooked}, fehlgeschlagen: {result.totals.failed}.</p>
+          <p>{result.complete&&result.receipt.status==="complete"?"Gesamter Beleg und letzter Aufruf vollständig.":"Nicht alle angeforderten Vergaben erfolgreich: aktuellen Aufruf und Beleg getrennt prüfen."} Neu: {result.totals.booked}, bereits vorhanden: {result.totals.alreadyBooked}, fehlgeschlagen: {result.totals.failed}.</p>
           {result.characters.filter(c=>c.status==="failed").map(c=><p key={c.characterId} className={styles.error}>{catalog?.characters.find(x=>x.id===c.characterId)?.title??c.characterId}: {c.rewards.filter(r=>r.error).map(r=>r.error).join("; ")}</p>)}
           {result.receipt.status!=="complete"&&<button className="button" disabled={busy} onClick={()=>{setPreview(true);setNotice("Bitte dieselbe Abrechnung erneut bestätigen, um fehlgeschlagene Buchungen sicher fortzusetzen.");}}>Erneut prüfen</button>}
         </section>}
