@@ -51,7 +51,7 @@ test('Receipt reversal listing is campaign isolated and ignores unrelated refere
   const reward = {type:'session',amount:3,reason:'Gutes Rollenspiel'};
   await bookSessionSettlement(db, { campaignId, actorId:'gm',sessionId:'abend-1', now, entries:[{characterId:'char-a',attended:true,rewards:[reward]}] });
   const receipt = await readSessionSettlement(db,campaignId,'abend-1');
-  const amended = appendCharacterXp(body('char-a'), {id:'storno-unrelated',kind:'correction',amount:0,referenceId:'unknown',reason:'Unrelated',createdAt:now});
+  const amended = appendCharacterXp(body('char-a'), {id:'storno-unrelated',kind:'correction',amount:1,reason:'Unrelated',createdAt:now});
   sql.prepare('UPDATE records SET body=? WHERE id=?').run(JSON.stringify(amended),'char-a');
   assert.deepEqual(await receiptReversals(db,'andere-chronik',receipt),[]);
 });
