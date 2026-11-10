@@ -45,3 +45,9 @@
 .empty{padding:24px;color:#b5c1c9;text-align:center;border:1px dashed #7791a455;border-radius:9px}
 .root :focus-visible{outline:2px solid #e4c589;outline-offset:3px}
 @media(max-width:790px){.choices,.rewardFields{grid-template-columns:minmax(0,1fr)}.card,.character,.preview{padding:14px}.summary>div{flex-basis:calc(50% - 12px)}.head{align-items:stretch}.head>button{width:100%}}
+
+.deskTabs{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0 16px;border-bottom:1px solid #b9985b44;margin-bottom:16px}
+.deskTabs button{border:1px solid #7791a455;background:#111f2d;color:#c5ced3;border-radius:7px;padding:10px 16px;min-height:44px;cursor:pointer;font-size:13px}
+.deskTabs button[aria-current="page"]{border-color:#d6b36f;background:#2c2b25;color:#f1d9a4}
+.deskTabs button:disabled{opacity:.55;cursor:not-allowed}
+.deskTabs button:focus-visible{outline:2px solid #e4c589;outline-offset:2px}
