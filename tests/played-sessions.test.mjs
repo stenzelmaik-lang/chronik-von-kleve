@@ -76,3 +76,13 @@ test('A registered evening survives a later status change or deletion of the ses
   for (const change of ["played_on='2026-01-01'", "session_record_id='sitzung-1'", "campaign_id='andere-chronik'", "title='Anders'", "registered_by='x'", "appointment_id='termin-2'"])
     assert.throws(() => sql.prepare(`UPDATE played_sessions SET ${change} WHERE id=?`).run(session.id), /unveränderlich/);
 });
+
+test('Modern command-center session status completed is accepted without modifying its preparation', async () => {
+  const { db, sql } = setupRewardDb();
+  const before=sql.prepare("SELECT body FROM records WHERE id='sitzung-modern'").get().body;
+  const modern=await registerPlayedSession(db,register({sessionRecordId:'sitzung-modern'}));
+  assert.equal(modern.created,true);
+  assert.equal(modern.session.sessionRecordId,'sitzung-modern');
+  assert.equal(sql.prepare("SELECT body FROM records WHERE id='sitzung-modern'").get().body,before);
+  await assert.rejects(registerPlayedSession(db,register({sessionRecordId:'sitzung-modern-active'})),status(409));
+});

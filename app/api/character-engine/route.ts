@@ -7,6 +7,7 @@ import { specialtyRatingError } from '@/domain/character-specialties';
 import { bookSessionXpReward, XpRewardServiceError } from "@/server/xp-reward-service";
 import { bookSessionSettlement, readSessionSettlement } from "@/server/xp-settlement-service";
 import { registerPlayedSession } from "@/server/played-sessions";
+import { xpSettlementCatalog, receiptReversals } from "@/server/xp-settlement-catalog";
 import { adoptHistoricalCharacter, appendCharacterXp, characterPermissions, characterSheet, characterSheetFields, validateExistingSheet,verifyHistoricalCharacter } from '@/domain/character-management';
 
 export const dynamic = "force-dynamic";
@@ -65,12 +66,21 @@ function grantException(body: Record<string, unknown>, category: string, target:
 
 export async function GET(req: Request) {
   try { const a = await actor();
-    // Settlement receipt of a played evening: Spielleitung only.
-    const settlement = new URL(req.url).searchParams.get("settlement");
+    // Small GM-only catalog for the session XP desk, never available to players.
+    const params = new URL(req.url).searchParams;
+    if (params.get("xpCatalog") === "1") {
+      gmOnly(a);
+      return json(await xpSettlementCatalog(database(), a.campaignId));
+    }
+    // The permanent receipt remains immutable. Return current ledger reversals alongside it.
+    const settlement = params.get("settlement");
     if (settlement !== null) {
       gmOnly(a);
-      try { return json({ settlement: await readSessionSettlement(database(), a.campaignId, settlement) }); }
-      catch (error) { if (error instanceof XpRewardServiceError) throw new HttpError(error.status, error.message); throw error; }
+      try {
+        const db = database();
+        const receipt = await readSessionSettlement(db, a.campaignId, settlement);
+        return json({ settlement: receipt, reversedRewards: await receiptReversals(db, a.campaignId, receipt) });
+      } catch (error) { if (error instanceof XpRewardServiceError) throw new HttpError(error.status, error.message); throw error; }
     }
     const id = new URL(req.url).searchParams.get("id"); if (!id) throw new HttpError(400, "Charakter auswählen."); const { db, row, body } = await editableCharacter(a, id); const history = a.gm ? (await db.prepare("SELECT type,payload,created_at FROM world_events WHERE campaign_id=? AND entity_id=? AND type LIKE 'character.%' ORDER BY created_at DESC,id DESC LIMIT 50").bind(a.campaignId,id).all<{type:string;payload:string;created_at:string}>()).results.map(e=>({action:e.type.replace("character.",""),...characterBody(e.payload),createdAt:e.created_at})) : []; return json({...engineProjection(a, row, body), history}); } catch (e) { return failure(e, req); }
 }

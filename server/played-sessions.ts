@@ -8,6 +8,16 @@ import { parseBody, validId, XpRewardServiceError } from "./xp-reward-errors.ts"
 export type PlayedSession = { id: string; campaignId: string; sessionRecordId: string; appointmentId: string | null; playedOn: string; title: string; registeredBy: string; registeredAt: string };
 type Row = { id: string; campaign_id: string; session_record_id: string; appointment_id: string | null; played_on: string; title: string; registered_by: string; registered_at: string };
 const view = (row: Row): PlayedSession => ({ id: row.id, campaignId: row.campaign_id, sessionRecordId: row.session_record_id, appointmentId: row.appointment_id, playedOn: row.played_on, title: row.title, registeredBy: row.registered_by, registeredAt: row.registered_at });
+/** Supports both legacy session records and the current command-center preparation lifecycle. */
+export function isCompletedSessionBody(body:Record<string,unknown>):boolean {
+  if(body.status==="Abgeschlossen") return true;
+  const preparation=body.sl_preparation;
+  if(!preparation||typeof preparation!=="object"||Array.isArray(preparation))return false;
+  const document=(preparation as Record<string,unknown>).document;
+  return !!document&&typeof document==="object"&&!Array.isArray(document)&&
+    (document as Record<string,unknown>).status==="completed";
+}
+
 
 function validDay(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -47,7 +57,7 @@ export async function registerPlayedSession(db: D1Database, input: RegisterPlaye
   if (existing) return same(existing);
   const record = await db.prepare("SELECT title,body FROM records WHERE id=? AND campaign_id=? AND kind='sitzungen'").bind(input.sessionRecordId, input.campaignId).first<{ title: string; body: string }>();
   if (!record) throw new XpRewardServiceError(404, "Sitzung nicht verfügbar.");
-  if (parseBody(record.body).status !== "Abgeschlossen") throw new XpRewardServiceError(409, "Diese Sitzung ist noch nicht abgeschlossen.");
+  if (!isCompletedSessionBody(parseBody(record.body))) throw new XpRewardServiceError(409, "Diese Sitzung ist noch nicht abgeschlossen.");
   if (appointmentId !== null) {
     const appointment = await db.prepare("SELECT body FROM records WHERE id=? AND campaign_id=? AND kind='termine'").bind(appointmentId, input.campaignId).first<{ body: string }>();
     if (!appointment) throw new XpRewardServiceError(404, "Termin nicht verfügbar.");

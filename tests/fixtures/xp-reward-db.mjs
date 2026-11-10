@@ -10,7 +10,7 @@ export function setupRewardDb() {
   const sql = new DatabaseSync(':memory:');
   sql.exec('PRAGMA foreign_keys=ON');
   sql.exec(`CREATE TABLE records(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,kind TEXT NOT NULL,visibility TEXT NOT NULL DEFAULT 'private',title TEXT NOT NULL,body TEXT NOT NULL DEFAULT '{}',gm_body TEXT NOT NULL DEFAULT '',version INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,campaign_id TEXT NOT NULL DEFAULT 'chronik-von-kleve');
-    CREATE TABLE entities(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,type TEXT NOT NULL,canon_status TEXT NOT NULL DEFAULT 'WORKING');
+    CREATE TABLE entities(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,type TEXT NOT NULL,title TEXT NOT NULL DEFAULT '',content TEXT NOT NULL DEFAULT '{}',canon_status TEXT NOT NULL DEFAULT 'WORKING');
     CREATE TABLE world_events(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,entity_id TEXT,actor_id TEXT NOT NULL,type TEXT NOT NULL,payload TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL);`);
   const migration = readdirSync('drizzle').find(name => /^\d{4}_alpha2_xp_settlement\.sql$/.test(name));
   if (!migration) throw new Error('Migration *_alpha2_xp_settlement.sql fehlt.');
@@ -37,6 +37,8 @@ export function setupRewardDb() {
   // Session records as they exist today. One of them is reused for several evenings.
   record('sitzung-1', 'sitzungen', { status: 'Abgeschlossen', scene: 'Finale', log: ['x'] });
   record('sitzung-neu', 'sitzungen', { status: 'Abgeschlossen' });
+  record('sitzung-modern', 'sitzungen', { sl_preparation: { document: { status: 'completed' } } });
+  record('sitzung-modern-active', 'sitzungen', { sl_preparation: { document: { status: 'active' } } });
   record('sitzung-laeuft', 'sitzungen', { status: 'Läuft' });
   record('sitzung-bereit', 'sitzungen', { scene: 'Vorbereitung' });
   record('sitzung-fremd', 'sitzungen', { status: 'Abgeschlossen' }, 'andere-chronik');
@@ -50,6 +52,8 @@ export function setupRewardDb() {
   played('abend-2', 'sitzung-1', '2026-10-03', campaignId, 'termin-1');
   played('abend-fremd', 'sitzung-fremd', '2026-11-07', 'andere-chronik');
   entity('bogen-1', 'storyline'); entity('bogen-2', 'storyline'); entity('bogen-fremd', 'storyline', 'andere-chronik'); entity('npc-1', 'NPC');
+  sql.prepare("INSERT INTO entities(id,campaign_id,type,title,content,canon_status) VALUES(?,?,'CHRONICLE',?,?,'GM_SECRET')")
+    .run('plot-1',campaignId,'Plot dossier',JSON.stringify({documentKind:'plot_dossier'}));
   const body = id => JSON.parse(sql.prepare('SELECT body FROM records WHERE id=?').get(id).body);
   const version = id => sql.prepare('SELECT version FROM records WHERE id=?').get(id).version;
   const events = () => sql.prepare('SELECT * FROM world_events ORDER BY created_at,id').all();
