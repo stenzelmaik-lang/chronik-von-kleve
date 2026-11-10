@@ -14,7 +14,7 @@ function smokeTexture(){
 }
 function numeralTexture(){
   const canvas=document.createElement('canvas');canvas.width=canvas.height=1024;const c=canvas.getContext('2d');
-  c.font='500 180px Georgia';c.textAlign='center';c.textBaseline='middle';c.fillStyle='#e59a92';c.strokeStyle='#e59a92';c.lineWidth=5;
+  c.font='600 180px Georgia';c.textAlign='center';c.textBaseline='middle';c.fillStyle='#f2d7aa';c.strokeStyle='#f2d7aa';c.lineWidth=5;
   for(let value=1;value<=10;value++){const x=((value-1)%4)*256+128,y=Math.floor((value-1)/4)*256+128;c.fillText(String(value),x,y,210);if(value===6||value===9){c.beginPath();c.moveTo(x-35,y+66);c.lineTo(x+35,y+66);c.stroke();}}
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;return texture;
 }

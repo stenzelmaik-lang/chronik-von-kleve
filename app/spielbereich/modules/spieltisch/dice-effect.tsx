@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {FastForward,X,Users} from 'lucide-react';
 import {v20OutcomeLabel,type V20Report} from '@/domain/w10';
+import {CpIcon} from '../icons/cp-icons';
 import styles from './stage.module.css';
 export type DicePresentation={id:string;dice:readonly number[];target:number;motionSeed:readonly number[];report?:V20Report};
 type Metrics={duration:number;asleep:boolean;contacts:number;diePairs:number;computeMs:number;endValues:number[];seed:number[];traySides:number};
@@ -28,12 +29,30 @@ export function DiceEffect({result,author,title,animate=true,onClose,onCloseShar
   },[result.id,testCanvasOff]); // eslint-disable-line react-hooks/exhaustive-deps -- Immutable roll identity owns the renderer; polling must never restart a throw.
   useEffect(()=>{const escape=(event:KeyboardEvent)=>{if(event.key!=='Escape'||window.document.querySelector('dialog[open]'))return;event.preventDefault();event.stopPropagation();if(moving)finish();else onClose();};window.document.addEventListener('keydown',escape);return()=>window.document.removeEventListener('keydown',escape);},[moving,onClose]);
   return <section className={styles.diceEffect} role="region" aria-label="Gemeinsamer Würfelwurf" data-roll-id={result.id} data-phase={phase} data-fallback={phase==='fallback'} data-large={result.dice.length>10} data-end-values={metrics?.endValues.join(',')} data-contacts={metrics?.contacts} data-die-pairs={metrics?.diePairs} data-duration={metrics?.duration} data-compute-ms={metrics?.computeMs} data-motion-seed={metrics?.seed.join('-')} data-tray-sides={metrics?.traySides} data-render-error={failureReason}>
-    <header><div><small>{title||'Freier Wurf'} · {author}</small><h2>{result.dice.length} W10 <span>SG {result.target}</span></h2></div><div>{moving&&<button ref={skip} onClick={finish} aria-label="Würfelanimation überspringen"><FastForward size={17}/><span>Ergebnis zeigen</span></button>}{onCloseShared&&<button aria-label="Wurf fuer die gesamte Runde schliessen" disabled={closing} onClick={async()=>{setClosing(true);setError('');try{await onCloseShared();}catch(issue){setError((issue as Error).message);}finally{setClosing(false);}}}><Users size={17}/><span>Für alle schließen</span></button>}<button ref={close} onClick={onClose} aria-label="Würfelansicht nur für mich schließen" title="Nur für mich schließen"><X size={19}/></button></div></header>
+    <header>
+      <div className={styles.diceHeading}>
+        <span className={styles.diceSeal} aria-hidden="true"><CpIcon name="dice" /></span>
+        <div className={styles.diceTitle}>
+          <h2 title={title}>{title || 'Freier Wurf'}</h2>
+          <p><span>{author}</span><b>{result.dice.length} W10 · SG {result.target}</b></p>
+        </div>
+      </div>
+      <div>{moving&&<button ref={skip} onClick={finish} aria-label="Würfelanimation überspringen"><FastForward size={17}/><span>Ergebnis zeigen</span></button>}{onCloseShared&&<button aria-label="Wurf fuer die gesamte Runde schliessen" disabled={closing} onClick={async()=>{setClosing(true);setError('');try{await onCloseShared();}catch(issue){setError((issue as Error).message);}finally{setClosing(false);}}}><Users size={17}/><span>Für alle schließen</span></button>}<button ref={close} onClick={onClose} aria-label="Würfelansicht nur für mich schließen" title="Nur für mich schließen"><X size={19}/></button></div>
+    </header>
     {pendingCount>0&&<button className={styles.nextRoll} disabled={moving} onClick={onNext}>Neuer Wurf: {nextTitle||'Freier Wurf'}{nextAuthor?' · '+nextAuthor:''}{pendingCount>1?' (+'+(pendingCount-1)+')':''} · ansehen</button>}
     {phase!=='fallback'&&<div className={styles.diceCanvasArea}><div ref={host} className={styles.diceWebgl}/>{phase==='preparing'&&<p className={styles.dicePreparing} role="status">{requested||reduced?'Endbild wird bereitgestellt …':'Würfel werden aufgelegt …'}</p>}</div>}
     {phase==='fallback'&&<div className={styles.diceStaticTray} aria-label="Statische Würfelschale">{result.dice.map((v,i)=><span key={i} className={styles.staticDie}>{v}</span>)}</div>}
-    <div className={styles.diceReadout}><ol className={styles.diceValues} aria-label="Feststehende W10-Einzelergebnisse" aria-live="polite">{result.dice.map((value,index)=><li key={index} aria-label={'Würfel '+(index+1)+': '+value} data-value={value} className={result.report?.cancelledSuccessIndices.includes(index)?styles.cancelledDie:value===1?styles.oneDie:''}>{value}</li>)}</ol>
-      <p className={styles.diceScope}>{result.report&&<><strong data-outcome={result.report.outcome}>{v20OutcomeLabel[result.report.outcome]} · {result.report.netSuccesses} {result.report.netSuccesses===1?'Erfolg':'Erfolge'}</strong>{result.report.cancelled>0&&<> · {result.report.cancelled} durch Einsen aufgehoben</>}</>}</p>
+    <div className={styles.diceReadout}>
+      <ol className={styles.diceValues} aria-label="Feststehende W10-Einzelergebnisse" aria-live="polite">
+        {result.dice.map((value,index)=><li key={index} aria-label={'Würfel '+(index+1)+': '+value} data-value={value}
+          className={result.report?.cancelledSuccessIndices.includes(index) ? styles.cancelledDie
+            : value === 1 ? styles.oneDie : value >= result.target ? styles.successDie : undefined}>{value}</li>)}
+      </ol>
+      {result.report && <p className={styles.diceScope}>
+        <strong data-outcome={result.report.outcome}>{v20OutcomeLabel[result.report.outcome]}</strong>
+        <span>{result.report.netSuccesses} {result.report.netSuccesses === 1 ? 'Erfolg' : 'Erfolge'}</span>
+        {result.report.cancelled > 0 && <small>{result.report.cancelled} durch Einsen aufgehoben</small>}
+      </p>}
       {(reduced||phase==='fallback')&&<small className={styles.diceHelp}>{reduced?'Reduzierte Bewegung.':'Vereinfachte Ansicht.'}</small>}{error&&<p role="alert">{error}</p>}
     </div>
   </section>;

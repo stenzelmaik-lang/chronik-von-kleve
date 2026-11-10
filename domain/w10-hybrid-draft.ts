@@ -3,7 +3,7 @@
  * This module only calculates previews. It neither persists nor publishes nor spends resources.
  */
 import { evaluateV20, type V20Evaluation } from './w10-core.ts';
-import { rollD10Pool } from './w10.ts';
+import { sampleD10Pool } from './w10.ts';
 
 export const HYBRID_DRAFT_PROFILE = Object.freeze({
   rulesetId: 'chroniplay-hybrid-v20-base', rulesVersion: '1.0.0-draft',
@@ -180,7 +180,7 @@ export function sampleDraftRoll(request: DraftRollRequest, source?: (words: Uint
   if (!prepared.automatic) {
     if (prepared.pool.effective > DRAFT_SAMPLE_LIMIT) block('DRAFT_SAMPLE_LIMIT_EXCEEDED');
     for (let remaining = prepared.pool.effective; remaining > 0; remaining -= 30) {
-      faces.push(...rollD10Pool(Math.min(30, remaining), source));
+      faces.push(...sampleD10Pool(Math.min(30, remaining), source));
     }
   }
   return resolvePrepared(prepared, faces);
@@ -208,5 +208,5 @@ export function resolveDraftRouse(request: DraftRouseRequest, face: number) {
 }
 export function sampleDraftRouse(request: DraftRouseRequest, source?: (words: Uint32Array) => unknown) {
   const prepared = prepareRouse(request);
-  return resolveDraftRouse(prepared, rollD10Pool(1, source)[0]);
+  return resolveDraftRouse(prepared, sampleD10Pool(1, source)[0]);
 }

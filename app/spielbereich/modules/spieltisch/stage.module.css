@@ -24,22 +24,45 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .noteListItem{border-bottom:1px solid var(--line);padding:12px 0 17px}.noteListItem>small{font-size:11px;color:#c7b890}.noteListItem>p{white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.5 Georgia,serif;margin:7px 0 12px}.noteListItem button{width:100%}
 /* Dice occupy the transient stage layer, never a bottom panel. */
 .diceEffect{position:absolute;inset:0;pointer-events:none;color:#eee8dc}
-.diceEffect>header{position:absolute;z-index:2;left:50%;top:18px;transform:translateX(-50%);display:flex;align-items:center;gap:24px;padding:10px 14px;background:#0c1519e8;border:1px solid #c0a46e55;border-radius:8px;box-shadow:0 5px 18px #0004;pointer-events:auto}
-.diceEffect header small{font:9px Arial,sans-serif;letter-spacing:.12em;color:#bfb7a4;white-space:nowrap}
-.diceEffect h2{font:normal 23px/1.2 Georgia,serif;margin:4px 0 0;white-space:nowrap}.diceEffect h2 span{font:11px Arial,sans-serif;color:#c6beac;margin-left:10px}
-.diceEffect header>div:last-child{display:flex;gap:6px}.diceEffect button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:42px;min-height:42px;padding:8px;background:#1b2a2e;border:1px solid var(--line);border-radius:5px;color:#e8d5ac;font-size:11px}.diceEffect button svg{width:18px;height:18px}.diceEffect button:hover{background:#27383b}
+.diceEffect>header{
+  position:absolute;z-index:2;left:50%;top:18px;transform:translateX(-50%);
+  display:flex;align-items:center;gap:16px;width:max-content;max-width:calc(100% - 32px);padding:9px 10px 9px 12px;
+  background:#142522f5;border:1px solid #ccac746b;border-radius:8px;box-shadow:0 8px 24px #0007;pointer-events:auto;
+}
+.diceHeading{display:flex;align-items:center;gap:10px;min-width:0}
+.diceSeal{
+  display:grid;place-items:center;flex:none;width:38px;height:38px;
+  color:#ebcb90;background:#0d1a19;border:1px solid #ccac746b;border-radius:50%;
+}
+.diceSeal svg{width:21px;height:21px}
+.diceTitle{min-width:0}
+.diceTitle h2{font:normal 21px/1.25 Georgia,serif;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diceTitle p{display:flex;gap:9px;margin:3px 0 0;font:12px/1.4 Arial,sans-serif;color:#c2c9bd}
+.diceTitle p span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diceTitle p b{flex:none;color:#ebcb90;font-weight:600;white-space:nowrap}
+.diceEffect header>div:last-child{display:flex;flex:none;gap:6px}
+.diceEffect button{display:flex;align-items:center;justify-content:center;gap:7px;min-width:42px;min-height:42px;padding:8px;background:#1c2e2b;border:1px solid var(--line);border-radius:5px;color:#e8d5ac;font-size:11px}.diceEffect button svg{width:18px;height:18px}.diceEffect button:hover{background:#2d433b}
 .diceCanvasArea{position:absolute;inset:0;pointer-events:none}.diceWebgl{position:absolute;inset:0}.diceWebgl canvas{display:block;width:100%;height:100%;pointer-events:none}
 .dicePreparing{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;padding:12px 18px;border-radius:7px;background:#101a1de8;color:#d7cbb9;font:15px Georgia,serif}
-.diceReadout{position:absolute;bottom:92px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(640px,calc(100% - 36px));padding:10px 17px 12px;border:1px solid #c0a46e44;border-radius:9px;background:#0c1519ed;box-shadow:0 5px 20px #0004;pointer-events:auto}
-.diceValues{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;list-style:none;max-height:125px;overflow:auto;padding:0;margin:0}.diceValues li{display:grid;place-items:center;min-width:27px;height:28px;padding:0 5px;border:1px solid #98525877;border-radius:4px;background:#2b2328;color:#efc6c8;font:600 15px Georgia,serif}
-.diceScope{font:11px/1.5 Arial,sans-serif;text-align:center;color:#c7cbc3;margin:8px 0 0}
+.diceReadout{
+  position:absolute;bottom:92px;left:50%;transform:translateX(-50%);width:max-content;max-width:min(780px,calc(100% - 30px));
+  padding:10px 14px;border:1px solid #c0a46e66;border-radius:8px;background:#10201ef5;box-shadow:0 8px 24px #0007;pointer-events:auto;
+}
+.diceValues{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;list-style:none;max-height:125px;overflow:auto;padding:0;margin:0}
+.diceValues li{
+  display:grid;place-items:center;min-width:33px;height:34px;padding:0 5px;border:1px solid #c0a46e60;border-radius:5px;
+  background:#1d2e2c;color:#f2e5cc;box-shadow:inset 0 1px #ffe0a818;font:600 18px Georgia,serif;
+}
+.diceScope{display:flex;align-items:center;justify-content:center;gap:6px 9px;flex-wrap:wrap;font:12px/1.4 Arial,sans-serif;color:#e4e3d8;margin:8px 0 0}
+.diceScope strong{padding:3px 6px;border:1px solid currentColor;border-radius:4px;font-size:11px;font-weight:600}
+.diceScope small{color:#c2c9bd;font-size:11px}
 .diceSummary .diceReadout{top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(390px,calc(100% - 32px));padding:50px 36px;background:#29172fee;border:0;clip-path:polygon(28% 0,72% 0,100% 28%,100% 72%,72% 100%,28% 100%,0 72%,0 28%);filter:drop-shadow(0 10px 22px #0008)}
-@media(max-width:1100px){.diceEffect>header{top:12px;gap:12px}.diceEffect h2{font-size:20px}.diceEffect button span{display:none}.diceScope{font-size:10px}}
-@media(max-width:600px){.diceEffect>header{top:55px;max-width:calc(100% - 24px);gap:12px}.diceEffect header small{font-size:8px}.diceEffect h2 span{display:block;margin:3px 0 0}.diceReadout{bottom:88px;padding:9px 11px}.diceValues{max-height:96px}}
 .drawerBody :global(.dice-panel>a){display:none}
 .drawerBody :global(.dice-results){display:flex;flex-wrap:wrap;gap:5px;margin-top:15px}.drawerBody :global(.dice-results .die){display:grid;place-items:center;min-width:27px;height:30px;padding:0 6px;border:1px solid #bca27166;border-radius:4px;background:#203033;color:#e7dac0;font:600 16px Georgia,serif}.drawerBody :global(.dice-results .die.success){border-color:#d6b36f;color:#ffe3a2}
-.diceValues li{color:#efc6c8;border-color:#98525877;background:#2b2328}.diceValues li.oneDie{color:#ff8d94;border-color:#a84953}.diceValues li.cancelledDie{text-decoration:line-through;color:#b9a6a8;border-style:dashed}
-.diceScope strong[data-outcome=success]{color:#a9d6b9}.diceScope strong[data-outcome=failure]{color:#e2cfaa}.diceScope strong[data-outcome=botch]{color:#ff909a}
+.diceValues li.successDie{color:#c2e7cc;border-color:#82ad8c;background:#244039}
+.diceValues li.oneDie{color:#ffc2bd;border-color:#b66368;background:#38272c}
+.diceValues li.cancelledDie{text-decoration:line-through;color:#c7c2b8;border-style:dashed}
+.diceScope strong[data-outcome=success]{color:#b5dcbd}.diceScope strong[data-outcome=failure]{color:#ead2a9}.diceScope strong[data-outcome=botch]{color:#f2aca8}
 .drawerBody :global(.dice-results .die.cancelled){text-decoration:line-through;border-style:dashed;color:#ab9a9c}.drawerBody :global(.dice-results .die.one){color:#ff969d;border-color:#a34c57}
 .drawerBody :global(.v20-result){border-left:3px solid #b09b73;padding:12px 14px;background:#19272b;margin-top:15px;line-height:1.5}.drawerBody :global(.v20-result p){margin:5px 0 0;font-size:12px}.drawerBody :global(.v20-result small){display:block;font-size:11px;margin-top:6px}.drawerBody :global(.v20-result.success){border-color:#77ae8d}.drawerBody :global(.v20-result.botch){border-color:#b84956;background:#302126;color:#ffd4d7}
 .drawerBody :global(.w10-history){margin-top:17px;border-top:1px solid var(--line);padding-top:12px}.drawerBody :global(.w10-history summary){cursor:pointer;color:#d9c8a2}.drawerBody :global(.w10-history ol){list-style:none;padding:0;margin:12px 0}.drawerBody :global(.w10-history li){border-bottom:1px solid var(--line);padding:12px 0;font-size:12px}.drawerBody :global(.w10-history header){display:flex;justify-content:space-between;gap:12px}.drawerBody :global(.w10-history time){color:#b8b4aa;font-size:11px}.drawerBody :global(.w10-history p){margin:7px 0;overflow-wrap:anywhere}.drawerBody :global(.w10-history small){display:block;color:#c3bcb0;line-height:1.5}
@@ -47,14 +70,19 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 /* W10 v1.2: scoped ChroniPlay materials, persistent central result, accessible scope controls. */
 .diceCanvasArea{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(1000px,calc(100% - 24px));height:min(600px,calc(100% - 190px))}
 .diceEffect[data-large=true] .diceCanvasArea{width:min(1260px,calc(100% - 24px));height:min(720px,calc(100% - 190px))}
-.diceEffect>header{max-width:calc(100% - 32px);gap:20px}.diceEffect header>div:last-child{flex-shrink:0}.diceEffect header small{color:#c9b68e;font-size:10px}.diceEffect h2{font-size:23px}
-.diceValues{gap:6px}.diceValues li{font-size:17px;min-width:30px;height:31px;color:#f3b4aa;background:#242528;border-color:#a86c6588}
-.diceReadout{max-width:min(780px,calc(100% - 30px));padding:12px 18px}.diceScope{font-size:12px}.diceHelp{display:block;text-align:center;margin-top:6px;color:#b8c5c7;font:11px/1.5 Arial,sans-serif}
+.diceHelp{display:block;text-align:center;margin-top:6px;color:#b8c5c7;font:11px/1.5 Arial,sans-serif}
 .nextRoll,.pendingRoll{position:absolute;left:50%;transform:translateX(-50%);z-index:3;pointer-events:auto;min-height:42px;border:1px solid #bca27166;border-radius:6px;background:#0b1f27ed;color:#eae3d2;padding:9px 15px;font-size:12px}.nextRoll{top:96px}.pendingRoll{top:18px}
 .diceStaticTray{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:12px;width:min(700px,calc(100% - 40px));min-height:220px;padding:65px 50px;background:#10323af5;border:5px solid #242c2e;clip-path:polygon(26% 0,74% 0,100% 26%,100% 74%,74% 100%,26% 100%,0 74%,0 26%)}
-.staticDie{display:grid;place-items:center;width:48px;height:51px;background:linear-gradient(135deg,#41484b,#101619 70%);clip-path:polygon(50% 0,100% 29%,92% 75%,50% 100%,8% 75%,0 29%);font:600 23px Georgia,serif;color:#e59a92;text-shadow:0 1px 2px #000}
-@media(max-width:1100px){.diceEffect>header{gap:10px}.diceReadout{bottom:87px}.diceScope{font-size:11px}}
-@media(max-width:650px){.diceEffect>header{align-items:flex-start;top:50px;gap:8px}.diceEffect h2{font-size:19px}.diceEffect header small{white-space:normal;font-size:9px}.diceEffect button{min-width:40px}.nextRoll{top:145px}.diceHelp{font-size:10px}.diceCanvasArea,.diceEffect[data-large=true] .diceCanvasArea{height:calc(100% - 240px)}.diceReadout{bottom:84px}.diceStaticTray{gap:7px;padding:50px 24px}.staticDie{width:32px;height:36px;font-size:20px}}
+.staticDie{display:grid;place-items:center;width:48px;height:51px;background:linear-gradient(135deg,#41484b,#101619 70%);clip-path:polygon(50% 0,100% 29%,92% 75%,50% 100%,8% 75%,0 29%);font:600 23px Georgia,serif;color:#f2d7aa;text-shadow:0 1px 2px #000}
+@media(max-width:1100px){.diceEffect>header{top:12px;gap:10px}.diceEffect button span{display:none}.diceReadout{bottom:87px}}
+@media(max-width:650px){
+  .diceEffect>header{top:50px;gap:8px;max-width:calc(100% - 24px)}
+  .diceTitle h2{font-size:17px}.diceTitle p{font-size:10px;gap:6px}.diceSeal{width:30px;height:30px}.diceSeal svg{width:17px;height:17px}
+  .diceEffect button{min-width:40px}.nextRoll{top:145px}.diceHelp{font-size:10px}
+  .diceCanvasArea,.diceEffect[data-large=true] .diceCanvasArea{height:calc(100% - 240px)}
+  .diceReadout{bottom:84px;padding:9px 10px}.diceValues{max-height:96px}
+  .diceStaticTray{gap:7px;padding:50px 24px}.staticDie{width:32px;height:36px;font-size:20px}
+}
 .app *{box-sizing:border-box}.app button,.app select,.app input,.app textarea{font:inherit}.app button{cursor:pointer}.app button:disabled{opacity:.5;cursor:wait}.app button:focus-visible,.app select:focus-visible,.app input:focus-visible,.app textarea:focus-visible{outline:2px solid #d6b36f;outline-offset:3px}.app button{color:inherit}.sceneInfo{position:absolute;left:28px;top:28px;max-width:min(720px,80%);padding:18px;background:#10191de6;z-index:1;max-height:36%;overflow:auto}.readerViewport img,.readerViewport video{max-width:100%;max-height:75vh}.empty{padding:2rem;color:#b7bdb6}
 
 .app .readButton{color:#292720;background:#eee7d7;border-color:#8b8069}
@@ -132,12 +160,23 @@ button.stickyGrip:active{cursor:grabbing}.stickyGrip>span{display:flex;align-ite
 .checkPointer span{display:grid;gap:1px}.checkPointer small{color:#d6b36f;font-size:10px;letter-spacing:.1em;text-transform:uppercase}.checkPointer strong{font:15px Georgia,serif}
 .checkPointer button{min-height:36px;padding:6px 11px;border:1px solid #d6b36f;border-radius:5px;background:#6a5228;color:#fff4d8;white-space:nowrap}
 .checkSummary{margin:0 0 14px}.checkSummary h2{margin:0 0 8px}
-.diceLog{display:grid;gap:4px;margin:0;padding:0;list-style:none}
-.diceLog button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 10px;border:1px solid #33403f;border-radius:5px;background:#111b1d;color:#e6dfd0;text-align:left}
-.diceLog button:hover{border-color:#8a7650}
-.diceLog span{display:grid;gap:1px;min-width:0}.diceLog strong{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.diceLog small{color:#a59d8c;font-size:11px}
-.diceLog b{flex:none;font-size:12px;font-weight:600;color:#d9cfbd}.diceLog b[data-outcome=success]{color:#9fc3a5}.diceLog b[data-outcome=botch]{color:#e59b8a}
-.diceLogEmpty{color:#a59d8c;font-size:13px}
+.diceDrawer>header{background:#192d29;box-shadow:inset 3px 0 #d6b36f}
+@media(min-width:701px){.diceDrawer{width:428px}}
+.diceDesk :global(.dice-panel){
+  margin:0;padding:14px;border:1px solid #bfa57465;border-radius:8px;
+  background:#182a29;box-shadow:inset 0 1px #efce8c1c;
+}
+.diceDesk :global(.dice-panel h2){margin:0 0 10px;font-size:21px}
+.diceDesk :global(.dice-panel .form-grid){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.diceDesk :global(.dice-panel .field){align-content:start;margin:0 0 12px;font-size:12px}
+.diceDesk :global(.dice-panel > .button){
+  width:100%;min-height:44px;background:linear-gradient(#e8c98f,#d0a86d);font-weight:700;color:#171c19;
+}
+.diceDesk :global(.dice-panel .muted){font-size:12px;line-height:1.5;color:#c2c9bd}
+.diceDesk :global(.dice-panel .muted:last-of-type){margin-bottom:0}
+.diceDesk :global(.dice-results:empty){display:none}
+.diceDesk .diceJournalTitle{margin:21px 0 10px}
+.rawRoll>summary{cursor:pointer;margin:0 0 8px;color:#e4c48b}
 
 .brand>svg,.simulation svg{color:var(--accent);flex:none}
 .simulation>button{display:inline-flex;align-items:center;gap:5px}

@@ -3,12 +3,38 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {checkProgress,pendingChecks,pendingTargets,focusCheck,parsePreparedCheck,traitLine,isTablePlayer} from '../domain/live-checks.ts';
 import {createInbox,ingestDice,dismissDice,showDice} from '../app/spielbereich/modules/spieltisch/dice-inbox.mjs';
+import {groupDiceRolls,summarizeDiceRolls} from '../app/spielbereich/modules/spieltisch/dice-journal-data.ts';
 // GE-01C: lifecycle of character checks and result views at the live table. A stored roll is final;
 // a result view is only a per-client presentation and never makes a roll "open" again.
 const check=(id,recipients=null,extra={})=>({id,title:'Probe '+id,difficulty:6,recipients,...extra});
 const roll=(id,authorId,requestId,status='settled_open')=>({id,authorId,status,checkRef:requestId?{requestId,characterId:'c-'+authorId}:undefined});
 const journal=(revision,events)=>({sessionId:'run-1',revision,events});
 const src=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
+
+test('the dice journal groups people by identity, newest roll first, even when names match or change',()=>{
+ const events=[
+  {...roll('r1','a'),authorName:'Alex alt'},
+  {...roll('r2','b'),authorName:'Alex'},
+  {...roll('r3','a'),authorName:'Alex'},
+ ];
+ assert.deepEqual(groupDiceRolls(events).map(group=>[group.authorId,group.authorName,group.rolls.map(event=>event.id)]),[
+  ['a','Alex',['r3','r1']],['b','Alex',['r2']],
+ ]);
+ assert.deepEqual(events.map(event=>event.id),['r1','r2','r3']);
+});
+
+test('clearing statistics excludes stored roll IDs and counts fresh dice even when legacy sequences overlap',()=>{
+ const events=[
+  {...roll('r1','a'),sequence:1,roll:{dice:[10,1]},result:{outcome:'failure'}},
+  {...roll('r2','a'),sequence:1,roll:{dice:[10,10,1]},result:{outcome:'success'}},
+  {...roll('r3','b'),sequence:2,roll:{dice:[1,2]},result:{outcome:'botch'}},
+ ];
+ assert.deepEqual(summarizeDiceRolls(events,new Set(['r1'])),{
+  rolls:2,dice:5,success:1,failure:0,botch:1,faces:[2,1,0,0,0,0,0,0,0,2],
+ });
+ assert.equal(summarizeDiceRolls(events,new Set(events.map(event=>event.id))).rolls,0);
+ assert.equal(groupDiceRolls(events)[0].rolls.length+groupDiceRolls(events)[1].rolls.length,3);
+});
 
 test('a check stays pending per target until that player rolled; finished checks are done for GM and player alike',()=>{
  const c=check('k1',['a','b']);

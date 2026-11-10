@@ -7,7 +7,13 @@ export type V20Outcome='success'|'failure'|'botch';
 export type V20Report=Readonly<{rule:'v20-normal';target:number;dice:readonly number[];rawSuccesses:number;ones:number;cancelled:number;netSuccesses:number;outcome:V20Outcome;cancelledSuccessIndices:readonly number[]}>;
 export type W10LogEntry=Readonly<{id:string;at:string;report:V20Report}>;
 
-export function rollD10Pool(pool:number,source:(words:Uint32Array)=>unknown=words=>globalThis.crypto.getRandomValues(words)):number[]{
+/** Gameplay draws from Web Crypto on every roll. The caller supplies only the pool size. */
+export function rollD10Pool(pool: number): number[] {
+  return sampleD10Pool(pool);
+}
+
+/** Also used by offline rule drafts and tests with a controlled word source. */
+export function sampleD10Pool(pool:number,source:(words:Uint32Array)=>unknown=words=>globalThis.crypto.getRandomValues(words)):number[]{
   if(!Number.isInteger(pool)||pool<1||pool>30)throw Error('W10: 1–30 Würfel.');
   return Array.from({length:pool},()=>{
     const word=new Uint32Array(1);

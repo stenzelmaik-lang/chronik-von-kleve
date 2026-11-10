@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rollD10Pool,evaluateNormalV20,recordNormalV20,reportForStoredV20Roll,W10_ACCEPTED_WORDS} from '../../domain/w10.ts';
+import {rollD10Pool,sampleD10Pool,evaluateNormalV20,recordNormalV20,reportForStoredV20Roll,W10_ACCEPTED_WORDS} from '../../domain/w10.ts';
 
 test('stored original interpretation wins over the current normal evaluator',()=>{
   const roll={dice:[10,10],target:6};
@@ -23,12 +23,24 @@ test('legacy rolls without reports remain readable without inventing stored meta
 test('rejection sampling accepts exactly an equal number of uint32 words per W10 face',()=>{
   assert.equal(W10_ACCEPTED_WORDS%10,0);assert.equal(W10_ACCEPTED_WORDS/10,429496729);
   const words=[0,1,2,3,4,5,6,7,8,9,4294967280,4294967281,4294967282,4294967283,4294967284,4294967285,4294967286,4294967287,4294967288,4294967289];let calls=0;
-  const dice=rollD10Pool(20,out=>{out[0]=words[calls++];});
+  const dice=sampleD10Pool(20,out=>{out[0]=words[calls++];});
   assert.deepEqual(dice,[1,2,3,4,5,6,7,8,9,10,1,2,3,4,5,6,7,8,9,10]);assert.equal(calls,20);
 });
 test('only the six unmappable uint32 words are rejected; no face or failed roll is rerolled',()=>{
   const words=[4294967290,4294967291,4294967292,4294967293,4294967294,4294967295,0,0,0];let calls=0;
-  const dice=rollD10Pool(3,out=>{out[0]=words[calls++];});assert.deepEqual(dice,[1,1,1]);assert.equal(calls,9);assert.equal(evaluateNormalV20(dice,6).outcome,'botch');
+  const dice=sampleD10Pool(3,out=>{out[0]=words[calls++];});assert.deepEqual(dice,[1,1,1]);assert.equal(calls,9);assert.equal(evaluateNormalV20(dice,6).outcome,'botch');
+});
+test('gameplay draws only from Web Crypto and keeps repeated faces across rolls', t => {
+  const words = [4294967295, 0, 0, 9, 9];
+  let draws = 0;
+  t.mock.method(globalThis.crypto, 'getRandomValues', buffer => {
+    buffer[0] = words[draws++];
+    return buffer;
+  });
+
+  assert.deepEqual(rollD10Pool(3, buffer => { buffer[0] = 9; }), [1, 1, 10]);
+  assert.deepEqual(rollD10Pool(1), [10]);
+  assert.equal(draws, words.length);
 });
 test('successes, complete failures and botches follow the normal V20 rule',()=>{
   const cases=[[[6],6,'success',1,0,0,1],[[5],6,'failure',0,0,0,0],[[1],6,'botch',0,1,0,0],[[1,1,1],6,'botch',0,3,0,0],[[2,3,4,5],6,'failure',0,0,0,0],[[6,1],6,'failure',1,1,1,0],[[6,1,1],6,'failure',1,2,1,0],[[9,1,1,8,1],8,'failure',2,3,2,0],[[1,3,4,3,7],8,'botch',0,1,0,0],[[10,6,1],6,'success',2,1,1,1],[[10],10,'success',1,0,0,1]];
@@ -47,9 +59,11 @@ test('result history freezes the actual dice, target and cancellation evidence',
   const dice=[10,6,1,1],entry=recordNormalV20(dice,6);dice[0]=1;
   assert.deepEqual(entry.report.dice,[10,6,1,1]);assert.deepEqual(entry.report.cancelledSuccessIndices,[0,1]);assert.equal(entry.report.outcome,'failure');assert.ok(!Number.isNaN(Date.parse(entry.at)));assert.throws(()=>entry.report.dice.push(10));
 });
-test('unsupported inputs fail rather than invoke alternative game rules or a random fallback',()=>{
+test('unsupported inputs fail rather than invoke alternative game rules or a random fallback',t=>{
   for(const pool of [0,31,NaN,Infinity,1.1])assert.throws(()=>rollD10Pool(pool));
   for(const [dice,target] of [[[],6],[[0],6],[[11],6],[[6],1],[[6],11]])assert.throws(()=>evaluateNormalV20(dice,target));
-  assert.throws(()=>rollD10Pool(1,out=>{out[0]=4294967295;}));assert.throws(()=>rollD10Pool(1,()=>{throw Error('source unavailable');}),/source unavailable/);
+  assert.throws(()=>sampleD10Pool(1,out=>{out[0]=4294967295;}));
+  t.mock.method(globalThis.crypto, 'getRandomValues', () => { throw Error('source unavailable'); });
+  assert.throws(()=>rollD10Pool(1),/source unavailable/);
   assert.equal(evaluateNormalV20([10,10],6).netSuccesses,2); // No specialty doubling/explosion.
 });

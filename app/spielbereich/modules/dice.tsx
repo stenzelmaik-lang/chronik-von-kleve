@@ -11,6 +11,7 @@ export function DicePanel({sharedRoll,disabled=false,onResult,mode='raw',history
   const [rolledTarget,setRolledTarget]=useState(6);
   const report=mode==='v20-normal'?(history[0]?.report||(dice.length?evaluateNormalV20(dice,rolledTarget):undefined)):undefined;
   const shownDice=report?.dice||dice;
+  const shownTarget=report?.target??rolledTarget;
   return (
     <section className="panel dice-panel">
       <h2>{mode==='v20-normal'?'V20 · normale Probe':'W10-Würfelpool'}</h2>
@@ -58,7 +59,7 @@ export function DicePanel({sharedRoll,disabled=false,onResult,mode='raw',history
       {error&&<p role="alert">{error}</p>}
       <div className="dice-results" aria-live="polite">
         {shownDice.map((d, i) => (
-          <span key={i} className={report?(report.cancelledSuccessIndices.includes(i)?'die cancelled':d===1?'die one':d>=report.target?'die success':'die'):(d>=target?'die success':'die')} title={report?.cancelledSuccessIndices.includes(i)?'Durch eine Eins aufgehobener Erfolg':d===1&&report?'Eins – streicht einen Erfolg':undefined}>
+          <span key={i} className={report?.cancelledSuccessIndices.includes(i)?'die cancelled':report&&d===1?'die one':d>=shownTarget?'die success':'die'} title={report?.cancelledSuccessIndices.includes(i)?'Durch eine Eins aufgehobener Erfolg':d===1&&report?'Eins – streicht einen Erfolg':undefined}>
             {d}
           </span>
         ))}
@@ -66,13 +67,14 @@ export function DicePanel({sharedRoll,disabled=false,onResult,mode='raw',history
       {report&&<div className={'v20-result '+report.outcome} data-outcome={report.outcome} role="status"><strong>{v20OutcomeLabel[report.outcome]}{report.netSuccesses>0?' · '+report.netSuccesses+' Nettoerfolg'+(report.netSuccesses===1?'':'e'):''}</strong><p>{report.rawSuccesses} Erfolge ab {report.target} · {report.ones} Einsen · {report.cancelled} aufgehoben.</p>{report.outcome==='failure'&&report.rawSuccesses>0&&<small>Ein Erfolg war dabei: trotz übriger Einsen kein Patzer.</small>}</div>}
       {!report&&dice.length > 0 && (
         <p>
-          {dice.filter((d) => d >= target).length} Würfel erreichen die Schwelle{" "}
-          {target}. Einsen: {dice.filter((d) => d === 1).length}.
+          {dice.filter((d) => d >= rolledTarget).length} Würfel erreichen die Schwelle{" "}
+          {rolledTarget}. Einsen: {dice.filter((d) => d === 1).length}.
         </p>
       )}
       <p className="muted">
         {mode==='v20-normal'?'Normale V20-Probe. Keine Spezialisierungen, Willenskraft-, Schadens-, Absorptions- oder Hausregeln.':'Rohwurf ohne automatische Patzer-, Hunger- oder Hausregel-Auswertung.'}
       </p>
+      <p className="muted">{sharedRoll?'Der Server':'Dein Browser'} zieht die Würfelaugen zufällig. Jede Seite hat pro Würfel eine Chance von 10 %.</p>
       {mode==='v20-normal'&&history.length>0&&<details className="w10-history"><summary>Ergebnisprotokoll ({history.length})</summary><ol>{history.map(entry=><li key={entry.id} data-roll-id={entry.id}><header><strong>{v20OutcomeLabel[entry.report.outcome]}</strong><time dateTime={entry.at}>{new Intl.DateTimeFormat('de-DE',{timeZone:'Europe/Berlin',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(entry.at))}</time></header><p>{entry.report.dice.length} W10 · Schwierigkeit {entry.report.target}<br/>Werte: {entry.report.dice.join(', ')}</p><small>{entry.report.rawSuccesses} Erfolge − {entry.report.cancelled} durch {entry.report.ones} Einsen aufgehoben = {entry.report.netSuccesses} Nettoerfolge.</small>{onShowRoll&&<button onClick={()=>onShowRoll(entry.id)}>Wurf anzeigen</button>}</li>)}</ol></details>}
       {!sharedRoll&&<a href="/spielbereich?bereich=sitzung">Gemeinsame Würfe am Live-Spieltisch senden ↗</a>}
     </section>
