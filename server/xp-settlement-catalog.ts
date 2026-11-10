@@ -2,6 +2,7 @@
 // No new character store and no XP totals: permanent awards remain in body.xpLedger.
 import { characterLedger } from "../domain/character-management.ts";
 import { parseBody } from "./xp-reward-errors.ts";
+import { isCompletedSessionBody } from "./played-sessions.ts";
 import type { SettlementReceipt } from "./xp-settlement-service.ts";
 
 export type XpSettlementCatalog = {
@@ -32,7 +33,10 @@ export async function xpSettlementCatalog(db: D1Database, campaignId: string): P
       WHERE r.campaign_id=? AND r.kind='charaktere'
         AND NOT EXISTS(SELECT 1 FROM entities e WHERE e.id=r.id AND e.campaign_id=r.campaign_id AND e.canon_status='GM_SECRET')
       ORDER BY r.title,r.id`).bind(campaignId).all<{id:string;title:string;owner_id:string;body:string}>(),
-    db.prepare("SELECT id,title FROM entities WHERE campaign_id=? AND type='storyline' ORDER BY title,id")
+    db.prepare(`SELECT id,title FROM entities WHERE campaign_id=? AND (
+      type='storyline' OR (type='CHRONICLE' AND canon_status='GM_SECRET'
+        AND json_valid(content) AND json_extract(content,'$.documentKind')='plot_dossier')
+    ) ORDER BY title,id`)
       .bind(campaignId).all<{id:string;title:string}>(),
   ]);
   return {
@@ -41,7 +45,7 @@ export async function xpSettlementCatalog(db: D1Database, campaignId: string): P
       appointmentId:p.appointment_id,settlementStatus:p.settlement_status,
       settlementRevision:p.settlement_revision,
     })),
-    sessionRecords:records.results.filter(r=>parseBody(r.body).status==="Abgeschlossen").map(r=>({id:r.id,title:r.title})),
+    sessionRecords:records.results.filter(r=>isCompletedSessionBody(parseBody(r.body))).map(r=>({id:r.id,title:r.title})),
     characters:characters.results.flatMap(c=>{
       const body=parseBody(c.body);
       if(body.engineVersion!==1||body.characterState!=="confirmed"||body.recoveryOnly===true||
