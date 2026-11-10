@@ -573,3 +573,68 @@ export const authSecurityEvents = sqliteTable("auth_security_events", {
   index("auth_security_events_subject_time").on(t.subjectUserId, t.createdAt),
   check("auth_security_events_metadata_check", sql`json_valid(${t.metadata})`),
 ]);
+
+// Alpha 2.0 (#75): played evenings and the XP settlement receipt.
+// The XP themselves stay in the character ledger (records.body.xpLedger); these
+// tables only prove which evening was played and what was settled for it.
+// No foreign key to `records`: a played evening and its receipt must survive a
+// later change or deletion of the session record they came from.
+export const playedSessions = sqliteTable("played_sessions", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  sessionRecordId: text("session_record_id").notNull(),
+  appointmentId: text("appointment_id"),
+  playedOn: text("played_on").notNull(),
+  title: text("title").notNull(),
+  registeredBy: text("registered_by").notNull(),
+  registeredAt: text("registered_at").notNull(),
+}, t => [
+  uniqueIndex("played_sessions_record_day_unique").on(t.campaignId, t.sessionRecordId, t.playedOn),
+  uniqueIndex("played_sessions_appointment_unique").on(t.campaignId, t.appointmentId).where(sql`${t.appointmentId} IS NOT NULL`),
+  check("played_sessions_day_check", sql`${t.playedOn} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`),
+]);
+export const xpSettlements = sqliteTable("xp_settlements", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull(),
+  playedSessionId: text("played_session_id").notNull().references(() => playedSessions.id),
+  status: text("status", { enum: ["complete", "partial", "failed"] }).notNull(),
+  revision: integer("revision").notNull().default(0),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, t => [
+  uniqueIndex("xp_settlements_session_unique").on(t.campaignId, t.playedSessionId),
+  check("xp_settlements_status_check", sql`${t.status} IN ('complete','partial','failed')`),
+]);
+export const xpSettlementParticipants = sqliteTable("xp_settlement_participants", {
+  settlementId: text("settlement_id").notNull().references(() => xpSettlements.id),
+  characterId: text("character_id").notNull(),
+  attended: integer("attended").notNull(),
+  recordedBy: text("recorded_by").notNull(),
+  recordedAt: text("recorded_at").notNull(),
+}, t => [
+  primaryKey({ columns: [t.settlementId, t.characterId] }),
+  check("xp_settlement_participants_attended_check", sql`${t.attended} IN (0,1)`),
+]);
+export const xpSettlementRewards = sqliteTable("xp_settlement_rewards", {
+  settlementId: text("settlement_id").notNull(),
+  characterId: text("character_id").notNull(),
+  rewardType: text("reward_type", { enum: ["session", "story", "mvp", "sl_exception"] }).notNull(),
+  scopeId: text("scope_id").notNull(),
+  amount: integer("amount").notNull(),
+  reason: text("reason").notNull(),
+  status: text("status", { enum: ["pending", "booked", "failed"] }).notNull(),
+  ledgerEntryId: text("ledger_entry_id"),
+  errorCode: integer("error_code"),
+  awardedBy: text("awarded_by").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  bookedAt: text("booked_at"),
+}, t => [
+  primaryKey({ columns: [t.settlementId, t.characterId, t.rewardType, t.scopeId] }),
+  foreignKey({ columns: [t.settlementId, t.characterId], foreignColumns: [xpSettlementParticipants.settlementId, xpSettlementParticipants.characterId] }),
+  check("xp_settlement_rewards_type_check", sql`${t.rewardType} IN ('session','story','mvp','sl_exception')`),
+  check("xp_settlement_rewards_status_check", sql`${t.status} IN ('pending','booked','failed')`),
+  check("xp_settlement_rewards_amount_check", sql`${t.amount} BETWEEN 1 AND 1000`),
+  check("xp_settlement_rewards_booked_check", sql`(${t.status}='booked') = (${t.ledgerEntryId} IS NOT NULL AND ${t.bookedAt} IS NOT NULL)`),
+]);

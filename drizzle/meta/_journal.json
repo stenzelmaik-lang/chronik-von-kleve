@@ -92,6 +92,13 @@
       "when": 1791562215924,
       "tag": "0012_codex_reader_index",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794341624438,
+      "tag": "0013_alpha2_xp_settlement",
+      "breakpoints": true
     }
   ]
 }

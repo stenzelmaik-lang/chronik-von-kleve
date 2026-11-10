@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { validateCharacterDraft, applySlAdjustment, applyXpPurchase, type XpPurchase } from "@/domain/character-engine";
 import { availableClanForCampaign } from "@/domain/clan-config";
-import { actor, gmOnly, sameOrigin, input, json, failure, HttpError } from "@/server/access";
+import { actor, database, gmOnly, sameOrigin, input, json, failure, HttpError } from "@/server/access";
 import { editableCharacter, engineProjection, saveEngine, characterBody } from "@/server/character-engine-service";
 import { specialtyRatingError } from '@/domain/character-specialties';
+import { bookSessionXpReward, XpRewardServiceError } from "@/server/xp-reward-service";
+import { bookSessionSettlement, readSessionSettlement } from "@/server/xp-settlement-service";
+import { registerPlayedSession } from "@/server/played-sessions";
 import { adoptHistoricalCharacter, appendCharacterXp, characterPermissions, characterSheet, characterSheetFields, validateExistingSheet,verifyHistoricalCharacter } from '@/domain/character-management';
 
 export const dynamic = "force-dynamic";
@@ -14,6 +17,9 @@ const sheetPatch = z.record(z.string(),z.unknown()).refine(value => Object.keys(
 const purchase = z.object({ category: z.enum(["attribute", "ability", "customAbility", "virtue", "discipline", "path", "background", "humanity", "willpower"]), target: z.string().trim().min(1).max(120).optional(), from: z.number().int().min(0).max(10), to: z.number().int().min(1).max(10), inClan: z.boolean().optional(), reason: z.string().max(2000).optional() }).strict();
 const requestChange = z.object({ category: z.enum(["foreignDiscipline", "appearance", "merit", "flaw", "identity"]), target: z.string().trim().min(1).max(120), value: z.string().trim().max(2000).optional(), reason }).strict();
 const slAdjustment = z.object({category:z.enum(['attribute','ability','discipline','background','virtue','humanity','willpower']),target:z.string().trim().min(1).max(120),value:z.number().int().min(0).max(10)}).strict();
+const recordId = z.string().trim().min(1).max(100);
+const rewardType = z.enum(["session", "story", "mvp", "sl_exception"]);
+const settlementEntry = z.object({ characterId: recordId, attended: z.boolean(), rewards: z.array(z.object({ type: rewardType, storyId: recordId.optional(), amount: z.number().int().min(1).max(1000), reason }).strict()).max(10) }).strict();
 const schema = z.discriminatedUnion("action", [
   z.object({...base,action:z.literal('edit_sheet'),patch:sheetPatch,title:z.string().trim().min(1).max(160).optional(),reason}).strict(),
   z.object({...base,action:z.literal('historical_import'),verifyOnly:z.boolean().default(false),confirm:z.boolean().default(false),closeEditing:z.boolean().default(false),operationId,available:z.number().int().min(0).max(1000000),earned:z.number().int().min(0).max(1000000).nullable(),spent:z.number().int().min(0).max(1000000).nullable(),source:z.string().trim().min(3).max(1000),reason}).strict(),
@@ -28,6 +34,12 @@ const schema = z.discriminatedUnion("action", [
   z.object({ ...base, action: z.literal("return_draft"), reason }).strict(),
   z.object({ ...base, action: z.literal("xp_purchase"), purchase }).strict(),
   z.object({ ...base, action: z.literal("xp_grant"), operationId:operationId.optional(), amount: z.number().int().min(1).max(1000), reason }).strict(),
+  // Reward with a server-derived booking ID. No version and no operationId: the origin itself is the identity.
+  z.object({ id: base.id, action: z.literal("xp_reward"), type: rewardType, sessionId: recordId, storyId: recordId.optional(), amount: z.number().int().min(1).max(1000), reason }).strict(),
+  // Settlement of one played evening for several characters; every reward is booked through the same service.
+  z.object({ action: z.literal("xp_settlement"), sessionId: recordId, entries: z.array(settlementEntry).min(1).max(50) }).strict(),
+  // Registers that a closed session record was played on that day; returns the durable ID of the evening.
+  z.object({ action: z.literal("played_session_register"), sessionRecordId: recordId, playedOn: z.string().trim().length(10), appointmentId: recordId.optional() }).strict(),
   z.object({ ...base, action: z.literal("request_change"), request: requestChange }).strict(),
   z.object({ ...base, action: z.literal("resolve_request"), asCorrection:z.boolean().default(false), requestId: z.string().min(1).max(100), approved: z.boolean(), cost: z.number().int().min(0).max(7).optional(), rating: z.number().int().min(0).max(5).optional(), maximum: z.number().int().min(1).max(5).optional(), reason }).strict(),
   z.object({ ...base, action: z.literal("grant_exception"), asCorrection:z.boolean().default(false), category: z.enum(["appearance", "foreignDiscipline"]), target: z.string().trim().min(1).max(120), rating: z.number().int().min(0).max(5), maximum: z.number().int().min(1).max(5), reason }).strict(),
@@ -52,13 +64,44 @@ function grantException(body: Record<string, unknown>, category: string, target:
 }
 
 export async function GET(req: Request) {
-  try { const a = await actor(); const id = new URL(req.url).searchParams.get("id"); if (!id) throw new HttpError(400, "Charakter auswählen."); const { db, row, body } = await editableCharacter(a, id); const history = a.gm ? (await db.prepare("SELECT type,payload,created_at FROM world_events WHERE campaign_id=? AND entity_id=? AND type LIKE 'character.%' ORDER BY created_at DESC,id DESC LIMIT 50").bind(a.campaignId,id).all<{type:string;payload:string;created_at:string}>()).results.map(e=>({action:e.type.replace("character.",""),...characterBody(e.payload),createdAt:e.created_at})) : []; return json({...engineProjection(a, row, body), history}); } catch (e) { return failure(e, req); }
+  try { const a = await actor();
+    // Settlement receipt of a played evening: Spielleitung only.
+    const settlement = new URL(req.url).searchParams.get("settlement");
+    if (settlement !== null) {
+      gmOnly(a);
+      try { return json({ settlement: await readSessionSettlement(database(), a.campaignId, settlement) }); }
+      catch (error) { if (error instanceof XpRewardServiceError) throw new HttpError(error.status, error.message); throw error; }
+    }
+    const id = new URL(req.url).searchParams.get("id"); if (!id) throw new HttpError(400, "Charakter auswählen."); const { db, row, body } = await editableCharacter(a, id); const history = a.gm ? (await db.prepare("SELECT type,payload,created_at FROM world_events WHERE campaign_id=? AND entity_id=? AND type LIKE 'character.%' ORDER BY created_at DESC,id DESC LIMIT 50").bind(a.campaignId,id).all<{type:string;payload:string;created_at:string}>()).results.map(e=>({action:e.type.replace("character.",""),...characterBody(e.payload),createdAt:e.created_at})) : []; return json({...engineProjection(a, row, body), history}); } catch (e) { return failure(e, req); }
 }
 export async function POST(req: Request) {
   try {
     sameOrigin(req); const a = await actor(); const parsed = schema.safeParse(await input(req));
     if (!parsed.success) throw new HttpError(400, parsed.error.issues[0].message);
-    const d = parsed.data, { row, body } = await editableCharacter(a, d.id);
+    const d = parsed.data;
+    if (d.action === "played_session_register") {
+      gmOnly(a);
+      try { return json(await registerPlayedSession(database(), { campaignId: a.campaignId, actorId: a.id, sessionRecordId: d.sessionRecordId, playedOn: d.playedOn, appointmentId: d.appointmentId })); }
+      catch (error) { if (error instanceof XpRewardServiceError) throw new HttpError(error.status, error.message); throw error; }
+    }
+    if (d.action === "xp_settlement") {
+      gmOnly(a);
+      try {
+        const result = await bookSessionSettlement(database(), { campaignId: a.campaignId, actorId: a.id, sessionId: d.sessionId, entries: d.entries });
+        // 207: not everything was booked. Only "complete" may be shown as success.
+        return json(result, result.complete ? 200 : 207);
+      } catch (error) { if (error instanceof XpRewardServiceError) throw new HttpError(error.status, error.message); throw error; }
+    }
+    if (d.action === "xp_reward") {
+      gmOnly(a);
+      await editableCharacter(a, d.id);
+      try {
+        const result = await bookSessionXpReward(database(), { campaignId: a.campaignId, characterId: d.id, actorId: a.id, type: d.type, sessionId: d.sessionId, storyId: d.storyId, amount: d.amount, reason: d.reason });
+        const view = engineProjection(a, result.row, characterBody(result.row.body));
+        return json({ ...view, xpAvailable: view.xp.available, reward: { id: result.entry.id, amount: result.entry.amount, duplicate: result.duplicate, reversed: result.reversed } });
+      } catch (error) { if (error instanceof XpRewardServiceError) throw new HttpError(error.status, error.message); throw error; }
+    }
+    const { row, body } = await editableCharacter(a, d.id);
     if(body.archived===true||body.lifecycleStatus==='ARCHIVED')throw new HttpError(409,'Archivierte Charaktere zuerst wiederherstellen.');
     if (row.version !== d.version) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
     if (["historical_import","permissions","xp_correction","xp_decision","sl_adjustment", "confirm", "return_draft", "xp_grant", "resolve_request", "correction", "gm_notes", "grant_exception"].includes(d.action)) gmOnly(a);

@@ -4,6 +4,7 @@ import { availableClanForCampaign } from "@/domain/clan-config";
 import { appearanceExceptionMaximum, slAdjustmentTargets, creationBudgetSummary, creationDeviation, v20AbilityNames, v20DisciplineNames, isCaitiff, pathCeiling, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
 import { creationGuidance } from "@/domain/character-guidance";
 import { canEdit, database, HttpError } from "./access";
+import { writeCharacterEngine } from "./character-engine-store";
 import { characterPermissions, characterSheet, characterXpSummary, validateExistingSheet } from '@/domain/character-management';
 
 export function characterBody(raw: string): Record<string, unknown> {
@@ -68,14 +69,7 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
 }
 // The operation token binds the audit to the winner of the compare-and-swap.
 export async function saveEngine(a: Actor, row: LegacyRecordRow, next: Record<string, unknown>, expectedVersion: number, action: string, reason: string, visibility = row.visibility, gmBody = row.gm_body, title = row.title, changes:Record<string,unknown> = {}) {
-  const db = database(), operation = crypto.randomUUID(), now = new Date().toISOString();
-  const body = { ...next, engineOperationId: operation };
-  const results = await db.batch([
-    db.prepare("UPDATE records SET title=?,body=?,visibility=?,gm_body=?,version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND version=?")
-      .bind(title, JSON.stringify(body), visibility, gmBody, now, row.id, a.campaignId, expectedVersion),
-    db.prepare("INSERT INTO world_events(id,campaign_id,entity_id,actor_id,type,payload,created_at) SELECT ?,?,?,?,?,?,? FROM records WHERE id=? AND campaign_id=? AND json_extract(body,'$.engineOperationId')=?")
-      .bind(operation, a.campaignId, row.id, a.id, "character." + action, JSON.stringify({ reason, changes, previousVersion: expectedVersion, version: expectedVersion + 1 }), now, row.id, a.campaignId, operation),
-  ]);
-  if (!results[0].meta.changes) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
-  return { ...row, title, body: JSON.stringify(body), gm_body: gmBody, visibility, version: expectedVersion + 1, updated_at: now };
+  const updated = await writeCharacterEngine(database(), { campaignId: a.campaignId, actorId: a.id, row, next, expectedVersion, action, payload: { reason, changes }, visibility, gmBody, title });
+  if (!updated) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
+  return updated;
 }
