@@ -99,7 +99,7 @@ export function XpSettlementPanel({a}:{a:Actor}) {
   },[a.campaignId]);
   useEffect(()=>{
     if(!catalog||!selected){setReceipt(null);setRows({});setReversals([]);return;}
-    let active=true;setReceiptLoading(true);setResult(null);setPreview(false);
+    let active=true;setReceiptLoading(true);setPreview(false);
     void api<ReceiptReply>("/api/character-engine?settlement="+encodeURIComponent(selected)).then(reply=>{
       if(active){setReceipt(reply.settlement);setReversals(reply.reversedRewards??[]);setRows(draftsFor(catalog.characters,reply.settlement));setError("");}
     }).catch(e=>{if(active)setError((e as Error).message);}).finally(()=>{if(active)setReceiptLoading(false);});
@@ -120,7 +120,7 @@ export function XpSettlementPanel({a}:{a:Actor}) {
     try{
       const reply=await api<{session:{id:string};created:boolean}>("/api/character-engine","POST",
         {action:"played_session_register",sessionRecordId:recordId,playedOn});
-      setSelected(reply.session.id);
+      setSelected(reply.session.id);setResult(null);
       await refreshCatalog();
       setNotice(reply.created?"Gespielten Abend registriert.":"Dieser Abend war bereits registriert.");
     }catch(e){setError((e as Error).message);}finally{setBusy(false);}
@@ -206,7 +206,12 @@ export function XpSettlementPanel({a}:{a:Actor}) {
                 <div className={styles.rewardColumn}>
                   <h4>Storybogen-Bonus</h4>
                   {row.stories.map((story,index)=><div key={story.storyId} className={styles.storyRow}>
-                    <strong>{catalog.storylines.find(s=>s.id===story.storyId)?.title??story.storyId}</strong>
+                    <label>Handlungsstrang
+                      <select value={story.storyId} disabled={busy||!row.attended||story.locked} onChange={e=>change(character.id,{stories:row.stories.map((s,i)=>i===index?{...s,storyId:e.target.value}:s)})}>
+                        {!catalog.storylines.some(s=>s.id===story.storyId)&&<option value={story.storyId}>{story.storyId}</option>}
+                        {catalog.storylines.filter(s=>s.id===story.storyId||!row.stories.some(other=>other.storyId===s.id)).map(s=><option key={s.id} value={s.id}>{s.title}</option>)}
+                      </select>
+                    </label>
                     <label>EP (0–3)<input type="number" min="0" max="3" step="1" value={story.amount} disabled={busy||!row.attended||story.locked} onChange={e=>change(character.id,{stories:row.stories.map((s,i)=>i===index?{...s,amount:Number(e.target.value)}:s)})}/></label>
                     <label>Grund<input maxLength={2000} value={story.reason} disabled={busy||!row.attended||story.locked} onChange={e=>change(character.id,{stories:row.stories.map((s,i)=>i===index?{...s,reason:e.target.value}:s)})}/></label>
                     {!story.locked&&<button type="button" className="button" disabled={busy} onClick={()=>change(character.id,{stories:row.stories.filter((_,i)=>i!==index)})}>Entfernen</button>}
