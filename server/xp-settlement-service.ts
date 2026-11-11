@@ -5,6 +5,9 @@
 // what was awarded for which reason, by whom and when, and points to the ledger
 // entry of every booked reward.
 import { xpRewardRules } from "../domain/xp-rewards.ts";
+import { characterLedger } from "../domain/character-management.ts";
+import { reversedRewardIds } from "../domain/xp-reversal-view.ts";
+import { parseBody } from "./xp-reward-errors.ts";
 import { playedSession, type PlayedSession } from "./played-sessions.ts";
 import { validId, XpRewardServiceError } from "./xp-reward-errors.ts";
 import { bookCharacterXpReward, rewardScope, storyArc, type RewardRequest, type SessionRewardType } from "./xp-reward-service.ts";
@@ -123,7 +126,7 @@ export async function bookSessionSettlement(db: D1Database, input: SessionSettle
     receipt: { id: receiptId, status: stored?.status ?? "partial", revision: stored?.revision ?? 0 } };
 }
 
-export type SettlementReceiptReward = { type: SessionRewardType; scopeId: string; amount: number; reason: string; status: "pending" | "booked" | "failed"; ledgerEntryId: string | null; errorCode: number | null; awardedBy: string; bookedAt: string | null };
+export type SettlementReceiptReward = { type: SessionRewardType; scopeId: string; amount: number; reason: string; status: "pending" | "booked" | "failed"; ledgerEntryId: string | null; errorCode: number | null; awardedBy: string; bookedAt: string | null; reversed?: boolean };
 export type SettlementReceipt = {
   id: string; status: ReceiptStatus; revision: number; createdBy: string; createdAt: string; updatedBy: string; updatedAt: string; session: PlayedSession;
   participants: { characterId: string; attended: boolean; rewards: SettlementReceiptReward[] }[];
@@ -137,7 +140,18 @@ export async function readSessionSettlement(db: D1Database, campaignId: string, 
   const participants = await db.prepare("SELECT character_id,attended FROM xp_settlement_participants WHERE settlement_id=? ORDER BY rowid").bind(receipt.id).all<{ character_id: string; attended: number }>();
   const rewards = await db.prepare("SELECT * FROM xp_settlement_rewards WHERE settlement_id=? ORDER BY rowid").bind(receipt.id)
     .all<{ character_id: string; reward_type: SessionRewardType; scope_id: string; amount: number; reason: string; status: "pending" | "booked" | "failed"; ledger_entry_id: string | null; error_code: number | null; awarded_by: string; booked_at: string | null }>();
+  // Read the current ledger state separately: immutable receipt lines still prove
+  // the original booking even after the SL has created a valid counterbooking.
+  const characterIds = participants.results.map(p => p.character_id);
+  const reversals = new Map<string,Set<string>>();
+  if (characterIds.length) {
+    const placeholders = characterIds.map(() => "?").join(",");
+    const characterRows = await db.prepare(
+      `SELECT id,body FROM records WHERE campaign_id=? AND kind='charaktere' AND id IN (${placeholders})`
+    ).bind(campaignId,...characterIds).all<{id:string;body:string}>();
+    for (const row of characterRows.results) reversals.set(row.id,reversedRewardIds(characterLedger(parseBody(row.body))));
+  }
   return { id: receipt.id, status: receipt.status, revision: receipt.revision, createdBy: receipt.created_by, createdAt: receipt.created_at, updatedBy: receipt.updated_by, updatedAt: receipt.updated_at, session,
     participants: participants.results.map(p => ({ characterId: p.character_id, attended: p.attended === 1,
-      rewards: rewards.results.filter(r => r.character_id === p.character_id).map(r => ({ type: r.reward_type, scopeId: r.scope_id, amount: r.amount, reason: r.reason, status: r.status, ledgerEntryId: r.ledger_entry_id, errorCode: r.error_code, awardedBy: r.awarded_by, bookedAt: r.booked_at })) })) };
+      rewards: rewards.results.filter(r => r.character_id === p.character_id).map(r => ({ type: r.reward_type, scopeId: r.scope_id, amount: r.amount, reason: r.reason, status: r.status, ledgerEntryId: r.ledger_entry_id, errorCode: r.error_code, awardedBy: r.awarded_by, bookedAt: r.booked_at, ...(r.ledger_entry_id && reversals.get(p.character_id)?.has(r.ledger_entry_id) ? { reversed:true } : {}) })) })) };
 }
