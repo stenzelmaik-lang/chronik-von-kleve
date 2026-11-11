@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { ChevronDown } from 'lucide-react';
 import { ActiveEngagement, engagementCategoryForSection } from '@/domain/engagement-browser';
 import type { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
 import { publishNotebookTicket } from './engagement-notebook-ticket';
+import styles from './dashboard.module.css';
 
 const endpoint = '/api/engagement';
 const label = {
@@ -14,15 +16,25 @@ const label = {
   story: 'Chronik und Spielwelt',
   other: 'Weitere Bereiche',
 };
+const goalStatus = {
+  'no-played-session': 'Zeitziele erscheinen nach dem ersten registrierten Spielabend.',
+  waiting: 'Zeitziele erscheinen, sobald der nächste Spielabend geplant ist.',
+  unsupported: 'Für diesen Spielabstand gibt es kein Zeitziel.',
+};
 
 function duration(seconds: number) {
+  if (seconds === 0) return '0 Min.';
   if (seconds < 60) return seconds + ' s';
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  return hours ? hours + ' Std. ' + minutes % 60 + ' Min.' : minutes + ' Min.';
+  const remainder = minutes % 60;
+  if (!hours) return `${minutes} Min.`;
+  return remainder ? `${hours} Std. ${remainder} Min.` : `${hours} Std.`;
 }
 
-function useActivityTracking(section: string, scope: string, enabled: boolean, onPulse: () => void) {
+export function EngagementTracker({ section, scope, enabled, onPulse }: {
+  section: string; scope: string; enabled: boolean; onPulse: () => void;
+}) {
   const category = engagementCategoryForSection(section);
   const heldTicket = useRef<string | null>(null);
   useEffect(() => {
@@ -101,17 +113,15 @@ function useActivityTracking(section: string, scope: string, enabled: boolean, o
     document.addEventListener('visibilitychange', pause, options);
     return () => { listeners.abort(); pause(); };
   }, [category, enabled, onPulse, scope, section]);
+  return null;
 }
 
-export function EngagementActivity({ section, scope, enabled }: { section: string; scope: string; enabled: boolean }) {
-  const [revision, setRevision] = useState(0);
+export function EngagementOverview({ enabled, revision }: { enabled: boolean; revision: number }) {
+  const [retry, setRetry] = useState(0);
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof engagementSummary>> | null>(null);
   const [failed, setFailed] = useState(false);
-  const refresh = useCallback(() => setRevision(value => value + 1), []);
-  useActivityTracking(section, scope, enabled, refresh);
 
   useEffect(() => {
-    if (section !== 'dashboard') return;
     const request = new AbortController();
     void fetch(endpoint, { signal: request.signal }).then(async response => {
       if (!response.ok) throw new Error('Aktivitätsübersicht nicht verfügbar.');
@@ -121,40 +131,51 @@ export function EngagementActivity({ section, scope, enabled }: { section: strin
       setFailed(false);
     }).catch(() => { if (!request.signal.aborted) setFailed(true); });
     return () => request.abort();
-  }, [revision, section]);
+  }, [revision, retry]);
 
-  if (section !== 'dashboard') return null;
   const current = summary?.window;
-  return <section className="panel">
-    <h2>Aktive Zeit</h2>
-    {!enabled && <p className="muted">Die Messung ist in deinem <Link href="/profil#aktivitaetsmessung">Profil</Link> ausgeschaltet.</p>}
-    {failed && <p role="status">Die Übersicht konnte nicht geladen werden. <button className="button" onClick={refresh}>Erneut laden</button></p>}
-    {!failed && summary && <>
-      <ul>
-        <li>Heute · {duration(summary.todaySeconds)}</li>
-        <li>Letzte 7 Tage · {duration(summary.weekSeconds)}</li>
-        {current?.status !== 'no-played-session' && <li>Seit dem letzten Spielabend · {duration(summary.intervalSeconds)}</li>}
-      </ul>
-      {Object.keys(summary.categories).length > 0 && <ul aria-label="Zeit nach Bereich">
-        {Object.entries(summary.categories).map(([key, seconds]) =>
-          <li key={key}>{label[key as keyof typeof label]} · {duration(seconds)}</li>
-        )}
-      </ul>}
-      {current?.status === 'no-played-session' && <p>Zeitziele erscheinen nach dem ersten registrierten Spielabend.</p>}
-      {current?.status === 'waiting' && <p>Die Zeitziele warten auf den nächsten Spieltermin.</p>}
-      {current?.status === 'unsupported' && <p>Für diesen langen Spielabstand lassen sich keine Zeitziele berechnen.</p>}
-      {summary.awardsEnabled && <>
-        <p>Für EP bestätigte Vorbereitung · {duration(summary.verifiedSeconds)}</p>
-        {summary.recipient && <p>Empfängerfigur · {summary.recipient} · {summary.bookedStages.length} von 2 EP gebucht</p>}
-        <p className="muted">EP-Zeit entsteht beim Schreiben einer Figurnotiz im Spielerbereich. Die erste bestätigte Notiz legt die Figur für dieses Intervall fest.</p>
-      </>}
-      {current && 'targets' in current && summary.progress && <>
-        {current.status === 'preview' && <p>Vorschau bis zur Terminbestätigung</p>}
-        <p>Zeitziel für Stufe 1 · {duration(Math.ceil(current.targets.firstSeconds / 60) * 60)}<br />
-          Zeitziel für Stufe 2 · {duration(Math.ceil(current.targets.fullSeconds / 60) * 60)}</p>
-        <label>{summary.awardsEnabled ? 'EP-Fortschritt' : 'Zeitfortschritt'} · {summary.progress.percent} % <progress max={100} value={summary.progress.percent} /></label>
-        {!summary.awardsEnabled && <p className="muted">Die gemessene Zeit dient als Vorschau. EP benötigen zusätzlich einen verifizierten Aktivitätsnachweis.</p>}
-      </>}
+  const targets = current && 'targets' in current ? current.targets : null;
+  const progressLabel = summary?.awardsEnabled ? 'EP-Fortschritt' : 'Zeitfortschritt';
+  return <section className={styles.activity} aria-labelledby="overview-active-time">
+    <h3 id="overview-active-time">Aktive Zeit</h3>
+    {!enabled && <p>Die Messung ist in deinem <Link href="/profil#aktivitaetsmessung">Profil</Link> ausgeschaltet.</p>}
+    {failed && <div className={styles.activityFeedback}>
+      <p role="status">{summary ? 'Die aktive Zeit konnte nicht aktualisiert werden.' : 'Die aktive Zeit konnte nicht geladen werden.'}</p>
+      <button type="button" onClick={() => setRetry(value => value + 1)}>Erneut laden</button>
+    </div>}
+    {!failed && !summary && <p role="status">Aktive Zeit wird geladen …</p>}
+    {summary && current && <>
+      <dl className={styles.activityTotals}>
+        <div><dt>Heute</dt><dd>{duration(summary.todaySeconds)}</dd></div>
+        <div><dt>Letzte 7 Tage</dt><dd>{duration(summary.weekSeconds)}</dd></div>
+      </dl>
+      {targets && summary.progress ? <div className={styles.activityGoals}>
+        <div className={styles.activityProgressLabel}>
+          <span>{progressLabel}{current.status === 'preview' && ' · Vorschau'}</span>
+          <strong>{summary.progress.percent} %</strong>
+        </div>
+        <div className={styles.activityTrack}>
+          <progress aria-label={progressLabel} max={100} value={summary.progress.percent} />
+        </div>
+        <div className={styles.activityStages}>
+          <span>Stufe 1 · {duration(Math.ceil(targets.firstSeconds / 60) * 60)}</span>
+          <span>Stufe 2 · {duration(Math.ceil(targets.fullSeconds / 60) * 60)}</span>
+        </div>
+        {summary.awardsEnabled && <p>{duration(summary.verifiedSeconds)} für EP bestätigt</p>}
+      </div> : current.status in goalStatus && <p>{goalStatus[current.status as keyof typeof goalStatus]}</p>}
+      <details className={styles.activityDetails}>
+        <summary>Details zur aktiven Zeit <ChevronDown size={15} aria-hidden="true" /></summary>
+        <dl>
+          {current.status !== 'no-played-session' && <div><dt>Seit dem letzten Spielabend</dt><dd>{duration(summary.intervalSeconds)}</dd></div>}
+          {Object.entries(summary.categories).map(([key, seconds]) =>
+            <div key={key}><dt>{label[key as keyof typeof label]}</dt><dd>{duration(seconds)}</dd></div>
+          )}
+          {summary.awardsEnabled && !targets && <div><dt>Für EP bestätigte Vorbereitung</dt><dd>{duration(summary.verifiedSeconds)}</dd></div>}
+        </dl>
+        {summary.recipient && <p>{summary.recipient} · {summary.bookedStages.length} von 2 EP gebucht</p>}
+        {summary.awardsEnabled ? <p>Für Engagement-EP prüft ChroniPlay gespeicherte Figurnotizen. Die erste bestätigte Notiz legt die Figur für diesen Zeitraum fest.</p>
+          : <p>Die Zeitanzeige dient als Vorschau. EP setzen bestätigte Vorbereitung voraus.</p>}
+      </details>
     </>}
   </section>;
 }

@@ -43,7 +43,7 @@ import { LocationCMS } from "./modules/location-cms";
 import {SessionRecap} from "./modules/session-recap";
 import {MvpVotePanel} from "./modules/mvp-vote-panel";
 import { DashboardPanel } from "./modules/dashboard";
-import { EngagementActivity } from './modules/engagement-activity';
+import { EngagementTracker } from './modules/engagement-activity';
 import { MessageCenter } from './modules/message-center';
 import { AppointmentsPanel } from "./modules/appointments";
 import { DicePanel } from "./modules/dice";
@@ -88,6 +88,8 @@ export default function Workspace({
   engagementTracking?: boolean;
 }) {
   const [preparationDirty,setPreparationDirty]=useState(false);
+  const [engagementRevision, setEngagementRevision] = useState(0);
+  const refreshEngagement = useCallback(() => setEngagementRevision(revision => revision + 1), []);
   const [search, setSearch] = useState(""),
     [edit, setEdit] = useState<Entry | null>(null),
     [saving, setSaving] = useState(false),
@@ -446,7 +448,7 @@ export default function Workspace({
           onCreate={(kind) => create(kind)}
         />
       ) : section === "dashboard" ? (
-        <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
+        <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} engagement={surface === 'player' && engagementAvailable ? { enabled: engagementTracking, revision: engagementRevision } : undefined} />
       ) : section === "rueckblick" ? (
         surface === "sl" && a.gm ? <RecapDesk key={dataScope}/> : <><MvpVotePanel key={"mvp:"+dataScope} actorId={a.id}/><SessionRecap key={dataScope} dataScope={dataScope}/></>
       ) : section === "termine" ? (
@@ -559,7 +561,7 @@ export default function Workspace({
           )}
         </>
       )}
-      {surface === 'player' && engagementAvailable && <EngagementActivity key={`engagement:${dataScope}`} section={section} scope={`${a.campaignId}:${a.id}`} enabled={engagementTracking} />}
+      {surface === 'player' && engagementAvailable && <EngagementTracker key={`engagement:${dataScope}`} section={section} scope={`${a.campaignId}:${a.id}`} enabled={engagementTracking} onPulse={refreshEngagement} />}
       <RecordEditor
         edit={edit}
         setEdit={setEdit}

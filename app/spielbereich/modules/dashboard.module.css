@@ -142,6 +142,109 @@ button.recapLink{border:0;background:none;padding:0;cursor:pointer;font:inherit}
 .xpBar dd{margin:0;font:400 20px/1.1 Georgia,serif;color:var(--hub-text)}
 .xpBar div[data-free] dd{color:#d6b36f}
 
+.activity {
+  margin-block: var(--cp-space-2) var(--cp-space-1);
+  padding-top: var(--cp-space-3);
+  border-top: 1px solid var(--cp-gold-line);
+}
+.overview .activity h3 {
+  margin: 0 0 var(--cp-space-2);
+  color: var(--cp-text);
+  font: 600 var(--cp-size-sm)/1.4 var(--cp-font-text);
+}
+.info .activity p {
+  margin: 0 0 var(--cp-space-2);
+  font-size: var(--cp-size-xs);
+}
+.activity a,
+.activityFeedback button,
+.activityDetails summary {
+  color: var(--cp-gold-strong);
+}
+.activity a { text-decoration: underline; text-underline-offset: 3px; }
+.activity :is(a, summary):focus-visible { outline: 2px solid var(--cp-focus); outline-offset: 3px; }
+.activityTotals {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cp-space-3);
+  margin: 0 0 var(--cp-space-3);
+}
+.activityTotals div { display: grid; gap: var(--cp-space-1); }
+.activityTotals div + div { border-inline-start: 1px solid var(--cp-line-strong); padding-inline-start: var(--cp-space-3); }
+.activityTotals dt { color: var(--cp-text-muted); font-size: var(--cp-size-xs); }
+.activityTotals dd {
+  margin: 0;
+  color: var(--cp-text);
+  font: 500 var(--cp-size-lg)/1.2 var(--cp-font-title);
+  font-variant-numeric: tabular-nums;
+}
+.activityGoals { display: grid; gap: var(--cp-space-1); margin-bottom: var(--cp-space-1); }
+.activityProgressLabel,
+.activityStages {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cp-space-2);
+  color: var(--cp-text-muted);
+  font-size: var(--cp-size-xs);
+}
+.activityProgressLabel strong { color: var(--cp-gold-strong); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.activityStages span:last-child { text-align: end; }
+.activityTrack { position: relative; margin-block: var(--cp-space-1); }
+.activityTrack::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--cp-gold-strong);
+  border: 1px solid var(--cp-surface-1);
+  pointer-events: none;
+}
+.activityTrack progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  border-radius: var(--cp-radius);
+  overflow: hidden;
+  background: var(--cp-surface-3);
+  color: var(--cp-gold);
+}
+.activityTrack progress::-webkit-progress-bar { background: var(--cp-surface-3); }
+.activityTrack progress::-webkit-progress-value { background: var(--cp-gold); }
+.activityTrack progress::-moz-progress-bar { background: var(--cp-gold); }
+.activityDetails summary {
+  display: flex;
+  align-items: center;
+  gap: var(--cp-space-2);
+  width: fit-content;
+  min-height: 36px;
+  font-size: var(--cp-size-xs);
+  cursor: pointer;
+  list-style: none;
+}
+.activityDetails summary::-webkit-details-marker { display: none; }
+.activityDetails[open] summary svg { transform: rotate(180deg); }
+.activityDetails dl { display: grid; gap: var(--cp-space-1); margin: 0 0 var(--cp-space-2); font-size: var(--cp-size-xs); }
+.activityDetails dl div { display: flex; justify-content: space-between; align-items: baseline; gap: var(--cp-space-2); }
+.activityDetails dt { color: var(--cp-text-muted); }
+.activityDetails dd { margin: 0; text-align: end; }
+.activityFeedback { margin-bottom: var(--cp-space-2); }
+.activityFeedback button {
+  padding: 0;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  font-size: var(--cp-size-xs);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 /* Zuflucht · Terminabstimmung in place of the calendar while a poll is open. */
 .pollBlock{display:grid;gap:10px}
 .pollNote{margin:0;color:var(--hub-muted);font-size:13px}
