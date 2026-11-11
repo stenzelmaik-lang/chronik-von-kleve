@@ -207,6 +207,10 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   for(const [label,bad,extra] of [['duplicate character',[line(tid,[regular(1)]),line(tid,[regular(1)])]],['duplicate source',[line(tid,[regular(1),regular(2)])]],['absent with regular XP',[line(tid,[regular(1)],false)]],['six regular XP',[line(tid,[regular(6)])]],['engagement source',[line(tid,[{type:'engagement',amount:1,reason:'Forged'}])]],['client booking ID',[line(tid,[{...regular(1),entryId:'forged'}])]],['client version',entries,{version:1}],['no entries',[]]])check((await settle('gm',bad,extra)).s===400,'XPS invalid settlement refused as a whole: '+label);
   check((await settle('gm',entries,{sessionId:calendar.d.id})).s===404,'XPS a calendar entry cannot be settled');
   check((await settle('gm',entries,{sessionId:running})).s===404&&(await settle('gm',entries,{sessionId:sessionRecord})).s===404,'XPS a session record cannot be settled');
+  const eveningList=who=>req('/api/character-engine?playedEvenings=1',who);
+  check((await eveningList(undefined)).s===401&&(await eveningList('a')).s===403&&(await eveningList('b')).s===403,'XPS only SL can list registered played evenings');
+  const listed=await eveningList('gm');
+  check(listed.s===200&&listed.d.evenings.some(e=>e.id===evening2&&e.settlement===null),'XPS SL sees the registered evening before settlement');
   const receiptOf=who=>req('/api/character-engine?settlement='+evening2,who);
   check((await receiptOf(undefined)).s===401&&(await receiptOf('a')).s===403&&(await receiptOf('b')).s===403,'XPS only the SL reads a settlement receipt');
   check((await receiptOf('gm')).s===200&&(await receiptOf('gm')).d.settlement===null,'XPS refused settlements leave no receipt');
