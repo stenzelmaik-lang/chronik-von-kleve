@@ -66,6 +66,13 @@ export async function bookSessionSettlement(db: D1Database, input: SessionSettle
     });
     return { entry, rewards };
   });
+  // The whole request is invalid if more than one MVP is nominated for
+  // the same evening. Avoid partial writes or contradictory settlement intents.
+  const mvpCount = planned.reduce((total, item) =>
+    total + item.rewards.filter(x => x.reward.type === "mvp").length, 0);
+  if (mvpCount > 1) throw new XpRewardServiceError(
+    400, "Pro Spielabend darf nur ein Charakter MVP-Sonder-EP erhalten."
+  );
   const session = await playedSession(db, input.campaignId, input.sessionId);
   for (const storyId of stories) await storyArc(db, input.campaignId, storyId);
   const now = input.now ?? new Date().toISOString();
