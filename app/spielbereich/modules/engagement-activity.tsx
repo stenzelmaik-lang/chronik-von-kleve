@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown } from 'lucide-react';
+import { Clock3, X } from 'lucide-react';
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ActiveEngagement, engagementCategoryForSection } from '@/domain/engagement-browser';
 import type { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
 import { publishNotebookTicket } from './engagement-notebook-ticket';
@@ -30,6 +31,15 @@ function duration(seconds: number) {
   const remainder = minutes % 60;
   if (!hours) return `${minutes} Min.`;
   return remainder ? `${hours} Std. ${remainder} Min.` : `${hours} Std.`;
+}
+
+function compactDuration(seconds: number) {
+  if (seconds > 0 && seconds < 60) return `${seconds} s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours}h ${remainder}m` : `${hours} h`;
 }
 
 export function EngagementTracker({ section, scope, enabled, onPulse }: {
@@ -136,46 +146,57 @@ export function EngagementOverview({ enabled, revision }: { enabled: boolean; re
   const current = summary?.window;
   const targets = current && 'targets' in current ? current.targets : null;
   const progressLabel = summary?.awardsEnabled ? 'EP-Fortschritt' : 'Zeitfortschritt';
-  return <section className={styles.activity} aria-labelledby="overview-active-time">
-    <h3 id="overview-active-time">Aktive Zeit</h3>
-    {!enabled && <p>Die Messung ist in deinem <Link href="/profil#aktivitaetsmessung">Profil</Link> ausgeschaltet.</p>}
-    {failed && <div className={styles.activityFeedback}>
-      <p role="status">{summary ? 'Die aktive Zeit konnte nicht aktualisiert werden.' : 'Die aktive Zeit konnte nicht geladen werden.'}</p>
-      <button type="button" onClick={() => setRetry(value => value + 1)}>Erneut laden</button>
-    </div>}
-    {!failed && !summary && <p role="status">Aktive Zeit wird geladen …</p>}
-    {summary && current && <>
-      <dl className={styles.activityTotals}>
-        <div><dt>Heute</dt><dd>{duration(summary.todaySeconds)}</dd></div>
-        <div><dt>Letzte 7 Tage</dt><dd>{duration(summary.weekSeconds)}</dd></div>
-      </dl>
-      {targets && summary.progress ? <div className={styles.activityGoals}>
-        <div className={styles.activityProgressLabel}>
-          <span>{progressLabel}{current.status === 'preview' && ' · Vorschau'}</span>
-          <strong>{summary.progress.percent} %</strong>
-        </div>
-        <div className={styles.activityTrack}>
-          <progress aria-label={progressLabel} max={100} value={summary.progress.percent} />
-        </div>
-        <div className={styles.activityStages}>
-          <span>Stufe 1 · {duration(Math.ceil(targets.firstSeconds / 60) * 60)}</span>
-          <span>Stufe 2 · {duration(Math.ceil(targets.fullSeconds / 60) * 60)}</span>
-        </div>
-        {summary.awardsEnabled && <p>{duration(summary.verifiedSeconds)} für EP bestätigt</p>}
-      </div> : current.status in goalStatus && <p>{goalStatus[current.status as keyof typeof goalStatus]}</p>}
-      <details className={styles.activityDetails}>
-        <summary>Details zur aktiven Zeit <ChevronDown size={15} aria-hidden="true" /></summary>
-        <dl>
-          {current.status !== 'no-played-session' && <div><dt>Seit dem letzten Spielabend</dt><dd>{duration(summary.intervalSeconds)}</dd></div>}
-          {Object.entries(summary.categories).map(([key, seconds]) =>
-            <div key={key}><dt>{label[key as keyof typeof label]}</dt><dd>{duration(seconds)}</dd></div>
-          )}
-          {summary.awardsEnabled && !targets && <div><dt>Für EP bestätigte Vorbereitung</dt><dd>{duration(summary.verifiedSeconds)}</dd></div>}
+  const triggerLabel = summary ? `Aktive Zeit, heute ${duration(summary.todaySeconds)}` : 'Aktive Zeit anzeigen';
+  return <Dialog>
+    <DialogTrigger className={styles.activityButton} aria-label={triggerLabel} title={triggerLabel}>
+      <Clock3 size={15} aria-hidden="true" />
+      <span className={styles.activityButtonLabel}>Aktive Zeit</span>
+      {summary && <strong>{compactDuration(summary.todaySeconds)}</strong>}
+    </DialogTrigger>
+    <DialogContent className={styles.activityDialog} showCloseButton={false}>
+      <DialogHeader className={styles.activityDialogHeader}>
+        <DialogTitle>Aktive Zeit</DialogTitle>
+        <DialogDescription className="sr-only">Deine gemessene Zeit und der Fortschritt zu den Zeitzielen.</DialogDescription>
+        <DialogClose className={styles.activityClose} aria-label="Schließen"><X size={18} aria-hidden="true" /></DialogClose>
+      </DialogHeader>
+      {!enabled && <p>Die Messung ist in deinem <Link href="/profil#aktivitaetsmessung">Profil</Link> ausgeschaltet.</p>}
+      {failed && <div className={styles.activityFeedback}>
+        <p role="status">{summary ? 'Die aktive Zeit konnte nicht aktualisiert werden.' : 'Die aktive Zeit konnte nicht geladen werden.'}</p>
+        <button type="button" onClick={() => setRetry(value => value + 1)}>Erneut laden</button>
+      </div>}
+      {!failed && !summary && <p role="status">Aktive Zeit wird geladen …</p>}
+      {summary && current && <>
+        <dl className={styles.activityTotals}>
+          <div><dt>Heute</dt><dd>{duration(summary.todaySeconds)}</dd></div>
+          <div><dt>Letzte 7 Tage</dt><dd>{duration(summary.weekSeconds)}</dd></div>
         </dl>
-        {summary.recipient && <p>{summary.recipient} · {summary.bookedStages.length} von 2 EP gebucht</p>}
-        {summary.awardsEnabled ? <p>Für Engagement-EP prüft ChroniPlay gespeicherte Figurnotizen. Die erste bestätigte Notiz legt die Figur für diesen Zeitraum fest.</p>
-          : <p>Die Zeitanzeige dient als Vorschau. EP setzen bestätigte Vorbereitung voraus.</p>}
-      </details>
-    </>}
-  </section>;
+        {targets && summary.progress ? <div className={styles.activityGoals}>
+          <div className={styles.activityProgressLabel}>
+            <span>{progressLabel}{current.status === 'preview' && ' · Vorschau'}</span>
+            <strong>{summary.progress.percent} %</strong>
+          </div>
+          <div className={styles.activityTrack}>
+            <progress aria-label={progressLabel} max={100} value={summary.progress.percent} />
+          </div>
+          <div className={styles.activityStages}>
+            <span>Stufe 1 · {duration(Math.ceil(targets.firstSeconds / 60) * 60)}</span>
+            <span>Stufe 2 · {duration(Math.ceil(targets.fullSeconds / 60) * 60)}</span>
+          </div>
+          {summary.awardsEnabled && <p>{duration(summary.verifiedSeconds)} für EP bestätigt</p>}
+        </div> : current.status in goalStatus && <p>{goalStatus[current.status as keyof typeof goalStatus]}</p>}
+        <div className={styles.activityDetails}>
+          <dl>
+            {current.status !== 'no-played-session' && <div><dt>Seit dem letzten Spielabend</dt><dd>{duration(summary.intervalSeconds)}</dd></div>}
+            {Object.entries(summary.categories).map(([key, seconds]) =>
+              <div key={key}><dt>{label[key as keyof typeof label]}</dt><dd>{duration(seconds)}</dd></div>
+            )}
+            {summary.awardsEnabled && !targets && <div><dt>Für EP bestätigte Vorbereitung</dt><dd>{duration(summary.verifiedSeconds)}</dd></div>}
+          </dl>
+          {summary.recipient && <p>{summary.recipient} · {summary.bookedStages.length} von 2 EP gebucht</p>}
+          {summary.awardsEnabled ? <p>Für Engagement-EP prüft ChroniPlay gespeicherte Figurnotizen. Die erste bestätigte Notiz legt die Figur für diesen Zeitraum fest.</p>
+            : <p>Die Zeitanzeige dient als Vorschau. EP setzen bestätigte Vorbereitung voraus.</p>}
+        </div>
+      </>}
+    </DialogContent>
+  </Dialog>;
 }

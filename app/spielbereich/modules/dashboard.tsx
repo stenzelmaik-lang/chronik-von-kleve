@@ -202,7 +202,7 @@ export function DashboardPanel({
         </section>
       </div>
       <div className={styles.information}>
-        <section className={styles.info} aria-labelledby="overview-xp">
+        <section className={`${styles.info} ${styles.xpCard}`} aria-labelledby="overview-xp">
           <h2 id="overview-xp"><img className={styles.moduleIcon} src="/graphics/spielerzentrale-v01/13-icon-entwicklung.svg" alt="" aria-hidden="true"/>Erfahrung & Fortschritt</h2>
           <h3>{xpTitle}</h3>
           {xpBar ? <div className={styles.xpBar}>
@@ -212,8 +212,12 @@ export function DashboardPanel({
             </div>
             <dl><div><dt>Erhalten</dt><dd>{xpBar.earned}</dd></div><div><dt>Verbraucht</dt><dd>{xpBar.spent}</dd></div><div data-free><dt>Frei</dt><dd>{xpBar.free}</dd></div></dl>
           </div> : <p>{xpDescription}</p>}
-          {engagement && <EngagementOverview {...engagement} />}
-          <button type="button" onClick={openDevelopment}>Entwicklung ansehen<ArrowRight size={15} aria-hidden="true"/></button>
+          <div className={styles.xpActions}>
+            <button type="button" className={styles.xpDevelopment} aria-label="Entwicklung ansehen" onClick={openDevelopment}>
+              <span>Entwicklung<span className={styles.xpDevelopmentLabel}> ansehen</span></span><ArrowRight size={15} aria-hidden="true" />
+            </button>
+            {engagement && <EngagementOverview {...engagement} />}
+          </div>
         </section>
         <section className={styles.info} aria-labelledby="overview-last"><h2 id="overview-last"><BookOpen size={18} aria-hidden="true"/>{view.latestRecap?"Letzter Rückblick":"Letzter Spielabend"}</h2>{view.latestRecap?<><h3>{view.latestRecap.title}</h3><p className={styles.recapDate}>{new Date(String(view.latestRecap.body.date||view.latestRecap.updated_at)).toLocaleDateString('de-DE',{dateStyle:'long'})}</p><p className={styles.recapTeaser}>{recapTeaser(String(view.latestRecap.body.text||''))||'Ein neuer Rückblick der Spielleitung.'}</p><div className={styles.recapLinks}><a className={styles.recapLink} href={`/spielbereich?bereich=rueckblick&session=${encodeURIComponent(view.latestRecap.id!)}`}>Rückblick lesen<ArrowRight size={15} aria-hidden="true"/></a><button type="button" className={styles.recapMore} onClick={()=>onNavigate('rueckblick')}>Alle Rückblicke</button></div></>:<><h3>{view.lastSession?.title || 'Die Chronik wartet'}</h3>{view.lastSession?.body.summary ? <div className={styles.summary}><RichTextView value={String(view.lastSession.body.summary)}/></div> : <p>{view.lastSession ? 'Noch keine Zusammenfassung freigegeben.' : 'Noch kein Rückblick freigegeben.'}</p>}<button type="button" className={styles.recapLink} onClick={()=>onNavigate('rueckblick')}>Alle Rückblicke<ArrowRight size={15} aria-hidden="true"/></button></>}</section>
         <section className={styles.info} aria-labelledby="overview-gallery"><h2 id="overview-gallery"><Images size={18} aria-hidden="true"/>Galerie</h2><GalleryPreview onOpen={()=>onNavigate('galerie')}/></section>
