@@ -41,6 +41,7 @@ import { ChroniclePanel } from "./modules/chronicle";
 import { CMSPanel } from "./modules/cms";
 import { LocationCMS } from "./modules/location-cms";
 import {SessionRecap} from "./modules/session-recap";
+import {MvpVotePanel} from "./modules/mvp-vote-panel";
 import { DashboardPanel } from "./modules/dashboard";
 import { AppointmentsPanel } from "./modules/appointments";
 import { DicePanel } from "./modules/dice";
@@ -440,7 +441,7 @@ export default function Workspace({
       ) : section === "dashboard" ? (
         <DashboardPanel key={dataScope} a={a} onNavigate={navigate} dataScope={dataScope} activeCharacterId={activeCharacterId} onActiveCharacterChange={setActiveCharacterId} />
       ) : section === "rueckblick" ? (
-        surface === "sl" && a.gm ? <RecapDesk key={dataScope}/> : <SessionRecap key={dataScope} dataScope={dataScope}/>
+        surface === "sl" && a.gm ? <RecapDesk key={dataScope}/> : <><MvpVotePanel key={"mvp:"+dataScope} actorId={a.id}/><SessionRecap key={dataScope} dataScope={dataScope}/></>
       ) : section === "termine" ? (
         <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope}/>
       ) : section === "chronik" ? (
