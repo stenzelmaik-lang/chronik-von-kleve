@@ -7,6 +7,7 @@ import { specialtyRatingError } from '@/domain/character-specialties';
 import { bookSessionXpReward, XpRewardServiceError } from "@/server/xp-reward-service";
 import { bookSessionSettlement, readSessionSettlement } from "@/server/xp-settlement-service";
 import { registerPlayedSession } from "@/server/played-sessions";
+import { listPlayedEvenings } from "@/server/played-evenings-list";
 import { adoptHistoricalCharacter, appendCharacterXp, characterPermissions, characterSheet, characterSheetFields, validateExistingSheet,verifyHistoricalCharacter } from '@/domain/character-management';
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,13 @@ function grantException(body: Record<string, unknown>, category: string, target:
 export async function GET(req: Request) {
   try { const a = await actor();
     // Settlement receipt of a played evening: Spielleitung only.
-    const settlement = new URL(req.url).searchParams.get("settlement");
+    const params = new URL(req.url).searchParams;
+    if (params.has("playedEvenings")) {
+      gmOnly(a);
+      if (params.get("playedEvenings") !== "1") throw new HttpError(400, "Ungültige Spielabend-Übersicht.");
+      return json({ evenings: await listPlayedEvenings(database(), a.campaignId) });
+    }
+    const settlement = params.get("settlement");
     if (settlement !== null) {
       gmOnly(a);
       try { return json({ settlement: await readSessionSettlement(database(), a.campaignId, settlement) }); }
