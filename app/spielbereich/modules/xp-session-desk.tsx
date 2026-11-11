@@ -7,6 +7,7 @@ import { prepareSessionDraft, sessionSettlementComplete, sessionSettlementPayloa
 import { api } from './api-client';
 import styles from './xp-session-desk.module.css';
 
+type ReceiptWithReversals = SessionReceipt & {participants: {characterId:string;attended:boolean;rewards: ({type:'session'|'story'|'mvp'|'sl_exception';amount:number;reason:string;status:'pending'|'booked'|'failed';scopeId:string;ledgerEntryId:string|null;reversed?:boolean})[]}[]};
 type Evening = { id:string; playedOn:string; title:string; appointmentId:string|null;
   settlement:null|{id:string;status:'complete'|'partial'|'failed';revision:number;participants:number;bookedRewards:number;outstandingRewards:number} };
 type Result = { status:'complete'|'partial'|'failed';complete:boolean;
@@ -23,7 +24,7 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
   const [players,setPlayers]=useState<SessionPlayer[]|null>(null);
   const [selected,setSelected]=useState('');
   const [draft,setDraft]=useState<SessionDraft[]>([]);
-  const [receipt,setReceipt]=useState<SessionReceipt|null>(null);
+  const [receipt,setReceipt]=useState<ReceiptWithReversals|null>(null);
   const [receiptVersion,setReceiptVersion]=useState(0);
   const [loading,setLoading]=useState(true);
   const [receiptLoading,setReceiptLoading]=useState(false);
@@ -52,7 +53,7 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
     if(!selected||!players){setDraft([]);setReceipt(null);return;}
     let cancelled=false;
     setReceiptLoading(true);
-    api<{settlement:SessionReceipt|null}>('/api/character-engine?settlement='+encodeURIComponent(selected))
+    api<{settlement:ReceiptWithReversals|null}>('/api/character-engine?settlement='+encodeURIComponent(selected))
       .then(result=>{if(cancelled)return;setReceipt(result.settlement);setDraft(prepareSessionDraft(players,result.settlement));})
       .catch(e=>{if(!cancelled){setError((e as Error).message);setDraft([]);}})
       .finally(()=>{if(!cancelled)setReceiptLoading(false);});
@@ -166,7 +167,7 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
             </div>
             {row.extraRewards.length>0&&<div className={styles.extras}><strong>Bereits erfasste Zusatzvergaben</strong>
               {row.extraRewards.map((reward,index)=><p key={index}>{reward.type==='story'?'Storybogen':reward.type==='mvp'?'MVP':'SL-Sondervergabe'} · {reward.amount} EP · {reward.reason}
-                <small> ({reward.status==='booked'?'gebucht':'noch offen'})</small></p>)}</div>}
+                <small> ({reward.reversed?'storniert':reward.status==='booked'?'gebucht':'noch offen'})</small></p>)}</div>}
           </article>;
         })}
       </div>}
