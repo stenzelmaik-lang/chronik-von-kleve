@@ -115,8 +115,8 @@ export async function bookSessionSettlement(db: D1Database, input: SessionSettle
     results.push({ characterId: entry.characterId, attended: entry.attended, status, rewards: outcome });
   }
   // The receipt status covers every line of the evening, not only this call.
-  await db.prepare("UPDATE xp_settlements SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM xp_settlement_rewards WHERE settlement_id=?1 AND status<>'booked') THEN 'complete' WHEN EXISTS(SELECT 1 FROM xp_settlement_rewards WHERE settlement_id=?1 AND status='booked') THEN 'partial' ELSE 'failed' END,revision=revision+1,updated_by=?2,updated_at=?3 WHERE id=?1")
-    .bind(receiptId, input.actorId, now).run();
+  await db.prepare("UPDATE xp_settlements SET status=CASE WHEN NOT EXISTS(SELECT 1 FROM xp_settlement_rewards WHERE settlement_id=? AND status<>'booked') THEN 'complete' WHEN EXISTS(SELECT 1 FROM xp_settlement_rewards WHERE settlement_id=? AND status='booked') THEN 'partial' ELSE 'failed' END,revision=revision+1,updated_by=?,updated_at=? WHERE id=?")
+    .bind(receiptId, receiptId, input.actorId, now, receiptId).run();
   const stored = await header(db, input.campaignId, session.id);
   const status = !totals.failed ? "complete" : totals.booked + totals.alreadyBooked ? "partial" : "failed";
   return { status, complete: status === "complete", sessionId: session.id, appointmentId: session.appointmentId, totals, characters: results,
