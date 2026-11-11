@@ -84,6 +84,27 @@ export async function engagementIntegration({ req, check, localSql }) {
   });
   const verifiedSeconds = (await req(endpoint, 'a')).d.verifiedSeconds;
   check(updated.s === 200 && verifiedSeconds === measured.d.seconds + continued.d.seconds, 'Editing a linked notebook page confirms additional measured time');
+  const profile = (await req('/api/profile', 'a')).d;
+  check(profile.preferences.engagementTracking === true, 'Existing profiles default to activity measurement on');
+  const setTracking = (version, enabled) => req('/api/profile', 'a', 'PATCH', {
+    version, displayName: profile.displayName, avatarFileId: profile.avatarFileId,
+    preferences: { ...profile.preferences, engagementTracking: enabled },
+  });
+  ageTicket(27);
+  const beforeOptOut = await req(endpoint, 'a', 'POST', { ...notebook, ticket: continued.d.ticket });
+  check(beforeOptOut.d.seconds >= 25, 'Player has unclaimed notebook time before turning off measurement');
+  const optedOut = await setTracking(profile.version, false);
+  check(optedOut.s === 200 && (await req('/api/profile', 'a')).d.preferences.engagementTracking === false, 'Opt-out persists in the account');
+  check((await req(endpoint, 'a', 'POST', notebook)).s === 403 &&
+    (await req(endpoint, 'a', 'POST', { ...notebook, ticket: beforeOptOut.d.ticket })).s === 403,
+    'Opt-out refuses new and in-flight browser measurement');
+  const optedOutNote = await req('/api/notebook', 'a', 'POST', { ...saveNote, engagementTicket: beforeOptOut.d.ticket });
+  check(optedOutNote.s === 200 && (await req(endpoint, 'a')).d.verifiedSeconds === verifiedSeconds,
+    'Notebook saves after opt-out without claiming past unverified time');
+  check((await req('/api/profile', 'b')).d.preferences.engagementTracking === true, 'Opt-out is scoped to the signed-in account');
+  const optedIn = await setTracking(optedOut.d.version, true);
+  check(optedIn.s === 200 && !!(await req(endpoint, 'a', 'POST', notebook)).d.ticket,
+    'Re-enabling starts a new ticket without carrying over pending time');
   check((await req(endpoint + '?memberId=sprint1-a', 'gm')).d.recipient === null, 'Private note evidence stays in the own player projection');
   check((await req('/api/character-engine', 'a', 'POST', { action: 'xp_reward', type: 'engagement', id: character, sessionId: preview.intervalId, amount: 1, reason: 'Synthetic request' })).s === 400,
     'The character reward route refuses public engagement awards');

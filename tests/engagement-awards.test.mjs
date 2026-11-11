@@ -12,6 +12,8 @@ const content = 'Die Gruppe untersucht die alten Tunnel vor dem nächsten Spiela
 function setup() {
   const f = setupRewardDb({ latestPlayedOn: '2026-10-28' });
   f.sql.exec(`CREATE TABLE campaigns(id TEXT PRIMARY KEY); CREATE TABLE members(id TEXT PRIMARY KEY,campaign_id TEXT,status TEXT);
+    CREATE TABLE auth_member_links(auth_user_id TEXT PRIMARY KEY, member_id TEXT UNIQUE);
+    CREATE TABLE auth_profiles(user_id TEXT PRIMARY KEY, preferences TEXT);
     CREATE TABLE campaign_memberships(campaign_id TEXT,user_id TEXT,status TEXT,role TEXT);
     INSERT INTO campaigns VALUES ('chronik-von-kleve'),('foreign');
     INSERT INTO members VALUES ('player-a','chronik-von-kleve','active'),('player-b','chronik-von-kleve','active');

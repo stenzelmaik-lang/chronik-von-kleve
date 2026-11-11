@@ -26,7 +26,7 @@ export function WorkspaceShell({a,section,navigate,children}:{a:Actor;section:st
  const editorOnly=!a.gm&&a.status==='active'&&a.role==='campaign_editor';
  async function logout(){try{await api('/api/auth/logout','POST',{});window.location.assign('/anmelden');}catch{window.alert('Abmeldung fehlgeschlagen. Bitte erneut versuchen.');}}
  return <div className={`player-shell ${world?'worldShell':'tableShell'} ${preferences.reducedMotion?'user-reduced-motion':''} ${preferences.compactView?'user-compact-view':''}`}>
-  {a.status==='active'&&<MessageCenter key={a.campaignId+a.id} a={a} showTrigger={false}/>}
+  {a.status==='active'&&section!=='postfach'&&<MessageCenter key={a.campaignId+a.id} a={a} showTrigger={false}/>}
   <header className={styles.header}>
    <button className={styles.brand} type="button" onClick={()=>navigate('dashboard')} aria-label="ChroniPlay – Zuflucht">ChroniPlay</button><span className={styles.campaign}>{campaignName}</span><a className={styles.campaigns} href="/kampagne"><Users size={16} aria-hidden="true"/><span>Kampagnen</span></a>
    <nav className={styles.navigation} aria-label="Hauptnavigation">
@@ -44,7 +44,7 @@ export function WorkspaceShell({a,section,navigate,children}:{a:Actor;section:st
   </header>
   {world&&<nav className={styles.world} aria-label="Spielwelt-Navigation">{worldSections.filter(s=>!s.wip).map(s=><button key={s.id} type="button" aria-current={section===s.id||(s.id==='schauplaetze'&&section==='weltkarte')?'page':undefined} onClick={()=>navigate(s.id)}><s.icon size={16} aria-hidden="true"/>{s.name}</button>)}</nav>}
   <main className="workspace-main">{children}</main>
-  <footer className="player-footer"><span>Spieler · {campaignName}</span><span className="player-footer-links"><a href="/api/export"><Download size={14}/>Meine Daten sichern</a></span></footer>
+  <footer className="player-footer"><span>Spieler · {campaignName}</span><nav className="player-footer-links" aria-label="Datenschutz und Rechtliches"><a href="/api/export"><Download size={14}/>Meine Daten sichern</a><a href="/datenschutz">Datenschutzerklärung</a><a href="/impressum">Impressum</a></nav></footer>
   <Toaster position="bottom-right" theme="dark"/>
  </div>;
 }

@@ -14,6 +14,7 @@ const category = 'codex';
 function setup() {
   const fixture = setupRewardDb();
   fixture.sql.exec("CREATE TABLE campaigns(id TEXT PRIMARY KEY); CREATE TABLE members(id TEXT PRIMARY KEY); INSERT INTO campaigns VALUES ('chronik-von-kleve'),('foreign'); INSERT INTO members VALUES ('player-a'),('player-b');");
+  fixture.sql.exec('CREATE TABLE auth_member_links(auth_user_id TEXT PRIMARY KEY, member_id TEXT UNIQUE); CREATE TABLE auth_profiles(user_id TEXT PRIMARY KEY, preferences TEXT);');
   fixture.sql.exec(readFileSync('drizzle/0014_alpha2_engagement_activity.sql', 'utf8'));
   fixture.sql.exec(readFileSync('drizzle/0015_alpha2_engagement_awards.sql', 'utf8'));
   return fixture;

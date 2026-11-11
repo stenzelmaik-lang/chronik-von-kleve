@@ -158,7 +158,7 @@ export function DashboardPanel({
   const engineXp = char?.body.engineVersion === 1 && Array.isArray(char.body.xpLedger);
   const xpTitle = engineXp ? `${xpBalance(char!.body)} freie XP` : char?.body.xp !== undefined ? `${char.body.xp} XP · Bestandsangabe` : char ? "Noch keine XP-Angabe" : "Kein Charakter ausgewählt";
   const xpDescription = engineXp ? "Verfügbar für deine Entwicklung." : char?.body.xp !== undefined ? "Bestandsangabe; kein bestätigter XP-Ledger-Saldo." : "Deine vorhandenen Erfahrungswerte erscheinen hier.";
-  const openInbox = () => window.dispatchEvent(new CustomEvent('chroniplay:open-inbox'));
+  const preparationHref = (section: string) => `/spielbereich?bereich=${section}${activeCharacterId ? `&character=${encodeURIComponent(activeCharacterId)}` : ''}`;
   // XP at a glance: received, spent and free, from the confirmed ledger.
   const ledger = engineXp ? characterLedger(char!.body) : [];
   const xpBar = engineXp ? { earned: ledger.reduce((t, r) => t + Math.max(0, ledgerDelta(r)), 0), spent: ledger.reduce((t, r) => t + Math.max(0, -ledgerDelta(r)), 0), free: xpBalance(char!.body) } : null;
@@ -206,12 +206,12 @@ export function DashboardPanel({
       <section className={styles.preparation} aria-labelledby="overview-preparation">
         <h2 id="overview-preparation">Meine Vorbereitung</h2>
         <div className={styles.preparationLinks}>
-          <button type="button" onClick={()=>onNavigate('charaktere')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/08-icon-charakter.svg" alt="" aria-hidden="true"/><strong>Charakter</strong><span>{char ? 'Bogen & Entwicklung' : 'Auswählen oder erstellen'}</span></button>
-          <button type="button" onClick={()=>onNavigate('inventar')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/09-icon-inventar.svg" alt="" aria-hidden="true"/><strong>Inventar</strong><span>Ausrüstung & Besitz</span></button>
-          <button type="button" onClick={openInbox}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/10-icon-postfach.svg" alt="" aria-hidden="true"/><strong>Postfach</strong><span>Persönliche Nachrichten</span></button>
-          <button type="button" onClick={()=>onNavigate('notizen')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/11-icon-archiv.svg" alt="" aria-hidden="true"/><strong>Notizbuch</strong><span>Notizen, Vorbereitung, Archiv</span></button>
-          <button type="button" onClick={()=>onNavigate('gefallen')}><Scale className={styles.tileIcon} aria-hidden="true"/><strong>Gefallen</strong><span>Schulden und Versprechen</span></button>
-          <button type="button" onClick={()=>onNavigate('wirtschaft')}><Coins className={styles.tileIcon} aria-hidden="true"/><strong>Wirtschaft</strong><span>Vermögen und Ausgaben</span></button>
+          <a href={preparationHref('charaktere')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/08-icon-charakter.svg" alt="" aria-hidden="true"/><strong>Charakter</strong><span>{char ? 'Bogen & Entwicklung' : 'Auswählen oder erstellen'}</span></a>
+          <a href={preparationHref('inventar')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/09-icon-inventar.svg" alt="" aria-hidden="true"/><strong>Inventar</strong><span>Ausrüstung & Besitz</span></a>
+          <a href={preparationHref('postfach')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/10-icon-postfach.svg" alt="" aria-hidden="true"/><strong>Postfach</strong><span>Persönliche Nachrichten</span></a>
+          <a href={preparationHref('notizen')}><img className={styles.tileIcon} src="/graphics/spielerzentrale-v01/11-icon-archiv.svg" alt="" aria-hidden="true"/><strong>Notizbuch</strong><span>Notizen, Vorbereitung, Archiv</span></a>
+          <a href={preparationHref('gefallen')}><Scale className={styles.tileIcon} aria-hidden="true"/><strong>Gefallen</strong><span>Schulden und Versprechen</span></a>
+          <a href={preparationHref('wirtschaft')}><Coins className={styles.tileIcon} aria-hidden="true"/><strong>Wirtschaft</strong><span>Vermögen und Ausgaben</span></a>
         </div>
       </section>
     </div>

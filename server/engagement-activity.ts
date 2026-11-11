@@ -3,6 +3,7 @@ import { berlinDay, berlinMidnight, engagementRetentionDays, shiftDay } from '..
 import { engagementProgress } from '../domain/engagement-targets.ts';
 import { engagementSchedule } from './engagement-schedule.ts';
 import { verifiedEngagementProgress } from './engagement-awards.ts';
+import { engagementTrackingAllowedSql } from './engagement-preference.ts';
 
 export type EngagementScope = { campaignId: string; memberId: string };
 export type EngagementPulse = { category: EngagementCategory; ticket?: string; restart?: boolean };
@@ -27,11 +28,12 @@ export async function recordEngagementPulse(db: D1Database, scope: EngagementSco
   if (pulse.ticket === undefined) {
     const [started] = await db.batch([
       db.prepare(`
-        INSERT INTO engagement_leases(campaign_id,member_id,ticket,category,received_at) VALUES(?,?,?,?,?)
+        INSERT INTO engagement_leases(campaign_id,member_id,ticket,category,received_at)
+        SELECT ?,?,?,?,? WHERE ${engagementTrackingAllowedSql}
         ON CONFLICT(campaign_id,member_id) DO UPDATE SET
           ticket=excluded.ticket, category=excluded.category, received_at=excluded.received_at, unclaimed_notebook_seconds=0
         WHERE engagement_leases.received_at < ?
-      `).bind(campaignId, memberId, ticket, pulse.category, now, now - maximumPulseMs),
+      `).bind(campaignId, memberId, ticket, pulse.category, now, memberId, now - maximumPulseMs),
       db.prepare('DELETE FROM engagement_daily WHERE campaign_id=? AND member_id=? AND day<?')
         .bind(campaignId, memberId, shiftDay(day, 1 - engagementRetentionDays)),
       db.prepare('DELETE FROM engagement_verified_notes WHERE campaign_id=? AND member_id=? AND day<?')

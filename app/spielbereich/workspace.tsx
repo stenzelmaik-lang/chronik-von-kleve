@@ -44,6 +44,7 @@ import {SessionRecap} from "./modules/session-recap";
 import {MvpVotePanel} from "./modules/mvp-vote-panel";
 import { DashboardPanel } from "./modules/dashboard";
 import { EngagementActivity } from './modules/engagement-activity';
+import { MessageCenter } from './modules/message-center';
 import { AppointmentsPanel } from "./modules/appointments";
 import { DicePanel } from "./modules/dice";
 import { EconomyPanel } from "./modules/economy";
@@ -76,6 +77,7 @@ export default function Workspace({
   initialSection = "dashboard",
   initialCharacterId,
   engagementAvailable = false,
+  engagementTracking = false,
   surface = "player",
 }: {
   actor: Actor;
@@ -83,6 +85,7 @@ export default function Workspace({
   initialSection?: string;
   initialCharacterId?: string;
   engagementAvailable?: boolean;
+  engagementTracking?: boolean;
 }) {
   const [preparationDirty,setPreparationDirty]=useState(false);
   const [search, setSearch] = useState(""),
@@ -456,6 +459,8 @@ export default function Workspace({
         <MaterialPreparation key={dataScope} a={a}/>
       ) : section === "notizen" ? (
         <PlayerArchive key={dataScope} a={a}/>
+      ) : section === "postfach" ? (
+        <MessageCenter key={dataScope} a={a} embedded />
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (
@@ -554,7 +559,7 @@ export default function Workspace({
           )}
         </>
       )}
-      {surface === 'player' && engagementAvailable && <EngagementActivity key={dataScope} section={section} scope={`${a.campaignId}:${a.id}`} />}
+      {surface === 'player' && engagementAvailable && <EngagementActivity key={`engagement:${dataScope}`} section={section} scope={`${a.campaignId}:${a.id}`} enabled={engagementTracking} />}
       <RecordEditor
         edit={edit}
         setEdit={setEdit}

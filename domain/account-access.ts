@@ -10,6 +10,7 @@ export const profileInput = z.object({
   preferences: z.object({
     reducedMotion: z.boolean(),
     compactView: z.boolean(),
+    engagementTracking: z.boolean().optional(),
     realName: z.string().trim().max(100).optional(),
     introduction: z.string().trim().max(600).optional(),
     pronouns: z.string().trim().max(40).optional(),

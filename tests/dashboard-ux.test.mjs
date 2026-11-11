@@ -16,8 +16,8 @@ test('overview follows the approved character/calendar, information and preparat
 
 test('overview reuses existing destinations and distinguishes legacy XP',()=>{
   assert.ok(dashboard.includes('kein bestätigter XP-Ledger-Saldo'));
-  for(const destination of ['sitzung','charaktere','inventar','notizen','termine'])assert.ok(dashboard.includes(`onNavigate('${destination}')`));
-  assert.ok(dashboard.includes('chroniplay:open-inbox'));
+  for(const destination of ['sitzung','termine'])assert.ok(dashboard.includes(`onNavigate('${destination}')`));
+  for(const destination of ['charaktere','inventar','postfach','notizen','gefallen','wirtschaft'])assert.ok(dashboard.includes(`href={preparationHref('${destination}')}`));
   const nav=readFileSync(new URL('../app/spielbereich/modules/navigation.ts',import.meta.url),'utf8');
   assert.ok(!shell.includes('Chronik erkunden'),'4c: Die Welt steht im Menü, nicht in der Kopfleiste');
   assert.ok(shell.includes('label="Die Welt"'));

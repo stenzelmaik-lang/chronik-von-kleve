@@ -103,8 +103,7 @@ function useActivityTracking(section: string, scope: string, enabled: boolean, o
   }, [category, enabled, onPulse, scope, section]);
 }
 
-export function EngagementActivity({ section, scope }: { section: string; scope: string }) {
-  const [enabled, setEnabled] = useState(false);
+export function EngagementActivity({ section, scope, enabled }: { section: string; scope: string; enabled: boolean }) {
   const [revision, setRevision] = useState(0);
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof engagementSummary>> | null>(null);
   const [failed, setFailed] = useState(false);
@@ -128,10 +127,7 @@ export function EngagementActivity({ section, scope }: { section: string; scope:
   const current = summary?.window;
   return <section className="panel">
     <h2>Aktive Zeit</h2>
-    <p className="muted">Die freiwillige Messung speichert Zeitsummen pro Tag und Bereich. Sie pausiert bei Inaktivität, außerhalb des sichtbaren Tabs und am Spieltisch. <Link href="/datenschutz#engagement" target="_blank" rel="noreferrer">Datenschutzhinweis zur Messung</Link></p>
-    <label>
-      <input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /> Messung für diesen Besuch einschalten
-    </label>
+    {!enabled && <p className="muted">Die Messung ist in deinem <Link href="/profil#aktivitaetsmessung">Profil</Link> ausgeschaltet.</p>}
     {failed && <p role="status">Die Übersicht konnte nicht geladen werden. <button className="button" onClick={refresh}>Erneut laden</button></p>}
     {!failed && summary && <>
       <ul>

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Library,
   MapPin,
+  Mail,
   Newspaper,
   NotebookPen,
   PanelTop,
@@ -45,8 +46,9 @@ export const sections: Section[] = [
   { id: "inventar", name: "Inventar", icon: ShoppingBag, desc: "Ausrüstung, Waffen und Dinge mit Geschichte.", group: "Mein Charakter" },
   { id: "gefallen", name: "Gefallen", icon: Scale, desc: "Schulden und Versprechen der Nacht.", group: "Mein Charakter" },
   { id: "wirtschaft", name: "Wirtschaft", icon: Coins, desc: "Vermögen, Ausgaben und die Ökonomie der Nacht.", group: "Mein Charakter", wip: true },
-  // Meine Seiten (das Postfach ist ein Fenster und steht als Aktion im Menü)
+  // Meine Seiten
   { id: "notizen", name: "Notizbuch", icon: NotebookPen, desc: "Dein Notizbuch, deine Spielabendvorbereitung und dein persönliches Archiv.", group: "Meine Seiten" },
+  { id: "postfach", name: "Postfach", icon: Mail, desc: "Deine persönlichen Nachrichten zur Chronik.", group: "Meine Seiten" },
   { id: "galerie", name: "Galerie", icon: Images, desc: "Die Bilder, die eure Charaktere mit der Runde teilen.", group: "Meine Seiten" },
   // Die Welt
   { id: "chronik", name: "Chronik", icon: BookOpen, desc: "Die Ereignisse der Domäne Kleve.", group: "Die Welt" },

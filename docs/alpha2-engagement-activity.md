@@ -1,6 +1,6 @@
 # Aktive Zeit und Zeitziele für Alpha 2.0
 
-Die Messung ist im Worker mit `CVK_ENGAGEMENT_ENABLED=1` verfügbar. Die automatische EP-Vergabe benötigt zusätzlich `CVK_ENGAGEMENT_AWARDS_ENABLED=1`. Beide Funktionen setzen die D1-Migrationen 0014 und 0015 voraus. Im Spielbereich schaltet der Spieler die Messung für den aktuellen Besuch ein. Ein Neuladen beginnt wieder mit ausgeschalteter Messung. Der lokale Test-Worker aktiviert beide Funktionen für die HTTP-Suite. Für einen isolierten Browser-Test startet `node --experimental-strip-types scripts/test-local.mjs --access-alpha --engagement` die Anwendung.
+Die Messung ist im Worker mit `CVK_ENGAGEMENT_ENABLED=1` verfügbar. Die automatische EP-Vergabe benötigt zusätzlich `CVK_ENGAGEMENT_AWARDS_ENABLED=1`. Beide Funktionen setzen die D1-Migrationen 0014 und 0015 voraus. In der geschlossenen Alpha ist die Messung standardmäßig eingeschaltet. Spieler können sie im Profil dauerhaft für ihr Konto ausschalten. Der lokale Test-Worker aktiviert beide Funktionen für die HTTP-Suite. Für einen isolierten Browser-Test startet `node --experimental-strip-types scripts/test-local.mjs --access-alpha --engagement` die Anwendung.
 
 ## Messprotokoll
 
@@ -30,4 +30,4 @@ D1 speichert Bereichssummen pro Mitglied, Kampagne und Berliner Kalendertag sowi
 
 Tickets verlieren nach 40 Sekunden ihre Funktion als Zeitnachweis. Summen und Nachweise werden für höchstens 365 Berliner Kalendertage ausgewertet. Ein täglicher Worker-Lauf entfernt ältere Zeit- und Nachweiszeilen auch für inaktive Konten sowie Ticketzeilen nach einem Tag. Empfängerbindungen und bereits gebuchte Ledger-Einträge bleiben erhalten. Der eigene Spielerbereich zeigt Aktivität pro Bereich. Im expliziten SL-Bereich erscheinen ausschließlich bestätigte Summen je Figur und die gebuchten Stufen.
 
-Die Aktivierung setzt den veröffentlichten Kontakt im Datenschutzhinweis voraus. Die Produktion bezieht den Namen und die Kontaktadresse aus `CVK_PRIVACY_CONTROLLER` und `CVK_PRIVACY_CONTACT`. Die Messung startet pro Besuch erst nach Zustimmung im Spielerbereich.
+Die Aktivierung setzt den veröffentlichten Kontakt im Datenschutzhinweis voraus. Die Produktion bezieht Projektname und Kontaktadresse aus `CVK_PRIVACY_CONTROLLER` und `CVK_PRIVACY_CONTACT`. Beim Ausschalten löscht die Profiländerung gleichzeitig offene Aktivitätstickets. Bereits bestätigte Zeit und gebuchte EP bleiben erhalten.

@@ -48,9 +48,7 @@ export function MessageCenter({ a,embedded=false,initialRecipient,showTrigger=tr
     const material=(event:Event)=>{if(!canSend)return;const d=(event as CustomEvent<{title:string;text:string;file?:PersonalMessageAttachment;files?:PersonalMessageAttachment[]}>).detail;if(!d||typeof d.title!=='string'||typeof d.text!=='string')return;setDraft({recipients:[],title:d.title.slice(0,160),text:richTextToPlainText(d.text),files:d.files|| (d.file?[d.file]:[])});requestId.current=null;setSelected(null);setView("compose");setOpen(true);opened.current=true;};
     window.addEventListener('chroniplay:compose-material',material);
     window.addEventListener("chroniplay:compose-message",compose);
-    const showInbox=()=>{if(embedded)return;setSelected(null);setView('inbox');setOpen(true);opened.current=true;void load();};
-    window.addEventListener('chroniplay:open-inbox',showInbox);
-    return()=>{window.removeEventListener('chroniplay:compose-material',material);live=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",load);window.removeEventListener("chroniplay:compose-message",compose);window.removeEventListener('chroniplay:open-inbox',showInbox);};
+    return()=>{window.removeEventListener('chroniplay:compose-material',material);live=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",load);window.removeEventListener("chroniplay:compose-message",compose);};
   },[a.id,a.campaignId,canSend,embedded,refreshTick,loadFolder]);
   useEffect(()=>{
     if(!open)return;let live=true;

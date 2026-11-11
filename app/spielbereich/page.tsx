@@ -1,15 +1,23 @@
 import { redirect } from "next/navigation";
-import { actor } from "@/server/access";
+import { actor, database } from "@/server/access";
 import { currentUserFromContext } from "@/server/platform-auth";
 import Workspace from "./workspace";
 import {selectedCharacter} from '@/server/character-selection';
 import { engagementEnabled } from '@/server/engagement-config';
+import { engagementTrackingEnabled } from '@/server/engagement-preference';
 export const dynamic = "force-dynamic";
 async function SignedIn({ initialSection, initialCharacterId }: { initialSection: string; initialCharacterId?: string }) {
   const user=await currentUserFromContext();
   if (!user) redirect("/anmelden");
   const a = await actor(false).catch(() => null);
-  if (a) return <Workspace actor={a} engagementAvailable={engagementEnabled()} initialSection={initialSection} initialCharacterId={await selectedCharacter(a,user.id,initialCharacterId) || undefined} />;
+  if (a) {
+    const available = a.status === 'active' && engagementEnabled();
+    const [characterId, tracking] = await Promise.all([
+      selectedCharacter(a, user.id, initialCharacterId),
+      available && engagementTrackingEnabled(database(), a.id),
+    ]);
+    return <Workspace actor={a} engagementAvailable={available} engagementTracking={tracking} initialSection={initialSection} initialCharacterId={characterId || undefined} />;
+  }
   return (
     <main className="shell">
       <h1 className="page-title">Dein Zugang ist noch nicht freigeschaltet.</h1>

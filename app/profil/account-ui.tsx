@@ -11,11 +11,11 @@ export async function accountApi<T=Mutation>(path:string,method='GET',body?:unkn
   if(!r.headers.get('content-type')?.includes('application/json'))throw new Error('Der Kontodienst ist momentan nicht erreichbar. Bitte erneut versuchen.');
   const d=await r.json() as T&{error?:string};if(!r.ok)throw new Error(d.error??'Der Vorgang konnte nicht abgeschlossen werden.');return d;
 }
-type Profile={displayName:string;email:string;version:number;avatarFileId:string|null;preferences:{reducedMotion:boolean;compactView:boolean;realName?:string;introduction?:string;pronouns?:string;banner?:typeof profileBanners[number];playStyles?:Array<typeof profilePlayStyles[number]>;sharePlayerProfileCampaigns?:string[]};campaigns:{id:string;name:string;status:string}[]};
+type Profile={displayName:string;email:string;version:number;avatarFileId:string|null;preferences:{reducedMotion:boolean;compactView:boolean;engagementTracking:boolean;realName?:string;introduction?:string;pronouns?:string;banner?:typeof profileBanners[number];playStyles?:Array<typeof profilePlayStyles[number]>;sharePlayerProfileCampaigns?:string[]};campaigns:{id:string;name:string;status:string}[]};
 type Session={id:string;createdAt:string;expiresAt:string;lastSeenAt:string;current:boolean};
 const bannerLabels:Record<typeof profileBanners[number],string>={neon:'Neon im Regen',fog:'Rheinnebel',candle:'Kerzenlicht'};
 const date=(s:string)=>new Date(s).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
-export default function AccountProfile(){
+export default function AccountProfile({engagementAvailable}:{engagementAvailable:boolean}){
   const [profile,setProfile]=useState<Profile|null>(null),[sessions,setSessions]=useState<Session[]>([]),[busy,setBusy]=useState(false),[feedback,setFeedback]=useState(''),[error,setError]=useState(''),[dirty,setDirty]=useState(false);
   function updatePreferences(changes:Partial<Profile['preferences']>){
     setProfile(current=>current?{...current,preferences:{...current.preferences,...changes}}:current);
@@ -61,6 +61,12 @@ export default function AccountProfile(){
             const shared=profile.preferences.sharePlayerProfileCampaigns??[];
             return <label className={styles.check} key={c.id}><input type="checkbox" checked={shared.includes(c.id)} onChange={e=>updatePreferences({sharePlayerProfileCampaigns:e.target.checked?[...shared,c.id]:shared.filter(id=>id!==c.id)})}/>{c.name}</label>;
           })}
+        </fieldset>}
+        {engagementAvailable&&<fieldset id="aktivitaetsmessung" className={styles.introduction}>
+          <legend>Aktivitätsmessung</legend>
+          <label className={styles.check}><input type="checkbox" checked={profile.preferences.engagementTracking} disabled={busy} aria-describedby="aktivitaetsmessung-hinweis" onChange={e=>updatePreferences({engagementTracking:e.target.checked})}/>Aktive Zeit für Engagement-EP messen</label>
+          <small id="aktivitaetsmessung-hinweis">In der geschlossenen Alpha ist die Messung standardmäßig an. Sie zeigt dir deinen Fortschritt bei der Vorbereitung auf den Spielabend. Bestätigte Figurnotizen können zu Engagement-EP beitragen. Wenn du die Messung ausschaltest und dein Profil speicherst, endet sie für dein Konto. Du kannst weiterspielen und deine bisherigen EP behalten.</small>
+          <small><a href="/datenschutz#engagement">Mehr zur Aktivitätsmessung</a></small>
         </fieldset>}
         <details className={styles.personalSettings}><summary>Konto & Anzeige</summary>
           <div>

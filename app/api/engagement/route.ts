@@ -4,6 +4,7 @@ import { engagementCategories } from '@/domain/engagement-browser';
 import { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
 import { engagementAwardsEnabled, engagementEnabled } from '@/server/engagement-config';
 import { campaignEngagementOverview } from '@/server/engagement-awards';
+import { engagementTrackingEnabled } from '@/server/engagement-preference';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,9 @@ export async function POST(req: Request) {
     const owner = await scope();
     const pulse = pulseSchema.safeParse(await input(req, 256));
     if (!pulse.success) throw new HttpError(400, 'Ungültiges Aktivitätssignal.');
-    return json(await recordEngagementPulse(database(), owner, pulse.data, Date.now(), engagementAwardsEnabled()));
+    const db = database();
+    if (!await engagementTrackingEnabled(db, owner.memberId)) throw new HttpError(403, 'Die Aktivitätsmessung ist in deinem Profil ausgeschaltet.');
+    return json(await recordEngagementPulse(db, owner, pulse.data, Date.now(), engagementAwardsEnabled()));
   } catch (error) {
     return failure(error, req);
   }
