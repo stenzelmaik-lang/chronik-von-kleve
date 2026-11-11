@@ -248,7 +248,7 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check((await registerEvening('gm',{playedOn:'2026-03-07'})).s===409,'PLAYED a reopened session record cannot be registered as a further evening');
 
   // MVP after a settled evening: each participant gets one ballot, no self-vote.
-  const secondPlayer=await req('/api/records','b','POST',{kind:'charaktere',title:'SYNTHETIC MVP PLAYER',visibility:'private',body:{clan:'Brujah'}});
+  const secondPlayer=await req('/api/records','b','POST',{kind:'charaktere',title:'SYNTHETIC MVP PLAYER',visibility:'private',body:{clan:'Brujah',disciplines:[{name:'Potenz',value:1}]}});
   check(secondPlayer.s===200,'MVP synthetic second player has a character');
   check((await settle('gm',[line(secondPlayer.d.id,[],true)])).s===200,'MVP second attendee is registered on the existing receipt');
   const mvpPost=(who,action,other={})=>req('/api/mvp',who,'POST',{action,sessionId:evening2,...other});
