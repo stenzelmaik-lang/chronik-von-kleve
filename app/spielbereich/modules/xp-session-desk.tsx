@@ -5,6 +5,7 @@ import type { Entry } from '@/domain/legacy';
 import { prepareSessionDraft, sessionSettlementComplete, sessionSettlementPayload,
   type SessionDraft, type SessionPlayer, type SessionReceipt } from '@/domain/xp-session-desk';
 import { api } from './api-client';
+import { MvpVoteAdmin } from './mvp-vote-admin';
 import styles from './xp-session-desk.module.css';
 
 type ReceiptWithReversals = SessionReceipt & {participants: {characterId:string;attended:boolean;rewards: ({type:'session'|'story'|'mvp'|'sl_exception';amount:number;reason:string;status:'pending'|'booked'|'failed';scopeId:string;ledgerEntryId:string|null;reversed?:boolean})[]}[]};
@@ -176,6 +177,9 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
         <button className="button primary" type="button" disabled={busy||receiptLoading||!draft.length} onClick={()=>void settle()}>
           {busy?'Wird verbucht …':'EP für die Runde bestätigen'}</button>
       </footer>
+      <MvpVoteAdmin key={current.id} sessionId={current.id} players={players??[]} draft={draft}
+        receiptStatus={current.settlement?.status??null}
+        onBooked={()=>{void reload();setReceiptVersion(n=>n+1);}}/>
       {receipt&&<p className={styles.hint}><Clock3 size={14}/>Der Abrechnungsbeleg bleibt erhalten. Teilfehler können mit denselben Angaben erneut bestätigt werden.</p>}
     </>)}
     {!loading&&!evenings.length&&<p className={styles.hint}>Noch keine gespielten Abende registriert. Verwende oben „Gespielten Abend registrieren“.</p>}
