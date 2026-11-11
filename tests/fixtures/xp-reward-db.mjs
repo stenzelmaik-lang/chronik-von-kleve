@@ -11,7 +11,8 @@ export function setupRewardDb() {
   sql.exec('PRAGMA foreign_keys=ON');
   sql.exec(`CREATE TABLE records(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,kind TEXT NOT NULL,visibility TEXT NOT NULL DEFAULT 'private',title TEXT NOT NULL,body TEXT NOT NULL DEFAULT '{}',gm_body TEXT NOT NULL DEFAULT '',version INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,campaign_id TEXT NOT NULL DEFAULT 'chronik-von-kleve');
     CREATE TABLE entities(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,type TEXT NOT NULL,canon_status TEXT NOT NULL DEFAULT 'WORKING');
-    CREATE TABLE world_events(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,entity_id TEXT,actor_id TEXT NOT NULL,type TEXT NOT NULL,payload TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL);`);
+    CREATE TABLE world_events(id TEXT PRIMARY KEY,campaign_id TEXT NOT NULL,entity_id TEXT,actor_id TEXT NOT NULL,type TEXT NOT NULL,payload TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL);
+    CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);`);
   const migration = readdirSync('drizzle').find(name => /^\d{4}_alpha2_xp_settlement\.sql$/.test(name));
   if (!migration) throw new Error('Migration *_alpha2_xp_settlement.sql fehlt.');
   for (const statement of readFileSync('drizzle/' + migration, 'utf8').split('--> statement-breakpoint')) if (statement.trim()) sql.exec(statement);
