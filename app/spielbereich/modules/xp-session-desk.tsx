@@ -59,7 +59,10 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
     return()=>{cancelled=true;};
   },[selected,players,receiptVersion]);
 
-  const completed=entries.filter(e=>e.kind==='sitzungen'&&e.id&&e.body.status==='Abgeschlossen');
+  const completed=entries.filter(e=>e.kind==='sitzungen'&&e.id&&(
+    e.body.status==='Abgeschlossen'||
+    (e.body.sl_preparation as {document?:{status?:string}}|undefined)?.document?.status==='completed'
+  ));
   const current=evenings.find(e=>e.id===selected);
   const attendees=draft.filter(d=>d.attended).length;
   const sessionTotal=draft.reduce((sum,d)=>sum+(d.attended?d.sessionAmount:0),0);
