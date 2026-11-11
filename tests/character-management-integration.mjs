@@ -262,13 +262,13 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check((await req('/api/mvp','a')).d.openPolls.some(p=>p.id===evening2),'MVP attendee discovers their open ballot');
   check((await mvpPost('a','vote',{nomineeId:'sprint1-a'})).s===409,'MVP cannot nominate self');
   check((await mvpPost('a','vote',{nomineeId:'sprint1-b'})).s===200,'MVP player A votes for B');
-  check((await mvpPost('a','vote',{nomineeId:'b'})).d.poll.totalVotes===1,'MVP replay does not duplicate ballot');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-b'})).d.poll.totalVotes===1,'MVP replay does not duplicate ballot');
   check((await mvpGet('a')).d.poll.results===undefined,'MVP open vote tally remains hidden from players');
-  check((await mvpPost('b','vote',{nomineeId:'a'})).s===200,'MVP player B votes for A');
+  check((await mvpPost('b','vote',{nomineeId:'sprint1-a'})).s===200,'MVP player B votes for A');
   check((await mvpPost('b','close')).s===403,'MVP player cannot close ballot');
   const mvpClosed=await mvpPost('gm','close');
   check(mvpClosed.s===200&&mvpClosed.d.poll.status==='closed'&&mvpClosed.d.poll.totalVotes===2&&mvpClosed.d.poll.results.length===2,'MVP GM closes and sees the tie without auto award');
-  check((await mvpPost('b','vote',{nomineeId:'a'})).s===409,'MVP closed election cannot be modified');
+  check((await mvpPost('b','vote',{nomineeId:'sprint1-a'})).s===409,'MVP closed election cannot be modified');
   check((await req('/api/mvp','a')).d.openPolls.every(p=>p.id!==evening2),'MVP completed poll no longer shown as open');
 
 }
