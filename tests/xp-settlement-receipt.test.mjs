@@ -123,7 +123,8 @@ test('A reversed reward keeps its receipt line; the reversal is visible when rea
   sql.prepare("UPDATE records SET body=?,version=version+1 WHERE id='char-a'").run(JSON.stringify(reversed));
   await bookSessionSettlement(db, input);
   const receipt = await readSessionSettlement(db, campaignId, 'abend-1');
-  assert.deepEqual(of(receipt, 'char-a').rewards.map(r => [r.status, r.amount, r.ledgerEntryId]), [['booked', 4, 'reward:session:chronik-von-kleve:abend-1']]);
+  assert.deepEqual(of(receipt, 'char-a').rewards.map(r => [r.status, r.amount, r.ledgerEntryId, r.reversed]), [['booked', 4, 'reward:session:chronik-von-kleve:abend-1', true]]);
+  assert.equal(of(receipt, 'char-b').rewards[0].reversed, undefined);
   assert.equal(xpBalance(body('char-a')), 9);
 });
 

@@ -76,3 +76,17 @@ test('A registered evening survives a later status change or deletion of the ses
   for (const change of ["played_on='2026-01-01'", "session_record_id='sitzung-1'", "campaign_id='andere-chronik'", "title='Anders'", "registered_by='x'", "appointment_id='termin-2'"])
     assert.throws(() => sql.prepare(`UPDATE played_sessions SET ${change} WHERE id=?`).run(session.id), /unveränderlich/);
 });
+
+test('Modern command-center preparation marked completed can register a played evening', async () => {
+  const { sql, db } = setupRewardDb();
+  // Existing new preparation writes the status under sl_preparation.document,
+  // not as the older body.status = "Abgeschlossen".
+  sql.prepare("UPDATE records SET body=? WHERE id='sitzung-laeuft'")
+    .run(JSON.stringify({sl_preparation:{document:{title:'Neuer Abend',status:'completed'}}}));
+  const done = await registerPlayedSession(db, register({sessionRecordId:'sitzung-laeuft'}));
+  assert.equal(done.created, true);
+  assert.equal(done.session.sessionRecordId, 'sitzung-laeuft');
+  sql.prepare("UPDATE records SET body=? WHERE id='sitzung-bereit'")
+    .run(JSON.stringify({sl_preparation:{document:{title:'Noch offen',status:'active'}}}));
+  await assert.rejects(registerPlayedSession(db, register({sessionRecordId:'sitzung-bereit'})), status(409));
+});

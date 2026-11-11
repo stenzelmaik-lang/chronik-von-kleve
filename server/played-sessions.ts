@@ -47,7 +47,12 @@ export async function registerPlayedSession(db: D1Database, input: RegisterPlaye
   if (existing) return same(existing);
   const record = await db.prepare("SELECT title,body FROM records WHERE id=? AND campaign_id=? AND kind='sitzungen'").bind(input.sessionRecordId, input.campaignId).first<{ title: string; body: string }>();
   if (!record) throw new XpRewardServiceError(404, "Sitzung nicht verfügbar.");
-  if (parseBody(record.body).status !== "Abgeschlossen") throw new XpRewardServiceError(409, "Diese Sitzung ist noch nicht abgeschlossen.");
+  const sessionBody = parseBody(record.body);
+  const preparation = sessionBody.sl_preparation;
+  const preparationStatus = preparation && typeof preparation === "object" && !Array.isArray(preparation)
+    ? (preparation as { document?: { status?: string } }).document?.status : undefined;
+  if (sessionBody.status !== "Abgeschlossen" && preparationStatus !== "completed")
+    throw new XpRewardServiceError(409, "Diese Sitzung ist noch nicht abgeschlossen.");
   if (appointmentId !== null) {
     const appointment = await db.prepare("SELECT body FROM records WHERE id=? AND campaign_id=? AND kind='termine'").bind(appointmentId, input.campaignId).first<{ body: string }>();
     if (!appointment) throw new XpRewardServiceError(404, "Termin nicht verfügbar.");

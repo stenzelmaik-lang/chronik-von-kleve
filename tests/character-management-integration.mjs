@@ -207,6 +207,10 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   for(const [label,bad,extra] of [['duplicate character',[line(tid,[regular(1)]),line(tid,[regular(1)])]],['duplicate source',[line(tid,[regular(1),regular(2)])]],['absent with regular XP',[line(tid,[regular(1)],false)]],['six regular XP',[line(tid,[regular(6)])]],['engagement source',[line(tid,[{type:'engagement',amount:1,reason:'Forged'}])]],['client booking ID',[line(tid,[{...regular(1),entryId:'forged'}])]],['client version',entries,{version:1}],['no entries',[]]])check((await settle('gm',bad,extra)).s===400,'XPS invalid settlement refused as a whole: '+label);
   check((await settle('gm',entries,{sessionId:calendar.d.id})).s===404,'XPS a calendar entry cannot be settled');
   check((await settle('gm',entries,{sessionId:running})).s===404&&(await settle('gm',entries,{sessionId:sessionRecord})).s===404,'XPS a session record cannot be settled');
+  const eveningList=who=>req('/api/character-engine?playedEvenings=1',who);
+  check((await eveningList(undefined)).s===401&&(await eveningList('a')).s===403&&(await eveningList('b')).s===403,'XPS only SL can list registered played evenings');
+  const listed=await eveningList('gm');
+  check(listed.s===200&&listed.d.evenings.some(e=>e.id===evening2&&e.settlement===null),'XPS SL sees the registered evening before settlement');
   const receiptOf=who=>req('/api/character-engine?settlement='+evening2,who);
   check((await receiptOf(undefined)).s===401&&(await receiptOf('a')).s===403&&(await receiptOf('b')).s===403,'XPS only the SL reads a settlement receipt');
   check((await receiptOf('gm')).s===200&&(await receiptOf('gm')).d.settlement===null,'XPS refused settlements leave no receipt');
@@ -242,4 +246,29 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   const stillBooked=await settle('gm',entries);
   check(stillBooked.s===200&&stillBooked.d.totals.booked===0&&stillBooked.d.totals.failed===0&&(await tget()).d.xp.available===7,'XPS a repeat after the status change books nothing and loses nothing');
   check((await registerEvening('gm',{playedOn:'2026-03-07'})).s===409,'PLAYED a reopened session record cannot be registered as a further evening');
+
+  // MVP after a settled evening: each participant gets one ballot, no self-vote.
+  // This test verifies the MVP flow, not character creation. Seed the second
+  // attendee directly in the isolated test database, as other fixture tests do.
+  const mvpCharId=randomUUID(),mvpStamp=new Date().toISOString();
+  localSql(`INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,version,created_at,updated_at)
+    VALUES(${sqlQuote(mvpCharId)},'chronik-von-kleve','sprint1-b','charaktere','private','SYNTHETIC MVP PLAYER','{}','',1,${sqlQuote(mvpStamp)},${sqlQuote(mvpStamp)})`);
+  check((await settle('gm',[line(mvpCharId,[],true)])).s===200,'MVP second attendee is registered on the existing receipt');
+  const mvpPost=(who,action,other={})=>req('/api/mvp',who,'POST',{action,sessionId:evening2,...other});
+  const mvpGet=who=>req('/api/mvp?sessionId='+evening2,who);
+  check((await mvpPost(undefined,'open')).s===401&&(await mvpPost('a','open')).s===403,'MVP only GM can open the ballot');
+  const opened=await mvpPost('gm','open');
+  check(opened.s===200&&opened.d.poll.status==='open'&&opened.d.poll.candidates.some(c=>c.id==='sprint1-a')&&opened.d.poll.candidates.some(c=>c.id==='sprint1-b'),'MVP only attending players are candidates');
+  check((await req('/api/mvp','a')).d.openPolls.some(p=>p.id===evening2),'MVP attendee discovers their open ballot');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-a'})).s===409,'MVP cannot nominate self');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-b'})).s===200,'MVP player A votes for B');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-b'})).d.poll.totalVotes===1,'MVP replay does not duplicate ballot');
+  check((await mvpGet('a')).d.poll.results===undefined,'MVP open vote tally remains hidden from players');
+  check((await mvpPost('b','vote',{nomineeId:'sprint1-a'})).s===200,'MVP player B votes for A');
+  check((await mvpPost('b','close')).s===403,'MVP player cannot close ballot');
+  const mvpClosed=await mvpPost('gm','close');
+  check(mvpClosed.s===200&&mvpClosed.d.poll.status==='closed'&&mvpClosed.d.poll.totalVotes===2&&mvpClosed.d.poll.results.length===2,'MVP GM closes and sees the tie without auto award');
+  check((await mvpPost('b','vote',{nomineeId:'sprint1-a'})).s===409,'MVP closed election cannot be modified');
+  check((await req('/api/mvp','a')).d.openPolls.every(p=>p.id!==evening2),'MVP completed poll no longer shown as open');
+
 }

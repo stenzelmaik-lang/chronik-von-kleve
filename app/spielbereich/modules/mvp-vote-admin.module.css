@@ -1,0 +1,16 @@
+.panel{margin-top:16px;border:1px solid #b9985b55;background:#111f2d;border-radius:9px;padding:14px;display:grid;gap:12px;color:#eee5d7}
+.panel header{display:flex;gap:10px;align-items:start}
+.panel header>svg{color:#d6b779;flex:none;margin-top:3px}
+.panel header>div{flex:1}
+.panel h4{font:21px Georgia,serif;margin:0}
+.panel header p,.note{font-size:12px;color:#acbcc7;line-height:1.5}
+.line{display:grid;gap:12px}
+.line p{margin:0;font-size:13px}
+.line p svg{vertical-align:middle;margin-right:8px;color:#b6d0bd}
+.line>button{justify-self:start}
+.line small{color:#c1a887}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.controls label{display:grid;flex:1 1 160px;gap:5px;color:#dfc5a0;font-size:12px}
+.controls select{background:#192a3a;border:1px solid #b9985b55;border-radius:5px;padding:8px;min-height:39px;color:#eee6d6;width:100%}
+.controls button{min-height:39px}
+.error{border-left:3px solid #b9746d;padding:8px;color:#f3beb8;font-size:13px}
