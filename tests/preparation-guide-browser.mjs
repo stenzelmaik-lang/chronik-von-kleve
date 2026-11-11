@@ -110,7 +110,15 @@ try{
  const sentLetters=(await api('/api/messages?sent=1')).body.messages.filter(message=>message.title==='Persönliche Botschaft · SYNTHETISCH – Geführte Kaserne');assert.equal(sentLetters.length,1);const letterId=sentLetters[0].id;
  const recipient=await browser.newContext();assert.equal((await recipient.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:'command-a@example.invalid',password:'ChroniPlay-Demo-2036!'}})).status(),200);
  const recipientLetter=await recipient.request.get(base+'/api/messages?id='+letterId);assert.equal(recipientLetter.status(),200);const letter=(await recipientLetter.json()).messages[0];assert.ok(letter.text.includes('PRIVATE_PREPARED_HANDOUT'));assert.ok(!letter.text.includes('PRIVATE_GUIDE_SECRET'));assert.equal((await recipient.request.get(base+'/api/files?id='+imageId)).status(),200);
- const playerPage=await recipient.newPage();await playerPage.goto(base+'/spielbereich?bereich=dashboard');await playerPage.getByRole('button',{name:/^Postfach/}).click();await playerPage.getByRole('button',{name:/Persönliche Botschaft · SYNTHETISCH – Geführte Kaserne/}).click();await playerPage.getByRole('heading',{name:'Der Brief',exact:true}).waitFor();await playerPage.screenshot({path:output+'/persoenliche-botschaft-spieler.png',fullPage:true});
+ const playerPage=await recipient.newPage();
+ await playerPage.goto(base+'/spielbereich?bereich=dashboard');
+ await playerPage.getByRole('link',{name:/^Postfach/}).click();
+ await playerPage.waitForURL(url=>url.searchParams.get('bereich')==='postfach');
+ await playerPage.getByRole('navigation',{name:'Nachrichtenordner'}).waitFor();
+ assert.equal(await playerPage.getByRole('heading',{name:'Zuflucht',exact:true}).count(),0);
+ await playerPage.getByRole('button',{name:/Persönliche Botschaft · SYNTHETISCH – Geführte Kaserne/}).click();
+ await playerPage.getByRole('heading',{name:'Der Brief',exact:true}).waitFor();
+ await playerPage.screenshot({path:output+'/persoenliche-botschaft-spieler.png',fullPage:true});
  await recipient.close();
  const stranger=await browser.newContext();await stranger.request.post(base+'/api/auth/login',{headers:{Origin:base},data:{email:'command-b@example.invalid',password:'ChroniPlay-Demo-2036!'}});assert.equal((await stranger.request.get(base+'/api/messages?id='+letterId)).status(),404);assert.equal((await stranger.request.get(base+'/api/files?id='+imageId)).status(),404);await stranger.close();
 
