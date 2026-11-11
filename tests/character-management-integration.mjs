@@ -140,4 +140,135 @@ export async function characterManagementIntegration({req,check,localSql,sqlQuot
   check(pathRequest.s===200&&pathRequest.d.xp.available===10,'CHAR3.3 Path request books no XP yet');
   const pathDecision=await tcmd('gm','xp_decision',{requestId:pathRequest.d.requests.find(r=>r.status==='pending').id,approved:true,reason:'Teacher in play'});
   check(pathDecision.s===200&&pathDecision.d.xp.available===3&&pathDecision.d.sheet.paths.some(p=>p.name==='Neuer Pfad'&&p.value===1&&p.primary===false),'CHAR3.3 approved new Path costs 7 XP and is secondary');
+  // Alpha 2.0 (#75): source-bound rewards and the settlement of a played evening through the existing engine route.
+  const mkSession=async(title,status)=>(await req('/api/records','gm','POST',{kind:'sitzungen',title,visibility:'group',body:{scene:'XPR',...(status?{status}:{})}})).d.id;
+  // One session record is reused for two evenings, as the existing session view does.
+  const sessionRecord=await mkSession('SYNTHETIC REUSED SESSION','Abgeschlossen'),running=await mkSession('SYNTHETIC RUNNING EVENING','Läuft');
+  const calendar=await req('/api/appointments','gm','POST',{action:'save',title:'SYNTHETIC CALENDAR ENTRY',visibility:'group',scheduleKind:'fixed',date:'2026-01-10T19:00:00+01:00',summary:''});
+  const arc=await req('/api/entities','gm','POST',{type:'storyline',title:'SYNTHETIC ARC',text:'XPR',canonStatus:'confirmed',playState:'unplayed',defaultVisibility:'player_visible',gmBody:''});
+  check(!!sessionRecord&&!!running&&calendar.s===200&&arc.s===201,'XPR synthetic sessions, calendar entry and story arc exist');
+  const registerEvening=(who,extra={})=>req('/api/character-engine',who,'POST',{action:'played_session_register',sessionRecordId:sessionRecord,playedOn:'2026-01-10',...extra});
+  const storedSession=async()=>(await req('/api/records?kind=sitzungen&view=sl','gm')).d.records.find(r=>r.id===sessionRecord);
+  const sessionBefore=await storedSession();
+  check((await registerEvening(undefined)).s===401,'PLAYED anonymous cannot register an evening');
+  check((await registerEvening('a')).s===403,'PLAYED player cannot register an evening');
+  check((await registerEvening('gm',{sessionRecordId:running})).s===409,'PLAYED a session that is not closed cannot be registered');
+  check((await registerEvening('gm',{sessionRecordId:calendar.d.id})).s===404,'PLAYED a calendar entry is not a session');
+  for(const extra of [{playedOn:'10.01.2026'},{playedOn:'2099-01-10'},{id:'forged-id'},{version:1}])check((await registerEvening('gm',extra)).s===400,'PLAYED invalid registration refused: '+JSON.stringify(extra));
+  const registered=await registerEvening('gm',{appointmentId:calendar.d.id});
+  check(registered.s===200&&registered.d.created===true&&registered.d.session.id!==sessionRecord&&registered.d.session.appointmentId===calendar.d.id,'PLAYED evening gets a durable ID of its own, linked to its calendar entry');
+  const registeredAgain=await registerEvening('gm');
+  check(registeredAgain.s===200&&registeredAgain.d.created===false&&registeredAgain.d.session.id===registered.d.session.id,'PLAYED registering the same evening again returns the same ID');
+  const registeredSecond=await registerEvening('gm',{playedOn:'2026-02-07'});
+  check(registeredSecond.s===200&&registeredSecond.d.created===true&&registeredSecond.d.session.id!==registered.d.session.id,'PLAYED the reused session record yields a separate ID per evening');
+  check((await registerEvening('gm',{playedOn:'2026-02-07',appointmentId:calendar.d.id})).s===409,'PLAYED a calendar entry belongs to one evening only');
+  const sessionAfter=await storedSession();
+  check(JSON.stringify(sessionAfter)===JSON.stringify(sessionBefore),'PLAYED registration leaves the existing session record unchanged');
+  const evening=registered.d.session.id,evening2=registeredSecond.d.session.id;
+  const rewardData={id:tid,action:'xp_reward',type:'session',sessionId:evening,amount:4,reason:'Synthetic session settlement'};
+  const reward=(who,extra={})=>req('/api/character-engine',who,'POST',{...rewardData,...extra});
+  const story={type:'story',storyId:arc.d.id,amount:2};
+  check((await reward(undefined)).s===401,'XPR anonymous request is refused');
+  check((await reward('a')).s===403,'XPR owner cannot award their own character');
+  check((await reward('b')).s===403,'XPR foreign player cannot award');
+  check((await tget()).d.xp.available===3,'XPR refused requests change no balance');
+  for(const extra of [{amount:6},{amount:0},{type:'engagement',amount:1},{type:'story',amount:2},{...story,amount:4},{storyId:arc.d.id},{type:'mvp',amount:3},{operationId:randomUUID()},{entryId:'forged'},{milestone:1},{reason:''}])check((await reward('gm',extra)).s===400,'XPR invalid reward refused: '+JSON.stringify(extra).slice(0,60));
+  check((await reward('gm',{sessionId:running})).s===404&&(await reward('gm',{sessionId:sessionRecord})).s===404,'XPR a session record is not a played evening');
+  check((await reward('gm',{sessionId:calendar.d.id})).s===404,'XPR a calendar entry is no proof of a played evening');
+  check((await reward('gm',{sessionId:tid})).s===404,'XPR a non-session is not a session');
+  check((await reward('gm',{...story,storyId:evening})).s===404,'XPR a story reward needs a real story arc');
+  check((await reward('gm',{id:evening})).s===404,'XPR a non-character cannot be credited');
+  const first=await reward('gm');
+  check(first.s===200&&first.d.xp.available===7&&first.d.reward.duplicate===false&&first.d.reward.id==='reward:session:chronik-von-kleve:'+evening,'XPR SL books a session reward with a server-derived ID');
+  const again=await reward('gm');
+  check(again.s===200&&again.d.reward.duplicate===true&&again.d.xp.available===7&&again.d.version===first.d.version,'XPR repeat credits nothing and writes nothing');
+  check((await reward('gm',{amount:5})).s===409&&(await tget()).d.xp.available===7,'XPR repeat with another amount is a conflict');
+  const burst=await Promise.all([reward('gm',story),reward('gm',story),reward('gm',{type:'mvp',amount:1}),reward('gm',{type:'mvp',amount:1}),reward('gm')]);
+  check(burst.every(r=>r.s===200)&&burst.filter(r=>r.d.reward.duplicate===false).length===2&&(await tget()).d.xp.available===10,'XPR parallel requests credit each source exactly once');
+  check((await tget()).d.ledger.filter(e=>e.source).length===3&&(await tget()).d.ledger.some(e=>e.id==='reward:story:chronik-von-kleve:'+arc.d.id),'XPR three distinct sources in the one existing ledger, the story by its own arc');
+  check((await tcmd('gm','xp_correction',{operationId:randomUUID(),amount:-4,referenceId:first.d.reward.id,reason:'Synthetic reversal'})).s===200,'XPR existing counterbooking reverses a reward');
+  const replay=await reward('gm');
+  check(replay.s===200&&replay.d.reward.duplicate===true&&replay.d.reward.reversed===true&&replay.d.xp.available===6,'XPR reversed reward is not recreated by a repeat');
+  check((await tget('a')).d.ledger.some(e=>e.id===first.d.reward.id)&&(await tget('gm')).d.history.some(h=>h.action==='xp_reward'),'XPR owner sees the reward in the ledger; SL sees the audit');
+  const legacyGrant=await tcmd('gm','xp_grant',{operationId:randomUUID(),amount:1,reason:'Unchanged legacy grant'});
+  check(legacyGrant.s===200&&legacyGrant.d.xp.available===7,'XPR existing xp_grant is unchanged');
+
+  // Settlement for several characters: per-character results, never a false overall success.
+  const fresh=await req('/api/records','a','POST',{kind:'charaktere',title:'SYNTHETIC SETTLEMENT SHEET',visibility:'private',body:{clan:'Brujah',disciplines:[{name:'Potenz',value:1}]}});
+  check(fresh.s===200,'XPS synthetic sheet that is not yet adopted'); const fid=fresh.d.id;
+  const fget=async()=>req('/api/character-engine?id='+fid,'gm');
+  const settle=(who,entries,extra={})=>req('/api/character-engine',who,'POST',{action:'xp_settlement',sessionId:evening2,entries,...extra});
+  const line=(characterId,rewards,attended=true)=>({characterId,attended,rewards});
+  const regular=amount=>({type:'session',amount,reason:'Synthetic settlement'});
+  const entries=[line(tid,[regular(3),{...story,reason:'Arc concluded'}]),line(fid,[regular(2)]),line(id,[],false)];
+  const of=(result,characterId)=>result.d.characters.find(c=>c.characterId===characterId);
+  check((await settle(undefined,entries)).s===401,'XPS anonymous settlement is refused');
+  check((await settle('a',entries)).s===403&&(await settle('b',entries)).s===403,'XPS players cannot settle');
+  for(const [label,bad,extra] of [['duplicate character',[line(tid,[regular(1)]),line(tid,[regular(1)])]],['duplicate source',[line(tid,[regular(1),regular(2)])]],['absent with regular XP',[line(tid,[regular(1)],false)]],['six regular XP',[line(tid,[regular(6)])]],['engagement source',[line(tid,[{type:'engagement',amount:1,reason:'Forged'}])]],['client booking ID',[line(tid,[{...regular(1),entryId:'forged'}])]],['client version',entries,{version:1}],['no entries',[]]])check((await settle('gm',bad,extra)).s===400,'XPS invalid settlement refused as a whole: '+label);
+  check((await settle('gm',entries,{sessionId:calendar.d.id})).s===404,'XPS a calendar entry cannot be settled');
+  check((await settle('gm',entries,{sessionId:running})).s===404&&(await settle('gm',entries,{sessionId:sessionRecord})).s===404,'XPS a session record cannot be settled');
+  const eveningList=who=>req('/api/character-engine?playedEvenings=1',who);
+  check((await eveningList(undefined)).s===401&&(await eveningList('a')).s===403&&(await eveningList('b')).s===403,'XPS only SL can list registered played evenings');
+  const listed=await eveningList('gm');
+  check(listed.s===200&&listed.d.evenings.some(e=>e.id===evening2&&e.settlement===null),'XPS SL sees the registered evening before settlement');
+  const receiptOf=who=>req('/api/character-engine?settlement='+evening2,who);
+  check((await receiptOf(undefined)).s===401&&(await receiptOf('a')).s===403&&(await receiptOf('b')).s===403,'XPS only the SL reads a settlement receipt');
+  check((await receiptOf('gm')).s===200&&(await receiptOf('gm')).d.settlement===null,'XPS refused settlements leave no receipt');
+  check((await tget()).d.xp.available===7,'XPS refused settlements change no balance');
+  const partial=await settle('gm',entries);
+  check(partial.s===207&&partial.d.status==='partial'&&partial.d.complete===false,'XPS partial settlement is never reported as success');
+  check(of(partial,tid).status==='booked'&&of(partial,tid).rewards[0].status==='booked'&&of(partial,tid).rewards[1].status==='already_booked','XPS booked character; a story arc rewarded earlier is not booked again');
+  check(of(partial,fid).status==='failed'&&of(partial,fid).rewards[0].code===409&&of(partial,id).status==='none','XPS failed and absent characters are reported individually');
+  check((await tget()).d.xp.available===10,'XPS successful part is booked');
+  const fview=await fget();
+  check((await req('/api/character-engine','gm','POST',{id:fid,version:fview.d.version,action:'historical_import',operationId:randomUUID(),available:5,earned:null,spent:null,source:'Synthetic',reason:'Adopt settlement sheet',confirm:true})).s===200,'XPS SL removes the cause of the failure');
+  const resumed=await settle('gm',entries);
+  check(resumed.s===200&&resumed.d.status==='complete'&&of(resumed,tid).status==='already_booked'&&of(resumed,fid).status==='booked','XPS identical retry completes only the missing part');
+  check((await tget()).d.xp.available===10&&(await fget()).d.xp.available===7,'XPS retry books nothing twice');
+  const parallel=await Promise.all([settle('gm',entries),settle('gm',entries),settle('gm',entries)]);
+  check(parallel.every(r=>r.s===200&&r.d.totals.booked===0)&&(await tget()).d.xp.available===10&&(await fget()).d.xp.available===7,'XPS parallel repeats credit nothing');
+  const changed=await settle('gm',[line(tid,[regular(4)]),line(fid,[regular(2)])]);
+  check(changed.s===207&&of(changed,tid).status==='failed'&&of(changed,tid).rewards[0].code===409&&of(changed,fid).status==='already_booked'&&(await tget()).d.xp.available===10,'XPS another amount for a booked source fails for that character only');
+  check((await tcmd('gm','xp_correction',{operationId:randomUUID(),amount:-3,referenceId:of(partial,tid).rewards[0].entryId,reason:'Synthetic settlement reversal'})).s===200,'XPS a settled reward can be reversed through the existing path');
+  const afterReversal=await settle('gm',entries);
+  check(afterReversal.s===200&&of(afterReversal,tid).rewards[0].status==='already_booked'&&of(afterReversal,tid).rewards[0].reversed===true&&(await tget()).d.xp.available===7,'XPS a reversed reward is not recreated by a repeated settlement');
+  // The persistent receipt: participants, attendance, categories, reasons, SL, timestamps and the ledger entry of every booked reward.
+  const receipt=(await receiptOf('gm')).d.settlement,part=characterId=>receipt.participants.find(p=>p.characterId===characterId);
+  check(receipt.status==='complete'&&receipt.session.id===evening2&&receipt.session.sessionRecordId===sessionRecord&&receipt.session.playedOn==='2026-02-07'&&!!receipt.createdBy&&!!receipt.createdAt&&receipt.revision>=3,'XPS receipt names evening, SL and time');
+  check(part(tid).attended===true&&part(fid).attended===true&&part(id).attended===false&&part(id).rewards.length===0,'XPS receipt keeps attendance for every participant, also without rewards');
+  const tLedger=(await tget()).d.ledger;
+  check(part(tid).rewards.length===2&&part(tid).rewards.every(r=>r.status==='booked'&&!!r.bookedAt&&!!r.awardedBy&&r.reason.length>=3&&tLedger.some(e=>e.id===r.ledgerEntryId&&e.amount===r.amount)),'XPS every booked receipt line points to its real ledger entry');
+  check(part(tid).rewards.find(r=>r.type==='session').amount===3,'XPS a refused change of amount never rewrote the booked receipt line');
+  const closed=await storedSession();
+  check((await req('/api/records','gm','POST',{id:closed.id,version:closed.version,kind:'sitzungen',title:closed.title,visibility:closed.visibility,gmBody:closed.gmBody||'',body:{...closed.body,status:'Läuft'}})).s===200,'XPS the session record is reopened afterwards');
+  const afterReopen=(await receiptOf('gm')).d.settlement;
+  check(JSON.stringify(afterReopen.participants)===JSON.stringify(receipt.participants)&&afterReopen.session.id===evening2,'XPS booked XP stay provable after the session status changed');
+  const stillBooked=await settle('gm',entries);
+  check(stillBooked.s===200&&stillBooked.d.totals.booked===0&&stillBooked.d.totals.failed===0&&(await tget()).d.xp.available===7,'XPS a repeat after the status change books nothing and loses nothing');
+  check((await registerEvening('gm',{playedOn:'2026-03-07'})).s===409,'PLAYED a reopened session record cannot be registered as a further evening');
+
+  // MVP after a settled evening: each participant gets one ballot, no self-vote.
+  // This test verifies the MVP flow, not character creation. Seed the second
+  // attendee directly in the isolated test database, as other fixture tests do.
+  const mvpCharId=randomUUID(),mvpStamp=new Date().toISOString();
+  localSql(`INSERT INTO records(id,campaign_id,owner_id,kind,visibility,title,body,gm_body,version,created_at,updated_at)
+    VALUES(${sqlQuote(mvpCharId)},'chronik-von-kleve','sprint1-b','charaktere','private','SYNTHETIC MVP PLAYER','{}','',1,${sqlQuote(mvpStamp)},${sqlQuote(mvpStamp)})`);
+  check((await settle('gm',[line(mvpCharId,[],true)])).s===200,'MVP second attendee is registered on the existing receipt');
+  const mvpPost=(who,action,other={})=>req('/api/mvp',who,'POST',{action,sessionId:evening2,...other});
+  const mvpGet=who=>req('/api/mvp?sessionId='+evening2,who);
+  check((await mvpPost(undefined,'open')).s===401&&(await mvpPost('a','open')).s===403,'MVP only GM can open the ballot');
+  const opened=await mvpPost('gm','open');
+  check(opened.s===200&&opened.d.poll.status==='open'&&opened.d.poll.candidates.some(c=>c.id==='sprint1-a')&&opened.d.poll.candidates.some(c=>c.id==='sprint1-b'),'MVP only attending players are candidates');
+  check((await req('/api/mvp','a')).d.openPolls.some(p=>p.id===evening2),'MVP attendee discovers their open ballot');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-a'})).s===409,'MVP cannot nominate self');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-b'})).s===200,'MVP player A votes for B');
+  check((await mvpPost('a','vote',{nomineeId:'sprint1-b'})).d.poll.totalVotes===1,'MVP replay does not duplicate ballot');
+  check((await mvpGet('a')).d.poll.results===undefined,'MVP open vote tally remains hidden from players');
+  check((await mvpPost('b','vote',{nomineeId:'sprint1-a'})).s===200,'MVP player B votes for A');
+  check((await mvpPost('b','close')).s===403,'MVP player cannot close ballot');
+  const mvpClosed=await mvpPost('gm','close');
+  check(mvpClosed.s===200&&mvpClosed.d.poll.status==='closed'&&mvpClosed.d.poll.totalVotes===2&&mvpClosed.d.poll.results.length===2,'MVP GM closes and sees the tie without auto award');
+  check((await mvpPost('b','vote',{nomineeId:'sprint1-a'})).s===409,'MVP closed election cannot be modified');
+  check((await req('/api/mvp','a')).d.openPolls.every(p=>p.id!==evening2),'MVP completed poll no longer shown as open');
+
 }

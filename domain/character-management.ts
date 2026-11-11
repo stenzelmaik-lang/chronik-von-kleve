@@ -46,7 +46,10 @@ export function validateExistingSheet(body: CharacterBody): string | null {
   if (Number(body.willpower) < Number(body.willpowerTemporary ?? 0) || Number(body.bloodMax) < Number(body.blood ?? 0)) return 'Dauerhafte Höchstwerte dürfen nicht unter den aktuellen Ressourcen liegen.';
   return null;
 }
-export type CharacterXpEntry = { id:string; kind:'grant'|'spend'|'historical'|'correction'; amount:number; reason:string; createdAt:string; referenceId?:string; purchase?:{category:string;target?:string;from:number;to:number} };
+// Optional origin of a reward (Alpha 2.0). Entries without `source` are older bookings and stay as they are.
+export type XpRewardType = 'session'|'story'|'mvp'|'engagement'|'sl_exception';
+export type XpRewardSource = { type:XpRewardType; campaignId:string; scopeId:string; milestone?:number };
+export type CharacterXpEntry = { id:string; kind:'grant'|'spend'|'historical'|'correction'; amount:number; reason:string; createdAt:string; referenceId?:string; purchase?:{category:string;target?:string;from:number;to:number}; source?:XpRewardSource };
 export function characterLedger(body: CharacterBody): CharacterXpEntry[] { return Array.isArray(body.xpLedger) ? body.xpLedger as CharacterXpEntry[] : []; }
 export function ledgerDelta(entry: CharacterXpEntry) { return entry.kind === 'spend' ? -entry.amount : entry.amount; }
 export function characterXpSummary(body: CharacterBody) {
