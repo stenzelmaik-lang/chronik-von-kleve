@@ -99,6 +99,20 @@
       "when": 1794341624438,
       "tag": "0013_alpha2_xp_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1794387656457,
+      "tag": "0014_alpha2_engagement_activity",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1794390366205,
+      "tag": "0015_alpha2_engagement_awards",
+      "breakpoints": true
     }
   ]
 }

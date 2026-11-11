@@ -43,6 +43,7 @@ import { LocationCMS } from "./modules/location-cms";
 import {SessionRecap} from "./modules/session-recap";
 import {MvpVotePanel} from "./modules/mvp-vote-panel";
 import { DashboardPanel } from "./modules/dashboard";
+import { EngagementActivity } from './modules/engagement-activity';
 import { AppointmentsPanel } from "./modules/appointments";
 import { DicePanel } from "./modules/dice";
 import { EconomyPanel } from "./modules/economy";
@@ -74,12 +75,14 @@ export default function Workspace({
   actor: a,
   initialSection = "dashboard",
   initialCharacterId,
+  engagementAvailable = false,
   surface = "player",
 }: {
   actor: Actor;
   surface?: "player" | "sl";
   initialSection?: string;
   initialCharacterId?: string;
+  engagementAvailable?: boolean;
 }) {
   const [preparationDirty,setPreparationDirty]=useState(false);
   const [search, setSearch] = useState(""),
@@ -270,6 +273,7 @@ export default function Workspace({
   const Shell = surface === "sl" ? SLWorkspaceShell : WorkspaceShell;
   return (
     <Shell a={a} section={section} navigate={navigate} {...(surface === "sl" ? { preparationDirty } : {})}>
+
       {selectionError&&<p className="error-box" role="alert">Charakterwechsel nicht gespeichert: {selectionError}</p>}
       {!worldExperienceActive && section !== "chronik" && section !== "dashboard" && section !== "regelwerk" && section !== "charaktere" && section !== "inventar" && section !== "ortscms" && section !== "sitzung" && !((section === "galerie" || section === "rueckblick") && surface === "sl") && section !== "notizen" && section !== "vorbereitung" && <div className="section-title">
         <div>
@@ -443,7 +447,7 @@ export default function Workspace({
       ) : section === "rueckblick" ? (
         surface === "sl" && a.gm ? <RecapDesk key={dataScope}/> : <><MvpVotePanel key={"mvp:"+dataScope} actorId={a.id}/><SessionRecap key={dataScope} dataScope={dataScope}/></>
       ) : section === "termine" ? (
-        <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope}/>
+        <AppointmentsPanel key={dataScope} a={a} dataScope={dataScope} engagementAvailable={engagementAvailable}/>
       ) : section === "chronik" ? (
         <ChroniclePanel entries={entries} />
       ) : section === "galerie" ? (
@@ -550,6 +554,7 @@ export default function Workspace({
           )}
         </>
       )}
+      {surface === 'player' && engagementAvailable && <EngagementActivity key={dataScope} section={section} scope={`${a.campaignId}:${a.id}`} />}
       <RecordEditor
         edit={edit}
         setEdit={setEdit}

@@ -88,7 +88,7 @@ const mf=new Miniflare(convertV4MiniflareOptions({
  modulesRoot:serverRoot,
  compatibilityDate:wrangler.compatibility_date,
  compatibilityFlags:wrangler.compatibility_flags,
- bindings:{...wrangler.vars,GM_EMAIL:'gm@sprint.invalid',AUTH_ACCESS_ENVIRONMENT:'local-test',...(w10Demo?{W10_HYBRID_PREVIEW:'local-only'}:{}),...(ge01Demo?{GE01_CHECKS:'local-only'}:{})},
+ bindings:{...wrangler.vars,GM_EMAIL:'gm@sprint.invalid',AUTH_ACCESS_ENVIRONMENT:'local-test',...((!interactive||process.argv.includes('--engagement'))?{CVK_ENGAGEMENT_ENABLED:'1',CVK_ENGAGEMENT_AWARDS_ENABLED:'1'}:{}),...(w10Demo?{W10_HYBRID_PREVIEW:'local-only'}:{}),...(ge01Demo?{GE01_CHECKS:'local-only'}:{})},
  d1Databases:Object.fromEntries(wrangler.d1_databases.map(binding=>[binding.binding,binding.database_id])),
  r2Buckets:Object.fromEntries(wrangler.r2_buckets.map(binding=>[binding.binding,binding.bucket_name])),
  assets:{directory:resolve(dirname(config),wrangler.assets.directory),binding:'ASSETS',routerConfig:{has_user_worker:true,invoke_user_worker_ahead_of_assets:true}},

@@ -6,7 +6,7 @@ export const campaignId = 'chronik-von-kleve', now = '2026-11-10T12:00:00.000Z';
 // Real SQLite behind the D1 surface the reward services use. Every call is async,
 // so concurrent bookings interleave their reads and writes like separate requests.
 // The settlement tables come from the real migration. Synthetic data only.
-export function setupRewardDb() {
+export function setupRewardDb({ latestPlayedOn = '2026-11-07' } = {}) {
   const sql = new DatabaseSync(':memory:');
   sql.exec('PRAGMA foreign_keys=ON');
   sql.exec(`CREATE TABLE records(id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,kind TEXT NOT NULL,visibility TEXT NOT NULL DEFAULT 'private',title TEXT NOT NULL,body TEXT NOT NULL DEFAULT '{}',gm_body TEXT NOT NULL DEFAULT '',version INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,campaign_id TEXT NOT NULL DEFAULT 'chronik-von-kleve');
@@ -47,7 +47,7 @@ export function setupRewardDb() {
   record('termin-fremd', 'termine', { scheduleKind: 'fixed', date: '2026-10-03T19:00:00+02:00' }, 'andere-chronik');
   record('notiz-1', 'notizen', { status: 'Abgeschlossen' });
   // Played evenings: durable IDs of their own, two of them from the same reused session record.
-  played('abend-1', 'sitzung-1', '2026-11-07');
+  played('abend-1', 'sitzung-1', latestPlayedOn);
   played('abend-2', 'sitzung-1', '2026-10-03', campaignId, 'termin-1');
   played('abend-fremd', 'sitzung-fremd', '2026-11-07', 'andere-chronik');
   entity('bogen-1', 'storyline'); entity('bogen-2', 'storyline'); entity('bogen-fremd', 'storyline', 'andere-chronik'); entity('npc-1', 'NPC');

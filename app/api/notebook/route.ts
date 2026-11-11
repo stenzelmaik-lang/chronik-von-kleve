@@ -3,6 +3,8 @@ import { actor, database, failure, gmOnly, HttpError, input, json, sameOrigin } 
 import { isRichTextWithinLimit } from "@/domain/location-rich-text";
 import { validCalendarDate } from "@/domain/calendar-date";
 import { applyPageEdit, isNotebookRow, normalizeTags, pageFromRow, parseBody, slMayRead, sortPages, TEXT_LENGTH, type NotebookRow } from "@/domain/notebook";
+import { engagementAwardsEnabled } from "@/server/engagement-config";
+import { reconcileEngagementAfterSave, saveNotebookWithEngagement } from "@/server/engagement-awards";
 export const dynamic = "force-dynamic";
 
 // Notizbuch: the player's own pages (records kind 'notizen'). Only the owner writes. The SL reads along, never edits,
@@ -16,6 +18,7 @@ const page = z.object({
   date: z.string().refine(validCalendarDate, "Bitte ein gültiges Datum wählen."),
   tags: z.array(z.string().max(200)).max(60),
   characterId: z.string().min(1).max(100).nullable().optional(),
+  engagementTicket: z.string().uuid().optional(),
 }).strict();
 const removal = z.object({ action: z.literal("delete"), id: z.string().min(1).max(100), version: z.number().int().positive() }).strict();
 const schema = z.discriminatedUnion("action", [page, removal]);
@@ -74,13 +77,24 @@ export async function POST(req: Request) {
     if (tags.error) throw new HttpError(400, tags.error);
     if (d.text.startsWith("cvk-rich-v1:") ? !isRichTextWithinLimit(d.text, 30000) : d.text.trim().length > TEXT_LENGTH) throw new HttpError(413, "Der Text ist zu lang.");
     const edit = { title: d.title, text: d.text, date: d.date, tags: tags.tags };
+    const engagementScope = { campaignId: a.campaignId, memberId: a.id };
+    async function save(mutation: D1PreparedStatement, id: string, characterId: string | null, previousText: string, text: string) {
+      if (!engagementAwardsEnabled() || d.action !== "save" || !d.engagementTicket || !characterId) return mutation.run();
+      const timestamp = Date.parse(now);
+      const { saved, claimed } = await saveNotebookWithEngagement(db, engagementScope, mutation, { id, characterId, previousText, text, ticket: d.engagementTicket }, timestamp);
+      if (claimed) await reconcileEngagementAfterSave(db, engagementScope, timestamp);
+      return saved;
+    }
     if (existing) {
       if (!d.version) throw new HttpError(400, "Die Version der Seite fehlt.");
       const next = applyPageEdit(parseBody(existing.body), edit);
       const body = JSON.stringify(next.body);
       if (body.length > 100000) throw new HttpError(413, "Der Text ist zu lang.");
-      const result = await db.prepare("UPDATE records SET title=?,body=?,version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND owner_id=? AND version=?")
-        .bind(next.title, body, now, existing.id, a.campaignId, a.id, d.version).run();
+      const mutation = db.prepare("UPDATE records SET title=?,body=?,version=version+1,updated_at=? WHERE id=? AND campaign_id=? AND owner_id=? AND version=?")
+        .bind(next.title, body, now, existing.id, a.campaignId, a.id, d.version);
+      const previous = pageFromRow(existing);
+      const figure = previous.source === 'ort' || previous.source === 'postfach' ? null : previous.characterId;
+      const result = await save(mutation, existing.id, figure, previous.text, edit.text);
       if (!result.meta.changes) throw new HttpError(409, "Diese Seite wurde inzwischen an anderer Stelle geändert. Dein Entwurf bleibt erhalten.");
       return json({ page: pageFromRow({ ...existing, title: next.title, body, version: existing.version + 1, updated_at: now }) });
     }
@@ -94,8 +108,9 @@ export async function POST(req: Request) {
     const next = applyPageEdit(characterId ? { characterId } : {}, edit);
     const id = crypto.randomUUID(), body = JSON.stringify(next.body);
     if (body.length > 100000) throw new HttpError(413, "Der Text ist zu lang.");
-    await db.prepare("INSERT INTO records(id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at,campaign_id) VALUES(?,?,'notizen','private',?,?,'',?,?,?)")
-      .bind(id, a.id, next.title, body, now, now, a.campaignId).run();
+    const mutation = db.prepare("INSERT INTO records(id,owner_id,kind,visibility,title,body,gm_body,created_at,updated_at,campaign_id) VALUES(?,?,'notizen','private',?,?,'',?,?,?)")
+      .bind(id, a.id, next.title, body, now, now, a.campaignId);
+    await save(mutation, id, characterId ?? null, '', edit.text);
     return json({ page: pageFromRow({ id, owner_id: a.id, title: next.title, visibility: "private", body, version: 1, created_at: now, updated_at: now }) });
   } catch (e) {
     return failure(e, req);

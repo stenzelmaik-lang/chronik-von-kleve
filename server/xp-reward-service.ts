@@ -5,14 +5,14 @@
 import type { LegacyRecordRow } from "../domain/legacy.ts";
 import { characterLedger, type CharacterXpEntry, type XpRewardSource } from "../domain/character-management.ts";
 import { bookXpReward, XpRewardError } from "../domain/xp-rewards.ts";
-import { writeCharacterEngine } from "./character-engine-store.ts";
+import { writeCharacterEngine, type CharacterWriteGuard } from "./character-engine-store.ts";
 import { playedSession } from "./played-sessions.ts";
 import { parseBody, validId, XpRewardServiceError } from "./xp-reward-errors.ts";
 
 export { XpRewardServiceError };
 
 export type XpRewardResult = { row: LegacyRecordRow; entry: CharacterXpEntry; duplicate: boolean; reversed: boolean };
-export type CharacterXpRewardInput = { campaignId: string; characterId: string; actorId: string; source: XpRewardSource; amount: number; reason: string; now?: string };
+export type CharacterXpRewardInput = { campaignId: string; characterId: string; actorId: string; source: XpRewardSource; amount: number; reason: string; now?: string; guard?: CharacterWriteGuard };
 
 const attempts = 8;
 
@@ -90,7 +90,7 @@ export async function bookCharacterXpReward(db: D1Database, input: CharacterXpRe
     await reserveMvpWinner(db, input);
     if (booked.duplicate) return { row, entry: booked.entry, duplicate: true, reversed: characterLedger(body).some(entry => entry.referenceId === booked.entry.id) };
     if (JSON.stringify(booked.body).length > 100000) throw new XpRewardServiceError(413, "Der Charakter ist zu umfangreich. Bitte keine weiteren Einträge hinzufügen.");
-    const updated = await writeCharacterEngine(db, { campaignId: input.campaignId, actorId: input.actorId, row, next: booked.body, expectedVersion: row.version, action: "xp_reward", now,
+    const updated = await writeCharacterEngine(db, { campaignId: input.campaignId, actorId: input.actorId, row, next: booked.body, expectedVersion: row.version, action: "xp_reward", now, guard: input.guard,
       payload: { reason: booked.entry.reason + " · " + booked.entry.amount + " EP · Quelle " + booked.entry.id, changes: {}, entryId: booked.entry.id, source: booked.entry.source, amount: booked.entry.amount } });
     if (updated) return { row: updated, entry: booked.entry, duplicate: false, reversed: false };
     // Another write won the compare-and-swap: reload and decide again on fresh data.

@@ -638,3 +638,47 @@ export const xpSettlementRewards = sqliteTable("xp_settlement_rewards", {
   check("xp_settlement_rewards_amount_check", sql`${t.amount} BETWEEN 1 AND 1000`),
   check("xp_settlement_rewards_booked_check", sql`(${t.status}='booked') = (${t.ledgerEntryId} IS NOT NULL AND ${t.bookedAt} IS NOT NULL)`),
 ]);
+
+export const engagementLeases = sqliteTable("engagement_leases", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  ticket: text("ticket").notNull(),
+  category: text("category", { enum: ["character", "notebook", "codex", "story", "other"] }).notNull(),
+  receivedAt: integer("received_at").notNull(),
+  unclaimedNotebookSeconds: integer("unclaimed_notebook_seconds").notNull().default(0),
+}, t => [primaryKey({ columns: [t.campaignId, t.memberId] })]);
+
+export const engagementDaily = sqliteTable("engagement_daily", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  category: text("category", { enum: ["character", "notebook", "codex", "story", "other"] }).notNull(),
+  seconds: integer("seconds").notNull(),
+}, t => [
+  primaryKey({ columns: [t.campaignId, t.memberId, t.day, t.category] }),
+  check("engagement_daily_seconds_positive", sql`${t.seconds} > 0`),
+]);
+
+export const engagementRecipients = sqliteTable("engagement_recipients", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  intervalId: text("interval_id").notNull().references(() => playedSessions.id, { onDelete: "cascade" }),
+  characterId: text("character_id").notNull(),
+}, t => [
+  primaryKey({ columns: [t.campaignId, t.intervalId, t.memberId] }),
+  uniqueIndex("engagement_recipient_character").on(t.campaignId, t.intervalId, t.characterId),
+]);
+
+export const engagementVerifiedNotes = sqliteTable("engagement_verified_notes", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  intervalId: text("interval_id").notNull().references(() => playedSessions.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  noteId: text("note_id").notNull(),
+  highWater: integer("high_water").notNull().default(0),
+  seconds: integer("seconds").notNull(),
+}, t => [
+  primaryKey({ columns: [t.campaignId, t.memberId, t.day, t.noteId] }),
+  index("engagement_verified_interval").on(t.campaignId, t.intervalId, t.memberId, t.day),
+  check("engagement_verified_note_seconds", sql`${t.seconds} BETWEEN 1 AND 900`),
+]);
