@@ -39,3 +39,11 @@ test('Successful current request is not necessarily a complete historical receip
 assert.equal(sessionSettlementComplete({status:'complete',complete:true,receipt:{status:'partial'}}),false);
 assert.equal(sessionSettlementComplete({status:'complete',complete:true,receipt:{status:'complete'}}),true);
 });
+
+test('reversed MVP receipt entries remain visibly reversed in the draft',()=>{
+  const receipt={participants:[{characterId:'char-a',attended:true,rewards:[
+    {type:'mvp',scopeId:'abend-1',amount:2,reason:'Abstimmung',status:'booked',ledgerEntryId:'reward:mvp:chronik-von-kleve:abend-1',reversed:true},
+  ]}]};
+  const rows=prepareSessionDraft(players,receipt);
+  assert.equal(rows[0].extraRewards[0].reversed,true);
+});
