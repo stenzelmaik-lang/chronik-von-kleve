@@ -1,0 +1,8 @@
+.entry {margin:0 0 18px;}
+.toggle {display:flex;align-items:center;gap:14px;width:100%;background:#101e2b;color:#eddfc6;text-align:left;padding:13px 16px;border:1px solid #b9985b55;border-radius:10px;cursor:pointer;}
+.toggle:hover {border-color:#d6b779;background:#152739;}
+.toggle:focus-visible {outline:2px solid #e0bb73;outline-offset:2px;}
+.toggle>span {display:grid;gap:2px;flex:1;}
+.toggle strong {font:20px Georgia,serif;}
+.toggle small {color:#afbcca;font-size:12px;}
+.toggle+section {margin-top:10px;}
