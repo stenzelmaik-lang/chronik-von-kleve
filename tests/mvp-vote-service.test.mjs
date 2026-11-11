@@ -6,14 +6,14 @@ import {openMvpVote,submitMvpVote,finishMvpVote,viewMvpVote,listOpenMvpVotes,Mvp
 function fixture(){
  const sql=new DatabaseSync(':memory:');
  sql.exec(`CREATE TABLE played_sessions(id TEXT,campaign_id TEXT,title TEXT,played_on TEXT);
- CREATE TABLE xp_settlements(id TEXT,campaign_id TEXT,played_session_id TEXT);
+ CREATE TABLE xp_settlements(id TEXT,campaign_id TEXT,played_session_id TEXT,status TEXT);
  CREATE TABLE xp_settlement_participants(settlement_id TEXT,character_id TEXT,attended INT);
  CREATE TABLE records(id TEXT,campaign_id TEXT,owner_id TEXT,kind TEXT);
  CREATE TABLE members(id TEXT,name TEXT,status TEXT);
  CREATE TABLE campaign_memberships(campaign_id TEXT,user_id TEXT,status TEXT);
  CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
  INSERT INTO played_sessions VALUES('session','campaign','Runde','2026-11-08');
- INSERT INTO xp_settlements VALUES('receipt','campaign','session');
+ INSERT INTO xp_settlements VALUES('receipt','campaign','session','complete');
  INSERT INTO members VALUES('alice','Alice','active'),('bob','Bob','active'),('carol','Carol','active');
  INSERT INTO records VALUES('a','campaign','alice','charaktere'),('b','campaign','bob','charaktere'),('c','campaign','carol','charaktere');
  INSERT INTO xp_settlement_participants VALUES('receipt','a',1),('receipt','b',1),('receipt','c',0);`);
@@ -64,4 +64,12 @@ test('open MVP poll discovery returns only elections for an actual participant',
  assert.deepEqual(await listOpenMvpVotes(db,'campaign','carol'),[]);
  await finishMvpVote(db,...args,'gm','t2');
  assert.deepEqual(await listOpenMvpVotes(db,'campaign','alice'),[]);
+});
+
+test('MVP election cannot open before the full receipt is complete', async()=>{
+ const {db,sql}=fixture();
+ sql.prepare("UPDATE xp_settlements SET status='partial' WHERE id='receipt'").run();
+ await assert.rejects(openMvpVote(db,...args,'gm','t'),e=>e instanceof MvpVoteError&&e.status===409);
+ sql.prepare("UPDATE xp_settlements SET status='complete' WHERE id='receipt'").run();
+ assert.equal((await openMvpVote(db,...args,'gm','t')).status,'open');
 });
