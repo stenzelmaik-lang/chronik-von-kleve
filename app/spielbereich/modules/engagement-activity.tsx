@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { ActiveEngagement, engagementCategoryForSection } from '@/domain/engagement-browser';
 import type { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
 import { publishNotebookTicket } from './engagement-notebook-ticket';
@@ -127,10 +128,10 @@ export function EngagementActivity({ section, scope }: { section: string; scope:
   const current = summary?.window;
   return <section className="panel">
     <h2>Aktive Zeit</h2>
+    <p className="muted">Die freiwillige Messung speichert Zeitsummen pro Tag und Bereich. Sie pausiert bei Inaktivität, außerhalb des sichtbaren Tabs und am Spieltisch. <Link href="/datenschutz#engagement" target="_blank" rel="noreferrer">Datenschutzhinweis zur Messung</Link></p>
     <label>
       <input type="checkbox" checked={enabled} onChange={event => setEnabled(event.target.checked)} /> Messung für diesen Besuch einschalten
     </label>
-    <p className="muted">Die Messung pausiert bei Inaktivität, außerhalb des sichtbaren Tabs und am Spieltisch. Gespeichert werden Zeitsummen pro Tag und Bereich.</p>
     {failed && <p role="status">Die Übersicht konnte nicht geladen werden. <button className="button" onClick={refresh}>Erneut laden</button></p>}
     {!failed && summary && <>
       <ul>

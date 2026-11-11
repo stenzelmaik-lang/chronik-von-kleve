@@ -12,6 +12,7 @@ import {preparationDeleteIntegration} from './preparation-delete-integration.mjs
 import {workspaceUxIntegration} from './workspace-ux-integration.mjs';
 import {appointmentsIntegration} from './appointments-integration.mjs';
 import {engagementIntegration} from './engagement-integration.mjs';
+import {favorsIntegration} from './favors-integration.mjs';
 import {liveTableIntegration} from './live-table-integration.mjs';
 import {liveGameIntegration} from './live-game-integration.mjs';
 import {liveStageIntegration} from './live-stage-integration.mjs';
@@ -1055,6 +1056,7 @@ await preparationDeleteIntegration({req,check,localSql,sqlQuote,session:regieSto
 await workspaceUxIntegration({req,check});
 await appointmentsIntegration({req,check});
 await engagementIntegration({req,check,localSql});
+await favorsIntegration({req,check,localSql});
 await liveTableIntegration({req,check});
 await liveGameIntegration({req,check,base,ids});
 await liveStageIntegration({req,check,base,ids});

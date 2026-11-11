@@ -459,13 +459,13 @@ export default function Workspace({
       ) : section === "wuerfel" ? (
         <DicePanel />
       ) : section === "sitzung" ? (
-        <CommandCenter preparation={surface === "sl"} entries={entries} a={a} onRefresh={reload} onPreparationDirty={setPreparationDirty} />
+        <CommandCenter preparation={surface === "sl"} entries={entries} a={a} onRefresh={reload} onPreparationDirty={setPreparationDirty} engagementAvailable={engagementAvailable} />
       ) : section === "wirtschaft" ? (
         <EconomyPanel entries={entries} onRefresh={reload} />
       ) : section === "haendler" ? (
         <MerchantPanel entries={entries} onRefresh={reload} />
       ) : section === "gefallen" ? (
-        <FavorPanel entries={entries} onRefresh={reload} />
+        <FavorPanel key={dataScope} sl={surface === "sl"} />
       ) : (
         <>
           <div className="search-row">

@@ -2,6 +2,7 @@ import { actor, database, failure, gmOnly } from "@/server/access";
 import type { LegacyRecordRow } from "@/domain/legacy";
 import { campaignExport } from "@/server/campaign-export";
 import { loadEntities, grantsFor, projectEntity } from "@/server/entities";
+import { favorsOverview } from "@/server/favors-ledger";
 export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   try {
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
       gmOnly(a);
       result = await campaignExport(db, a);
     } else {
-      const [entities, grants, records, files] = await Promise.all([
+      const [entities, grants, records, files, favors] = await Promise.all([
         loadEntities(db, a.campaignId),
         grantsFor(db, a),
         db
@@ -28,6 +29,7 @@ export async function GET(req: Request) {
           )
           .bind(a.id, a.campaignId)
           .all(),
+        favorsOverview(db, { actor: a, sl: false }),
       ]);
       const index = new Map(entities.map((e) => [e.id, e]));
       result = {
@@ -46,6 +48,7 @@ export async function GET(req: Request) {
             : [];
         }),
         files: files.results,
+        favors: favors.obligations,
       };
     }
     return new Response(JSON.stringify(result, null, 2), {

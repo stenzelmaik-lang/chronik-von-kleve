@@ -128,3 +128,18 @@ test('autosaves accumulate only new growth after the last claim and respect the 
   await save(shorterGrowth + content, shorterGrowth, pulse.ticket, now + 30_000);
   assert.equal(rows('engagement_verified_notes', "note_id='notes'")[0].seconds, 70);
 });
+
+test('daily pruning removes expired evidence for inactive members and retains current sums and bindings', async () => {
+  const { db, sql } = setup();
+  const { pruneEngagement } = await import('../server/engagement-retention.ts');
+  sql.exec(`INSERT INTO engagement_daily VALUES('chronik-von-kleve','player-b','2025-11-01','notebook',30),
+    ('chronik-von-kleve','player-a','2026-11-10','notebook',30);
+    INSERT INTO engagement_verified_notes(campaign_id,member_id,interval_id,day,note_id,seconds) VALUES
+    ('chronik-von-kleve','player-b','abend-1','2025-11-01','expired',30),
+    ('chronik-von-kleve','player-a','abend-1','2026-11-10','current',30);
+    INSERT INTO engagement_recipients VALUES('chronik-von-kleve','player-b','abend-1','char-b');`);
+  await measured(db, now - 172_800_000);
+  assert.deepEqual(await pruneEngagement(db, now), [1, 1, 1]);
+  assert.equal(sql.prepare('SELECT count(*) n FROM engagement_recipients').get().n, 1);
+  assert.deepEqual(await pruneEngagement(db, now), [0, 0, 0]);
+});

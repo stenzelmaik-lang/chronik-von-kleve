@@ -103,8 +103,16 @@ export const sessionRewardTypes = ["session", "story", "mvp", "sl_exception"] as
 export type SessionRewardType = typeof sessionRewardTypes[number];
 export type RewardRequest = { type: SessionRewardType; amount: number; reason: string; storyId?: string };
 
+const storyRewardSource = `(type='storyline' OR (type='CHRONICLE' AND canon_status='GM_SECRET' AND visibility='sl'
+  AND legacy_record_id IS NULL AND CASE WHEN json_valid(content) THEN json_extract(content,'$.documentKind')='plot_dossier' ELSE 0 END))`;
+
+export async function storyRewardOptions(db: D1Database, campaignId: string) {
+  return (await db.prepare('SELECT id,title FROM entities WHERE campaign_id=? AND ' + storyRewardSource + ' ORDER BY title,id')
+    .bind(campaignId).all<{ id: string; title: string }>()).results;
+}
+
 export async function storyArc(db: D1Database, campaignId: string, storyId: string) {
-  const row = await db.prepare("SELECT id FROM entities WHERE id=? AND campaign_id=? AND type='storyline'").bind(storyId, campaignId).first<{ id: string }>();
+  const row = await db.prepare('SELECT id FROM entities WHERE id=? AND campaign_id=? AND ' + storyRewardSource).bind(storyId, campaignId).first<{ id: string }>();
   if (!row) throw new XpRewardServiceError(404, "Handlungsstrang nicht verfügbar.");
 }
 

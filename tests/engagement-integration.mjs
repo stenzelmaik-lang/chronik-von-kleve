@@ -105,5 +105,10 @@ export async function engagementIntegration({ req, check, localSql }) {
   check((await req('/api/appointments', 'gm', 'POST', { ...markPoll, version: 4 })).s === 200 && awarded() === 1,
     'Restoring a confirmed date automatically books the earned stage through the XP ledger');
   check((await req(endpoint, 'a')).d.bookedStages.join(',') === '1', 'Own engagement summary shows the credited stage');
+  check((await req(endpoint + '?view=sl', 'a')).s === 403, 'Engagement SL summary rejects players');
+  const overview = await req(endpoint + '?view=sl', 'gm');
+  check(overview.s === 200 && overview.d.progress.some(row => row.recipient === 'SYNTHETIC engagement character' && row.bookedStages[0] === 1)
+    && !JSON.stringify(overview.d).includes('notebook') && !JSON.stringify(overview.d).includes('Tunnel'),
+    'Engagement SL projection includes aggregate booked stages with no notebook detail');
   localSql(`DELETE FROM world_events WHERE entity_id='${character}'; DELETE FROM records WHERE id='${character}' OR (owner_id='sprint1-a' AND kind='notizen' AND CASE WHEN json_valid(body) THEN json_extract(body,'$.characterId')='${character}' ELSE 0 END)`);
 }

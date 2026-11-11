@@ -28,14 +28,28 @@ const managedLinux = readExecutionProfile() === "managed-linux";
 
 const localBindingConfig = {
   ...(cloudflareRemoteTestConfig ?? {}),
-  main: "vinext/server/fetch-handler",
+  main: "./build/chroniplay-worker.ts",
   assets: { binding: "ASSETS" },
   ...(cloudflareBuild ? { preview_urls: false } : {}),
   compatibility_flags: ["nodejs_compat"],
   // Enable production-only invitation grants explicitly. Local and Preview
   // builds stay closed unless their isolated runner supplies its own setting.
   ...(cloudflareBuild && process.env.WORKERS_CI_BRANCH === "main"
-    ? { vars: { AUTH_ACCESS_ENVIRONMENT: "closed-alpha-production" } }
+    ? {
+      keep_vars: true,
+      triggers: { crons: ["15 3 * * *"] },
+      vars: {
+        AUTH_ACCESS_ENVIRONMENT: "closed-alpha-production",
+        GE01_ALPHA_CAMPAIGNS: "chronik-von-kleve",
+        AJ01_JOURNAL_CAMPAIGNS: "chronik-von-kleve",
+        CVK_ENGAGEMENT_ENABLED: "1",
+        CVK_ENGAGEMENT_AWARDS_ENABLED: "1",
+        ...(process.env.CVK_PRIVACY_CONTROLLER && process.env.CVK_PRIVACY_CONTACT ? {
+          CVK_PRIVACY_CONTROLLER: process.env.CVK_PRIVACY_CONTROLLER,
+          CVK_PRIVACY_CONTACT: process.env.CVK_PRIVACY_CONTACT,
+        } : {}),
+      },
+    }
     : {}),
   d1_databases: cloudflareRemoteTestConfig?.d1_databases ?? (d1
     ? [

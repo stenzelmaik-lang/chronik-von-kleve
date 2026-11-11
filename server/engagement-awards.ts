@@ -114,6 +114,16 @@ export async function verifiedEngagementProgress(db: D1Database, scope: Engageme
   return { verifiedSeconds: recipient?.seconds ?? 0, recipient: recipient?.title ?? null, bookedStages };
 }
 
+export async function campaignEngagementOverview(db: D1Database, campaignId: string, now: number) {
+  const { window, today } = await engagementSchedule(db, campaignId, now);
+  if (!('intervalId' in window)) return { window, progress: [] };
+  const members = await db.prepare('SELECT member_id FROM engagement_recipients WHERE campaign_id=? AND interval_id=? ORDER BY member_id')
+    .bind(campaignId, window.intervalId).all<{ member_id: string }>();
+  const progress = await Promise.all(members.results.map(({ member_id: memberId }) =>
+    verifiedEngagementProgress(db, { campaignId, memberId }, window, today)));
+  return { window, progress: progress.filter(row => row.recipient !== null) };
+}
+
 export async function reconcileEngagement(
   db: D1Database, scope: EngagementScope, now: number, schedule?: Awaited<ReturnType<typeof engagementSchedule>>,
 ) {

@@ -646,7 +646,7 @@ export const engagementLeases = sqliteTable("engagement_leases", {
   category: text("category", { enum: ["character", "notebook", "codex", "story", "other"] }).notNull(),
   receivedAt: integer("received_at").notNull(),
   unclaimedNotebookSeconds: integer("unclaimed_notebook_seconds").notNull().default(0),
-}, t => [primaryKey({ columns: [t.campaignId, t.memberId] })]);
+}, t => [primaryKey({ columns: [t.campaignId, t.memberId] }), index("engagement_lease_retention").on(t.receivedAt)]);
 
 export const engagementDaily = sqliteTable("engagement_daily", {
   campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
@@ -656,6 +656,7 @@ export const engagementDaily = sqliteTable("engagement_daily", {
   seconds: integer("seconds").notNull(),
 }, t => [
   primaryKey({ columns: [t.campaignId, t.memberId, t.day, t.category] }),
+  index("engagement_daily_retention").on(t.day),
   check("engagement_daily_seconds_positive", sql`${t.seconds} > 0`),
 ]);
 
@@ -680,5 +681,65 @@ export const engagementVerifiedNotes = sqliteTable("engagement_verified_notes", 
 }, t => [
   primaryKey({ columns: [t.campaignId, t.memberId, t.day, t.noteId] }),
   index("engagement_verified_interval").on(t.campaignId, t.intervalId, t.memberId, t.day),
+  index("engagement_verified_retention").on(t.day),
   check("engagement_verified_note_seconds", sql`${t.seconds} BETWEEN 1 AND 900`),
+]);
+
+export const favorObligations = sqliteTable("favor_obligations", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  characterId: text("character_id").notNull(),
+  npcId: text("npc_id").notNull(),
+  direction: text("direction").notNull(),
+  kind: text("kind").notNull(),
+  tier: integer("tier"),
+  markers: integer("markers").notNull(),
+  remaining: integer("remaining").notNull(),
+  status: text("status").notNull(),
+  visibility: text("visibility").notNull(),
+  description: text("description").notNull(),
+  terms: text("terms").notNull(),
+  dueOn: text("due_on"),
+  gmNote: text("gm_note").notNull().default(""),
+  legacyKey: text("legacy_key"),
+  createdBy: text("created_by").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  version: integer("version").notNull().default(1),
+}, t => [
+  index("favor_obligation_pair").on(t.campaignId, t.characterId, t.npcId, t.kind, t.direction, t.status),
+  uniqueIndex("favor_obligation_legacy_source").on(t.campaignId, t.createdBy, t.legacyKey).where(sql`${t.legacyKey} IS NOT NULL`),
+  check("favor_direction_check", sql`${t.direction} IN ('owes','owed')`),
+  check("favor_visibility_check", sql`${t.visibility} IN ('parties','sl')`),
+  check("favor_status_check", sql`${t.status} IN ('proposed','confirmed','called','partial','disputed','fulfilled','forgiven','rejected')`),
+  check("favor_amount_check", sql`(${t.kind}='debt' AND ${t.markers} BETWEEN 1 AND 20 AND ${t.tier} IS NULL)
+    OR (${t.kind}='favor' AND ${t.markers}=0 AND ${t.tier} IS NOT NULL AND ${t.tier} BETWEEN 1 AND 3)
+    OR (${t.kind}='trade' AND ${t.markers}=0 AND ${t.tier} IS NULL)`),
+  check("favor_remaining_check", sql`${t.remaining} BETWEEN 0 AND ${t.markers}
+    AND (${t.status} NOT IN ('fulfilled','forgiven','rejected') OR ${t.remaining}=0)`),
+]);
+
+export const favorEvents = sqliteTable("favor_events", {
+  id: text("id").primaryKey(),
+  obligationId: text("obligation_id").notNull().references(() => favorObligations.id),
+  version: integer("version").notNull(),
+  actorId: text("actor_id").notNull(),
+  action: text("action").notNull(),
+  reason: text("reason").notNull(),
+  details: text("details").notNull(),
+  createdAt: text("created_at").notNull(),
+}, t => [uniqueIndex("favor_event_revision").on(t.obligationId, t.version)]);
+
+export const favorCrises = sqliteTable("favor_crises", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id),
+  characterId: text("character_id").notNull(),
+  npcId: text("npc_id").notNull(),
+  openedAt: text("opened_at").notNull(),
+  closedAt: text("closed_at"),
+  decision: text("decision"),
+  decisionAt: text("decision_at"),
+  version: integer("version").notNull().default(1),
+}, t => [
+  uniqueIndex("favor_one_open_crisis").on(t.campaignId, t.characterId, t.npcId).where(sql`${t.closedAt} IS NULL`),
 ]);

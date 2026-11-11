@@ -22,6 +22,8 @@ const labels:Record<string,string> = {complete:'Abgeschlossen',partial:'Teilweis
 /** A compact SL desk inside the existing preparation area, not a second character manager. */
 export function XpSessionDesk({entries}:{entries:Entry[]}) {
   const [evenings,setEvenings]=useState<Evening[]>([]);
+  const [stories,setStories]=useState<{ id: string; title: string }[]>([]);
+  const [extra,setExtra]=useState<{ characterId: string; type: 'story' | 'sl_exception'; storyId: string; amount: number; reason: string } | null>(null);
   const [players,setPlayers]=useState<SessionPlayer[]|null>(null);
   const [selected,setSelected]=useState('');
   const [draft,setDraft]=useState<SessionDraft[]>([]);
@@ -39,11 +41,12 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
   const reload=useCallback(async()=>{
     setLoading(true);
     try {
-      const [days,members]=await Promise.all([
+      const [days,members,rewards]=await Promise.all([
         api<{evenings:Evening[]}>('/api/character-engine?playedEvenings=1'),
         api<{players:SessionPlayer[]}>('/api/members?characters=1'),
+        api<{stories:{id:string;title:string}[]}>('/api/character-engine?rewardStories=1'),
       ]);
-      setEvenings(days.evenings);setPlayers(members.players);
+      setEvenings(days.evenings);setPlayers(members.players);setStories(rewards.stories);
       setSelected(old=>days.evenings.some(day=>day.id===old)?old:(days.evenings[0]?.id??''));
       setError('');
     }catch(e){setError((e as Error).message);}finally{setLoading(false);}
@@ -116,7 +119,7 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
     {loading&&<p role="status">Abrechnungen und Charaktere werden geladen …</p>}
     <div className={styles.toolbar}>
       <label>Registrierter Spielabend
-        <select value={selected} disabled={busy||loading} onChange={e=>{setSelected(e.target.value);setNotice('');setFailures([]);}}>
+        <select value={selected} disabled={busy||loading} onChange={e=>{setSelected(e.target.value);setExtra(null);setNotice('');setFailures([]);}}>
           <option value="">Bitte auswählen</option>
           {evenings.map(e=><option key={e.id} value={e.id}>{germanDay(e.playedOn)} · {e.title} · {e.settlement?labels[e.settlement.status]:'Nicht abgerechnet'}</option>)}
         </select>
@@ -146,7 +149,7 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
         <div><strong>{sessionTotal}</strong><span>Reguläre EP geplant</span></div>
         <div><strong>{extraTotal}</strong><span>Zusatz-EP im Beleg</span></div>
       </div>
-      <p className={styles.hint}>Anwesenheit wird von dir gesetzt. Abwesende erhalten keine regulären EP. Story- und MVP-Auszeichnungen werden separat erweitert.</p>
+      <p className={styles.hint}>Anwesenheit wird von dir gesetzt. Für abwesende Figuren ist eine begründete SL-Sondervergabe möglich.</p>
       {!draft.length?<p>Keine bestätigten Charaktere für diese Chronik gefunden.</p>:<div className={styles.characters}>
         {draft.map(row=>{
           const locked=row.sessionLocked||row.extraRewards.some(r=>r.status==='booked');
@@ -166,9 +169,28 @@ export function XpSessionDesk({entries}:{entries:Entry[]}) {
               <span className={styles.rewardState}>{row.sessionLocked?<><CheckCircle2 size={15}/>Bereits gebucht</>:
                 row.attended&&row.sessionAmount>0?'Zur Vergabe vorgesehen':'Keine Vergabe'}</span>
             </div>
-            {row.extraRewards.length>0&&<div className={styles.extras}><strong>Bereits erfasste Zusatzvergaben</strong>
+            {row.extraRewards.length>0&&<div className={styles.extras}><strong>Zusatzvergaben</strong>
               {row.extraRewards.map((reward,index)=><p key={index}>{reward.type==='story'?'Storybogen':reward.type==='mvp'?'MVP':'SL-Sondervergabe'} · {reward.amount} EP · {reward.reason}
-                <small> ({reward.reversed?'storniert':reward.status==='booked'?'gebucht':'noch offen'})</small></p>)}</div>}
+                <small> ({reward.reversed?'storniert':reward.status==='booked'?'gebucht':'noch offen'})</small>
+                {reward.status==='pending' && <button type="button" className="button" disabled={busy} onClick={()=>change(row.characterId,{extraRewards:row.extraRewards.filter((_,i)=>i!==index)})}>Entfernen</button>}
+              </p>)}</div>}
+            {!row.historical && <button type="button" className="button" disabled={busy} onClick={()=>setExtra({characterId:row.characterId,type:'sl_exception',storyId:'',amount:1,reason:''})}>Zusatz-EP vormerken</button>}
+            {extra?.characterId===row.characterId && <form className="stack-form" onSubmit={event=>{
+              event.preventDefault();
+              if (row.extraRewards.some(x=>x.type===extra.type&&(x.type!=='story'||x.storyId===extra.storyId))) {
+                setError('Diese Quelle steht bereits in der Abrechnung.');return;
+              }
+              change(row.characterId,{extraRewards:[...row.extraRewards,{type:extra.type,amount:extra.amount,reason:extra.reason,
+                ...(extra.type==='story'?{storyId:extra.storyId}:{}),status:'pending'}]});setExtra(null);
+            }}>
+              <label>Kategorie<select value={extra.type} onChange={event=>setExtra({...extra,type:event.target.value as 'story'|'sl_exception',amount:1})}>
+                <option value="sl_exception">SL-Sondervergabe</option>{row.attended&&stories.length>0&&<option value="story">Abgeschlossener Storybogen</option>}</select></label>
+              {extra.type==='story'&&<label>Storybogen<select required value={extra.storyId} onChange={event=>setExtra({...extra,storyId:event.target.value})}>
+                <option value="">Auswählen</option>{stories.map(story=><option key={story.id} value={story.id}>{story.title}</option>)}</select></label>}
+              <label>EP<input required type="number" min={1} max={extra.type==='story'?3:1000} value={extra.amount} onChange={event=>setExtra({...extra,amount:Number(event.target.value)})}/></label>
+              <label>Begründung<input required minLength={3} maxLength={2000} value={extra.reason} onChange={event=>setExtra({...extra,reason:event.target.value})}/></label>
+              <button className="button" disabled={busy}>Vormerken</button><button className="button" type="button" onClick={()=>setExtra(null)}>Abbrechen</button>
+            </form>}
           </article>;
         })}
       </div>}

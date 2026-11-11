@@ -4,7 +4,7 @@ import { availableClanForCampaign } from "@/domain/clan-config";
 import { actor, database, gmOnly, sameOrigin, input, json, failure, HttpError } from "@/server/access";
 import { editableCharacter, engineProjection, saveEngine, characterBody } from "@/server/character-engine-service";
 import { specialtyRatingError } from '@/domain/character-specialties';
-import { bookSessionXpReward, XpRewardServiceError } from "@/server/xp-reward-service";
+import { bookSessionXpReward, storyRewardOptions, XpRewardServiceError } from "@/server/xp-reward-service";
 import { bookSessionSettlement, readSessionSettlement } from "@/server/xp-settlement-service";
 import { registerPlayedSession } from "@/server/played-sessions";
 import { listPlayedEvenings } from "@/server/played-evenings-list";
@@ -68,6 +68,10 @@ export async function GET(req: Request) {
   try { const a = await actor();
     // Settlement receipt of a played evening: Spielleitung only.
     const params = new URL(req.url).searchParams;
+    if (params.get("rewardStories") === "1") {
+      gmOnly(a);
+      return json({ stories: await storyRewardOptions(database(), a.campaignId) });
+    }
     if (params.has("playedEvenings")) {
       gmOnly(a);
       if (params.get("playedEvenings") !== "1") throw new HttpError(400, "Ungültige Spielabend-Übersicht.");

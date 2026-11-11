@@ -171,3 +171,14 @@ test('No HTTP route exposes the internal booking service or an engagement source
   assert.match(route, /d\.action === "xp_reward"\) \{\s*gmOnly\(a\);/);
   assert.match(route, /z\.literal\("xp_grant"\), operationId:operationId\.optional\(\), amount: z\.number\(\)\.int\(\)\.min\(1\)\.max\(1000\), reason/);
 });
+
+test('modern private plot dossiers are allowed as story rewards, other private Chronicle entries are not', async () => {
+  const { db, sql } = setupRewardDb();
+  const { storyRewardOptions, storyArc } = await import('../server/xp-reward-service.ts');
+  sql.exec(`INSERT INTO entities(id,campaign_id,type,canon_status,content,title) VALUES
+    ('plot-native','chronik-von-kleve','CHRONICLE','GM_SECRET','{"documentKind":"plot_dossier"}','Dossier'),
+    ('chronicle-note','chronik-von-kleve','CHRONICLE','GM_SECRET','{}','Private Chronik');`);
+  await storyArc(db, campaignId, 'plot-native');
+  assert.ok((await storyRewardOptions(db, campaignId)).some(story => story.id === 'plot-native'));
+  await assert.rejects(storyArc(db, campaignId, 'chronicle-note'), error => error.status === 404);
+});

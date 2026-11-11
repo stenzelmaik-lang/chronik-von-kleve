@@ -1,8 +1,9 @@
 import { z } from 'zod';
-import { actor, database, failure, HttpError, input, json, sameOrigin } from '@/server/access';
+import { actor, database, failure, gmOnly, HttpError, input, json, sameOrigin } from '@/server/access';
 import { engagementCategories } from '@/domain/engagement-browser';
 import { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
 import { engagementAwardsEnabled, engagementEnabled } from '@/server/engagement-config';
+import { campaignEngagementOverview } from '@/server/engagement-awards';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,12 @@ async function scope() {
 
 export async function GET(req: Request) {
   try {
+    if (new URL(req.url).searchParams.get('view') === 'sl') {
+      const a = await actor();
+      gmOnly(a);
+      if (!engagementAwardsEnabled()) throw new HttpError(404, 'Engagement-EP sind derzeit nicht verfügbar.');
+      return json(await campaignEngagementOverview(database(), a.campaignId, Date.now()));
+    }
     const owner = await scope();
     return json(await engagementSummary(database(), owner, Date.now(), engagementAwardsEnabled()));
   } catch (error) {
