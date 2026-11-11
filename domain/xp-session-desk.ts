@@ -3,10 +3,10 @@ export type SessionCharacter = { id: string; title: string; state: string; archi
 export type SessionPlayer = { id: string; name: string; status: string; characters: SessionCharacter[] };
 export type ReceiptReward = {
   type: 'session' | 'story' | 'mvp' | 'sl_exception'; scopeId: string; amount: number; reason: string;
-  status: 'pending' | 'booked' | 'failed'; ledgerEntryId?: string | null; errorCode?: number | null;
+  status: 'pending' | 'booked' | 'failed'; ledgerEntryId?: string | null; errorCode?: number | null; reversed?: boolean;
 };
 export type SessionReceipt = { participants: { characterId: string; attended: boolean; rewards: ReceiptReward[] }[] };
-export type ExtraReward = { type: 'story' | 'mvp' | 'sl_exception'; amount: number; reason: string; storyId?: string; status: ReceiptReward['status'] };
+export type ExtraReward = { type: 'story' | 'mvp' | 'sl_exception'; amount: number; reason: string; storyId?: string; status: ReceiptReward['status']; reversed?: boolean };
 export type SessionDraft = {
   characterId: string; playerName: string; title: string; attended: boolean;
   sessionAmount: number; sessionReason: string; sessionLocked: boolean;
@@ -33,7 +33,7 @@ export function prepareSessionDraft(players: SessionPlayer[], receipt: SessionRe
       sessionLocked:session?.status === 'booked',
       ...(session?.status === 'booked' ? {bookedSessionAmount:session.amount,bookedSessionReason:session.reason} : {}),
       extraRewards:(previous?.rewards ?? []).filter((r): r is ReceiptReward & {type: ExtraReward['type']} => r.type !== 'session')
-        .map(r => ({ type:r.type, amount:r.amount, reason:r.reason, status:r.status,
+        .map(r => ({ type:r.type, amount:r.amount, reason:r.reason, status:r.status, ...(r.reversed ? {reversed:true} : {}),
           ...(r.type === 'story' ? {storyId:r.scopeId} : {}) })),
       ...('historical' in c ? {historical:true} : {}),
     } satisfies SessionDraft;
