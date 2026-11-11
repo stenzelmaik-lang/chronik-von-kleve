@@ -2,6 +2,7 @@ import { appointmentOptions, validAppointmentDate } from './appointments.ts';
 import { engagementTargetsForDays, type EngagementTargets } from './engagement-targets.ts';
 
 const dayMs = 86_400_000;
+export const engagementRetentionDays = 365;
 const zone = 'Europe/Berlin';
 const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' });
 const offsetFormat = new Intl.DateTimeFormat('en', { timeZone: zone, timeZoneName: 'longOffset' });

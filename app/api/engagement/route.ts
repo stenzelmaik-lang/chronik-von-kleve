@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { actor, database, failure, HttpError, input, json, sameOrigin } from '@/server/access';
 import { engagementCategories } from '@/domain/engagement-browser';
 import { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
-import { engagementEnabled } from '@/server/engagement-config';
+import { engagementAwardsEnabled, engagementEnabled } from '@/server/engagement-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,7 @@ async function scope() {
 export async function GET(req: Request) {
   try {
     const owner = await scope();
-    return json(await engagementSummary(database(), owner, Date.now()));
+    return json(await engagementSummary(database(), owner, Date.now(), engagementAwardsEnabled()));
   } catch (error) {
     return failure(error, req);
   }
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const owner = await scope();
     const pulse = pulseSchema.safeParse(await input(req, 256));
     if (!pulse.success) throw new HttpError(400, 'Ungültiges Aktivitätssignal.');
-    return json(await recordEngagementPulse(database(), owner, pulse.data, Date.now()));
+    return json(await recordEngagementPulse(database(), owner, pulse.data, Date.now(), engagementAwardsEnabled()));
   } catch (error) {
     return failure(error, req);
   }

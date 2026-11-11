@@ -27,7 +27,7 @@ export function engagementRewardPlans(window: EngagementWindow, evidence: Verifi
       actorId: evidence.actorId,
       source,
       amount: 1,
-      reason: 'Verifizierte Vorbereitung · Stufe ' + milestone,
+      reason: 'Automatische Engagement-EP · Figurnotiz · Stufe ' + milestone,
     };
   });
 }

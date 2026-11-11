@@ -6,6 +6,7 @@ import { formatCalendarDate } from "@/domain/calendar-date";
 import { htmlToRichText } from "@/domain/location-rich-text";
 import { draftDiffers, draftFromPage, plainText, searchPages, tagIndex, today, TAG_LENGTH, TAG_LIMIT, type NotebookPage, type PageDraft } from "@/domain/notebook";
 import { api, ApiError } from "../api-client";
+import { notebookEngagementTicket } from "../engagement-notebook-ticket";
 import { currentPlayerDataScope, readPlayerData, storePlayerData } from "../player-data-cache";
 import { RichTextEditor, RichTextView } from "../rich-text";
 import { InfoButton } from "../info-button";
@@ -48,6 +49,7 @@ export function Notebook({ a, layout, memberId }: { a: Actor; layout: "wide" | "
   const textRef = useRef<HTMLTextAreaElement>(null);
   const live = useRef({ draft: null as PageDraft | null, dirty: false, saving: false, characterId: "" });
   const readOnly = !!data?.readOnly;
+  const engagementScope = `${a.campaignId}:${a.id}`;
   const path = "/api/notebook" + (memberId && memberId !== a.id ? "?member=" + encodeURIComponent(memberId) : "");
 
   const load = useCallback(async () => {
@@ -81,7 +83,7 @@ export function Notebook({ a, layout, memberId }: { a: Actor; layout: "wide" | "
     live.current.saving = true; setStatus("saving"); setProblem("");
     const creating = asNew || current.pageId === NEW;
     try {
-      const result = await api<{ page: NotebookPage }>("/api/notebook", "POST", { action: "save", ...(creating ? {} : { id: current.pageId, version: current.baseVersion }), title: current.title, text: current.text, date: current.date, tags: current.tags, ...(creating && live.current.characterId ? { characterId: live.current.characterId } : {}) });
+      const result = await api<{ page: NotebookPage }>("/api/notebook", "POST", { action: "save", ...(creating ? {} : { id: current.pageId, version: current.baseVersion }), title: current.title, text: current.text, date: current.date, tags: current.tags, ...(creating && live.current.characterId ? { characterId: live.current.characterId } : {}), engagementTicket: notebookEngagementTicket(engagementScope) });
       const saved = result.page;
       setData(old => old ? { ...old, pages: [saved, ...old.pages.filter(p => p.id !== saved.id)] } : old);
       dropDraft(current.pageId);
@@ -96,7 +98,7 @@ export function Notebook({ a, layout, memberId }: { a: Actor; layout: "wide" | "
       setStatus(conflict ? "conflict" : "error");
       setProblem(conflict ? "Diese Seite wurde an anderer Stelle geändert, zum Beispiel in einem zweiten Fenster. Dein Entwurf ist noch da." : (e as Error).message + " Dein Entwurf bleibt erhalten.");
     } finally { live.current.saving = false; }
-  }, [dropDraft]);
+  }, [dropDraft, engagementScope]);
 
   // Autosave shortly after typing stops.
   useEffect(() => {
