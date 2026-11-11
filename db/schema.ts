@@ -638,3 +638,22 @@ export const xpSettlementRewards = sqliteTable("xp_settlement_rewards", {
   check("xp_settlement_rewards_amount_check", sql`${t.amount} BETWEEN 1 AND 1000`),
   check("xp_settlement_rewards_booked_check", sql`(${t.status}='booked') = (${t.ledgerEntryId} IS NOT NULL AND ${t.bookedAt} IS NOT NULL)`),
 ]);
+
+export const engagementLeases = sqliteTable("engagement_leases", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  ticket: text("ticket").notNull(),
+  category: text("category", { enum: ["character", "notebook", "codex", "story", "other"] }).notNull(),
+  receivedAt: integer("received_at").notNull(),
+}, t => [primaryKey({ columns: [t.campaignId, t.memberId] })]);
+
+export const engagementDaily = sqliteTable("engagement_daily", {
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  memberId: text("member_id").notNull().references(() => members.id, { onDelete: "cascade" }),
+  day: text("day").notNull(),
+  category: text("category", { enum: ["character", "notebook", "codex", "story", "other"] }).notNull(),
+  seconds: integer("seconds").notNull(),
+}, t => [
+  primaryKey({ columns: [t.campaignId, t.memberId, t.day, t.category] }),
+  check("engagement_daily_seconds_positive", sql`${t.seconds} > 0`),
+]);

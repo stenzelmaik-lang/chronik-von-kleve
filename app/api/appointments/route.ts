@@ -1,6 +1,7 @@
 import { actor, database, sameOrigin, input, json, failure, HttpError, gmOnly } from '@/server/access';
 import { GET as recordsGET, POST as recordsPOST } from '../records/route';
 import { appointmentOptions, appointmentChoices, validAppointmentDate } from '@/domain/appointments';
+import { engagementEnabled } from '@/server/engagement-config';
 import type { Entry, LegacyRecordRow } from '@/domain/legacy';
 export const dynamic = 'force-dynamic';
 
@@ -39,11 +40,16 @@ export async function POST(req: Request) {
       return json({ok:true});
     }
     gmOnly(a);
-    if (!['save','finalize'].includes(d.action)) throw new HttpError(400,'Unbekannte Terminaktion.');
+    if (!['save','finalize','engagement-game-night'].includes(d.action)) throw new HttpError(400,'Unbekannte Terminaktion.');
     const old = d.id ? (await visibleRecords(req)).find(record => record.id === d.id) : undefined;
     if (d.id && !old) throw new HttpError(404,'Termin nicht verfügbar.');
     let body: Record<string,unknown>;
-    if (d.action === 'finalize') {
+    if (d.action === 'engagement-game-night') {
+      if (!engagementEnabled() || !old || old.visibility !== 'group' || !['fixed', 'poll'].includes(String(old.body.scheduleKind)))
+        throw new HttpError(404, 'Öffentlicher Spieltermin nicht verfügbar.');
+      if (typeof d.marked !== 'boolean') throw new HttpError(400, 'Ungültige Kennzeichnung.');
+      body = { ...old.body, engagementGameNight: d.marked };
+    } else if (d.action === 'finalize') {
       if (!old || old.body.scheduleKind !== 'poll' || old.body.pollClosed === true) throw new HttpError(409,'Keine offene Abstimmung.');
       const option = appointmentOptions(old.body.pollOptions).find(option => option.id === d.optionId);
       if (!option) throw new HttpError(400,'Terminvorschlag fehlt.');
@@ -60,6 +66,6 @@ export async function POST(req: Request) {
         body.date = d.date;
       }
     }
-    return recordsPOST(new Request(req.url, {method:'POST',headers:req.headers,body:JSON.stringify({id:d.id,version:d.version,kind:'termine',title:old && d.action === 'finalize' ? old.title : d.title,visibility:old && d.action === 'finalize' ? old.visibility : d.visibility,body})}));
+    return recordsPOST(new Request(req.url, {method:'POST',headers:req.headers,body:JSON.stringify({id:d.id,version:d.version,kind:'termine',title:old && d.action !== 'save' ? old.title : d.title,visibility:old && d.action !== 'save' ? old.visibility : d.visibility,body})}));
   } catch (error) { return failure(error, req); }
 }
