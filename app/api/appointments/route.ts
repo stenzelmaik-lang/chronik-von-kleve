@@ -1,7 +1,8 @@
 import { actor, database, sameOrigin, input, json, failure, HttpError, gmOnly } from '@/server/access';
 import { GET as recordsGET, POST as recordsPOST } from '../records/route';
 import { appointmentOptions, appointmentChoices, validAppointmentDate } from '@/domain/appointments';
-import { engagementEnabled } from '@/server/engagement-config';
+import { engagementAwardsEnabled, engagementEnabled } from '@/server/engagement-config';
+import { reconcileCampaignEngagement } from '@/server/engagement-awards';
 import type { Entry, LegacyRecordRow } from '@/domain/legacy';
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,10 @@ export async function POST(req: Request) {
         body.date = d.date;
       }
     }
-    return recordsPOST(new Request(req.url, {method:'POST',headers:req.headers,body:JSON.stringify({id:d.id,version:d.version,kind:'termine',title:old && d.action !== 'save' ? old.title : d.title,visibility:old && d.action !== 'save' ? old.visibility : d.visibility,body})}));
+    const result = await recordsPOST(new Request(req.url, {method:'POST',headers:req.headers,body:JSON.stringify({id:d.id,version:d.version,kind:'termine',title:old && d.action !== 'save' ? old.title : d.title,visibility:old && d.action !== 'save' ? old.visibility : d.visibility,body})}));
+    if (result.ok && engagementAwardsEnabled() && (body.engagementGameNight === true || old?.body.engagementGameNight === true)) {
+      await reconcileCampaignEngagement(database(), a.campaignId, Date.now());
+    }
+    return result;
   } catch (error) { return failure(error, req); }
 }

@@ -553,7 +553,7 @@ export default function Workspace({
           )}
         </>
       )}
-      {surface === 'player' && engagementAvailable && <EngagementActivity key={dataScope} section={section} />}
+      {surface === 'player' && engagementAvailable && <EngagementActivity key={dataScope} section={section} scope={`${a.campaignId}:${a.id}`} />}
       <RecordEditor
         edit={edit}
         setEdit={setEdit}

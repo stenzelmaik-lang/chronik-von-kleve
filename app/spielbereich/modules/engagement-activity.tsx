@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActiveEngagement, engagementCategoryForSection } from '@/domain/engagement-browser';
 import type { engagementSummary, recordEngagementPulse } from '@/server/engagement-activity';
+import { publishNotebookTicket } from './engagement-notebook-ticket';
 
 const endpoint = '/api/engagement';
 const label = {
@@ -20,7 +21,7 @@ function duration(seconds: number) {
   return hours ? hours + ' Std. ' + minutes % 60 + ' Min.' : minutes + ' Min.';
 }
 
-function useActivityTracking(section: string, enabled: boolean, onPulse: () => void) {
+function useActivityTracking(section: string, scope: string, enabled: boolean, onPulse: () => void) {
   const category = engagementCategoryForSection(section);
   const heldTicket = useRef<string | null>(null);
   useEffect(() => {
@@ -33,6 +34,7 @@ function useActivityTracking(section: string, enabled: boolean, onPulse: () => v
 
     function pause() {
       state.pause();
+      if (category === 'notebook') publishNotebookTicket(scope, null);
       request?.abort();
       request = undefined;
       window.clearTimeout(timer);
@@ -49,6 +51,7 @@ function useActivityTracking(section: string, enabled: boolean, onPulse: () => v
       if (!request && state.due(steady, wall)) {
         const ticket = heldTicket.current;
         const restart = !!ticket && !state.continuing;
+        if (restart && category === 'notebook') publishNotebookTicket(scope, null);
         state.sent(steady, wall);
         const pending = new AbortController();
         request = pending;
@@ -68,14 +71,19 @@ function useActivityTracking(section: string, enabled: boolean, onPulse: () => v
           const result: Awaited<ReturnType<typeof recordEngagementPulse>> = await response.json();
           if (pending.signal.aborted) return;
           heldTicket.current = result.ticket;
+          if (category === 'notebook') publishNotebookTicket(scope, result.ticket);
           if (result.seconds > 0 && section === 'dashboard') onPulse();
         }).catch(() => {
-          if (!pending.signal.aborted) heldTicket.current = null;
+          if (!pending.signal.aborted) {
+            heldTicket.current = null;
+            if (category === 'notebook') publishNotebookTicket(scope, null);
+          }
         }).finally(() => {
           if (request === pending) request = undefined;
         });
       }
       if (state.active) timer = window.setTimeout(tick, 1_000);
+      else pause();
     }
 
     function interact(event: Event) {
@@ -91,16 +99,16 @@ function useActivityTracking(section: string, enabled: boolean, onPulse: () => v
     document.addEventListener('freeze', pause, options);
     document.addEventListener('visibilitychange', pause, options);
     return () => { listeners.abort(); pause(); };
-  }, [category, enabled, onPulse, section]);
+  }, [category, enabled, onPulse, scope, section]);
 }
 
-export function EngagementActivity({ section }: { section: string }) {
+export function EngagementActivity({ section, scope }: { section: string; scope: string }) {
   const [enabled, setEnabled] = useState(false);
   const [revision, setRevision] = useState(0);
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof engagementSummary>> | null>(null);
   const [failed, setFailed] = useState(false);
   const refresh = useCallback(() => setRevision(value => value + 1), []);
-  useActivityTracking(section, enabled, refresh);
+  useActivityTracking(section, scope, enabled, refresh);
 
   useEffect(() => {
     if (section !== 'dashboard') return;
@@ -138,12 +146,17 @@ export function EngagementActivity({ section }: { section: string }) {
       {current?.status === 'no-played-session' && <p>Zeitziele erscheinen nach dem ersten registrierten Spielabend.</p>}
       {current?.status === 'waiting' && <p>Die Zeitziele warten auf den nächsten Spieltermin.</p>}
       {current?.status === 'unsupported' && <p>Für diesen langen Spielabstand lassen sich keine Zeitziele berechnen.</p>}
+      {summary.awardsEnabled && <>
+        <p>Für EP bestätigte Vorbereitung · {duration(summary.verifiedSeconds)}</p>
+        {summary.recipient && <p>Empfängerfigur · {summary.recipient} · {summary.bookedStages.length} von 2 EP gebucht</p>}
+        <p className="muted">EP-Zeit entsteht beim Schreiben einer Figurnotiz im Spielerbereich. Die erste bestätigte Notiz legt die Figur für dieses Intervall fest.</p>
+      </>}
       {current && 'targets' in current && summary.progress && <>
         {current.status === 'preview' && <p>Vorschau bis zur Terminbestätigung</p>}
         <p>Zeitziel für Stufe 1 · {duration(Math.ceil(current.targets.firstSeconds / 60) * 60)}<br />
           Zeitziel für Stufe 2 · {duration(Math.ceil(current.targets.fullSeconds / 60) * 60)}</p>
-        <label>Zeitfortschritt · {summary.progress.percent} % <progress max={100} value={summary.progress.percent} /></label>
-        <p className="muted">Die gemessene Zeit dient als Vorschau. EP benötigen zusätzlich einen verifizierten Aktivitätsnachweis.</p>
+        <label>{summary.awardsEnabled ? 'EP-Fortschritt' : 'Zeitfortschritt'} · {summary.progress.percent} % <progress max={100} value={summary.progress.percent} /></label>
+        {!summary.awardsEnabled && <p className="muted">Die gemessene Zeit dient als Vorschau. EP benötigen zusätzlich einen verifizierten Aktivitätsnachweis.</p>}
       </>}
     </>}
   </section>;

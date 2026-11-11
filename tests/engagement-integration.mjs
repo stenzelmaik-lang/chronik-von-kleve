@@ -1,3 +1,5 @@
+import { berlinDay, shiftDay } from '../domain/engagement-window.ts';
+
 export async function engagementIntegration({ req, check, localSql }) {
   const endpoint = '/api/engagement';
   const pulse = { category: 'codex' };
@@ -38,7 +40,7 @@ export async function engagementIntegration({ req, check, localSql }) {
   check(marked.body.engagementGameNight === true && marked.body.date === save.date, 'Game-night mark preserves the existing appointment date');
   check((await req('/api/appointments', 'gm', 'POST', { ...mark, version: 2, marked: false })).s === 200, 'Unmarking a date removes it from time targets');
 
-  localSql("INSERT INTO played_sessions(id,campaign_id,session_record_id,played_on,title,registered_by,registered_at) VALUES('engagement-played','chronik-von-kleve','engagement-session',date('now','-4 days'),'SYNTHETIC game night','sprint1-gm',datetime('now'))");
+  localSql("INSERT INTO played_sessions(id,campaign_id,session_record_id,played_on,title,registered_by,registered_at) VALUES('engagement-played','chronik-von-kleve','engagement-session',date('now','-12 days'),'SYNTHETIC game night','sprint1-gm',datetime('now'))");
   const options = [14, 30].map(days => ({ id: 'option-' + days, date: new Date(Date.now() + days * 86_400_000).toISOString() }));
   const poll = await req('/api/appointments', 'gm', 'POST', {
     action: 'save', title: 'SYNTHETIC engagement poll', visibility: 'group', scheduleKind: 'poll', options,
@@ -53,4 +55,55 @@ export async function engagementIntegration({ req, check, localSql }) {
   const confirmed = (await req(endpoint, 'a')).d.window;
   check(confirmed.status === 'confirmed' && confirmed.intervalId === preview.intervalId && confirmed.targets.firstSeconds > preview.targets.firstSeconds,
     'Confirmation recalculates targets against the same played interval');
+
+  const character = 'engagement-test-character';
+  localSql(`INSERT INTO records(id,owner_id,campaign_id,kind,visibility,title,body,created_at,updated_at) VALUES('${character}','sprint1-a','chronik-von-kleve','charaktere','private','SYNTHETIC engagement character','{"engineVersion":1,"characterState":"confirmed","xpLedger":[]}',datetime('now'),datetime('now'))`);
+  const awarded = () => localSql(`SELECT json_array_length(json_extract(body,'$.xpLedger')) AS n FROM records WHERE id='${character}'`, true)[0].n;
+  const ageTicket = seconds => localSql(`UPDATE engagement_leases SET received_at=CAST((julianday('now')-2440587.5)*86400000 AS INTEGER)-${seconds * 1000} WHERE member_id='sprint1-a'`);
+  ageTicket(60);
+  const notebook = { category: 'notebook' };
+  const start = await req(endpoint, 'a', 'POST', notebook);
+  check(start.s === 200 && !!start.d.ticket, 'Notebook measurement starts with a fresh ticket');
+  ageTicket(27);
+  const measured = await req(endpoint, 'a', 'POST', { ...notebook, ticket: start.d.ticket });
+  check(measured.d.seconds >= 25 && awarded() === 0, 'Notebook pulses alone book no EP');
+  const saveNote = { action: 'save', title: 'SYNTHETIC preparation', text: 'Die Gruppe untersucht die alten Tunnel vor dem nächsten Spielabend und dokumentiert ihre Spuren.',
+    date: berlinDay(Date.now()), tags: [], characterId: character, engagementTicket: measured.d.ticket };
+  const writes = await Promise.all([req('/api/notebook', 'a', 'POST', saveNote), req('/api/notebook', 'a', 'POST', saveNote)]);
+  check(writes.every(result => result.s === 200), 'Both notebook pages save successfully');
+  const evidence = (await req(endpoint, 'a')).d;
+  check(evidence.verifiedSeconds === measured.d.seconds && evidence.recipient === 'SYNTHETIC engagement character' && awarded() === 0,
+    'D1 verifies only one claim and binds the owned character');
+  const winner = localSql("SELECT note_id FROM engagement_verified_notes WHERE campaign_id='chronik-von-kleve' AND member_id='sprint1-a'", true)[0].note_id;
+  const saved = writes.find(result => result.d.page.id === winner).d.page;
+  ageTicket(27);
+  const continued = await req(endpoint, 'a', 'POST', { ...notebook, ticket: measured.d.ticket });
+  check(continued.d.seconds >= 25, 'Notebook measurement continues on the same ticket chain');
+  const updated = await req('/api/notebook', 'a', 'POST', {
+    ...saveNote, id: saved.id, version: saved.version, text: saveNote.text + ' ' + saveNote.text, engagementTicket: continued.d.ticket,
+  });
+  const verifiedSeconds = (await req(endpoint, 'a')).d.verifiedSeconds;
+  check(updated.s === 200 && verifiedSeconds === measured.d.seconds + continued.d.seconds, 'Editing a linked notebook page confirms additional measured time');
+  check((await req(endpoint + '?memberId=sprint1-a', 'gm')).d.recipient === null, 'Private note evidence stays in the own player projection');
+  check((await req('/api/character-engine', 'a', 'POST', { action: 'xp_reward', type: 'engagement', id: character, sessionId: preview.intervalId, amount: 1, reason: 'Synthetic request' })).s === 400,
+    'The character reward route refuses public engagement awards');
+
+  const markPoll = { ...mark, id: poll.d.id, version: 3 };
+  check((await req('/api/appointments', 'gm', 'POST', { ...markPoll, marked: false })).s === 200, 'Removing the confirmed date pauses engagement awards');
+  // Seed only the elapsed, already qualified history in disposable D1 to avoid a multi-hour integration test.
+  let remaining = confirmed.targets.firstSeconds - verifiedSeconds;
+  const history = [];
+  for (let i = 0; remaining > 0; i++) {
+    const date = shiftDay(confirmed.fromDay, Math.floor(i / 8));
+    if (date >= saveNote.date) throw new Error('Engagement history exceeds the synthetic preparation interval');
+    const seconds = Math.min(900, remaining);
+    history.push(`('chronik-von-kleve','sprint1-a','engagement-played','${date}','synthetic-history-${i}',${seconds})`);
+    remaining -= seconds;
+  }
+  localSql('INSERT INTO engagement_verified_notes(campaign_id,member_id,interval_id,day,note_id,seconds) VALUES ' + history.join(','));
+  check(awarded() === 0, 'No confirmed date means no automatic EP');
+  check((await req('/api/appointments', 'gm', 'POST', { ...markPoll, version: 4 })).s === 200 && awarded() === 1,
+    'Restoring a confirmed date automatically books the earned stage through the XP ledger');
+  check((await req(endpoint, 'a')).d.bookedStages.join(',') === '1', 'Own engagement summary shows the credited stage');
+  localSql(`DELETE FROM world_events WHERE entity_id='${character}'; DELETE FROM records WHERE id='${character}' OR (owner_id='sprint1-a' AND kind='notizen' AND CASE WHEN json_valid(body) THEN json_extract(body,'$.characterId')='${character}' ELSE 0 END)`);
 }
