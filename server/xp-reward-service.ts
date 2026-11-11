@@ -17,6 +17,53 @@ export type CharacterXpRewardInput = { campaignId: string; characterId: string; 
 const attempts = 8;
 
 /**
+ * MVP is awarded to ONE character per played evening across the entire campaign.
+ * Per-character ledger IDs alone cannot enforce that invariant. The existing
+ * settings key is a durable compare-by-unique-key reservation: first valid
+ * winner claims it, later requests for another character/amount are refused.
+ *
+ * The claim intentionally persists after a write failure. Retrying the same
+ * recipient is safe and can finish the booking; silently reassigning it is not.
+ */
+async function reserveMvpWinner(
+  db: D1Database,
+  input: CharacterXpRewardInput,
+): Promise<void> {
+  if (input.source.type !== "mvp") return;
+  const scopeId = input.source.scopeId;
+
+  // Earlier direct MVP grants may predate this reservation. Respect them too:
+  // the same evening must never acquire a second winner after an upgrade.
+  const previous = await db.prepare(
+    `SELECT records.id FROM records
+     WHERE records.campaign_id=? AND records.kind='charaktere' AND records.id<>?
+       AND json_valid(records.body)
+       AND EXISTS (
+         SELECT 1 FROM json_each(records.body,'$.xpLedger') AS award
+         WHERE json_extract(award.value,'$.source.type')='mvp'
+           AND json_extract(award.value,'$.source.campaignId')=?
+           AND json_extract(award.value,'$.source.scopeId')=?
+       )
+     LIMIT 1`
+  ).bind(input.campaignId, input.characterId, input.campaignId, scopeId).first<{id:string}>();
+  if (previous) throw new XpRewardServiceError(409, "Dieser Spielabend hat bereits einen anderen MVP erhalten.");
+
+  const key = "mvp-award:" + input.campaignId + ":" + scopeId;
+  const value = JSON.stringify({ characterId: input.characterId, amount: input.amount });
+  await db.prepare(
+    "INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO NOTHING"
+  ).bind(key, value).run();
+  const stored = await db.prepare("SELECT value FROM settings WHERE key=?")
+    .bind(key).first<{value:string}>();
+  if (!stored) throw new XpRewardServiceError(409, "Die MVP-Vergabe konnte nicht gesichert werden.");
+  let winner: {characterId?:unknown;amount?:unknown};
+  try { winner = JSON.parse(stored.value) as {characterId?:unknown;amount?:unknown}; }
+  catch { throw new XpRewardServiceError(409, "Die bestehende MVP-Vergabe ist ungültig. Bitte die Spielleitung informieren."); }
+  if (winner.characterId !== input.characterId || winner.amount !== input.amount)
+    throw new XpRewardServiceError(409, "Für diesen Spielabend ist bereits ein anderer MVP oder EP-Betrag festgelegt.");
+}
+
+/**
  * INTERNAL booking service. The caller is responsible for having verified the
  * origin (played evening, story arc, interval, milestone) and the right to award
  * it. HTTP routes use `bookSessionXpReward` and `bookSessionSettlement`; the
@@ -40,6 +87,7 @@ export async function bookCharacterXpReward(db: D1Database, input: CharacterXpRe
     let booked;
     try { booked = bookXpReward(body, { source: input.source, amount: input.amount, reason: input.reason, createdAt: now }); }
     catch (error) { throw new XpRewardServiceError(error instanceof XpRewardError && error.code === "invalid" ? 400 : 409, (error as Error).message); }
+    await reserveMvpWinner(db, input);
     if (booked.duplicate) return { row, entry: booked.entry, duplicate: true, reversed: characterLedger(body).some(entry => entry.referenceId === booked.entry.id) };
     if (JSON.stringify(booked.body).length > 100000) throw new XpRewardServiceError(413, "Der Charakter ist zu umfangreich. Bitte keine weiteren Einträge hinzufügen.");
     const updated = await writeCharacterEngine(db, { campaignId: input.campaignId, actorId: input.actorId, row, next: booked.body, expectedVersion: row.version, action: "xp_reward", now,
