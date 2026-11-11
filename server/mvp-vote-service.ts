@@ -68,6 +68,9 @@ export async function viewMvpVote(db:D1Database,campaignId:string,sessionId:stri
 }
 export async function openMvpVote(db:D1Database,campaignId:string,sessionId:string,actorId:string,now:string):Promise<MvpVoteView> {
   const ctx=await context(db,campaignId,sessionId);
+  const settlement=await db.prepare('SELECT status FROM xp_settlements WHERE campaign_id=? AND played_session_id=?')
+    .bind(campaignId,sessionId).first<{status:string}>();
+  if(settlement?.status !== 'complete')throw new MvpVoteError(409,'Bitte zuerst die Sitzungsabrechnung vollständig abschließen.');
   if(ctx.candidates.length<2)throw new MvpVoteError(409,'Die MVP-Wahl benötigt mindestens zwei teilnehmende Spieler.');
   const key=keyOf(campaignId,sessionId);
   const initial:MvpPoll={version:1,status:'open',votes:[],openedAt:now,openedBy:actorId};
