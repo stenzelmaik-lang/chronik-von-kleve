@@ -4,7 +4,7 @@ import { engagementProgress } from '../domain/engagement-targets.ts';
 import { parseBody } from './xp-reward-errors.ts';
 
 type Scope = { campaignId: string; memberId: string };
-export type EngagementPulse = { category: EngagementCategory; ticket?: string };
+export type EngagementPulse = { category: EngagementCategory; ticket?: string; restart?: boolean };
 type Lease = { category: EngagementCategory; received_at: number };
 type Daily = { day: string; category: EngagementCategory; seconds: number };
 
@@ -15,6 +15,14 @@ export async function recordEngagementPulse(db: D1Database, scope: Scope, pulse:
   const { campaignId, memberId } = scope;
   const day = berlinDay(now);
   const ticket = crypto.randomUUID();
+
+  if (pulse.restart && pulse.ticket) {
+    const result = await db.prepare(`
+      UPDATE engagement_leases SET ticket=?,category=?,received_at=?
+      WHERE campaign_id=? AND member_id=? AND ticket=? AND received_at<=?
+    `).bind(ticket, pulse.category, now, campaignId, memberId, pulse.ticket, now - 5_000).run();
+    return result.meta.changes ? { ticket, seconds: 0 } : rejected;
+  }
 
   if (pulse.ticket === undefined) {
     const [started] = await db.batch([
@@ -39,7 +47,7 @@ export async function recordEngagementPulse(db: D1Database, scope: Scope, pulse:
 
   // Both writes compete on the same ticket in one D1 transaction. The losing
   // request cannot add time, even if it read the lease before the winner.
-  const [_, rotated] = await db.batch([
+  const [, rotated] = await db.batch([
     db.prepare(`
       INSERT INTO engagement_daily(campaign_id,member_id,day,category,seconds)
       SELECT campaign_id,member_id,?,category,? FROM engagement_leases
@@ -83,6 +91,6 @@ export async function engagementSummary(db: D1Database, scope: Scope, now: numbe
   }
   return {
     window, todaySeconds, weekSeconds, intervalSeconds, categories,
-    progress: 'targets' in window ? engagementProgress(intervalSeconds, window.targets) : null,
+    progress: 'targets' in window ? { percent: engagementProgress(intervalSeconds, window.targets).percent } : null,
   };
 }

@@ -1,6 +1,5 @@
 import { appointmentOptions, validAppointmentDate } from './appointments.ts';
-import { engagementProgress, engagementTargetsForDays, type EngagementTargets } from './engagement-targets.ts';
-import type { XpRewardSource } from './xp-rewards.ts';
+import { engagementTargetsForDays, type EngagementTargets } from './engagement-targets.ts';
 
 const dayMs = 86_400_000;
 const zone = 'Europe/Berlin';
@@ -69,31 +68,4 @@ export function engagementWindow(played: PlayedEngagementStart | null, appointme
   } catch {
     return { ...window, status: 'unsupported' };
   }
-}
-
-type VerifiedEngagement = {
-  campaignId: string;
-  intervalId: string;
-  characterId: string;
-  actorId: string;
-  verifiedSeconds: number;
-};
-
-/** Server integration point for independently verified, character-bound time.
- * Browser aggregates never enter this function. The resulting source keys are
- * stable across appointment changes and map to the existing XP ledger CAS.
- */
-export function engagementRewardPlans(window: EngagementWindow, evidence: VerifiedEngagement) {
-  if (window.status !== 'confirmed' || window.intervalId !== evidence.intervalId) return [];
-  return engagementProgress(evidence.verifiedSeconds, window.targets).earnedStages.map(milestone => {
-    const source: XpRewardSource = { type: 'engagement', campaignId: evidence.campaignId, scopeId: window.intervalId, milestone };
-    return {
-      campaignId: evidence.campaignId,
-      characterId: evidence.characterId,
-      actorId: evidence.actorId,
-      source,
-      amount: 1,
-      reason: 'Verifizierte Vorbereitung · Stufe ' + milestone,
-    };
-  });
 }

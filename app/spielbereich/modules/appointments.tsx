@@ -11,7 +11,7 @@ type Vote = {memberId:string;name:string;choices:Record<string,AppointmentChoice
 type Appointment = Entry & {votes:Vote[]};
 const format = (date:string) => new Date(date).toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'});
 const dayKey = (date:Date) => `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-export function AppointmentsPanel({a,dataScope}:{a:Actor;dataScope:string}) {
+export function AppointmentsPanel({a,dataScope,engagementAvailable}:{a:Actor;dataScope:string;engagementAvailable:boolean}) {
   const [records,setRecords] = useState<Appointment[]>([]), [loading,setLoading] = useState(true), [error,setError] = useState('');
   const [month,setMonth] = useState(()=>new Date(new Date().getFullYear(),new Date().getMonth(),1,12));
   const [day,setDay] = useState(''), [creating,setCreating] = useState(false), [busy,setBusy] = useState(false);
@@ -30,6 +30,13 @@ export function AppointmentsPanel({a,dataScope}:{a:Actor;dataScope:string}) {
     try {await api('/api/appointments','POST',payload);stored=true; invalidatePlayerData(dataScope,'/api/dashboard');after?.();setNotice('Gespeichert.');await load();}
     catch(issue){setError(stored?'Gespeichert, aber die Ansicht konnte nicht aktualisiert werden. Bitte Termine aktualisieren.':(issue as Error).message);}finally{setBusy(false);}
   }
+  function gameNightControl(record: Appointment) {
+    if (!engagementAvailable || !a.gm || record.visibility !== 'group') return null;
+    const marked = record.body.engagementGameNight === true;
+    return <button className="button" disabled={busy} aria-pressed={marked} onClick={() => void write({
+      action: 'engagement-game-night', id: record.id, version: record.version, marked: !marked,
+    })}>Spielabend für Zeitziele</button>;
+  }
   const fixed=records.filter(record=>typeof record.body.date==='string'&&Number.isFinite(Date.parse(record.body.date))).sort((a,b)=>Date.parse(a.body.date!)-Date.parse(b.body.date!));
   const visible=fixed.filter(record=>{const date=new Date(record.body.date!);return date.getMonth()===month.getMonth()&&date.getFullYear()===month.getFullYear()&&(!day||dayKey(date)===day);});
   return <div className={styles.stack}>
@@ -47,7 +54,7 @@ export function AppointmentsPanel({a,dataScope}:{a:Actor;dataScope:string}) {
     <section className="panel"><header className={styles.month}><button className="button" aria-label="Vorheriger Monat" onClick={()=>{setMonth(new Date(month.getFullYear(),month.getMonth()-1,1,12));setDay('');}}><ChevronLeft size={18}/></button><h3>{month.toLocaleDateString('de-DE',{month:'long',year:'numeric'})}</h3><button className="button" aria-label="Nächster Monat" onClick={()=>{setMonth(new Date(month.getFullYear(),month.getMonth()+1,1,12));setDay('');}}><ChevronRight size={18}/></button></header>
       <div className={styles.calendar}>{['Mo','Di','Mi','Do','Fr','Sa','So'].map(name=><span key={name} className={styles.weekday}>{name}</span>)}{calendarDays(month.getFullYear(),month.getMonth()).map(date=>{const key=dayKey(date);const events=fixed.filter(record=>dayKey(new Date(record.body.date!))===key);return <button key={key} className={`${styles.day} ${date.getMonth()!==month.getMonth()?styles.outside:''}`} aria-pressed={day===key} aria-label={`${date.toLocaleDateString('de-DE')}: ${events.length} Termine`} onClick={()=>{if(date.getMonth()!==month.getMonth())setMonth(new Date(date.getFullYear(),date.getMonth(),1,12));setDay(day===key?'':key);}}><span>{date.getDate()}</span>{events.length>0&&<CalendarDays size={15}/>}</button>;})}</div>
       {day&&<button className="button" onClick={()=>setDay('')}>Alle Termine im Monat</button>}
-      {loading?<p role="status">Termine werden geladen …</p>:visible.length?visible.map(record=><article className={styles.event} key={record.id}><strong>{record.title}</strong><time dateTime={record.body.date}>{format(record.body.date!)}</time>{record.body.summary&&<p>{record.body.summary}</p>}{record.visibility==='sl'&&<small>SL-intern</small>}{a.gm&&record.body.scheduleKind!=='poll'&&<button className="button" onClick={()=>{const date=new Date(record.body.date!);const local=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);setEditing(record);setCreating(true);setKind('fixed');setTitle(record.title);setSummary(String(record.body.summary||''));setVisibility(record.visibility==='sl'?'sl':'group');setDates([local,'']);}}>Termin bearbeiten</button>}</article>):!error&&<p className="muted">Keine festen Termine für diese Auswahl.</p>}
+      {loading?<p role="status">Termine werden geladen …</p>:visible.length?visible.map(record=><article className={styles.event} key={record.id}><strong>{record.title}</strong><time dateTime={record.body.date}>{format(record.body.date!)}</time>{record.body.summary&&<p>{record.body.summary}</p>}{record.visibility==='sl'&&<small>SL-intern</small>}{a.gm&&record.body.scheduleKind!=='poll'&&<button className="button" onClick={()=>{const date=new Date(record.body.date!);const local=new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);setEditing(record);setCreating(true);setKind('fixed');setTitle(record.title);setSummary(String(record.body.summary||''));setVisibility(record.visibility==='sl'?'sl':'group');setDates([local,'']);}}>Termin bearbeiten</button>}{record.body.scheduleKind === 'fixed' && gameNightControl(record)}</article>):!error&&<p className="muted">Keine festen Termine für diese Auswahl.</p>}
     </section>
     {records.filter(record=>record.body.scheduleKind==='poll').map(record=>{
       let options;
@@ -60,6 +67,7 @@ export function AppointmentsPanel({a,dataScope}:{a:Actor;dataScope:string}) {
         {!closed&&<form className="stack-form" onSubmit={event=>{event.preventDefault();void write({action:'vote',id:record.id,version:own?.version||0,choices},()=>setDrafts(old=>{const copy={...old};delete copy[record.id!];return copy;}));}}><h4>Deine Antwort</h4>{options.map(option=><label key={option.id} className="field"><span>{format(option.date)}</span><select required value={choices[option.id]||''} onChange={event=>setDrafts(old=>({...old,[record.id!]:{...choices,[option.id]:event.target.value as AppointmentChoice}}))}><option value="">Bitte wählen …</option><option value="yes">Ja</option><option value="maybe">Vielleicht</option><option value="no">Nein</option></select></label>)}<button className="button primary" disabled={busy}>Antwort speichern</button></form>}
         {a.gm&&!closed&&<div className={styles.actions}>{options.map(option=><button className="button" disabled={busy} key={option.id} onClick={()=>void write({action:'finalize',id:record.id,version:record.version,optionId:option.id})}>Festlegen: {format(option.date)}</button>)}</div>}
         {closed&&record.body.date&&<p>Festgelegt: {format(record.body.date)}</p>}
+        {gameNightControl(record)}
       </section>;
     })}
     {records.filter(record=>!record.body.date&&record.body.scheduleKind!=='poll').map(record=><article className="panel" key={record.id}><h3>{record.title}</h3><p className="muted">Bestehender Termineintrag ohne Kalenderdatum.</p>{record.body.summary&&<p>{record.body.summary}</p>}</article>)}

@@ -33,8 +33,10 @@ export class ActiveEngagement {
   private lastInteraction: number | null = null;
   private lastSent: { steady: number; wall: number } | null = null;
 
-  interact(steady: number, trusted: boolean) {
-    if (trusted) this.lastInteraction = steady;
+  interact(steady: number, trusted: boolean, wall = steady) {
+    if (!trusted) return;
+    this.due(steady, wall);
+    this.lastInteraction = steady;
   }
 
   due(steady: number, wall: number): boolean {
@@ -59,6 +61,10 @@ export class ActiveEngagement {
   pause() {
     this.lastInteraction = null;
     this.lastSent = null;
+  }
+
+  get continuing() {
+    return this.lastSent !== null;
   }
 
   get active() {

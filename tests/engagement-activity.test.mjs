@@ -3,7 +3,9 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { setupRewardDb, campaignId } from './fixtures/xp-reward-db.mjs';
 import { recordEngagementPulse, engagementSummary } from '../server/engagement-activity.ts';
-import { engagementWindow, engagementRewardPlans } from '../domain/engagement-window.ts';
+import { engagementWindow } from '../domain/engagement-window.ts';
+import { engagementRewardPlans } from '../server/engagement-reward-plans.ts';
+import { bookCharacterXpReward } from '../server/xp-reward-service.ts';
 import { ActiveEngagement } from '../domain/engagement-browser.ts';
 
 const epoch = Date.parse('2026-11-10T12:00:00Z');
@@ -96,13 +98,36 @@ test('summary only includes the owner, visible game dates and preparation days',
 
 test('unverified browser time cannot produce a reward plan and verified stages share the stable ledger source', () => {
   const confirmed = engagementWindow(played, [candidate({ scheduleKind: 'fixed', date: upcoming })], at);
-  const evidence = { verifiedSeconds: 0, campaignId, characterId: 'char-a', actorId: 'system' };
+  const evidence = { verifiedSeconds: 0, campaignId, characterId: 'char-a', actorId: 'system', appointmentId: confirmed.appointmentId, appointmentDate: confirmed.appointmentDate };
   assert.deepEqual(engagementRewardPlans(confirmed, { ...evidence, intervalId: confirmed.intervalId, measuredSeconds: 1e9 }), []);
   assert.deepEqual(engagementRewardPlans(confirmed, { ...evidence, intervalId: 'older-window', verifiedSeconds: 1e9 }), []);
   const plans = engagementRewardPlans(confirmed, { ...evidence, intervalId: confirmed.intervalId, verifiedSeconds: confirmed.targets.fullSeconds });
   assert.deepEqual(plans.map(plan => [plan.amount, plan.source.scopeId, plan.source.milestone]), [[1, 'played-1', 1], [1, 'played-1', 2]]);
   const preview = { ...confirmed, status: 'preview' };
   assert.deepEqual(engagementRewardPlans(preview, { ...evidence, intervalId: confirmed.intervalId, verifiedSeconds: 1e9 }), []);
+});
+
+test('independently verified test evidence books through the existing ledger once per stage', async () => {
+  const { db, body } = setupRewardDb();
+  const window = engagementWindow(played, [candidate({ scheduleKind: 'fixed', date: upcoming })], at);
+  const evidence = {
+    campaignId, characterId: 'char-a', actorId: 'gm', intervalId: window.intervalId,
+    appointmentId: window.appointmentId, appointmentDate: window.appointmentDate,
+    verifiedSeconds: window.targets.firstSeconds,
+  };
+  const [first] = engagementRewardPlans(window, evidence);
+  const secondDate = '2026-04-08T17:00:00Z';
+  const moved = engagementWindow(played, [candidate({ scheduleKind: 'fixed', date: secondDate })], at);
+  assert.deepEqual(engagementRewardPlans(moved, { ...evidence, verifiedSeconds: 1e9 }), []);
+  const firstWrites = await Promise.all(Array.from({ length: 5 }, () => bookCharacterXpReward(db, first)));
+  assert.equal(firstWrites.filter(result => !result.duplicate).length, 1);
+  assert.deepEqual(engagementRewardPlans(moved, { ...evidence, appointmentDate: secondDate }), []);
+  const updatedPlans = engagementRewardPlans(moved, {
+    ...evidence, appointmentDate: secondDate, verifiedSeconds: moved.targets.fullSeconds,
+  });
+  const updatedWrites = await Promise.all(updatedPlans.map(plan => bookCharacterXpReward(db, plan)));
+  assert.deepEqual(updatedWrites.map(result => result.duplicate), [true, false]);
+  assert.deepEqual(body('char-a').xpLedger.filter(entry => entry.source?.type === 'engagement').map(entry => entry.amount), [1, 1]);
 });
 
 test('browser state requires trusted activity and drops interrupted, idle and sleep intervals', () => {
@@ -125,4 +150,17 @@ test('browser state requires trusted activity and drops interrupted, idle and sl
   state.interact(211_000, true);
   state.pause();
   assert.equal(state.due(241_000, 271_000), false);
+});
+
+test('the current tab can restart for a new section without backfilling the interrupted interval', async () => {
+  const { db, rows } = setup();
+  const first = await recordEngagementPulse(db, scope, { category }, epoch);
+  const restart = { category: 'notebook', ticket: first.ticket, restart: true };
+  const restarted = await recordEngagementPulse(db, scope, restart, epoch + 10_000);
+  assert.ok(restarted.ticket);
+  assert.equal(restarted.seconds, 0);
+  assert.equal((await recordEngagementPulse(db, scope, { category, ticket: first.ticket }, epoch + 30_000)).seconds, 0);
+  assert.equal((await recordEngagementPulse(db, scope, restart, epoch + 30_000)).ticket, null);
+  assert.equal((await recordEngagementPulse(db, scope, { category: restart.category, ticket: restarted.ticket }, epoch + 40_000)).seconds, 30);
+  assert.deepEqual(rows('engagement_daily').map(row => [row.category, row.seconds]), [['notebook', 30]]);
 });
