@@ -63,16 +63,25 @@ for(const [name,p] of [['A',a],['B',b]]){
 }
 console.log('PASS audio, handout'+(video?' and video':'')+' released to the round'+(video?'':' (no video in fixture – prepared in the browser)'));
 
-// Test 11: a scene change clears the previous material and swaps the backdrop.
-const before=(await snap(gm)).objects.filter(o=>o.kind!=='note').map(o=>o.id);
+// A scene change clears the previous visual material and keeps released audio.
+const removed=(await snap(gm)).objects.filter(o=>o.kind!=='note'&&o.media!=='audio').map(o=>o.id);
 await stage({action:'activateScene',sceneId:cellar.id});
 const after=await snap(a);
-assert.equal(after.objects.filter(o=>o.kind!=='note').length,0,'No material fragments after scene change');
-for(const id of before)assert.equal((await a.get(asset(id))).status,404,'Old material is no longer reachable');
+assert.deepEqual(after.objects.filter(o=>o.kind!=='note').map(o=>o.id),[tape.id],'Only the released track remains from the previous scene');
+for(const id of removed)assert.equal((await a.get(asset(id))).status,404,'Previous visual material is no longer reachable');
 assert.ok(after.backdrop&&after.backdrop.title.includes('Keller'),'Backdrop switched to the cellar');
-// Test 12: a fresh read restores exactly the allowed state.
 assert.deepEqual(JSON.parse(JSON.stringify(await snap(a))).backdrop,after.backdrop);
-console.log('PASS scene change clears old material; reload restores the allowed state');
+console.log('PASS scene change clears old visual material; reload restores the allowed state');
+
+for(const p of [a,b])assert.equal((await p.get(asset(tape.id),{Range:'bytes=0-99'})).status,206,'The released track remains playable across scenes');
+const current=await snap(a);
+assert.equal((await a.post('/api/live-stage',{sessionId,runId,expectedVersion:current.version,command:{action:'withdrawAudio'}})).status,403);
+await stage({action:'withdrawAudio'});
+for(const p of [a,b]){
+ assert.ok(!(await snap(p)).objects.some(o=>o.id===tape.id),'Withdrawing audio removes it from the player projection');
+ assert.equal((await p.get(asset(tape.id))).status,404,'The withdrawn track can no longer be fetched');
+}
+console.log('PASS audio persists across scenes and only the SL can withdraw it');
 
 // Regression: private direction stays GM-only.
 assert.ok([403,404].includes((await a.get(q+'&regie='+encodeURIComponent(barracks.id))).status));
