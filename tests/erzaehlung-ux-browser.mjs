@@ -78,7 +78,13 @@ try{
   const posts=[];pa.on('request',r=>{if(r.method()!=='GET')posts.push(r.url());});
   await body(pa).hover();for(let i=0;i<40;i++)await pa.mouse.wheel(0,400);
   await pa.waitForFunction(()=>{const n=document.querySelector('[aria-label^="Erzähltext:"]');return n.scrollTop>=n.scrollHeight-n.clientHeight-2;});
-  const last=await pa.getByText(end).evaluate(e=>{const r=e.getBoundingClientRect(),s=e.closest('[aria-label^="Erzähltext:"]').getBoundingClientRect();return r.top>=s.top-0.5&&r.bottom<=s.bottom+0.5;});
+  const last=await pa.getByText(end).evaluate(e=>{
+   const text=document.createRange();
+   text.selectNodeContents(e);
+   const line=Array.from(text.getClientRects()).at(-1);
+   const viewport=e.closest('[aria-label^="Erzähltext:"]').getBoundingClientRect();
+   return !!line&&line.top>=viewport.top-0.5&&line.bottom<=viewport.bottom+0.5;
+  });
   assert.ok(last,'The final line is fully visible at the end of the scroll range');
   await pa.waitForTimeout(400);
   assert.deepEqual(posts.filter(u=>!u.includes('/presence')),[],'Scrolling sends nothing to the server');
