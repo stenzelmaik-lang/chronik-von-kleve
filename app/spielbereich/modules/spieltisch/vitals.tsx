@@ -111,17 +111,18 @@ function RoundRows({round,crew,hits}:{round:RoundEntry[];crew:Crew;hits:string[]
 /** Part 1 on the table: body, blood and willpower of the own character plus the live round (players) or the whole round (SL). */
 /**
  * The live overview makes the body box taller. The released narration keeps its bottom edge above it: the box
- * publishes its height as --vitals-reserve on the stage host (distance from the narration's top edge included).
+ * publishes its reserve on the stage host so narration clears both HUDs, including the SL's pressure card.
  */
-function useReserve(){
+function useReserve(key:'vitals'|'pressure'){
  const ref=useRef<HTMLButtonElement>(null);
  useEffect(()=>{const el=ref.current,host=el?.closest<HTMLElement>('[data-chroniplay-stage]');if(!el||!host)return;
-  const set=()=>{const h=el.offsetHeight;host.style.setProperty('--vitals-reserve',(h+96)+'px');host.style.setProperty('--vitals-reserve-mobile',(h+164)+'px');};
-  set();const o=new ResizeObserver(set);o.observe(el);return()=>{o.disconnect();host.style.removeProperty('--vitals-reserve');host.style.removeProperty('--vitals-reserve-mobile');};});
+  const reserve=`--${key}-reserve`,mobile=`${reserve}-mobile`;
+  const set=()=>{const h=el.offsetHeight;host.style.setProperty(reserve,(h+96)+'px');host.style.setProperty(mobile,(h+164)+'px');};
+  set();const o=new ResizeObserver(set);o.observe(el);return()=>{o.disconnect();host.style.removeProperty(reserve);host.style.removeProperty(mobile);};});
  return ref;
 }
 function BodyHud({vitals,gm,crew,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;crew:Crew;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
- const round=vitals.round||[],hits=useHits(round),reserve=useReserve();
+ const round=vitals.round||[],hits=useHits(round),reserve=useReserve('vitals');
  // The SL sees every character in the Regie; at the table only an own character counts (hidden by default).
  if(gm&&!vitals.characters.some(x=>x.own))return null;
  const c=vitals.characters.find(x=>x.own),others=gm?[]:round.filter(r=>!r.own);
@@ -139,9 +140,10 @@ function BodyHud({vitals,gm,crew,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot
 
 /** Part 2 on the table: personal stress, group stress and masquerade risk, kept apart from the body. */
 function PressureHud({vitals,gm,onOpen,hidden,panelOpen}:{vitals:VitalsSnapshot;gm:boolean;onOpen:()=>void;hidden:boolean;panelOpen:boolean}){
+ const reserve=useReserve('pressure');
  const own=vitals.characters.find(c=>c.own),risk=vitals.masqueradeRisk,m=vitals.masquerade;
  const top=gm?[...vitals.characters].sort((x,y)=>y.stress.value-x.stress.value)[0]:undefined;
- return <button type="button" className={`${styles.hudBox} ${styles.pressureHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Stress und Maskerade öffnen">
+ return <button ref={reserve} type="button" className={`${styles.hudBox} ${styles.pressureHud}`} data-hidden={hidden} data-panel={panelOpen} onClick={onOpen} aria-label="Stress und Maskerade öffnen">
   <span className={styles.hudTitle}><Activity size={14}/><span className={styles.hudName}>Druck</span><ChevronRight size={14}/></span>
   {!gm&&own&&<PressureRow icon={<User size={13}/>} name="Ich" value={own.stress.value} label={own.stress.label} level={stressLevel(own.stress.value)}/>}
   {gm&&top&&top.stress.value>0&&<PressureRow icon={<User size={13}/>} name={top.title} value={top.stress.value} label={top.stress.label} level={stressLevel(top.stress.value)} detail="höchster persönlicher Stress"/>}
@@ -166,17 +168,27 @@ export function CharacterCard({c,vitals,gm,busy,run,stress=true}:{c:TableCharact
  const [damage,setDamage]=useState<{type:'bashing'|'lethal'|'aggravated';levels:number}>({type:'lethal',levels:1});
  const b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,dead=h.status==='final-death';
  const lock=busy||(dead&&!gm);
+ const canSpendBlood=!!b.current&&c.bloodRemaining!==0&&(gm||h.status==='active');
  return <section className={styles.card} aria-label={'Zustand '+c.title}>
   <header><div><h3>{c.title}</h3><small>{c.own?'Dein Charakter':c.ownerName}{c.vitals.generation?` · ${c.vitals.generation}. Generation`:''}{!c.own&&!gm?' · freigegeben':''}</small></div>{h.status!=='active'&&<em className={styles.state}>{statusLabel[h.status]}</em>}</header>
-  <div className={styles.trait}><h4><Droplets size={15}/>Blutvorrat <small>{b.current??'–'} / {b.max??'–'}{b.perTurn?` · ${b.perTurn} pro Runde`:''}{b.maxSource==='generation'?' · Maximum aus Generation':''}</small></h4><BloodBoxes c={c}/>
+  <div className={styles.trait}><h4><Droplets size={15}/>Blutvorrat <small>{b.current??'–'} / {b.max??'–'}{b.perTurn!==null?` · ${b.perTurn} pro Runde`:''}</small></h4><BloodBoxes c={c}/>
+   {vitals.bloodRound&&c.bloodRemaining!==null&&<p className={styles.hint}>Kampfrunde {vitals.bloodRound.number} · {c.bloodRemaining} Blutpunkte vom Rundenlimit übrig</p>}
+   {gm&&b.current===null&&b.max!==null&&<form className={styles.damage} onSubmit={event=>{
+    event.preventDefault();
+    const blood=Number(new FormData(event.currentTarget).get('blood'));
+    act({op:'set',blood});
+   }}>
+    <label>Aktueller Blutvorrat<input name="blood" type="number" min={0} max={b.max} required disabled={busy}/></label>
+    <button type="submit" disabled={busy}>Blutvorrat erfassen</button>
+   </form>}
    {b.current===0&&<p className={styles.warn}>Ausgehungert: Raserei droht. Selbstbeherrschung höchstens so viele Würfel wie Blut im Vorrat.</p>}
-   <div className={styles.actions}>{allowed('blood.spend')&&<button type="button" disabled={lock||!b.current} onClick={()=>act({op:'blood.spend',amount:1})}><Minus size={14}/>1 Blut ausgeben</button>}{allowed('blood.gain')&&<button type="button" disabled={lock||b.current===null||b.current===b.max} onClick={()=>act({op:'blood.gain',amount:1})}><Plus size={14}/>Blut trinken</button>}</div></div>
+   <div className={styles.actions}>{allowed('blood.spend')&&<button type="button" disabled={lock||!canSpendBlood} onClick={()=>act({op:'blood.spend',amount:1})}><Minus size={14}/>1 Blut ausgeben</button>}{allowed('blood.gain')&&<button type="button" disabled={lock||b.current===null||b.max===null||b.current===b.max} onClick={()=>act({op:'blood.gain',amount:1})}><Plus size={14}/>Blut trinken</button>}</div></div>
   <div className={styles.trait}><h4><Flame size={15}/>Willenskraft <small>{w.temporary??'–'} / {w.permanent??'–'}</small></h4><WillpowerRows c={c}/>
-   <div className={styles.actions}>{allowed('willpower.spend')&&<button type="button" disabled={lock||!w.temporary||(!gm&&h.status!=='active')} onClick={()=>act({op:'willpower.spend'})}><Minus size={14}/>Willenskraft einsetzen</button>}{allowed('willpower.regain')&&<button type="button" disabled={lock||w.temporary===null||w.temporary===w.permanent} onClick={()=>act({op:'willpower.regain',amount:1})}><Plus size={14}/>Zurückgewinnen</button>}</div>
+   <div className={styles.actions}>{allowed('willpower.spend')&&<button type="button" disabled={lock||w.permanent===null||!w.temporary||(!gm&&(h.status!=='active'||h.penalty===null))} onClick={()=>act({op:'willpower.spend'})}><Minus size={14}/>Willenskraft einsetzen</button>}{allowed('willpower.regain')&&<button type="button" disabled={lock||w.permanent===null||w.temporary===null||w.temporary>=w.permanent} onClick={()=>act({op:'willpower.regain',amount:1})}><Plus size={14}/>Zurückgewinnen</button>}</div>
    {c.own&&allowed('willpower.spend')&&<p className={styles.hint}>Vor dem Wurf ansagen: 1 automatischer Erfolg, Zwang oder Wundabzüge eine Runde lang ignorieren.</p>}</div>
   <div className={styles.trait}><h4><Heart size={15}/>Gesundheit <small>{h.level}{h.penalty?` · ${h.penalty} Würfel`:''}</small></h4><HealthChart c={c}/>
    <p className={styles.legend}>/ Wucht · X Tödlich · * Schwer{h.track.includes('unspecified')?' · ■ Art im alten Bogen nicht erfasst':''}</p>
-   <div className={styles.actions}>{allowed('heal.blood')&&<button type="button" disabled={lock||!b.current||!h.track.some(t=>t!=='aggravated')||h.status!=='active'} onClick={()=>act({op:'heal.blood'})}>Normalschaden heilen · 1 Blut</button>}
+   <div className={styles.actions}>{allowed('heal.blood')&&<button type="button" disabled={lock||!canSpendBlood||!h.track.some(t=>t!=='aggravated')||h.status!=='active'} onClick={()=>act({op:'heal.blood'})}>Normalschaden heilen · 1 Blut</button>}
     {gm&&<button type="button" disabled={busy||(b.current??0)<5||!h.track.includes('aggravated')||h.status!=='active'} onClick={()=>act({op:'heal.blood',aggravated:true})}>Schwere Stufe heilen · 5 Blut</button>}
     {gm&&<button type="button" disabled={busy||!h.track.length} onClick={()=>act({op:'heal',levels:1})}><Minus size={14}/>1 Stufe entfernen</button>}</div>
    {allowed('damage')&&<form className={styles.damage} onSubmit={e=>{e.preventDefault();act({op:'damage',...damage});}}><label>Art<select value={damage.type} onChange={e=>setDamage(d=>({...d,type:e.target.value as typeof d.type}))}><option value="bashing">Wucht (/)</option><option value="lethal">Tödlich (X)</option><option value="aggravated">Schwer (*)</option></select></label><label>Stufen<input type="number" min={1} max={10} value={damage.levels} onChange={e=>setDamage(d=>({...d,levels:Math.max(1,Math.min(10,Number(e.target.value)||1))}))}/></label><button type="submit" disabled={lock}>Schaden eintragen</button><small>Nach dem Aufsaugen; Wucht bei Vampiren bereits halbiert.</small></form>}
@@ -239,10 +251,10 @@ export function quickActions(vitals:VitalsSnapshot|undefined):{characterId:strin
  const c=vitals?.characters.find(x=>x.own);if(!vitals||!c)return null;
  const ops=vitals.operations as string[],b=c.vitals.blood,w=c.vitals.willpower,h=c.vitals.health,active=h.status==='active';
  const list:QuickAction[]=[];
- if(ops.includes('willpower.spend')&&w.temporary&&active)list.push({value:'will',label:'Willenskraft einsetzen (−1)',command:{op:'willpower.spend'}});
- if(ops.includes('blood.spend')&&b.current)list.push({value:'blood',label:'1 Blut ausgeben',command:{op:'blood.spend',amount:1}});
- if(ops.includes('blood.gain')&&b.current!==null&&b.current!==b.max)list.push({value:'drink',label:'1 Blut trinken',command:{op:'blood.gain',amount:1}});
- if(ops.includes('heal.blood')&&b.current&&active&&h.track.some(t=>t!=='aggravated'))list.push({value:'heal',label:'Normalschaden heilen (1 Blut)',command:{op:'heal.blood'}});
+ if(ops.includes('willpower.spend')&&w.permanent!==null&&w.temporary&&active)list.push({value:'will',label:'Willenskraft einsetzen (−1)',command:{op:'willpower.spend'}});
+ if(ops.includes('blood.spend')&&b.current&&c.bloodRemaining!==0&&active)list.push({value:'blood',label:'1 Blut ausgeben',command:{op:'blood.spend',amount:1}});
+ if(ops.includes('blood.gain')&&b.current!==null&&b.max!==null&&b.current!==b.max)list.push({value:'drink',label:'1 Blut trinken',command:{op:'blood.gain',amount:1}});
+ if(ops.includes('heal.blood')&&b.current&&c.bloodRemaining!==0&&active&&h.track.some(t=>t!=='aggravated'))list.push({value:'heal',label:'Normalschaden heilen (1 Blut)',command:{op:'heal.blood'}});
  if(ops.includes('damage'))for(const [type,label] of [['bashing','Wucht'],['lethal','Tödlich'],['aggravated','Schwer']] as const)list.push({value:'damage-'+type,label:'Schaden: 1 '+label,command:{op:'damage',type,levels:1}});
  return {characterId:c.id,title:c.title,actions:list};
 }

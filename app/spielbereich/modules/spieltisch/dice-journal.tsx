@@ -7,14 +7,18 @@ import styles from './dice-journal.module.css';
 
 const time = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
 
-export function DiceJournal({ events, statisticsExcludedIds, onShow, onClearStatistics }: {
+export function DiceJournal({ events, epoch, statisticsExcludedIds, onShow, onClearStatistics, onReset, busy }: {
   events: readonly DiceEvent[];
   statisticsExcludedIds: ReadonlySet<string>;
   onShow: (id: string) => void;
   onClearStatistics: (authorId: string) => void;
+  epoch: number;
+  onReset?: (expectedEpoch: number) => Promise<boolean>;
+  busy: boolean;
 }) {
   const [view, setView] = useState<'journal' | 'statistics'>('journal');
   const [filter, setFilter] = useState('');
+  const [confirmEpoch, setConfirmEpoch] = useState<number | null>(null);
   const groups = useMemo(() => groupDiceRolls(events), [events]);
   const author = groups.find(group => group.authorId === filter);
   const shownGroups = author ? [author] : groups;
@@ -55,9 +59,21 @@ export function DiceJournal({ events, statisticsExcludedIds, onShow, onClearStat
           </li>)}
         </ol>
       </li>)}
-    </ol> : <p className={styles.empty}>An diesem Spielabend wurde noch nicht gewürfelt.</p> :
+    </ol> : <p className={styles.empty}>Das Würfelprotokoll ist leer.</p> :
       <DiceStatistics events={author?.rolls ?? events} excluded={statisticsExcludedIds}
         onClear={() => onClearStatistics(author?.authorId ?? '')} />}
+    {view === 'journal' && onReset && events.length > 0 &&
+      <div className={styles.reset}>
+        {confirmEpoch === epoch ? <>
+          <p>Alle bisherigen Würfe aus dem Protokoll dieses Spielabends ausblenden? Das gilt für alle am Tisch.</p>
+          <button type="button" disabled={busy} onClick={async () => {
+            if (await onReset(confirmEpoch)) { setConfirmEpoch(null); setFilter(''); }
+          }}>Für alle zurücksetzen</button>
+          <button type="button" disabled={busy} onClick={() => setConfirmEpoch(null)}>Abbrechen</button>
+        </> : <button type="button" disabled={busy} onClick={() => setConfirmEpoch(epoch)}>
+          <RotateCcw aria-hidden="true" /> Protokoll zurücksetzen
+        </button>}
+      </div>}
   </div>;
 }
 

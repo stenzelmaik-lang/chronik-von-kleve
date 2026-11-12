@@ -30,7 +30,7 @@ export function RegiePlayers({a,sessionId,vitals,busy,run}:{a:Actor;sessionId:st
     <button type="button" aria-pressed={open[c.id]==='connections'} onClick={()=>setOpen(o=>({...o,[c.id]:o[c.id]==='connections'?null:'connections'}))}><Link2 size={14}/>Verbindungen</button>
    </div>
    {open[c.id]==='connections'&&<div className={styles.playerDetail}><ConnectionDesk characterId={c.id}/></div>}
-   {(open[c.id]==='inventory'||open[c.id]==='sheet')&&<div className={styles.playerDetail}><Suspense fallback={<p className={styles.hint}>Wird geladen …</p>}><Content a={a} sessionId={sessionId} memberId={c.ownerId} action={open[c.id] as 'inventory'|'sheet'}/></Suspense></div>}
+   {(open[c.id]==='inventory'||open[c.id]==='sheet')&&<div className={styles.playerDetail}><Suspense fallback={<p className={styles.hint}>Wird geladen …</p>}><Content key={open[c.id]} a={a} sessionId={sessionId} memberId={c.ownerId} initialCharacterId={c.id} liveCharacters={vitals.characters} action={open[c.id] as 'inventory'|'sheet'}/></Suspense></div>}
   </div>)}
  </div>;
 }

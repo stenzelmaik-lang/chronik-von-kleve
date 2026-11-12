@@ -4,7 +4,7 @@ import type {Snapshot} from './types';
 
 /** Release target: null is the whole round, otherwise exactly these players. */
 export type Audience=string[]|null;
-const tableActions=['roll','closeRoll','showMedia','mediaIndex','hideMedia','hideScene','requestCheck','rollCheck','setChecks'];
+const tableActions=['roll','closeRoll','resetDiceJournal','showMedia','mediaIndex','hideMedia','hideScene','requestCheck','rollCheck','setChecks'];
 const stageUrl=(sessionId:string)=>'/api/live-stage?sessionId='+encodeURIComponent(sessionId);
 
 /**
@@ -16,14 +16,15 @@ const stageUrl=(sessionId:string)=>'/api/live-stage?sessionId='+encodeURICompone
 export async function sendStageCommand({sessionId,runId,peerId,current,recipients,body,retry=false}:{sessionId:string;runId:string;peerId:string;current:Snapshot;recipients:Audience;body:Record<string,unknown>;retry?:boolean}):Promise<Snapshot>{
  const {action,sessionId:_ignored,...extra}=body;void _ignored;
  const audience=recipients===null?{scope:'all'}:{scope:'players',playerIds:recipients};
- if(tableActions.includes(String(action)))await api('/api/live-table','POST',{...extra,action,sessionId,runId,...(action==='rollCheck'||action==='setChecks'||extra.targetCharacterIds?{}:{audience})});
- else if(action==='vitals')return api<Snapshot>('/api/live-vitals','POST',{...extra,sessionId,runId});
+ if(tableActions.includes(String(action)))await api('/api/live-table','POST',{...extra,action,sessionId,runId,...(action==='roll'?{expectedDiceEpoch:current.dice.epoch}:{}),...(action==='rollCheck'||action==='setChecks'||extra.targetCharacterIds?{}:{audience})});
+ else if(action==='vitals')return api<Snapshot>('/api/live-vitals','POST',{...extra,
+  ...(extra.command?{expectedBloodRoundId:current.vitals?.bloodRound?.id??null}:{}),sessionId,runId});
  else if(action==='scene'){
   const s=[...current.scenes,...current.moreScenes||[]].find(s=>s.id===extra.id);if(!s)throw Error('Szene nicht verfügbar.');
   await api('/api/live-table','POST',{action:'showScene',sessionId,runId,eventId:crypto.randomUUID(),sceneId:s.id,sceneVersion:s.version,audience});
  }else if(action==='board'){
-  await api('/api/live-table','POST',{action:'join',sessionId,peerId});
-  const {operation,...change}=extra;await api('/api/live-table','POST',{action:operation,sessionId,peerId,...change});
+  await api('/api/live-table','POST',{action:'join',sessionId,runId,peerId});
+  const {operation,...change}=extra;await api('/api/live-table','POST',{action:operation,sessionId,runId,peerId,...change});
  }else{
   const post=(version:number)=>api<Snapshot>('/api/live-stage','POST',{sessionId,runId,expectedVersion:version,command:{action,...extra}});
   try{return await post(current.version);}

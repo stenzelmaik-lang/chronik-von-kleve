@@ -8,6 +8,7 @@ import studio from "./character-studio.module.css";
 import { CharacterCreationGuidance } from "./character-creation-guidance";
 import { creationGuidance, creationRatingQuote, creationChangeQuote } from "@/domain/character-guidance";
 import { freebiePointsForTarget, editDerivedCreationRating, editCreationRating, freebieCapacity, freebieTotal, appearanceExceptionMaximum, attributeBase, derivedV20Values } from "@/domain/character-engine";
+import { generationLimits } from "@/domain/character-vitals";
 import { v20Archetypes, v20Backgrounds, v20Flaws, v20Merits, type CharacterOption } from "@/domain/character-options";
 
 const attrsGroups = [
@@ -69,6 +70,7 @@ function ClanDisciplines({ value, onChange, clan, disabled, quote }: { quote?:(v
 
 export function CharacterCreationFields({ edit, patchBody, field, campaignId, isGm = false }: { edit: Entry; patchBody: (key: string, value: unknown) => void; field: (label: string, key: string, large?: boolean, type?: string) => ReactNode; campaignId: string; isGm?: boolean }) {
   const body = edit.body || {};
+  const bloodLimits = generationLimits(body.generation);
   const [ruleError, setRuleError] = useState("");
   const [page, setPage] = useState("identity");
   const [pendingClan, setPendingClan] = useState<string | null>(null);
@@ -155,7 +157,7 @@ export function CharacterCreationFields({ edit, patchBody, field, campaignId, is
     <SearchableListEditor label="Hintergründe" value={body.backgrounds} quote={engineCharacter?value=>quoteList("backgrounds",value):undefined} onChange={(value) => setList("backgrounds", value)} metric="value" options={v20Backgrounds} />
     </div>
     <div hidden={page!=="advantages"} className="wide form-grid">
-    <h3 className="wide form-heading">Tugenden und abgeleitete Werte</h3><div className="virtue-grid wide">{["Gewissen", "Selbstbeherrschung", "Mut"].map((name) => <label className="field" key={name}><span>{name} · 1 kostenlos</span><Dots value={Object.prototype.hasOwnProperty.call(numericRecord(body.virtues), name) ? Number(numericRecord(body.virtues)[name]) : 1} min={1} quote={engineCharacter?value=>quote("virtues",name,value):undefined} onChange={(value) => set("virtues", name, value)} label={name} /> </label>)}{engineCharacter ? <>{derivedControl("humanity","Menschlichkeit",2)}{derivedControl("willpower","Willenskraft permanent",1)}</> : <>{field("Menschlichkeit", "humanity", false, "number")}{field("Willenskraft permanent", "willpower", false, "number")}</>}{field("Pfad / Pfadname", "humanityPath")}{field("Blut Maximum", "bloodMax", false, "number")}{field("Blut pro Runde", "bloodPerRound", false, "number")}{!engineCharacter && <>{field("freie XP", "xpFree", false, "number")}{field("Gesamt-XP", "xp", false, "number")}</>}</div>
+    <h3 className="wide form-heading">Tugenden und abgeleitete Werte</h3><div className="virtue-grid wide">{["Gewissen", "Selbstbeherrschung", "Mut"].map((name) => <label className="field" key={name}><span>{name} · 1 kostenlos</span><Dots value={Object.prototype.hasOwnProperty.call(numericRecord(body.virtues), name) ? Number(numericRecord(body.virtues)[name]) : 1} min={1} quote={engineCharacter?value=>quote("virtues",name,value):undefined} onChange={(value) => set("virtues", name, value)} label={name} /> </label>)}{engineCharacter ? <>{derivedControl("humanity","Menschlichkeit",2)}{derivedControl("willpower","Willenskraft permanent",1)}</> : <>{field("Menschlichkeit", "humanity", false, "number")}{field("Willenskraft permanent", "willpower", false, "number")}</>}{field("Pfad / Pfadname", "humanityPath")}{bloodLimits ? <p>Blutvorrat {bloodLimits.bloodMax} · {bloodLimits.perTurn} pro Runde · aus Generation</p> : <>{field("Blut Maximum", "bloodMax", false, "number")}{field("Blut pro Runde", "bloodPerRound", false, "number")}</>}{!engineCharacter && <>{field("freie XP", "xpFree", false, "number")}{field("Gesamt-XP", "xp", false, "number")}</>}</div>
     <SearchableListEditor label="Vorzüge" value={body.merits} onChange={(value) => patchBody("merits", value)} metric="cost" options={v20Merits} requireApproval />
     <SearchableListEditor label="Schwächen" value={body.flaws} onChange={(value) => patchBody("flaws", value)} metric="cost" options={v20Flaws} requireApproval />
     {field("Clansschwäche", "clanWeakness", true)}

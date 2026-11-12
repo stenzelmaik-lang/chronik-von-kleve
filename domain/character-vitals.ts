@@ -26,7 +26,11 @@ const generationTable:Record<number,{maxTrait:number;bloodMax:number;perTurn:num
  7:{maxTrait:6,bloodMax:20,perTurn:5},8:{maxTrait:5,bloodMax:15,perTurn:3},9:{maxTrait:5,bloodMax:14,perTurn:2},
  10:{maxTrait:5,bloodMax:13,perTurn:1},11:{maxTrait:5,bloodMax:12,perTurn:1},12:{maxTrait:5,bloodMax:11,perTurn:1},13:{maxTrait:5,bloodMax:10,perTurn:1},
 };
-export function generationLimits(generation:unknown){const g=Number(generation);if(!Number.isInteger(g)||g<4||g>20)return null;return generationTable[Math.min(g,13)];}
+export function generationLimits(generation:unknown){
+ const g=sheetInteger(generation);
+ if(g===null||g<4||g>20)return null;
+ return generationTable[Math.min(g,13)];
+}
 
 /** Gruppenstress laut Spielerhandout (0–10). */
 export const stressMaximum=10;
@@ -68,7 +72,10 @@ export const controlProfiles={
 export type ControlProfile=keyof typeof controlProfiles;
 export const controlProfileIds=Object.keys(controlProfiles) as ControlProfile[];
 
-const integer=(v:unknown)=>typeof v==='number'&&Number.isInteger(v)?v:typeof v==='string'&&/^\d+$/.test(v.trim())?Number(v):null;
+export function sheetInteger(value:unknown):number|null{
+ const n=typeof value==='string'&&/^-?\d+$/.test(value.trim())?Number(value):value;
+ return typeof n==='number'&&Number.isSafeInteger(n)?n:null;
+}
 const object=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{};
 const clamp=(v:number,min:number,max:number)=>Math.max(min,Math.min(max,v));
 
@@ -87,14 +94,16 @@ function storedTrack(health:Record<string,unknown>):DamageType[]{
  return index<0?[]:Array.from({length:index+1},()=>'unspecified' as const);
 }
 export function readVitals(body:Record<string,unknown>):CharacterVitals{
- const generation=integer(body.generation),limits=generationLimits(generation);
- const sheetMax=integer(body.bloodMax),max=sheetMax??limits?.bloodMax??null;
- const current=integer(body.blood),permanent=integer(body.willpower),temporary=integer(body.willpowerTemporary);
+ const generation=sheetInteger(body.generation),limits=generationLimits(generation);
+ const sheetMax=sheetInteger(body.bloodMax),max=limits?.bloodMax??(sheetMax===null?null:clamp(sheetMax,0,100));
+ const sheetPerTurn=sheetInteger(body.bloodPerRound),perTurn=limits?.perTurn??(sheetPerTurn===null?null:clamp(sheetPerTurn,0,100));
+ const current=sheetInteger(body.blood),ratedWillpower=sheetInteger(body.willpower);
+ const permanent=ratedWillpower===null?null:clamp(ratedWillpower,0,10),temporary=sheetInteger(body.willpowerTemporary);
  const health=object(body.health),track=storedTrack(health);
  const status:HealthStatus=health.status==='torpor'||health.status==='final-death'?health.status:'active';
  return {
-  blood:{current:current===null?null:max===null?current:clamp(current,0,max),max,perTurn:integer(body.bloodPerRound)||limits?.perTurn||null,maxSource:sheetMax!==null?'bogen':limits?'generation':null},
-  willpower:{temporary:temporary===null?permanent:permanent===null?temporary:clamp(temporary,0,permanent),permanent},
+  blood:{current:current===null?null:clamp(current,0,max??100),max,perTurn,maxSource:limits?'generation':sheetMax!==null?'bogen':null},
+  willpower:{temporary:temporary===null?permanent:clamp(temporary,0,permanent??10),permanent},
   health:{track,status,level:healthLevelName(track),penalty:track.length?vitalHealthLevels[track.length-1].penalty:0},generation,
  };
 }
@@ -111,6 +120,11 @@ export const vitalsCommandSchema=z.discriminatedUnion('op',[
  z.object({op:z.literal('set'),blood:z.number().int().min(0).max(100).optional(),willpowerTemporary:z.number().int().min(0).max(10).optional(),track:z.array(z.enum(damageTypes)).max(healthTrackLength).optional(),status:z.enum(['active','torpor','final-death']).optional(),note:z.string().trim().max(200).optional()}).strict(),
 ]);
 export type VitalsCommand=z.infer<typeof vitalsCommandSchema>;
+export const bloodRoundCommandSchema=z.object({
+ action:z.enum(['start','next','end']),
+ expectedId:z.string().uuid().nullable(),
+}).strict();
+export type BloodRoundCommand=z.infer<typeof bloodRoundCommandSchema>;
 export class VitalsError extends Error{status:number;constructor(status:number,message:string){super(message);this.status=status;}}
 
 /** playerDamage: the round lets players enter damage to their own character themselves (setting „Schaden trägt ein“). */
@@ -134,19 +148,27 @@ function addDamage(track:DamageType[],type:DamageType,levels:number,blood:number
  return {track:next,status:nextStatus};
 }
 export type VitalsChange={body:Record<string,unknown>;summary:string;changes:Record<string,{before:unknown;after:unknown}>};
+export function bloodSpentInTurn(command:VitalsCommand){
+ if(command.op==='blood.spend')return command.amount;
+ if(command.op==='heal.blood'&&!command.aggravated)return 1;
+ return 0;
+}
 /** Reine Regelanwendung. Rechteprüfung erfolgt vorher über mayOperate, die Speicherung serverseitig. */
-export function applyVitals(body:Record<string,unknown>,c:VitalsCommand,principal:{gm:boolean}):VitalsChange{
+export function applyVitals(body:Record<string,unknown>,c:VitalsCommand,principal:{gm:boolean},alreadySpent=0):VitalsChange{
  const v=readVitals(body),blood=v.blood.current,wp=v.willpower.temporary;
  let nextBlood=blood,nextWp=wp,track=v.health.track,status=v.health.status,summary='';
  const fail=(message:string,code=400):never=>{throw new VitalsError(code,message);};
  if(status==='final-death'&&!principal.gm)fail('Endgültiger Tod: nur die Spielleitung kann diesen Stand ändern.',409);
  const needBlood=()=>blood===null?fail('Blutvorrat ist im Bogen noch nicht erfasst.',409):blood;
  const needWp=()=>wp===null||v.willpower.permanent===null?fail('Willenskraft ist im Bogen noch nicht erfasst.',409):wp;
+ const spend=bloodSpentInTurn(c);
+ if(spend>0&&v.blood.perTurn!==null&&alreadySpent+spend>v.blood.perTurn){
+  fail(`Pro Runde höchstens ${v.blood.perTurn} Blutpunkt(e) laut Bogen. Noch verfügbar: ${Math.max(0,v.blood.perTurn-alreadySpent)}.`);
+ }
  if(c.op==='blood.spend'){
   const current=needBlood();
   if(status==='torpor'&&!principal.gm)fail('In der Starre kann kein Blut ausgegeben werden.',409);
   if(c.amount>current)fail('Nicht genug Blut im Vorrat.');
-  if(!principal.gm&&v.blood.perTurn&&c.amount>v.blood.perTurn)fail(`Pro Runde höchstens ${v.blood.perTurn} Blutpunkt(e) laut Generation.`);
   nextBlood=current-c.amount;summary=`Blut −${c.amount}`;
  }else if(c.op==='blood.gain'){
   const current=needBlood();if(v.blood.max===null)fail('Blutmaximum fehlt: Generation oder Maximum im Bogen erfassen.',409);
@@ -154,7 +176,7 @@ export function applyVitals(body:Record<string,unknown>,c:VitalsCommand,principa
   nextBlood=Math.min(v.blood.max!,current+c.amount);summary=`Blut +${nextBlood-current} (Nahrung)`;
  }else if(c.op==='willpower.spend'){
   const current=needWp();if(current<1)fail('Keine Willenskraft mehr im Vorrat.');
-  if(status!=='active'&&!principal.gm)fail('Außer Gefecht oder in Starre ist keine Willenskraft einsetzbar.',409);
+  if(!principal.gm&&(status!=='active'||v.health.penalty===null))fail('Außer Gefecht oder in Starre ist keine Willenskraft einsetzbar.',409);
   nextWp=current-1;summary='Willenskraft −1';
  }else if(c.op==='willpower.regain'){
   const current=needWp();if(current>=v.willpower.permanent!)fail('Willenskraftvorrat ist bereits voll.');
@@ -188,6 +210,7 @@ export function applyVitals(body:Record<string,unknown>,c:VitalsCommand,principa
   if(c.track)track=sortTrack(c.track);if(c.status)status=c.status;summary='Korrektur durch die SL';
  }
  if('note' in c&&c.note)summary+=' · '+c.note;
+ if(nextBlood===0&&track.length===healthTrackLength&&status==='active')status='torpor';
  const next={...body},changes:VitalsChange['changes']={};
  if(nextBlood!==blood){changes.blood={before:blood,after:nextBlood};next.blood=nextBlood;}
  if(nextWp!==wp){changes.willpowerTemporary={before:wp,after:nextWp};next.willpowerTemporary=nextWp;}

@@ -22,6 +22,7 @@
 .sheet .boxes{justify-content:flex-start;max-width:none;margin-top:var(--cp-space-2)}
 .sheet .boxes i{width:12px;height:12px;border:var(--cp-hairline) solid var(--cp-text-faint);border-radius:1px}
 .sheet .boxes i[data-on]{background:var(--cp-blood);border-color:var(--cp-blood)}
+.sheet .boxes i[data-off]{opacity:.3}
 .sheet .missing{color:var(--cp-text-faint);font-variant-numeric:tabular-nums;padding-inline:var(--cp-space-2)}
 .sheet .cost{color:var(--cp-text-muted);font-variant-numeric:tabular-nums}
 .sheet .free{margin:0;white-space:pre-line;color:var(--cp-text-muted)}

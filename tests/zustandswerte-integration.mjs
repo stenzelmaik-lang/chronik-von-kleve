@@ -2,6 +2,7 @@
 // Three independent synthetic sessions (SL, Spieler A, Spieler B): rights, live distribution, reload, audit.
 // Run: CVK_TEST_URL=http://127.0.0.1:8852 node --experimental-strip-types tests/zustandswerte-integration.mjs
 import assert from 'node:assert/strict';
+import {sheetView} from '../domain/character-sheet-view.ts';
 
 const base=process.env.CVK_TEST_URL||'http://127.0.0.1:8852';
 assert.match(base,/^http:\/\/(127\.0\.0\.1|localhost):\d+$/,'Only local isolated instances are allowed.');
@@ -9,6 +10,7 @@ async function login(id){const r=await fetch(base+'/api/auth/login',{method:'POS
 const client=cookie=>({
  get:async path=>{const r=await fetch(base+path,{headers:{Cookie:cookie}});return {status:r.status,text:await r.text()};},
  post:async(path,body)=>{const r=await fetch(base+path,{method:'POST',headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie},body:JSON.stringify(body)});return {status:r.status,text:await r.text()};},
+ patch:async(path,body)=>{const r=await fetch(base+path,{method:'PATCH',headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie},body:JSON.stringify(body)});return {status:r.status,text:await r.text()};},
 });
 const gm=client(await login('command-gm')),a=client(await login('command-a')),b=client(await login('command-b'));
 const active=JSON.parse((await gm.get('/api/live-table?view=active')).text);
@@ -50,6 +52,16 @@ console.log('PASS rights: player books own spending only, server refuses damage,
 let g=(await snap(gm)).characters.find(c=>c.id===ca.id);assert.equal(g.vitals.blood.current,blood-1);assert.equal(g.vitals.willpower.temporary,will-1);
 const a2=client(await login('command-a'));const reloaded=(await snap(a2)).characters.find(c=>c.id===ca.id);
 assert.equal(reloaded.vitals.blood.current,blood-1,'Reload keeps the value');
+const sheet=async()=>{
+ const response=await a2.get('/api/character-detail?id='+encodeURIComponent(ca.id));
+ assert.equal(response.status,200);
+ const {identity,sheet,progression,revision}=JSON.parse(response.text);
+ return {view:sheetView(identity,sheet,progression),revision};
+};
+const afterSpend=await sheet();
+assert.deepEqual(afterSpend.view.willpower,g.vitals.willpower,'Sheet and table read the same current and permanent willpower');
+assert.equal(afterSpend.view.blood.max,g.vitals.blood.max);
+assert.equal(afterSpend.view.blood.perTurn,g.vitals.blood.perTurn);
 console.log('PASS live update for SL and persistence across a new login');
 
 // SL damage, healing and reset with V20 ordering.
@@ -100,17 +112,53 @@ await op(b,ca.id,{op:'blood.spend',amount:1},403);
 await table(gm,{op:'settings',share:{characterId:ca.id,shared:false}});assert.ok(!(await snap(b)).characters.some(c=>c.id===ca.id),'Withdrawn again');
 console.log('PASS explicit release: B reads A read-only, withdrawal removes it');
 
+// Combat: spending and healing share one allowance, across SL and player tabs.
+await table(gm,{op:'settings',profile:'offen'});
+const startRound={bloodRound:{action:'start',expectedId:null}};
+assert.equal((await vitals(a,startRound)).status,403);
+assert.equal((await vitals(gm,startRound)).status,200);
+const round=(await snap(a)).bloodRound;
+const spend={characterId:ca.id,command:{op:'blood.spend',amount:1},expectedBloodRoundId:round.id};
+const attempts=await Promise.all([vitals(a,spend),vitals(gm,spend)]);
+assert.equal(attempts.filter(r=>r.status===200).length,1,'Only one same-round booking uses the one point');
+assert.ok(attempts.some(r=>[400,409].includes(r.status)));
+assert.equal((await snap(a2)).characters.find(c=>c.id===ca.id).bloodRemaining,0);
+await op(gm,ca.id,{op:'damage',type:'lethal',levels:1});
+await op(a,ca.id,{op:'heal.blood'},400);
+const currentSheet=await sheet();
+assert.equal((await a.patch('/api/character-runtime',{id:ca.id,version:currentSheet.revision.version,field:'blood',value:currentSheet.view.blood.current-1})).status,409,'Tracked combat cannot be bypassed from the character sheet');
+assert.equal((await vitals(gm,{bloodRound:{action:'next',expectedId:round.id}})).status,200);
+assert.equal((await vitals(a,spend)).status,409,'A command from the previous combat round is stale');
+await op(a,ca.id,{op:'heal.blood'});
+assert.equal((await snap(a)).characters.find(c=>c.id===ca.id).bloodRemaining,0,'Healing consumes the next round allowance');
+assert.equal((await vitals(gm,{bloodRound:{action:'end',expectedId:(await snap(a)).bloodRound.id}})).status,200);
+await table(gm,{op:'settings',profile:'empfohlen'});
+console.log('PASS combat: one shared blood allowance per figure and round, stale commands and sheet bypass rejected');
+
 // New night and audit trail.
 const before=(await snap(gm)).characters.find(c=>c.id===ca.id).vitals.blood.current;
+await table(gm,{op:'settings',nightlyWillpower:true});
 const night=JSON.parse((await vitals(gm,{group:'night'})).text);assert.match(night.message,/Erwachen −1 Blut/);
 assert.equal((await snap(a)).characters.find(c=>c.id===ca.id).vitals.blood.current,before-1);
+assert.equal((await sheet()).view.willpower.temporary,will,'Night restores one point when configured, also on the sheet');
+if(will<g.vitals.willpower.permanent)await op(gm,ca.id,{op:'willpower.regain',amount:10});
+const afterRegain=(await sheet()).view.willpower;
+assert.equal(afterRegain.temporary,afterRegain.permanent);
+await op(gm,ca.id,{op:'willpower.regain',amount:1},400);
+await table(gm,{op:'settings',nightlyWillpower:false});
 const history=(await snap(gm)).history;assert.ok(history.some(h=>h.character===ca.title&&/Spieler am Spieltisch/.test(h.text)),'Player booking in table history');
 const engine=JSON.parse((await gm.get('/api/character-engine?id='+encodeURIComponent(ca.id))).text);
 assert.ok(engine.history.some(h=>h.action==='vitals'&&h.changes?.blood),'Character history records the vitals change with before/after');
 console.log('PASS new night for the table and character history with before/after values');
 
 // Restore the fixture for the next manual run.
-await op(gm,ca.id,{op:'reset',target:'blood'});await op(gm,ca.id,{op:'reset',target:'willpower'});
-for(const c of (await snap(gm)).characters){const v=c.vitals;if(v.blood.current!==null&&v.blood.max!==null&&v.blood.current<v.blood.max)await op(gm,c.id,{op:'reset',target:'blood'});}
+for(const c of (await snap(gm)).characters){
+ const initial=gv.characters.find(entry=>entry.id===c.id)?.vitals;
+ if(!initial)continue;
+ const command={op:'set'};
+ if(initial.blood.current!==null&&initial.blood.current!==c.vitals.blood.current)command.blood=initial.blood.current;
+ if(initial.willpower.temporary!==null&&initial.willpower.temporary!==c.vitals.willpower.temporary)command.willpowerTemporary=initial.willpower.temporary;
+ if(Object.keys(command).length>1)await op(gm,c.id,command);
+}
 await table(gm,{op:'settings',roundView:'all',damageBy:'player'});
 console.log('PASS zustandswerte integration complete');

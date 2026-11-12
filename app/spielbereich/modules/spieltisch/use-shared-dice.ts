@@ -1,6 +1,7 @@
 import {useEffect,useRef,useState} from 'react';
 import {createInbox,ingestDice,dismissDice,showDice} from './dice-inbox.mjs';
 import type {Snapshot,Viewer,DiceEvent} from './types';
+import {ApiError} from '../api-client';
 
 const storageKey = (viewer: Viewer) => 'chroniplay-w10-v12-' + viewer;
 
@@ -21,7 +22,7 @@ export function useSharedDice(viewer:Viewer,sessionId:string,snapshot:Snapshot|n
   const [inbox,setInbox]=useState(()=>loadInbox(viewer));
   const role=useRef(viewer),pending=useRef<{eventId:string;pool:number;target:number}|null>(null),flight=useRef<Promise<number[]>|null>(null);
   useEffect(()=>{if(role.current!==viewer){role.current=viewer;pending.current=null;flight.current=null;setInbox(loadInbox(viewer));}},[viewer]);
-  useEffect(()=>{let active=true;const journal=snapshot?.dice;if(journal)queueMicrotask(()=>{if(active)setInbox(old=>ingestDice(old,journal));});return()=>{active=false;};},[snapshot?.dice,viewer]);
+  useEffect(()=>{let active=true;const journal=snapshot?.dice;if(journal)queueMicrotask(()=>{if(active)setInbox(old=>receiveDice(old,journal));});return()=>{active=false;};},[snapshot?.dice,viewer]);
   useEffect(() => {
     if (inbox.revision < 0 || inbox.viewer !== viewer) return;
     try {
@@ -37,7 +38,15 @@ export function useSharedDice(viewer:Viewer,sessionId:string,snapshot:Snapshot|n
     if(flight.current)return flight.current;
     if(!pending.current||pending.current.pool!==pool||pending.current.target!==target)pending.current={eventId:crypto.randomUUID(),pool,target};
     const body={action:'roll',sessionId,...pending.current},initiator=viewer;
-    const job=send(body).then(next=>{const event=next.dice.events.find(e=>e.id===body.eventId);if(!event)throw Error('Zentraler Wurf fehlt.');if(role.current===initiator)setInbox(old=>ingestDice(old,next.dice));pending.current=null;return [...event.roll.dice];});
+    const job=send(body).then(next=>{
+      if(role.current===initiator){setInbox(old=>receiveDice(old,next.dice));pending.current=null;}
+      const event=next.dice.events.find(e=>e.id===body.eventId);
+      if(!event)throw Error('Der Wurf ist im aktuellen Würfelprotokoll nicht mehr verfügbar.');
+      return [...event.roll.dice];
+    }).catch(error=>{
+      if(role.current===initiator&&error instanceof ApiError&&error.status===409)pending.current=null;
+      throw error;
+    });
     flight.current=job;void job.finally(()=>{if(flight.current===job)flight.current=null;}).catch(()=>{});return job;
   };
   const clearStatistics = (authorId: string) => setInbox(current => {
@@ -51,6 +60,14 @@ export function useSharedDice(viewer:Viewer,sessionId:string,snapshot:Snapshot|n
 
   return {selected,waiting,animate:inbox.animate,events,roll,statisticsExcludedIds:inbox.statisticsExcludedIds,clearStatistics,
     dismiss:()=>setInbox(old=>dismissDice(old)),show:(id:string)=>setInbox(old=>showDice(old,id)),
-    closeShared:async()=>{if(selected){const next=await send({action:'closeRoll',sessionId,eventId:selected.id,expectedRevision:selected.revision});setInbox(old=>ingestDice(old,next.dice));}}
+    closeShared:async()=>{if(selected){const next=await send({action:'closeRoll',sessionId,eventId:selected.id,expectedRevision:selected.revision});setInbox(old=>receiveDice(old,next.dice));}}
   };
+}
+
+function receiveDice(inbox:ReturnType<typeof loadInbox>,journal:Snapshot['dice']){
+  const next=ingestDice(inbox,journal);
+  if(next===inbox)return inbox;
+  const currentIds=new Set(journal.events.map(event=>event.id));
+  const statisticsExcludedIds=new Set([...inbox.statisticsExcludedIds].filter(id=>currentIds.has(id)));
+  return {...next,statisticsExcludedIds};
 }

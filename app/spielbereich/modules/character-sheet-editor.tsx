@@ -3,6 +3,7 @@ import {useMemo,useState} from 'react';
 import {Minus,Plus,Trash2,X} from 'lucide-react';
 import {Dialog,DialogContent,DialogDescription,DialogTitle} from '@/components/ui/dialog';
 import {characterSheetFields,validateExistingSheet} from '@/domain/character-management';
+import {generationLimits} from '@/domain/character-vitals';
 import {hybridPreparationNote,newSpecialtyId,specialtyRatingError,specialtyTargetKey,SPECIALTY_MINIMUM_RATING,traitRating,type Specialty} from '@/domain/character-specialties';
 import {W10_ABILITY_KEYS,W10_ATTRIBUTE_KEYS} from '@/domain/trait-ids';
 import {CUSTOM_ABILITY_CATEGORIES,newCustomAbilityId,readCustomAbilities} from '@/domain/custom-abilities';
@@ -87,6 +88,7 @@ export function CharacterSheetEditor({open,onOpenChange,title,sheet:initial,mode
 
 function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClose,onSave}:{title:string;initial:Body;mode:'sl'|'player';busy:boolean;error:string;historical:boolean;onClose:()=>void;onSave:SheetEditorProps['onSave']}){
   const [body,setBody]=useState<Body>(()=>structuredClone(initial)),[title,setTitle]=useState(initialTitle),[reason,setReason]=useState(''),[high,setHigh]=useState(()=>[...Object.values(map(initial.attributes)),...Object.values(map(initial.skills))].some(v=>Number(v)>5)),[section,setSection]=useState('identity'),[showChanges,setShowChanges]=useState(false);
+  const bloodLimits=generationLimits(body.generation);
   const set=(key:string,value:unknown)=>setBody(prev=>({...prev,[key]:value}));
   const setIn=(key:string,name:string,value:number)=>setBody(prev=>({...prev,[key]:{...map(prev[key]),[name]:value}}));
   // Freshly added rows without a name are drafts, not data: they are dropped instead of blocking the save.
@@ -136,7 +138,8 @@ function EditorBody({title:initialTitle,initial,mode,busy,error,historical,onClo
       <section id="cvk-sheet-state" className={sheet.block}><h3>Menschlichkeit, Willenskraft & Blut</h3><div className={sheet.columns}>
         <div><h4>Menschlichkeit / Pfad</h4><label className={sheet.compact}><span>Pfad (leer = Menschlichkeit)</span><input aria-label="Pfad" value={str(body.humanityPath)} maxLength={120} onChange={e=>set('humanityPath',e.target.value)}/></label><DotInput label="Menschlichkeit oder Pfad" max={10} value={Number(body.humanity??0)} onChange={n=>set('humanity',n)}/></div>
         <div><h4>Willenskraft (permanent)</h4><DotInput label="Willenskraft" max={10} value={Number(body.willpower??0)} onChange={n=>set('willpower',n)}/><p className={sheet.hint}>Die temporäre Willenskraft wird am Spieltisch geführt{typeof initial.willpowerTemporary==='number'?` (aktuell ${initial.willpowerTemporary})`:''}.</p></div>
-        <div><h4>Blutvorrat</h4><label className={sheet.compact}><span>Maximum</span><Stepper label="Blutvorrat Maximum" value={numberOrNull(body.bloodMax)} fallback={10} max={100} onChange={n=>set('bloodMax',n)}/></label><label className={sheet.compact}><span>Pro Runde</span><Stepper label="Blut pro Runde" value={numberOrNull(body.bloodPerRound)} fallback={1} max={100} onChange={n=>set('bloodPerRound',n)}/></label></div>
+        <div><h4>Blutvorrat</h4>{bloodLimits ? <p className={sheet.hint}>Maximum {bloodLimits.bloodMax} · {bloodLimits.perTurn} pro Runde · aus Generation</p> :
+            <><label className={sheet.compact}><span>Maximum</span><Stepper label="Blutvorrat Maximum" value={numberOrNull(body.bloodMax)} fallback={10} max={100} onChange={n=>set('bloodMax',n)}/></label><label className={sheet.compact}><span>Pro Runde</span><Stepper label="Blut pro Runde" value={numberOrNull(body.bloodPerRound)} fallback={1} max={100} onChange={n=>set('bloodPerRound',n)}/></label></>}</div>
       </div></section>
       <section id="cvk-sheet-traits" className={sheet.block}><h3>Vorzüge, Schwächen & Angaben</h3><div className={sheet.columns}>
         <div><h4>Vorzüge</h4><RowList label="Vorzug" value={body.merits??[]} onChange={v=>set('merits',v)} metric="cost" high={false}/></div>

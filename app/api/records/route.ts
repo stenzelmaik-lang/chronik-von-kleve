@@ -19,6 +19,8 @@ import { locationReferenceIsVisible } from "@/server/location-repository";
 import { validateCharacterClanSelection } from "@/domain/clan-config";
 import { validateCharacterDraft, withCreationBaseValues } from "@/domain/character-engine";
 import {characterFieldEqual,characterSheetFields} from '@/domain/character-management';
+import {readVitals} from '@/domain/character-vitals';
+import {activeBloodRoundSql} from '@/server/live-game';
 export const dynamic = "force-dynamic";
 // Rule markers are accepted only for the GM-owned campaign character route;
 // POST below rejects marked character payloads before persisting for anyone else.
@@ -170,6 +172,7 @@ export async function POST(req: Request) {
       throw new HttpError(403, "Terminantworten werden ausschließlich über die Terminabstimmung verwaltet.");
     if (["live-table", "live-table-signal", "live-table-event"].includes(String(d.body.context)) || (old && ["live-table", "live-table-signal", "live-table-event"].includes(String(legacyBody(old.body).context))))
       throw new HttpError(403, "Spielraumdaten werden ausschließlich im gemeinsamen Spielraum verwaltet.");
+    let guardBlood = false;
     if (d.kind === "charaktere") {
       const previous = old ? legacyBody(old.body) : undefined;
       if(old&&(previous?.engineVersion!==undefined||previous?.historicalSnapshot)&&previous?.engineVersion!==d.body.engineVersion)throw new HttpError(403,'Die bestätigte Engine-Zuordnung darf nicht über den allgemeinen Editor geändert werden.');
@@ -210,6 +213,14 @@ export async function POST(req: Request) {
       if(old&&!a.gm&&!previous?.engineVersion&&["attributes","skills","customAbilities","disciplines","backgrounds","virtues","humanity","willpower","generation","clan","merits","flaws","bloodMax","bloodPerRound"].some(key=>!characterFieldEqual(previous?.[key],d.body[key]))) throw new HttpError(403,"Historische mechanische Werte benötigen eine ausdrückliche SL-Bearbeitungsfreigabe. Texte und unveränderte Legacy-Werte bleiben erhalten.");
       const engine = validateCharacterDraft(a.campaignId, d.body, previous);
       if (!engine.ok) throw new HttpError(400, engine.error);
+      const vitals = readVitals(d.body);
+      const bloodChanged = !characterFieldEqual(previous?.blood,d.body.blood);
+      if (bloodChanged && d.body.blood !== undefined && vitals.blood.max !== null && d.body.blood > vitals.blood.max)
+        throw new HttpError(400, "Blutvorrat über dem Höchstwert.");
+      if (!characterFieldEqual(previous?.willpowerTemporary,d.body.willpowerTemporary) && d.body.willpowerTemporary !== undefined
+          && vitals.willpower.permanent !== null && d.body.willpowerTemporary > vitals.willpower.permanent)
+        throw new HttpError(400, "Temporäre Willenskraft über dem Höchstwert.");
+      guardBlood = !!old && !a.gm && bloodChanged;
     }
     if (d.kind === "sitzungen" && d.body.slSecret !== undefined) {
       const secret = z.object({activePlaceId:z.string().trim().min(1).max(160).nullable().optional()}).passthrough().safeParse(d.body.slSecret);
@@ -230,7 +241,7 @@ export async function POST(req: Request) {
     if (old) {
       const result = await db
         .prepare(
-          "UPDATE records SET title=?,body=?,visibility=?,gm_body=?,version=version+1,updated_at=? WHERE id=? AND version=?",
+          `UPDATE records SET title=?,body=?,visibility=?,gm_body=?,version=version+1,updated_at=? WHERE id=? AND version=? AND (?=0 OR NOT EXISTS(${activeBloodRoundSql}))`,
         )
         .bind(
           d.title,
@@ -240,13 +251,18 @@ export async function POST(req: Request) {
           now,
           id,
           d.version ?? 0,
+          guardBlood ? 1 : 0,
+          a.campaignId,
         )
         .run();
-      if (!result.meta.changes)
+      if (!result.meta.changes) {
+        if (guardBlood && await db.prepare(activeBloodRoundSql).bind(a.campaignId).first())
+          throw new HttpError(409, "Blut während einer Kampfrunde bitte am Spieltisch buchen.");
         throw new HttpError(
           409,
           "Dieser Eintrag wurde inzwischen geändert. Kopiere deine Änderungen und lade den Eintrag neu.",
         );
+      }
     } else {
       await db
         .prepare(
