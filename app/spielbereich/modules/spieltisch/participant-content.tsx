@@ -7,20 +7,22 @@ import type {SharedProfile} from '@/domain/character-profile';
 import {api} from '../api-client';
 import {RichTextView} from '../rich-text';
 import {CharacterReadOnly} from './character-readonly';
+import type {TableCharacter} from './types';
 import styles from './participants.module.css';
 const Inventory=lazy(()=>import('../inventory').then(m=>({default:m.InventoryPanel})));
 const Messages=lazy(()=>import('../message-center').then(m=>({default:m.MessageCenter})));
 const Notebook=lazy(()=>import('../notebook/notebook').then(m=>({default:m.Notebook})));
 type Data={member?:{id:string;name:string;avatar:string|null;presentation?:{pronouns?:string;banner?:string;introduction?:string;playStyles?:string[]}|null};own?:boolean;characters:{id:string;name:string}[];character?:{id:string;name:string;portrait:string|null;profile?:SharedProfile;descriptions:{kind:string;content:string}[];tagline?:string;introduction?:string;gallery?:{url:string;caption?:string}[]}|null;selectedCharacter?:string|null;projection?:CharacterDetailProjection};
 export type ParticipantAction='profile'|'gallery'|'sheet'|'inventory'|'messages'|'notebook';
-export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessionId:string;memberId:string;action:ParticipantAction}){
+export function ParticipantContent({a,sessionId,memberId,action,initialCharacterId,liveCharacters}:{a:Actor;sessionId:string;memberId:string;action:ParticipantAction;initialCharacterId?:string;liveCharacters?:TableCharacter[]}){
  const [data,setData]=useState<Data|null>(null),[characterId,setCharacterId]=useState<string|null>(null),[tab,setTab]=useState<'human'|'character'>('character'),[error,setError]=useState(''),[reload,setReload]=useState(0);
  const select=useCallback((id:string|null)=>setCharacterId(id),[]);
+ const targetId=characterId??initialCharacterId;
  useEffect(()=>{
   if(action==='messages'||action==='notebook')return;let active=true;queueMicrotask(()=>{if(active){setData(null);setError('');}});
-  const path='/api/live-participants?sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId)+'&view='+(action==='gallery'?'profile':action)+(characterId?'&characterId='+encodeURIComponent(characterId):'');
+  const path='/api/live-participants?sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(memberId)+'&view='+(action==='gallery'?'profile':action)+(targetId?'&characterId='+encodeURIComponent(targetId):'');
   api<Data>(path).then(next=>{if(active)setData(next);}).catch(e=>{if(active){setData(null);setError(e.message);}});return()=>{active=false;};
- },[action,memberId,sessionId,characterId,reload]);
+ },[action,memberId,sessionId,targetId,reload]);
  if(action==='notebook')return <Suspense fallback={<p role="status">Notizbuch wird geladen …</p>}><Notebook a={a} layout="narrow" memberId={memberId}/></Suspense>;
  if(action==='messages')return <Suspense fallback={<p role="status">Nachrichten werden geladen …</p>}><Messages a={a} embedded initialRecipient={memberId===a.id?undefined:memberId}/></Suspense>;
  if(error)return <div role="alert"><p>{error}</p><button onClick={()=>setReload(n=>n+1)}>Erneut laden</button></div>;
@@ -72,7 +74,7 @@ export function ParticipantContent({a,sessionId,memberId,action}:{a:Actor;sessio
  }
  return <>
   
-  {action==='sheet'?(data.projection?<CharacterReadOnly projection={data.projection}/>:<p>Kein berechtigter Charakterbogen vorhanden.</p>):
+  {action==='sheet'?(data.projection?<CharacterReadOnly projection={data.projection} live={liveCharacters?.find(c=>c.id===data.projection?.identity.id)}/>:<p>Kein berechtigter Charakterbogen vorhanden.</p>):
    data.selectedCharacter?<Suspense fallback={<p role="status">Inventar wird geladen …</p>}>
     <Inventory embedded inspection={a.gm&&memberId!==a.id} dataScope={a.campaignId+':'+a.id+':'+a.role+':stage:'+memberId} activeCharacterId={data.selectedCharacter} onActiveCharacterChange={select}/>
    </Suspense>:<p>Kein zugängliches Inventar vorhanden.</p>}

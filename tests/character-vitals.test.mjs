@@ -10,11 +10,15 @@ test('V20 generation table drives blood maximum and spending per turn (S. 270)',
  assert.deepEqual(generationLimits(8),{maxTrait:5,bloodMax:15,perTurn:3});
  assert.deepEqual(generationLimits(7),{maxTrait:6,bloodMax:20,perTurn:5},'German V20 anniversary edition p. 270');
  assert.equal(readVitals(sheet({generation:7,blood:20,bloodMax:undefined,bloodPerRound:undefined})).blood.perTurn,5);
- assert.equal(readVitals(sheet({generation:7,bloodPerRound:4})).blood.perTurn,4,'Stored override remains untouched');
+ assert.equal(readVitals(sheet({generation:7,bloodPerRound:4})).blood.perTurn,5,'Generation overrides stale sheet values');
  assert.equal(generationLimits(15).bloodMax,10,'Thirteenth and higher: 10');
  assert.equal(generationLimits(3),null,'Third generation is undefined in the rulebook');
  const v=readVitals(sheet());assert.equal(v.blood.max,11);assert.equal(v.blood.maxSource,'generation');
- assert.equal(readVitals(sheet({bloodMax:13,bloodPerRound:2})).blood.perTurn,2,'An explicit sheet value wins');
+ assert.deepEqual(readVitals(sheet({generation:'12',blood:'13',bloodMax:13,bloodPerRound:2})).blood,
+  {current:11,max:11,perTurn:1,maxSource:'generation'});
+ assert.deepEqual(readVitals(sheet({generation:null,bloodMax:13,bloodPerRound:2})).blood,
+  {current:11,max:13,perTurn:2,maxSource:'bogen'});
+ assert.equal(readVitals(sheet({generation:8,bloodMax:10})).blood.max,15);
 });
 test('legacy health level without damage type is kept as unspecified levels',()=>{
  const v=readVitals(sheet({health:{current:'Verwundet'}}));
@@ -52,12 +56,32 @@ test('spending blood respects pool and the per-turn limit for players; willpower
  fails(()=>applyVitals(sheet(),{op:'blood.spend',amount:2},player));
  assert.equal(applyVitals(sheet({generation:7,blood:20,bloodPerRound:undefined}),{op:'blood.spend',amount:5},player).body.blood,15);
  fails(()=>applyVitals(sheet({generation:7,blood:20,bloodPerRound:undefined}),{op:'blood.spend',amount:6},player));
- assert.equal(applyVitals(sheet(),{op:'blood.spend',amount:2},gm).body.blood,9,'SL may book several turns at once');
+ fails(()=>applyVitals(sheet(),{op:'blood.spend',amount:2},gm));
  fails(()=>applyVitals(sheet({blood:0}),{op:'blood.spend',amount:1},gm));
  fails(()=>applyVitals(sheet({blood:11}),{op:'blood.gain',amount:1},gm));
  fails(()=>applyVitals(sheet({willpowerTemporary:0}),{op:'willpower.spend'},player));
  fails(()=>applyVitals(sheet({willpowerTemporary:5}),{op:'willpower.regain',amount:1},gm));
  fails(()=>applyVitals(sheet({blood:undefined,generation:undefined}),{op:'blood.spend',amount:1},player),409);
+});
+test('blood spending and normal healing share the remaining turn allowance',()=>{
+ const hurt=sheet({health:{track:['lethal']}});
+ fails(()=>applyVitals(hurt,{op:'blood.spend',amount:1},player,1));
+ fails(()=>applyVitals(hurt,{op:'heal.blood',aggravated:false,extraSameDay:false},player,1));
+ assert.equal(applyVitals(hurt,{op:'heal.blood',aggravated:false,extraSameDay:false},player,0).body.blood,10);
+});
+test('spending the last blood while incapacitated causes torpor',()=>{
+ const body=sheet({blood:1,health:{current:'Außer Gefecht'}});
+ assert.equal(applyVitals(body,{op:'blood.spend',amount:1},gm).body.health.status,'torpor');
+ fails(()=>applyVitals(body,{op:'willpower.spend'},player),409);
+});
+test('willpower uses the permanent value as the cap and keeps recorded zero',()=>{
+ assert.deepEqual(readVitals(sheet({willpower:'6',willpowerTemporary:'0'})).willpower,{permanent:6,temporary:0});
+ assert.deepEqual(readVitals(sheet({willpower:5,willpowerTemporary:undefined})).willpower,{permanent:5,temporary:5});
+ assert.deepEqual(readVitals(sheet({willpower:15,willpowerTemporary:12})).willpower,{permanent:10,temporary:10});
+ const change=applyVitals(sheet({willpower:3,willpowerTemporary:2}),{op:'willpower.regain',amount:10},gm);
+ assert.equal(change.body.willpowerTemporary,3);
+ assert.equal(change.body.willpower,3);
+ fails(()=>applyVitals(sheet({willpower:undefined,willpowerTemporary:2}),{op:'willpower.spend'},player),409);
 });
 test('torpor and Final Death block player actions; reset restores the sheet',()=>{
  const torpid=sheet({health:{track:Array(7).fill('lethal'),status:'torpor'}});

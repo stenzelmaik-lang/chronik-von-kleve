@@ -17,16 +17,23 @@ try{
  const active=(await get(gmC,'/api/live-table?view=active')).room;assert.ok(active?.started,'synthetic evening must be started');
  const q='/api/live-stage?sessionId='+encodeURIComponent(active.sessionId);
  for(const [c,title] of [[aC,'SYNTHETISCH – Regiecharakter A'],[bC,'SYNTHETISCH – Regiecharakter B']]){const own=(await get(c,'/api/records?kind=charaktere')).records.find(x=>x.title===title);assert.ok(own,title);assert.equal((await c.request.patch(base+'/api/character-selection',{headers:{Origin:base},data:{characterId:own.id}})).status(),200);}
- const open=async(c,who)=>{const page=await c.newPage();page.on('pageerror',e=>errors.push(who+': '+e.message));await page.goto(base+'/');await page.getByRole('button',{name:'Spieltisch betreten'}).click();await page.getByRole('button',{name:'Würfel öffnen'}).waitFor({timeout:30000});return page;};
  const reenter=async page=>{await page.reload();const enter=page.getByRole('button',{name:'Spieltisch betreten'}),dice=page.getByRole('button',{name:'Würfel öffnen'});await enter.or(dice).first().waitFor({timeout:30000});if(await enter.isVisible())await enter.click();await dice.waitFor({timeout:30000});};
+ const open=async(c,who)=>{
+  const page=await c.newPage();page.on('pageerror',e=>errors.push(who+': '+e.message));
+  await page.goto(base+'/spielbereich?bereich=sitzung');
+  await page.getByRole('button',{name:'Würfel öffnen',exact:true}).waitFor({timeout:30000});
+  return page;
+ };
  const [gm,a,b]=await Promise.all([open(gmC,'SL'),open(aC,'A'),open(bC,'B')]);
  const rollsBefore=(await get(gmC,q)).dice.events.length;
 
  phase='scene preparation holds the structured check';
  const prep=await gmC.newPage();prep.on('pageerror',e=>errors.push('Vorbereitung: '+e.message));await prep.setViewportSize({width:1100,height:1000});
- await prep.goto(base+'/spielbereich?bereich=vorbereitung');await prep.getByRole('button',{name:'Szenenbausteine'}).click();
- const sceneSelect=prep.locator('select').filter({has:prep.locator('option',{hasText:'Szene 01 – Spielort Kaserne (Auftakt)'})}).first();await sceneSelect.waitFor({timeout:20000});await sceneSelect.selectOption({label:'Szene 01 – Spielort Kaserne (Auftakt)'});
- const block=prep.getByRole('button',{name:/^\d+\. Schlüsselbund stehlen/});await block.waitFor({timeout:20000});
+ await prep.goto(base+'/sl/command-center?bereich=vorbereitung&material=szenen');
+ const sceneSelect=prep.getByLabel('Szene für Materialvorbereitung');
+ await sceneSelect.selectOption({label:'Szene 01 – Spielort Kaserne (Auftakt)'});
+ const block=prep.getByRole('region',{name:'Weitere Szenenbausteine'}).getByRole('button',{name:/^\d+\. Schlüsselbund stehlen/});
+ await block.waitFor({timeout:20000});
  assert.match(await block.innerText(),/Geschick \+ Diebstahl · SG 7/);await block.click();
  const fields=prep.locator('[data-check-fields]');await fields.waitFor();
  assert.equal(await fields.getByLabel('Attribut').inputValue(),'dexterity');assert.equal(await fields.getByLabel('Schwierigkeit').inputValue(),'7');
@@ -35,15 +42,18 @@ try{
  await fields.getByRole('checkbox',{name:/SYNTHETISCH – Regiecharakter A/}).check();
  await fields.scrollIntoViewIfNeeded();await shot(prep,'00-szenenvorbereitung-probe');
  await prep.getByRole('button',{name:'Szenenmaterial speichern'}).first().click();
- await prep.waitForFunction(()=>![...document.querySelectorAll('button')].some(b=>/Szenenmaterial speichern|Wird gespeichert/.test(b.textContent||'')),null,{timeout:20000});
+ await prep.getByRole('status').filter({hasText:'Szenenmaterial gespeichert'}).waitFor({timeout:20000});
  await prep.close();
  pass('scene preparation holds traits, SG, intended figure A and private consequences; saved');
  phase='SL issues a prepared check from the Regie window';
  const popup=gm.waitForEvent('popup');await gm.getByRole('button',{name:'Regie im zweiten Fenster'}).click();const regie=await popup;regie.on('pageerror',e=>errors.push('Regie: '+e.message));
  await regie.setViewportSize({width:1440,height:900});
- const probenTab=regie.locator('[data-area-button=checks]');await probenTab.waitFor({timeout:20000});
+ const probenGroup=regie.getByRole('button',{name:/^Proben & NPCs/});
+ await probenGroup.click();
+ const probenTab=regie.getByRole('button',{name:'Proben',exact:true});await probenTab.waitFor({timeout:20000});
  assert.match((await probenTab.innerText()).trim(),/^Proben/,'Proben area visible in the area bar');
- const badge=async()=>{const el=regie.locator('[data-area-button=checks] [class*=areaBadge]');return await el.count()?Number(await el.innerText()):0;};const owedBefore=await badge();
+ const badge=probenGroup.getByLabel(/^\d+ Würfe ausstehend$/);
+ const owedBefore=await badge.count()?Number(await badge.innerText()):0;
  await probenTab.click();
  const form=regie.getByRole('region',{name:'Neue Probe'});await form.waitFor();
  const evening=regie.getByRole('switch',{name:'Charakterproben an diesem Abend'});assert.equal(await evening.getAttribute('aria-checked'),'true','release switch visible to the SL and on for this evening');
@@ -56,7 +66,7 @@ try{
  pass('prepared check with intended figure is issued with one click from the Regie');
  await form.getByText('„Schlüsselbund stehlen“ ist ausgegeben.').waitFor({timeout:15000});
  await regie.getByRole('list',{name:'Ausgegebene Proben'}).getByText('Probe ausstehend').first().waitFor();
- assert.equal(await badge(),owedBefore+1,'badge counts the new owed roll');
+ await probenGroup.getByLabel((owedBefore+1)+' Würfe ausstehend',{exact:true}).waitFor();
  await shot(regie,'02-regie-probe-ausgegeben');
  pass('issued check shows as "Probe ausstehend" with badge 1 in the Regie');
 
@@ -94,7 +104,8 @@ try{
  assert.deepEqual((await a.locator('[aria-label="Feststehende W10-Einzelergebnisse"] li').allInnerTexts()).map(Number),stored[0].roll.dice);
  await shot(a,'05-spieler-wurf-ergebnis');
  await regie.getByRole('list',{name:'Ausgegebene Proben'}).getByText('Wurf abgeschlossen').first().waitFor({timeout:20000});
- await regie.waitForFunction(n=>{const el=document.querySelector('[data-area-button=checks] [class*=areaBadge]');return (el?Number(el.textContent):0)===n;},owedBefore);
+ if(owedBefore)await probenGroup.getByLabel(owedBefore+' Würfe ausstehend',{exact:true}).waitFor();
+ else await badge.waitFor({state:'hidden'});
  await regie.getByRole('list',{name:'Ausgegebene Proben'}).getByText(/^Folge: /).first().waitFor({timeout:10000});
  await regie.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();
  await shot(regie,'06-regie-wurf-abgeschlossen-folge');
@@ -123,12 +134,12 @@ try{
  await a.getByRole('button',{name:'Würfelansicht nur für mich schließen'}).click();
  pass('replay shows the stored faces '+evidence.faces.join(',')+' and adds no roll');
 
- phase='spontaneous check from the table Regie for the whole round; player B chooses freely';
- regie.close().catch(()=>{});
- await gm.getByRole('button',{name:'Regie (privat)'}).click();await gm.getByRole('tab',{name:/^Proben/}).click();
- const tableForm=gm.getByRole('region',{name:'Neue Probe'});await tableForm.getByLabel('Probe',{exact:true}).fill('Schloss der Wachstube');
- await tableForm.getByRole('button',{name:'Probe ausgeben'}).click();await tableForm.getByText('„Schloss der Wachstube“ ist ausgegeben.').waitFor({timeout:15000});
- await gm.getByRole('list',{name:'Ausgegebene Proben'}).getByText('0 von 2 gewürfelt').waitFor({timeout:15000});
+ phase='spontaneous check from the Regie window for the whole round; player B chooses freely';
+ const checkProgress=regie.getByRole('list',{name:'Ausgegebene Proben'});
+ const lockCheck=checkProgress.getByRole('listitem').filter({has:regie.getByText('Schloss der Wachstube',{exact:true})});
+ await form.getByLabel('Probe',{exact:true}).fill('Schloss der Wachstube');
+ await form.getByRole('button',{name:'Probe ausgeben'}).click();await form.getByText('„Schloss der Wachstube“ ist ausgegeben.',{exact:false}).waitFor({timeout:15000});
+ await lockCheck.getByText('0 von 2 gewürfelt').waitFor({timeout:15000});
  await b.locator('[class*=ownHint]').waitFor({timeout:20000});
  await b.locator('[class*=ownHint]').click();
  const bPanel=b.getByRole('region',{name:'Charakterprobe'});await bPanel.waitFor({timeout:15000});
@@ -137,19 +148,17 @@ try{
  await b.waitForFunction(()=>/\d+ W10/.test(document.querySelector('[aria-label="Aktive Charakterprobe"]')?.textContent||''));
  await shot(b,'09-spieler-b-freie-wahl');
  await bPanel.getByRole('button',{name:'Würfeln',exact:true}).click();await b.getByRole('region',{name:'Gemeinsamer Würfelwurf'}).waitFor({timeout:20000});
- await gm.getByRole('list',{name:'Ausgegebene Proben'}).getByText('1 von 2 gewürfelt').waitFor({timeout:20000});
- // While B's result is new for the SL, the SL table may show it; close it so the Regie stays readable.
- if(await gm.getByRole('button',{name:'Würfelansicht nur für mich schließen'}).count())await gm.getByRole('button',{name:'Würfelansicht nur für mich schließen'}).click();
- await gm.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();
- await shot(gm,'10-tischregie-teilweise-gewuerfelt');
- pass('table Regie shows "1 von 2 gewürfelt" live after B rolled a freely chosen Geschick + Handgemenge');
+ await lockCheck.getByText('1 von 2 gewürfelt').waitFor({timeout:20000});
+ await checkProgress.scrollIntoViewIfNeeded();
+ await shot(regie,'10-regie-teilweise-gewuerfelt');
+ pass('Regie shows "1 von 2 gewürfelt" live after B rolled a freely chosen Geschick + Handgemenge');
 
  phase='simplest spontaneous check: figure + SG, the player picks traits';
- await tableForm.getByRole('button',{name:/^SYNTHETISCH – Regiecharakter B/}).click();await tableForm.getByLabel('SG',{exact:true}).fill('5');
- await tableForm.getByRole('button',{name:'Probe ausgeben'}).click();await tableForm.getByText('„Probe“ ist ausgegeben.').waitFor({timeout:15000});
+ await form.getByRole('button',{name:/^SYNTHETISCH – Regiecharakter B/}).click();await form.getByLabel('SG',{exact:true}).fill('5');
+ await form.getByRole('button',{name:'Probe ausgeben'}).click();await form.getByText('„Probe“ ist ausgegeben.').waitFor({timeout:15000});
  await b.locator('[class*=ownHint]').waitFor({timeout:20000});
  const simplest=(await get(gmC,q)).checks.findLast(c=>c.title==='Probe');assert.equal(simplest.difficulty,5);assert.equal(simplest.attributeId,undefined);assert.equal(simplest.recipients.length,1);
- await gm.getByRole('list',{name:'Ausgegebene Proben'}).scrollIntoViewIfNeeded();await shot(gm,'10b-spontan-figur-und-sg');
+ await checkProgress.scrollIntoViewIfNeeded();await shot(regie,'10b-spontan-figur-und-sg');
  pass('spontaneous check with only figure B and SG 5 reaches B; traits stay the player’s choice');
  phase='mobile 390 × 844';
  const mobile=await context('command-a',{viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
@@ -173,6 +182,65 @@ try{
  const bStage=await get(bC,q);assert.ok(!bStage.dice.events.some(e=>e.checkRef?.requestId===check.id),'B cannot see A\'s targeted result');
  assert.ok(!/Schäfer bemerkt den Griff|Schlüssel zum Keller|Schäfer bleibt arglos/.test(JSON.stringify(await get(aC,q))+JSON.stringify(bStage)),'prepared consequences stay with the GM');
  pass('rights: B sees neither A\'s targeted roll nor the private SL hint');
+
+ phase='SL confirms a shared dice journal reset';
+ await gm.bringToFront();
+ const dismiss=gm.getByRole('button',{name:'Würfelansicht nur für mich schließen',exact:true});
+ if(await dismiss.isVisible())await dismiss.click();
+ await gm.getByRole('button',{name:'Würfel öffnen',exact:true}).click();
+ const priorJournal=(await get(gmC,q)).dice;
+ assert.ok(priorJournal.events.length>=2);
+ const reset=gm.getByRole('button',{name:'Protokoll zurücksetzen',exact:true});
+ await reset.click();
+ await gm.getByRole('button',{name:'Abbrechen',exact:true}).click();
+ assert.deepEqual((await get(gmC,q)).dice,priorJournal,'Cancelling keeps all rolls');
+ await reset.click();
+ await gm.getByRole('button',{name:'Für alle zurücksetzen',exact:true}).click();
+ await gm.getByText('Das Würfelprotokoll ist leer.',{exact:true}).waitFor();
+ assert.equal((await get(gmC,q)).dice.epoch,priorJournal.epoch+1);
+ const done=checkProgress.getByRole('listitem').filter({has:regie.getByText('Schlüsselbund stehlen',{exact:true})});
+ await done.getByText('Wurf abgeschlossen',{exact:true}).waitFor();
+ for(const [page,context] of [[a,aC],[b,bC]]){
+  await reenter(page);
+  await page.getByRole('button',{name:'Würfel öffnen',exact:true}).click();
+  await page.getByText('Das Würfelprotokoll ist leer.',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Protokoll zurücksetzen',exact:true}).count(),0);
+  assert.deepEqual((await get(context,q)).dice.events,[]);
+ }
+ assert.ok(!(await get(bC,q)).archivedCheckRolls?.some(roll=>roll.checkRef?.requestId===check.id),'The reset never broadens access to an earlier result');
+ pass('only the SL can confirm the shared reset; both players see the empty journal, issued checks stay completed');
+
+ phase='the open character sheet follows Regie resource changes';
+ const own=(await get(aC,q)).vitals.characters.find(c=>c.own);
+ await a.keyboard.press('Escape');
+ await a.locator('[data-own-member]').click();
+ await a.getByRole('button',{name:/^Charakterbogen für /}).click();
+ const playerSheet=a.getByRole('dialog',{name:/^Charakterbogen · /});
+ await playerSheet.getByRole('tab',{name:'Zustände & EP',exact:true}).click();
+ const wp=own.vitals.willpower, blood=own.vitals.blood;
+ const willpower=value=>playerSheet.getByRole('img',{name:`Willenskraft aktuell: ${value} von ${wp.permanent}`,exact:true});
+ const bloodPool=value=>playerSheet.getByRole('img',{name:`Blutvorrat: ${value} von ${blood.max}`,exact:true});
+ await willpower(wp.temporary).waitFor();
+ await bloodPool(blood.current).waitFor();
+ await regie.getByRole('navigation',{name:'Arbeitsansichten der Regie'}).getByRole('button',{name:'Spieler am Tisch',exact:true}).click();
+ await regie.getByRole('button',{name:'Zustände',exact:true}).click();
+ const card=regie.locator('[data-vitals-character="'+own.id+'"]');
+ await regie.getByRole('button',{name:'Kampfrunde beginnen',exact:true}).click();
+ const spend=card.getByRole('button',{name:own.title+': 1 Blut ausgeben',exact:true});
+ await spend.click();
+ await card.getByText('0/1 verfügbar',{exact:true}).waitFor();
+ assert.ok(await spend.isDisabled());
+ await card.getByRole('button',{name:own.title+': Willenskraft einsetzen',exact:true}).click();
+ await a.bringToFront();
+ await bloodPool(blood.current-1).waitFor();
+ await willpower(wp.temporary-1).waitFor();
+ await regie.getByRole('button',{name:'Nächste Kampfrunde',exact:true}).click();
+ await card.getByText('1/1 verfügbar',{exact:true}).waitFor();
+ await card.getByRole('button',{name:own.title+': Willenskraft zurück',exact:true}).click();
+ await a.bringToFront();
+ await willpower(wp.temporary).waitFor();
+ await regie.getByRole('button',{name:'Kampfrunden beenden',exact:true}).click();
+ pass('the open sheet matches blood and willpower after Regie spends and restores points; the SL advances the combat allowance');
  assert.deepEqual(errors,[]);
  writeFileSync(output+'/evidence.json',JSON.stringify(evidence,null,1));
  console.log('GE-02 BROWSER PASS',JSON.stringify(evidence));

@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {Droplets,Flame,Heart,Activity,ShieldAlert,Moon,Minus,Plus,Settings2,ChevronDown} from 'lucide-react';
 import {Popover,PopoverContent,PopoverTrigger} from '@/components/ui/popover';
 import {damageMarks,roundViews,roundViewLabels,damageModes,damageModeLabels,stressMaximum,type DamageType} from '@/domain/character-vitals';
+import type {BloodRoundCommand} from '@/domain/character-vitals';
 import type {Snapshot} from './types';
 import styles from './regie-window.module.css';
 
@@ -17,6 +18,8 @@ export function RegieVitals({vitals,crew,busy,run}:{vitals:Vitals;crew:Snapshot[
  const [night,setNight]=useState(false);
  const char=(characterId:string,command:Record<string,unknown>,done:string)=>run({action:'vitals',characterId,command},done);
  const table=(t:Record<string,unknown>,done:string)=>run({action:'vitals',expectedVersion:vitals.version,table:t},done);
+ const round=vitals.bloodRound;
+ const changeRound=(action:BloodRoundCommand['action'])=>run({action:'vitals',bloodRound:{action,expectedId:round?.id??null}});
  return <div className={styles.vitals}>
   <div className={styles.vitalsToolbar}>
    <div className={styles.vitalsResources} role="group" aria-label="Gruppenwerte">
@@ -32,6 +35,11 @@ export function RegieVitals({vitals,crew,busy,run}:{vitals:Vitals;crew:Snapshot[
     </div>}
    </div>
    <div className={styles.actions}>
+    {round?<>
+     <span role="status">Kampfrunde {round.number}</span>
+     <button type="button" disabled={busy} onClick={()=>void changeRound('next')}>Nächste Kampfrunde</button>
+     <button type="button" disabled={busy} onClick={()=>void changeRound('end')}>Kampfrunden beenden</button>
+    </>:<button type="button" disabled={busy} onClick={()=>void changeRound('start')}>Kampfrunde beginnen</button>}
     <button type="button" disabled={busy} aria-expanded={night} onClick={()=>setNight(value=>!value)}><Moon/> Neue Nacht</button>
     <Popover>
      <PopoverTrigger asChild><button type="button"><Settings2/> Rundenregeln <ChevronDown size={14}/></button></PopoverTrigger>
@@ -68,14 +76,14 @@ export function RegieVitals({vitals,crew,busy,run}:{vitals:Vitals;crew:Snapshot[
     <span className={styles.track} role="img" aria-label={'Gesundheit '+h.level}>{Array.from({length:7},(_,i)=><i key={i} data-type={h.track[i]||''}>{h.track[i]?damageMarks[h.track[i] as DamageType]:''}</i>)}</span>
     <div className={styles.vitalsResources}>
      <div className={styles.vitalsRow}>
-      <span><Droplets size={14}/> Blut <b>{b.current??'–'}/{b.max??'–'}</b></span>
-      <button type="button" aria-label={c.title+': 1 Blut ausgeben'} disabled={busy||!b.current} onClick={()=>void char(c.id,{op:'blood.spend',amount:1},c.title+': −1 Blut.')}><Minus/></button>
-      <button type="button" aria-label={c.title+': 1 Blut dazu'} disabled={busy||b.current===null||b.current===b.max} onClick={()=>void char(c.id,{op:'blood.gain',amount:1},c.title+': +1 Blut.')}><Plus/></button>
+      <span><Droplets size={14}/> Blut <b>{b.current??'–'}/{b.max??'–'}</b>{b.perTurn!==null&&<small>{round?`${c.bloodRemaining}/${b.perTurn} verfügbar`:`${b.perTurn} pro Runde`}</small>}</span>
+      <button type="button" aria-label={c.title+': 1 Blut ausgeben'} disabled={busy||!b.current||c.bloodRemaining===0} onClick={()=>void char(c.id,{op:'blood.spend',amount:1},c.title+': −1 Blut.')}><Minus/></button>
+      <button type="button" aria-label={c.title+': 1 Blut dazu'} disabled={busy||b.current===null||b.max===null||b.current===b.max} onClick={()=>void char(c.id,{op:'blood.gain',amount:1},c.title+': +1 Blut.')}><Plus/></button>
      </div>
      <div className={styles.vitalsRow}>
       <span><Flame size={14}/> WK <b>{w.temporary??'–'}/{w.permanent??'–'}</b></span>
-      <button type="button" aria-label={c.title+': Willenskraft einsetzen'} disabled={busy||!w.temporary} onClick={()=>void char(c.id,{op:'willpower.spend'},c.title+': −1 Willenskraft.')}><Minus/></button>
-      <button type="button" aria-label={c.title+': Willenskraft zurück'} disabled={busy||w.temporary===null||w.temporary===w.permanent} onClick={()=>void char(c.id,{op:'willpower.regain',amount:1},c.title+': +1 Willenskraft.')}><Plus/></button>
+      <button type="button" aria-label={c.title+': Willenskraft einsetzen'} disabled={busy||w.permanent===null||!w.temporary} onClick={()=>void char(c.id,{op:'willpower.spend'},c.title+': −1 Willenskraft.')}><Minus/></button>
+      <button type="button" aria-label={c.title+': Willenskraft zurück'} disabled={busy||w.permanent===null||w.temporary===null||w.temporary>=w.permanent} onClick={()=>void char(c.id,{op:'willpower.regain',amount:1},c.title+': +1 Willenskraft.')}><Plus/></button>
      </div>
     </div>
     <div className={styles.vitalsRow}>

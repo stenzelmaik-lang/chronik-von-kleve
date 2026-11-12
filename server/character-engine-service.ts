@@ -4,7 +4,7 @@ import { availableClanForCampaign } from "@/domain/clan-config";
 import { appearanceExceptionMaximum, slAdjustmentTargets, creationBudgetSummary, creationDeviation, v20AbilityNames, v20DisciplineNames, isCaitiff, pathCeiling, xpBalance, xpCost, type XpPurchase } from "@/domain/character-engine";
 import { creationGuidance } from "@/domain/character-guidance";
 import { canEdit, database, HttpError } from "./access";
-import { writeCharacterEngine } from "./character-engine-store";
+import { writeCharacterEngine, type CharacterWriteGuard } from "./character-engine-store";
 import { characterPermissions, characterSheet, characterXpSummary, validateExistingSheet } from '@/domain/character-management';
 
 export function characterBody(raw: string): Record<string, unknown> {
@@ -68,8 +68,8 @@ export function engineProjection(a: Actor, row: LegacyRecordRow, body: Record<st
   return { id: row.id, title:row.title, sheet:characterSheet(body), deviation:creationDeviation(body), catchUpReadyAt:typeof body.catchUpReadyAt==='string'?body.catchUpReadyAt:null, historicalSource:a.gm&&body.historicalXp&&typeof body.historicalXp==='object'?String((body.historicalXp as Record<string,unknown>).source??''):null, historical:!!body.historicalSnapshot, needsBaseline:enrolled&&state==='confirmed'&&!body.creationSnapshot&&!body.historicalSnapshot, canAdopt:!body.creationSnapshot&&!body.historicalSnapshot&&!ledger.length&&state!=='confirmed', permissions, ownerId: row.owner_id, readiness, version: row.version, state, enrolled, owner: row.owner_id === a.id, canManage: a.gm, canSubmit: row.owner_id === a.id && state === "draft", budget: creationBudgetSummary(creation), xp: characterXpSummary(body), ledger, targets, requests: Array.isArray(body.characterRequests) ? body.characterRequests : [], ...(a.gm ? { gmNotes: row.gm_body, adjustmentTargets:slAdjustmentTargets(body) } : {}) };
 }
 // The operation token binds the audit to the winner of the compare-and-swap.
-export async function saveEngine(a: Actor, row: LegacyRecordRow, next: Record<string, unknown>, expectedVersion: number, action: string, reason: string, visibility = row.visibility, gmBody = row.gm_body, title = row.title, changes:Record<string,unknown> = {}) {
-  const updated = await writeCharacterEngine(database(), { campaignId: a.campaignId, actorId: a.id, row, next, expectedVersion, action, payload: { reason, changes }, visibility, gmBody, title });
+export async function saveEngine(a: Actor, row: LegacyRecordRow, next: Record<string, unknown>, expectedVersion: number, action: string, reason: string, visibility = row.visibility, gmBody = row.gm_body, title = row.title, changes:Record<string,unknown> = {}, options?:{guard:CharacterWriteGuard;details?:Record<string,unknown>}) {
+  const updated = await writeCharacterEngine(database(), { campaignId: a.campaignId, actorId: a.id, row, next, expectedVersion, action, payload: { ...options?.details, reason, changes }, visibility, gmBody, title, guard:options?.guard });
   if (!updated) throw new HttpError(409, "Der Charakter wurde inzwischen geändert. Bitte neu laden.");
   return updated;
 }

@@ -1,6 +1,7 @@
 /** Extensions to the existing character body, never a second character store. */
 import { validateSpecialties } from './character-specialties.ts';
 import { validateCustomAbilityIds } from './custom-abilities.ts';
+import { generationLimits, sheetInteger } from './character-vitals.ts';
 export type CharacterBody = Record<string, unknown>;
 export type DevelopmentPermission = 'direct' | 'approval' | 'blocked';
 export type CharacterPermissions = { editing: boolean; development: DevelopmentPermission };
@@ -43,7 +44,10 @@ export function validateExistingSheet(body: CharacterBody): string | null {
   }
   const customError = validateCustomAbilityIds(body.customAbilities); if (customError) return customError;
   const specialtyError = validateSpecialties(body.specialties, body); if (specialtyError) return specialtyError;
-  if (Number(body.willpower) < Number(body.willpowerTemporary ?? 0) || Number(body.bloodMax) < Number(body.blood ?? 0)) return 'Dauerhafte Höchstwerte dürfen nicht unter den aktuellen Ressourcen liegen.';
+  const willpower=sheetInteger(body.willpower), bloodMax=sheetInteger(body.bloodMax);
+  if ((willpower!==null&&willpower<(sheetInteger(body.willpowerTemporary)??0)) ||
+      (!generationLimits(body.generation)&&bloodMax!==null&&bloodMax<(sheetInteger(body.blood)??0)))
+    return 'Dauerhafte Höchstwerte dürfen nicht unter den aktuellen Ressourcen liegen.';
   return null;
 }
 // Optional origin of a reward (Alpha 2.0). Entries without `source` are older bookings and stay as they are.

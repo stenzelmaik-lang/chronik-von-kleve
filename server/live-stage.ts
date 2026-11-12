@@ -4,7 +4,8 @@ import {readMaterial} from './table-materials';
 import {database,gmOnly,HttpError,type Actor} from './access';
 import {readLiveRoom,liveMembers,liveFile,isGmMembership,roomCrew} from './live-game';
 import {checksActive,checksAvailable,type ChecksGateEnv} from '@/domain/live-checks';
-import {liveEvents} from './live-commands';
+import {archivedCheckRolls,liveEvents} from './live-commands';
+import type {LiveEvent} from '@/domain/live-game';
 import {loadEntities,loadEntitiesForIds} from './entities';
 import {listScenes,readScene} from './story-scenes';
 import {preparedSession} from './story-preparation';
@@ -81,15 +82,25 @@ export async function stageRegie(a:Actor,sessionId:string,sceneId:string){
   materials:await regieMaterials(a,scene),
  };
 }
+function diceEvent(e:LiveEvent,index:number,runId:string){
+ return {
+  id:e.id,sessionId:runId,sequence:e.sequence||index+1,revision:e.revision||1,kind:'roll' as const,
+  authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,
+  roll:e.roll!,result:reportForStoredV20Roll(e.roll!,e.report),rulesVersion:e.rulesVersion,checkRef:e.checkRef,
+  animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16)),
+ };
+}
 export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=false){
  const {row,room}=await stageRoom(a,sessionId),stage=storedStage(room);
  const [events,members,vitals,deliveries,preview]=await Promise.all([liveEvents(a,sessionId,room),liveMembers(a),vitalsSnapshot(a,room),deliveriesForViewer(a,sessionId),previewForViewer(a,sessionId)]);
  const rolls=events.filter(e=>e.kind==='roll'&&e.roll&&!e.hidden).sort((x,y)=>(x.sequence||0)-(y.sequence||0)||x.at.localeCompare(y.at)||x.id.localeCompare(y.id));
- const diceEvents=rolls.map((e,i)=>({id:e.id,sessionId:room.runId!,sequence:e.sequence||i+1,revision:e.revision||1,kind:'roll' as const,authorId:e.authorId,authorName:e.authorName,at:e.at,status:e.closedShared?'closed_shared' as const:'settled_open' as const,roll:e.roll!,result:reportForStoredV20Roll(e.roll!,e.report),...(e.rulesVersion?{rulesVersion:e.rulesVersion}:{}),...(e.checkRef?{checkRef:e.checkRef}:{}),animationSeed:e.animationSeed||[...e.id.replaceAll('-','').matchAll(/.{8}/g)].map(m=>parseInt(m[0],16))}));
+ const diceEvents=rolls.map((e,i)=>diceEvent(e,i,room.runId!));
  // Consequences, intended figures and the prepared origin are GM-only; liveEvents already strips them for players.
  const checksOn=checksActive(env as unknown as ChecksGateEnv,a.campaignId,room);
  // Switched off: no open checks are shown; stored rolls stay in the dice journal unchanged.
  const checks=!checksOn?[]:events.filter(e=>e.kind==='check'&&e.check&&!e.hidden).map(e=>({id:e.id,...e.check!,recipients:e.recipients,...(a.gm&&'gmHints' in e&&typeof e.gmHints==='string'?{gmHints:e.gmHints}:{}),...(a.gm&&e.consequences?{consequences:e.consequences}:{}),...(a.gm&&e.targetCharacterIds?{targetCharacterIds:e.targetCharacterIds}:{}),...(a.gm&&e.preparedId?{preparedId:e.preparedId}:{})}));
+ const archived=(await archivedCheckRolls(a,room,checks.map(c=>c.id)))
+  .filter(e=>e.roll).map((e,i)=>({...diceEvent(e,i,room.runId!),journalArchived:true}));
  const scene=events.findLast(e=>e.kind==='scene'&&!e.hidden),media=events.findLast(e=>e.kind==='media'&&!e.hidden);
  const catalog:{id:string;title:string;kind:string;sourceKind:'entity'|'file';image?:string;mime?:string}[]=[];
  let scenes:{id:string;title:string;image:string;version:number}[]=[],moreScenes:typeof scenes=[];
@@ -110,7 +121,8 @@ export async function stageSnapshot(a:Actor,sessionId:string,includeCatalog=fals
   objects:stage.objects.filter(o=>stageVisible(o,a)),board:room.elements,boardEpoch:room.epoch,boardLocked:!!room.boardLocked,
   ...(a.gm?{campaignCrew:members.map(m=>({id:m.id,name:m.name,gm:isGmMembership(m.membershipRole),presence:participantPresence(m.id,room.peers,room.away)}))}:{}),
   crew:roomCrew(room,members).map(({membershipRole,...m})=>({...m,...(a.gm&&isGmMembership(membershipRole)?{gm:true}:{}),avatar:m.hasAvatar?'/api/live-participants?view=avatar&sessionId='+encodeURIComponent(sessionId)+'&memberId='+encodeURIComponent(m.id):null,presence:participantPresence(m.id,room.peers,room.away),initials:m.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2),role:m.id===a.id?(a.gm?'Spielleitung':'Spieler'):'Teilnehmer'})),scenes,moreScenes,catalog,
-  dice:{sessionId:room.runId!,revision:diceRevision,events:diceEvents},
+  dice:{sessionId:room.runId!,epoch:room.diceEpoch??0,revision:diceRevision,events:diceEvents},
+  ...(archived.length?{archivedCheckRolls:archived}:{}),
   // Character condition values: own and explicitly released characters only; GM sees the whole table.
   vitals,
   // Visions and personal messages: a player gets only own active deliveries (no internal title, no other recipients).

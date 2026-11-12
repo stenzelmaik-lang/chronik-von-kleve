@@ -123,7 +123,14 @@
 @keyframes roundHit{0%{background:#a3312a99;transform:translateX(0)}15%{transform:translateX(-3px)}30%{transform:translateX(3px)}45%{transform:translateX(-2px)}60%{transform:none}100%{background:transparent}}
 @media(prefers-reduced-motion:reduce){.roundRow[data-hit]{animation:none;background:#a3312a66}}
 :global(.user-reduced-motion) .roundRow[data-hit]{animation:none!important;background:#a3312a66}
-@media(max-width:700px){.roundRow{grid-template-columns:minmax(0,1fr) auto auto}.roundRow small{display:inline-flex}.roundRow>[role=img]{display:none}.roundLevel{display:block!important}}
+@media(max-width:700px){
+ .roundBlock{max-height:min(18dvh,150px)}
+ .roundRow{grid-template-columns:minmax(0,1fr) auto}
+ .roundName{grid-column:1/-1}
+ .roundRow small{display:inline-flex}
+ .roundRow>[role=img]{display:none}
+ .roundLevel{display:block!important}
+}
 /* Etappe 4a: names are never cut off; long names wrap (full name also in title and aria-label). */
 .hudName,.roundName,.pressureName>span{overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:break-word;hyphens:auto}
 .hudTitle{font-family:var(--cp-font-title);align-items:flex-start}

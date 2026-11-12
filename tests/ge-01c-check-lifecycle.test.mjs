@@ -86,6 +86,20 @@ test('loading or reconnecting never turns stored rolls into open hints and never
  assert.deepEqual(reopened.events.find(e=>e.id==='r4'),inbox.events.find(e=>e.id==='r4'),'same stored event, same faces');
 });
 
+test('a cleared journal closes open results and ignores late snapshots from before the reset',()=>{
+ const prior=journal(8,[roll('old','a')]);
+ let inbox=showDice(ingestDice(createInbox(),prior),'old');
+ const cleared={...journal(0,[]),epoch:1};
+ inbox=ingestDice(inbox,cleared);
+ assert.deepEqual(inbox.events,[]);
+ assert.equal(inbox.selectedId,null);
+ assert.equal(ingestDice(inbox,prior),inbox);
+ const next=ingestDice(inbox,{...journal(2,[roll('new','a')]),epoch:1});
+ assert.deepEqual(next.events.map(e=>e.id),['new']);
+ assert.equal(next.selectedId,'new');
+ assert.equal(next.animate,true);
+});
+
 test('normal table UI shows player-facing terms instead of internal identifiers',()=>{
  const ui=['live-check-panel.tsx','check-issue-form.tsx','dice-effect.tsx','stage.tsx','character-readonly.tsx','participants.tsx','regie.tsx','regie-window.tsx'].map(f=>src('app/spielbereich/modules/spieltisch/'+f)).join('\n');
  const visible=ui.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g,'');

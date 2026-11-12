@@ -30,7 +30,10 @@ try{
  await page.goto(base+'/sl/regie');await page.locator('[data-regie-studio]').waitFor();await page.getByLabel('Szene in der Regie',{exact:true}).selectOption(scene.id);
  const nav=page.getByRole('navigation',{name:'Arbeitsansichten der Regie'}),quick=page.getByRole('region',{name:'Schnellwerkzeuge'});
  const pane=id=>page.locator('[data-area="'+id+'"]'),body=id=>pane(id).locator('[tabindex="0"]');
- await pane('narration').getByText('Eine Tür im Regen',{exact:true}).waitFor();assert.equal(await nav.getByRole('button').count(),6);assert.equal(await pane('narration').locator('strong').filter({hasText:'Vorlesetext'}).count(),1);
+ await pane('narration').getByText('Eine Tür im Regen',{exact:true}).waitFor();
+ for(const label of ['Szene führen','Interaktion','Stimmung','Proben & NPCs','Spieler am Tisch','Tischblick','Tastenkürzel'])
+  await nav.getByRole('button',{name:label,exact:true}).waitFor();
+ assert.equal(await pane('narration').locator('strong').filter({hasText:'Vorlesetext'}).count(),1);
  await page.getByRole('button',{name:'Dialoge',exact:true}).click();await pane('dialogue').getByText('Dialog am Tresen',{exact:true}).waitFor();
  assert.equal(await pane('dialogue').locator('table').count(),1);await body('dialogue').evaluate(el=>{el.scrollTop=750;});const readAt=await body('dialogue').evaluate(el=>el.scrollTop);assert.ok(readAt>600);
  const topParagraph=()=>body('dialogue').evaluate(el=>[...el.querySelectorAll('p')].find(p=>p.getBoundingClientRect().bottom>el.getBoundingClientRect().top+4)?.textContent);const readingParagraph=await topParagraph();
@@ -57,6 +60,9 @@ try{
  phase='all workspaces';await nav.getByRole('button',{name:'Interaktion',exact:true}).click();await page.getByRole('button',{name:'Spontanmaterialien',exact:true}).click();await pane('material').waitFor({state:'visible'});await page.getByRole('button',{name:'Visionen & Briefe',exact:true}).click();await pane('whispers').waitFor({state:'visible'});
  await nav.getByRole('button',{name:'Stimmung',exact:true}).click();await page.getByRole('button',{name:'Hintergrundmusik',exact:true}).click();await pane('music').waitFor({state:'visible'});assert.equal(await pane('music').getAttribute('data-wide'),'true','Legacy title-based preference is migrated');
  await nav.getByRole('button',{name:/Proben & NPCs/}).click();await page.getByRole('button',{name:'Standardfiguren & Würfel',exact:true}).click();const figures=pane('figures');await figures.waitFor({state:'visible'});await figures.getByRole('button',{name:'Standardfiguren im Vollbild öffnen',exact:true}).click();assert.ok(await figures.evaluate(el=>el.getBoundingClientRect().width>innerWidth-10));await page.screenshot({path:output+'/figures-focus.png'});await page.keyboard.press('Escape');
+ await nav.getByRole('button',{name:'Spieler am Tisch',exact:true}).click();
+ await page.getByRole('button',{name:'Spieler & Charaktere',exact:true}).click();
+ await pane('players').getByRole('button',{name:'Charakterbogen',exact:true}).first().waitFor();
  await nav.getByRole('button',{name:'Tischblick',exact:true}).click();await pane('table').getByRole('listitem').filter({hasText:materialTitle}).waitFor();await page.screenshot({path:output+'/table.png'});await nav.getByRole('button',{name:'Szene führen',exact:true}).click();assert.equal(await body('dialogue').evaluate(el=>el.scrollTop),readAt);pass('Alle vorhandenen Werkzeuge sind gruppiert erreichbar, Tabelle nutzt Vollbild, Tischblick zeigt echte Freigaben');
 
  phase='reload and empty';await page.reload();await pane('dialogue').waitFor({state:'visible'});assert.equal(await body('dialogue').evaluate(el=>el.scrollTop),readAt);await page.getByLabel('Szene in der Regie',{exact:true}).selectOption(empty.id);await quick.getByRole('button',{name:/^Material/}).click();await pane('Szenenmaterial').getByText('Für diese Szene ist noch kein Szenenmaterial vorbereitet.',{exact:true}).waitFor();await page.keyboard.press('Escape');
@@ -137,7 +143,7 @@ try{
  pass('Effekte öffnen direkt in der unteren Leiste, bleiben auf kleinen Ansichten erreichbar und kommen ohne Bewegung beim Spieler an');
 
  phase='condition controls';
- await nav.getByRole('button',{name:'Stimmung',exact:true}).click();await page.getByRole('button',{name:'Zustände',exact:true}).click();
+ await nav.getByRole('button',{name:'Spieler am Tisch',exact:true}).click();await page.getByRole('button',{name:'Zustände',exact:true}).click();
  const vitals=pane('vitals'),rules=page.getByRole('dialog',{name:'Rundenregeln'});
  const originalDamage=(await request(gm,q)).vitals.damageBy;
  await vitals.getByRole('button',{name:'Rundenregeln',exact:true}).click();

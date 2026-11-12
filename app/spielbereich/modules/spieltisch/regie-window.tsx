@@ -30,6 +30,7 @@ import regieStyles from './regie.module.css';
 import styles from './regie-window.module.css';
 import {ThumbImage} from '../file-thumb';
 import {CheckDesk,ChecksSwitch} from './check-issue-form';
+import {checkRolls} from './live-check-panel';
 import {pendingTargets,isTablePlayer} from '@/domain/live-checks';
 
 type Media=RegieContext['media'][number];
@@ -94,7 +95,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const [area,setArea]=useState<RegieArea>('narration'),[crossfade,setCrossfade]=useState(false);
  const [pagerTest,setPagerTest]=useState<PagerMessage|null>(null);
  const [pagerText,setPagerText]=useState(''),[pagerTitle,setPagerTitle]=useState(''),[pagerSender,setPagerSender]=useState(''),[pagerUrgent,setPagerUrgent]=useState(false),[textSize,setTextSize]=useState(1),[preview,setPreview]=useState<Media|null>(null);
- const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),previewDialog=useRef<HTMLDialogElement>(null);
+ const latest=useRef<Snapshot|null>(null),flight=useRef(false),saving=useRef(false),accepted=useRef(0),previewDialog=useRef<HTMLDialogElement>(null);
  // One id per spontaneous pager draft: a repeated click or a retry after a lost answer never sends it twice.
  const pagerDraftId=useRef('');
  const [peerId]=useState(()=>crypto.randomUUID());
@@ -123,15 +124,21 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  },[room]);
 
  const accept=useCallback((next:Snapshot)=>{
-  if(next.principal.id!==a.id||!next.principal.gm){window.location.reload();return;}
-  if(room&&next.runId!==room.runId){setRoom(null);return;}
+  if(next.principal.id!==a.id||!next.principal.gm){latest.current=null;setSnapshot(null);window.location.reload();return;}
+  if(room&&next.runId!==room.runId){latest.current=null;setSnapshot(null);setRoom(null);return;}
   const merged=next.catalogIncluded?next:{...next,catalog:latest.current?.catalog||[],scenes:latest.current?.scenes||[],moreScenes:latest.current?.moreScenes||[]};
-  latest.current=merged;setSnapshot(merged);setOffline(false);
+  accepted.current++;latest.current=merged;setSnapshot(merged);setOffline(false);
  },[a.id,room]);
  const refresh=useCallback(async(catalog=false)=>{
   if(!room||flight.current||saving.current)return;flight.current=true;
-  try{accept(await api<Snapshot>(stageUrl(room.sessionId,catalog||!latest.current?.catalogIncluded&&!latest.current?.catalog.length)));setError('');}
-  catch(e){if(e instanceof ApiError&&[403,404,409].includes(e.status)){latest.current=null;setSnapshot(null);setRoom(null);}else setOffline(true);}
+  const at=accepted.current;
+  try{
+   const next=await api<Snapshot>(stageUrl(room.sessionId,catalog||!latest.current?.catalogIncluded&&!latest.current?.catalog.length));
+   if(accepted.current===at){accept(next);setError('');}
+  }catch(e){
+   if(e instanceof ApiError&&[401,403,404,409].includes(e.status)){latest.current=null;setSnapshot(null);setRoom(null);}
+   else if(accepted.current===at)setOffline(true);
+  }
   finally{flight.current=false;}
  },[room,accept]);
  // Live sync with the table: fast while visible, slower in the background, at once on focus.
@@ -165,7 +172,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  useEffect(()=>{try{const saved=window.localStorage.getItem(areaKey(a.id));if(saved&&Object.hasOwn(regieAreaLabels,saved))queueMicrotask(()=>setArea(saved));}catch{/* storage unavailable */}},[a.id]);
  /** Changes presentation only. Releases still require an explicit existing stage command. */
  const checksOn=!!snapshot?.checksEnabled,checksShown=checksOn||!!snapshot?.checksSwitch;
- const openTargets=checksOn?pendingTargets(snapshot?.checks||[],snapshot?.dice.events||[],(snapshot?.crew||[]).filter(isTablePlayer).map(m=>m.id)):0;
+ const openTargets=checksOn?pendingTargets(snapshot?.checks||[],snapshot?checkRolls(snapshot):[],(snapshot?.crew||[]).filter(isTablePlayer).map(m=>m.id)):0;
  const chooseArea=useCallback((id:RegieArea)=>{
   setArea(id);try{window.localStorage.setItem(areaKey(a.id),id);}catch{/* storage unavailable */}
   revealTile(id);
@@ -182,12 +189,13 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
  const setAudience=(key:string)=>(v:Audience)=>setAudiences(old=>({...old,[key]:v}));
  const invalid=(v:Audience)=>v!==null&&!v.length;
  async function activate(id:string){
-  if(!await run({action:'activateScene',sceneId:id},null,'Szene läuft auf dem Tisch.'))return;
+  if(!await run({action:'activateScene',sceneId:id},null,'Szene läuft auf dem Tisch.'))return false;
   const current=latest.current;
-  if(current?.media&&!current.media.hidden)await run({action:'hideMedia',eventId:current.media.id});
-  if(current?.sceneInfo&&current.sceneInfo.id!==id&&current.sceneEventId)await run({action:'hideScene',eventId:current.sceneEventId});
+  if(current?.media&&!current.media.hidden&&!await run({action:'hideMedia',eventId:current.media.id}))return false;
+  if(current?.sceneInfo&&current.sceneInfo.id!==id&&current.sceneEventId&&!await run({action:'hideScene',eventId:current.sceneEventId}))return false;
+  return latest.current?.stageSceneId===id;
  }
- async function release(id:string){const target=audienceOf('narration:'+id);if(latest.current?.stageSceneId!==id)await activate(id);await run({action:'scene',id},target,'Erzählung freigegeben für '+audienceText(target,crew)+'.');}
+ async function release(id:string){const target=audienceOf('narration:'+id);if(latest.current?.stageSceneId!==id&&!await activate(id))return;await run({action:'scene',id},target,'Erzählung freigegeben für '+audienceText(target,crew)+'.');}
  const place=(key:string,sourceId:string,sourceKind:'entity'|'file'|'record',title?:string,kind:'document'|'npc'='document')=>{const target=audienceOf(key);return run({action:'add',kind,sourceId,sourceKind,...(title?{title}:{}),visible:true,recipients:target},null,'Ausgespielt für '+audienceText(target,crew)+'.');};
 
  const crew=(snapshot?.crew||[]).filter(m=>m.id!==a.id);
@@ -276,7 +284,14 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
     <button type="button" className={styles.tableLink} title="Zum Spieltisch" onClick={()=>{if(window.opener&&!window.opener.closed)window.opener.focus();else window.open('/spielbereich?bereich=sitzung','_blank');}}><BookOpen size={15}/> Zum Spieltisch</button>
   </header>
   {(error||notice)&&<div className={error?styles.error:styles.notice} role={error?'alert':'status'}>{error||notice}<button type="button" aria-label="Meldung schließen" onClick={()=>{setError('');setNotice('');}}><X size={14}/></button></div>}
-  {!context?<main className={styles.loading}>{snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}{contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Diesem Spielabend ist noch keine Szene zugeordnet. Wähle oben eine Szene der Kampagne.</p>}</main>:
+  {!context?<main className={styles.loading}>
+   {contextError?.id===sceneId?<p role="alert">{contextError.message}</p>:sceneId?<p role="status">Regie wird geladen …</p>:<p>Wähle oben eine Szene der Kampagne.</p>}
+   {snapshot?.vitals&&room&&(!sceneId||contextError?.id===sceneId)&&<>
+    <section aria-label="Zustände der Runde"><h2>Zustände der Runde</h2><RegieVitals vitals={snapshot.vitals} crew={snapshot.crew} busy={busy} run={(body,done)=>run(body,null,done||'')}/></section>
+    <section aria-label="Spieler & Charaktere"><h2>Spieler & Charaktere</h2><RegiePlayers a={a} sessionId={room.sessionId} vitals={snapshot.vitals} busy={busy} run={payload=>run({action:'vitals',...payload})}/></section>
+   </>}
+   {snapshot&&<TableMaterialLibrary a={a} compact live={{snapshot,busy,command:body=>run(body)}}/>}
+  </main>:
    <main className={styles.studioHost} data-scene={s!.id}><RegieStudio presence={<section className={styles.presence} aria-label="Spieler am Tisch"><h3>Am Tisch</h3>{(snapshot?.crew||[]).length?<ul>{(snapshot?.crew||[]).map(m=><li key={m.id} data-state={m.presence}><span aria-hidden="true"/>{m.name}<small>{presenceLabels[m.presence]}</small></li>)}</ul>:<p>Noch niemand am Tisch.</p>}</section>} state={layout} toolbar={toolbar} area={area} onArea={chooseArea} contextKey={a.campaignId+':'+a.id+':'+s!.id} sceneTitle={s!.title} place={context.place?.title} pending={openTargets}
     editUrl={'/sl/command-center?bereich=sitzung&scene='+encodeURIComponent(s!.id)}
     readingTools={<div className={styles.textTools}><div role="group" aria-label="Textgröße der Regie"><button type="button" aria-label="Text kleiner" disabled={textSize<=.9} onClick={()=>resize(-1)}><Minus size={14}/></button><span>{Math.round(textSize*100)} %</span><button type="button" aria-label="Text größer" disabled={textSize>=1.5} onClick={()=>resize(1)}><Plus size={14}/></button></div></div>}
@@ -331,7 +346,7 @@ export function RegieWindow({a,sessionHint}:{a:Actor;sessionHint:string}){
      <Block title="Atmosphäre" area="atmosphere"><div style={{fontSize:textSize+'em'}} data-text-area="atmosphere"><section className={styles.textArea} aria-label="Atmosphäre"><h3>Atmosphäre</h3><Text value={s!.atmosphere} empty="Keine Atmosphäre vorbereitet."/></section></div></Block>
      <Block title="Dialoge" area="dialogue"><div style={{fontSize:textSize+'em'}} data-text-area="dialogue"><section className={styles.textArea} aria-label="Dialoge"><h3>Dialoge</h3><Text value={s!.dialogueNotes} empty="Keine Dialoghilfen."/>{context.npcs.filter(n=>n.cue.trim()).map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.cue} empty=""/></article>)}</section></div></Block>
      <Block title="Interaktion" area="interactions"><div style={{fontSize:textSize+'em'}} data-text-area="interactions"><section className={styles.textArea} aria-label="Interaktion"><h3>Interaktionen &amp; Notizen</h3><Text value={s!.interactions} empty="Keine Interaktionen beschrieben."/>{context.notes.map(n=><article key={n.id} className={regieStyles.note}><h4>{n.title}</h4><Text value={n.text} empty=""/></article>)}{snapshot?.checksEnabled&&context.notes.some(n=>n.kind==='check')&&<button type="button" className={styles.primary} onClick={()=>chooseArea('checks')}>Vorbereitete Proben ausgeben</button>}</section></div></Block>
-     {checksShown&&<Block title="Proben" area="checks"><div style={{fontSize:textSize+'em'}} data-text-area="checks"><section className={styles.textArea} aria-label="Proben"><h3>Proben</h3>{snapshot?.checksSwitch&&<ChecksSwitch on={snapshot.checksSwitch.on} busy={busy} onSwitch={(body,target)=>run(body,target,snapshot.checksSwitch?.on?'Charakterproben ausgeschaltet.':'Charakterproben eingeschaltet.')}/>}<CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?.dice.events||[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section></div></Block>}
+     {checksShown&&<Block title="Proben" area="checks"><div style={{fontSize:textSize+'em'}} data-text-area="checks"><section className={styles.textArea} aria-label="Proben"><h3>Proben</h3>{snapshot?.checksSwitch&&<ChecksSwitch on={snapshot.checksSwitch.on} busy={busy} onSwitch={(body,target)=>run(body,target,snapshot.checksSwitch?.on?'Charakterproben ausgeschaltet.':'Charakterproben eingeschaltet.')}/>}<CheckDesk sceneId={s!.id} notes={context.notes} crew={crew} figures={snapshot?.vitals?.round} checks={snapshot?.checks||[]} events={snapshot?checkRolls(snapshot):[]} checksEnabled={!!snapshot?.checksEnabled} busy={busy} onIssue={(body,target)=>run(body,target,'Probe ausgegeben.')}/></section></div></Block>}
      <Block title="Visionen & Briefe" area="whispers"><div style={{fontSize:textSize+'em'}} data-text-area="whispers"><DeliveryDesk items={context.whispers||[]} sceneId={s!.id} version={s!.version} sessionId={room!.sessionId} crew={crew} objects={objects} onCommand={body=>run(body,null)}/></div></Block>
      <Block title="Geheimnisse" area="secrets"><div style={{fontSize:textSize+'em'}} data-text-area="secrets"><section className={styles.textArea} aria-label="Geheimnisse"><h3>Geheimnisse · nur SL</h3><Text value={s!.secrets} empty="Keine Geheimnisse hinterlegt."/>{s!.visions.trim()&&<><h4>Visionen</h4><Text value={s!.visions} empty=""/></>}</section></div></Block>
      <Block title="Folgen" area="consequences"><div style={{fontSize:textSize+'em'}} data-text-area="consequences"><section className={styles.textArea} aria-label="Folgen"><h3>Mögliche Folgen</h3><Text value={s!.possibleConsequences} empty="Keine Folgen vorbereitet."/>{s!.possibilities.map(p=><article key={p.id} className={regieStyles.note}><h4>{p.title}</h4><p>{p.text}</p></article>)}</section></div></Block>

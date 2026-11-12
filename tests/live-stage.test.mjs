@@ -56,3 +56,15 @@ test('scene media: backdrop, polaroid release in one step, scene change clears t
  assert.equal(stageSchema.safeParse({format:1,version:0,objects:[]}).success,true,'Stages stored before this change stay readable');
  assert.equal(stageCommandSchema.safeParse({action:'backdrop',fileId:null}).success,true);
 });
+
+test('released audio survives a scene change until the GM withdraws it',()=>{
+ const source={title:'Tonband',kind:'document',sourceId:'file-audio',sourceKind:'file',media:'audio'};
+ const placed=changeStageObjects(emptyStage(),gm,{action:'add',kind:'document',sourceId:source.sourceId,sourceKind:'file',visible:true,recipients:['a']},source);
+ const changed=changeStageObjects(placed,gm,{action:'activateScene',sceneId:'next-scene'},undefined,null);
+ assert.deepEqual(changed.objects,placed.objects);
+ assert.equal(stageVisible(changed.objects[0],a),true);
+ assert.equal(stageVisible(changed.objects[0],b),false);
+ assert.throws(()=>changeStageObjects(changed,a,{action:'withdrawAudio'}),error=>error.status===403);
+ const withdrawn=changeStageObjects(changed,gm,{action:'withdrawAudio'});
+ assert.deepEqual(withdrawn.objects,[]);
+});

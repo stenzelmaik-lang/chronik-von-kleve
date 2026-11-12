@@ -55,6 +55,8 @@ export async function liveFiguresIntegration({req,check,base,testPassword,localS
  const byId=Object.fromEntries(hurt.d.figures.map(f=>[f.id,f]));
  check(hurt.s===200&&byId[two.id].hurt===3&&byId[two.id].note==='SYNTHETIC note'&&byId[one.id].hurt===0&&byId[three.id].hurt===0,'FIGURES one injury leaves the others untouched');
  check((await req('/api/live-figures','gm','POST',{action:'update',sessionId,id:two.id,patch:{hurt:9}})).s===400,'FIGURES invalid health rejected');
+ check((await req('/api/live-figures','gm','POST',{action:'update',sessionId,id:two.id,patch:{willpower:two.stats.willpower+1}})).s===400,'FIGURES recovery stops at the figure’s permanent willpower');
+ check((await req('/api/live-figures','gm','POST',{action:'update',sessionId,id:two.id,patch:{willpower:two.stats.willpower}})).s===200,'FIGURES willpower can be restored to its permanent value');
  check((await req('/api/live-figures','gm','POST',{action:'update',sessionId,id:two.id,patch:{blood:3}})).s===400,'FIGURES no blood pool on a human');
  check((await req('/api/live-figures','gm','POST',{action:'spawn',sessionId,requestId:randomUUID(),typeId:'nope',tierId:'standard',count:1})).s===400,'FIGURES unknown type rejected');
  check((await req('/api/live-figures','gm','POST',{action:'spawn',sessionId,requestId:randomUUID(),typeId:'security_bouncer',tierId:'godlike',count:1})).s===400,'FIGURES unknown tier rejected');

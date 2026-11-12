@@ -17,7 +17,14 @@ const empty=():State=>({rev:0,figures:[],requests:[]});
 
 const readRaw=readSetting;
 const mutate=<T>(key:string,parse:(raw:string|null)=>T,apply:(state:T)=>T)=>mutateSetting(key,parse,apply,'Die Figuren wurden gleichzeitig geändert. Bitte erneut versuchen.');
-const parseState=(raw:string|null):State=>{try{const s=raw?JSON.parse(raw):null;return s&&Array.isArray(s.figures)?{rev:Number(s.rev)||0,figures:s.figures,requests:Array.isArray(s.requests)?s.requests:[]}:empty();}catch{return empty();}};
+const parseState=(raw:string|null):State=>{
+ try{
+  const state=raw?JSON.parse(raw):null;
+  if(!state||!Array.isArray(state.figures))return empty();
+  const figures=(state.figures as LiveFigure[]).map(f=>f.willpower>f.stats?.willpower?{...f,willpower:f.stats.willpower}:f);
+  return {rev:Number(state.rev)||0,figures,requests:Array.isArray(state.requests)?state.requests:[]};
+ }catch{return empty();}
+};
 const parseAssets=(raw:string|null):AssetLink[]=>{try{const s=raw?JSON.parse(raw):[];return Array.isArray(s)?s:[];}catch{return [];}};
 
 async function gate(a:Actor,sessionId:string){gmOnly(a);await readLiveRoom(a,sessionId);}
@@ -70,7 +77,7 @@ export async function changeFigures(a:Actor,c:FigureCommand){
    const next={...f};
    if(p.label!==undefined)next.label=String(p.label).trim().slice(0,60)||f.label;
    if(p.hurt!==undefined){if(!Number.isInteger(p.hurt)||p.hurt<0||p.hurt>7)throw new HttpError(400,'Gesundheit 0 bis 7.');next.hurt=p.hurt;}
-   if(p.willpower!==undefined){if(!Number.isInteger(p.willpower)||p.willpower<0||p.willpower>10)throw new HttpError(400,'Willenskraft 0 bis 10.');next.willpower=p.willpower;}
+   if(p.willpower!==undefined){if(!Number.isInteger(p.willpower)||p.willpower<0||p.willpower>f.stats.willpower)throw new HttpError(400,`Willenskraft 0 bis ${f.stats.willpower}.`);next.willpower=p.willpower;}
    if(p.blood!==undefined){if(f.stats.bloodMax===null)throw new HttpError(400,'Diese Figur hat keinen Blutvorrat.');const blood=p.blood;if(blood===null||!Number.isInteger(blood)||blood<0||blood>f.stats.bloodMax)throw new HttpError(400,'Blutvorrat außerhalb des Bereichs.');next.blood=blood;}
    if(p.note!==undefined)next.note=String(p.note).slice(0,2000);
    if(p.imageFileId!==undefined)next.imageFileId=p.imageFileId;

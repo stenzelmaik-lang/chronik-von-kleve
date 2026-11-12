@@ -84,9 +84,24 @@ export async function liveGameIntegration({req,check,base,ids}){
   check((await req('/api/entities',who)).d.entities.every(e=>e.content.context!=='live-table-event'),'LIVE events absent from generic entities '+who);
  }
  check((await req('/api/records','a','POST',{kind:'notizen',title:'forged',visibility:'group',body:{context:'live-table-event',sessionId}})).s===403,'LIVE cannot forge delivery through generic records');
+ const stage=async who=>(await req('/api/live-stage?sessionId='+sessionId,who)).d;
+ const reset={expectedDiceEpoch:(await stage('gm')).dice.epoch};
+ check((await post('a','resetDiceJournal',reset)).s===403,'DICE only SL clears the journal');
+ const resets=await Promise.all([post('gm','resetDiceJournal',reset),post('gm','resetDiceJournal',reset)]);
+ check(resets.filter(result=>result.s===200).length===1&&resets.filter(result=>result.s===409).length===1,'DICE concurrent confirmation clears only once');
+ for(const who of ['gm','a','b']){
+  const snapshot=await stage(who), room=(await get(who)).d;
+  check(snapshot.dice.events.length===0&&room.events.every(e=>e.kind!=='roll'),'DICE journal cleared for '+who);
+ }
+ check((await stage('a')).sceneInfo?.narration==='PUBLIC_BASE_INFORMATION','DICE clearing keeps the live narration');
+ check((await post('a','roll',{eventId:rollId,pool:5,target:6,audience:aOnly,expectedDiceEpoch:reset.expectedDiceEpoch})).s===409,'DICE delayed retry cannot reintroduce a cleared roll');
+ const nextRoll=await post('gm','roll',{pool:1,target:6,audience:{scope:'all'},expectedDiceEpoch:reset.expectedDiceEpoch+1});
+ check(nextRoll.s===200&&(await stage('a')).dice.events.map(e=>e.id).join()===nextRoll.d.eventId,'DICE new rolls appear for players after clearing');
+ check((await post('gm','resetDiceJournal',reset)).s===409&&(await stage('b')).dice.events.length===1,'DICE stale reset cannot clear a new roll');
  check((await post('gm','end')).s===200&&(await get('a')).s===404,'LIVE ending private night closes common board and removes player access');
  check((await fetch(base+'/api/live-table/media?sessionId='+sessionId+'&elementId='+elementId,{headers:ids.b})).status===404,'LIVE ended night blocks contextual image URLs');
  check((await start('gm')).s===200&&(await get('a')).d.events.length===0,'LIVE restarting night does not replay old events');
+ check((await stage('a')).dice.epoch===0&&(await stage('a')).dice.events.length===0,'DICE the next evening starts with its own fresh journal');
  check((await post('gm','roll',{pool:1,target:6,audience:{scope:'all'}})).s===409,'LIVE stale previous-night command denied');
  const originalAfter=(await req('/api/records?kind=sitzungen&view=sl','gm')).d.records.find(s=>s.id===sessionId);check(originalAfter.visibility==='sl'&&originalAfter.version===1&&originalAfter.body.scene==='NEVER_AUTO_PUBLISH_BODY','LIVE start does not rewrite private original session');
  const after=(await req('/api/command-center','gm')).d;check(JSON.stringify(before.characters)===JSON.stringify(after.characters),'LIVE no existing character values changed');

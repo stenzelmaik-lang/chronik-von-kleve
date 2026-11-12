@@ -64,7 +64,7 @@ export async function GET(req:Request) {
     const row=rows.results.find(row=>bodyOf(row).sessionId===sessionId);
     if(!row)return json({room:null});
     const room=bodyOf(row);if(!roomAllowed(a,room))throw new HttpError(404,'Spielraum nicht verfügbar.');const now=Date.now();
-    const changes=room.started&&room.open?await db.prepare("SELECT count(*) AS n,COALESCE(sum(version),0) AS v FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND (?=1 OR json_extract(body,'$.recipients') IS NULL OR EXISTS(SELECT 1 FROM json_each(records.body,'$.recipients') WHERE value=?))").bind(a.campaignId,sessionId,room.runId,a.gm?1:0,a.id).first<{n:number;v:number}>():null;
+    const changes=room.started&&room.open?await db.prepare("SELECT count(*) AS n,COALESCE(sum(version),0) AS v FROM records WHERE campaign_id=? AND kind='notizen' AND json_valid(body) AND json_extract(body,'$.context')='live-table-event' AND json_extract(body,'$.sessionId')=? AND json_extract(body,'$.runId')=? AND (json_extract(body,'$.kind')<>'roll' OR COALESCE(json_extract(body,'$.diceEpoch'),0)=?) AND (?=1 OR json_extract(body,'$.recipients') IS NULL OR EXISTS(SELECT 1 FROM json_each(records.body,'$.recipients') WHERE value=?))").bind(a.campaignId,sessionId,room.runId,room.diceEpoch??0,a.gm?1:0,a.id).first<{n:number;v:number}>():null;
     const cursor=`${a.id}:${a.gm}:${row.version}:${room.runId||''}:${changes?.n||0}:${changes?.v||0}`;
     if(q.get('cursor')===cursor)return json({unchanged:true,cursor});
     const peers=Object.values(room.peers).filter(peer=>peer.seen>now-TABLE_PEER_TTL);

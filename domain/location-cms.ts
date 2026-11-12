@@ -1,4 +1,4 @@
-import {locationRiskLevels} from "./location-types";
+import {locationRiskLevels} from "./location-types.ts";
 import { z } from "zod";
 import { isRichTextWithinLimit, sanitizeRichTextInput } from "./location-rich-text.ts";
 

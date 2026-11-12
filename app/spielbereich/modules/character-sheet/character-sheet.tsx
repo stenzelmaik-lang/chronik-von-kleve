@@ -17,9 +17,9 @@ function List({ title, rows, empty = "Keine Einträge." }: { title: string; rows
 function Costs({ title, rows }: { title: string; rows: SheetCostRow[] | string }) {
   return <section className={styles.group}><h4>{title}</h4>{typeof rows === "string" ? <p className={styles.free}>{rows || "Keine Einträge."}</p> : rows.length ? rows.map((r, i) => <div className={styles.row} key={r.name + i}><span className={styles.name}>{r.name}</span><span className={styles.cost}>{r.cost === null ? "–" : r.cost + " Pkt."}</span></div>) : <p className={styles.empty}>Keine Einträge.</p>}</section>;
 }
-function Boxes({ filled, total, label }: { filled: number | null; total: number | null; label: string }) {
-  if (total === null || total <= 0) return <span className={styles.missing} role="img" aria-label={label + ": nicht erfasst"}>–</span>;
-  return <span className={styles.boxes} role="img" aria-label={`${label}: ${filled ?? "–"} von ${total}`}>{Array.from({ length: Math.min(total, 50) }, (_, i) => <i key={i} data-on={filled !== null && i < filled || undefined} />)}</span>;
+function Boxes({ filled, total, slots = total ?? 0, label }: { filled: number | null; total: number | null; slots?: number; label: string }) {
+  if (total === null || filled === null) return <span className={styles.missing} role="img" aria-label={label + ": nicht erfasst"}>–</span>;
+  return <span className={styles.boxes} role="img" aria-label={`${label}: ${filled} von ${total}`}>{Array.from({ length: Math.min(slots, 50) }, (_, i) => <i key={i} data-on={i < filled || undefined} data-off={i >= total || undefined} />)}</span>;
 }
 
 /**
@@ -62,7 +62,8 @@ export function CharacterSheet({ identity, sheet, progression, layout, section, 
         <section className={styles.group}><h4>{v.humanity.name}</h4><Dots value={v.humanity.value} slots={Math.max(10, v.humanity.value ?? 0)} label={v.humanity.name + ": " + (v.humanity.value ?? "nicht erfasst")} /></section>
         <section className={styles.group}><h4>Willenskraft</h4>
           <Dots value={wp.permanent} slots={Math.max(10, wp.permanent ?? 0)} label={"Willenskraft permanent: " + (wp.permanent ?? "nicht erfasst")} />
-          <Boxes filled={wp.temporary} total={wp.permanent === null ? null : Math.max(10, wp.permanent)} label="Willenskraft aktuell" />
+          <Boxes filled={wp.temporary} total={wp.permanent} slots={10} label="Willenskraft aktuell" />
+          <p className={styles.small}>{wp.temporary ?? "–"} / {wp.permanent ?? "–"}</p>
         </section>
         <section className={styles.group}><h4>Blutvorrat</h4>
           <Boxes filled={bl.current} total={bl.max} label="Blutvorrat" />
