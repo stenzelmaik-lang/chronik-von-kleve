@@ -21,5 +21,5 @@ test('Linked non-NPC original uses existing protected entity/block/relationship 
   const paths=[];
   const dossier=await loadEntityDossier(async path=>{paths.push(path);return {entities:[{id:'place',type:'PLACE'}],blocks:[],relationships:[]};},'place',false);
   assert.equal(dossier.entity.type,'PLACE');
-  assert.deepEqual(paths,['/api/entities?id=place','/api/content-blocks?entityId=place','/api/relationships?entityId=place']);
+  assert.deepEqual(paths,['/api/entities?id=place&view=player','/api/content-blocks?entityId=place&view=player','/api/relationships?entityId=place&view=player']);
 });

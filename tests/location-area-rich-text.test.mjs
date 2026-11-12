@@ -28,7 +28,7 @@ test('Invalid source drafts retain their raw input and validation across editor 
   assert.equal(fixed.error,'');
   assert.equal(fixed.plainLength,10);
   const editor=readFileSync(new URL('../app/spielbereich/modules/rich-text.tsx',import.meta.url),'utf8');
-  assert.ok(editor.includes('useState(initialSource!==null)'));
+  assert.ok(editor.includes('useState(sourceOnly||initialSource!==null)'));
   assert.ok(editor.includes("useState(initialSource?.error??'')"));
 });
 
@@ -36,7 +36,11 @@ test('Area HTML retains supported structure and ChroniPlay classes through save/
   const source='<h2>Am Bahnsteig</h2><p class="cp-intro">Ein <strong>erster</strong> Eindruck.</p><h3>Spuren</h3><p><span class="cp-highlight">Gold</span> und <em>Stille</em>.</p><ul><li>Eins</li><li>Zwei</li></ul><ol><li>Drei</li></ol><blockquote class="cp-note">Warte hier.</blockquote><p><a href="https://example.test/quelle">Quelle</a></p><hr class="cp-divider">';
   const saved=sanitizeRichTextInput(richHtmlPrefix+source);
   assert.deepEqual(readRichText(saved).blocks.map(b=>b.type),['heading2','paragraph','heading3','paragraph','bulletList','orderedList','quote','paragraph','divider']);
-  for(const name of richTextClasses)assert.ok(richTextToHtml(saved).includes(name));
+  const usedClasses=['cp-intro','cp-highlight','cp-note','cp-divider'];
+  for(const name of usedClasses){
+    assert.ok(richTextClasses.includes(name));
+    assert.ok(richTextToHtml(saved).includes(name),name);
+  }
   assert.equal(htmlToRichText(richTextToHtml(saved)),saved);
   assert.ok(isRichTextWithinLimit(saved,1200));
 });

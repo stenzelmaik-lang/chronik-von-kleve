@@ -5,5 +5,15 @@ test('live audiences never infer recipients and reject foreign or duplicate acco
 test('targeted events are invisible to nonrecipients and withdrawn media stays hidden',()=>{const e={authorId:'gm',recipients:['a']};assert.equal(liveEventVisible(e,'b',false),false);assert.equal(liveEventVisible(e,'a',false),true);assert.equal(liveEventVisible({...e,hidden:true},'gm',true),false);assert.equal(liveEventVisible({...e,recipients:null},'b',false),true);});
 test('server W10 rolls are bounded and never use client-provided results',()=>{const r=liveRoll(30,6);assert.equal(r.dice.length,30);assert.ok(r.dice.every(d=>d>=1&&d<=10));for(const pair of [[0,6],[31,6],[2.5,6],[5,1],[5,11]])assert.throws(()=>liveRoll(...pair));});
 test('media signature validation covers supported containers and rejects disguised HTML',()=>{const b=s=>new TextEncoder().encode(s);assert.ok(validMediaBytes('audio/wav',b('RIFF1234WAVE')));assert.ok(validMediaBytes('video/mp4',b('1234ftypisom')));assert.ok(validMediaBytes('image/gif',b('GIF89a')));assert.ok(validMediaBytes('application/pdf',b('%PDF-1.4')));for(const mime of ['image/png','audio/mpeg','video/mp4','application/pdf'])assert.equal(validMediaBytes(mime,b('<html>bad</html>')),false);});
-test('central table reuses room state and keeps preparation separate',()=>{const source=readFileSync(new URL('../app/spielbereich/modules/command-center.tsx',import.meta.url),'utf8');assert.ok(source.includes('<LiveSession'));assert.ok(source.includes('preparation&&commandCenterAllowed'));const ui=readFileSync(new URL('../app/spielbereich/modules/live-session.tsx',import.meta.url),'utf8');assert.ok(ui.includes('Spielabend starten'));assert.ok(ui.includes('managed onDirty'));assert.ok(ui.includes('sceneVersion:scene?.version'));assert.ok(!ui.includes('getUserMedia'));});
+test('central table reuses room state and keeps preparation separate',()=>{
+ const source=readFileSync(new URL('../app/spielbereich/modules/command-center.tsx',import.meta.url),'utf8');
+ assert.ok(source.includes('<LiveSession'));
+ assert.match(source,/props\.preparation\s*&&\s*commandCenterAllowed\(props\.a\)/);
+ const ui=readFileSync(new URL('../app/spielbereich/modules/live-session.tsx',import.meta.url),'utf8');
+ assert.ok(ui.includes('Spielabend starten'));
+ assert.match(ui,/<Spieltisch key=\{data!\.room!\.runId\}/);
+ assert.ok(ui.includes('managed onDirty'));
+ assert.ok(ui.includes('sceneVersion:scene?.version'));
+ assert.ok(!ui.includes('getUserMedia'));
+});
 test('PDF media renders local pages without executing document scripts or exposing originals',()=>{const ui=readFileSync(new URL('../app/spielbereich/modules/live-pdf.tsx',import.meta.url),'utf8');assert.ok(ui.includes("import('pdfjs-dist')"));assert.ok(ui.includes('withCredentials:true'));assert.ok(ui.includes('enableXfa:false'));assert.ok(ui.includes('disableAutoFetch:true'));assert.ok(ui.includes('getPage(page)'));assert.ok(ui.includes('render?.cancel()'));assert.ok(!ui.includes('dangerouslySetInnerHTML'));assert.ok(!ui.includes('getJavaScript'));assert.ok(!ui.includes('getJSActions'));const route=readFileSync(new URL('../app/api/live-table/media/route.ts',import.meta.url),'utf8');assert.ok(route.includes('private, no-store'));assert.ok(route.includes("default-src 'none'; sandbox"));});
