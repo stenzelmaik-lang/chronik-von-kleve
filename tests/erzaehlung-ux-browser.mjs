@@ -13,6 +13,7 @@ const browser=await chromium.launch({headless:true,channel:process.env.CVK_PLAYW
 const pass=label=>console.log('PASS '+label);
 const end='Ende des synthetischen Vorlesetextes';
 const overlaps=(s,d)=>!(s.bottom<=d.top+0.5||s.top>=d.bottom-0.5||s.right<=d.left+0.5||s.left>=d.right-0.5);
+const stageControls='nav[aria-label="Spielaktionen"],button[aria-label^="Zustand"],button[aria-label="Stress und Maskerade öffnen"],button[aria-label="Kontext öffnen"]';
 try{
  let q='',published=false;
  for(const config of viewports){
@@ -30,27 +31,35 @@ try{
    const state=await get(gm,q);
    if(state.sceneEventId)await gm.request.post(base+'/api/live-table',{headers:{Origin:base},data:{action:'hideScene',sessionId:active.room.sessionId,runId:active.room.runId,eventId:state.sceneEventId}});
   }
-  const pages=await Promise.all(contexts.map(async c=>{const p=await c.newPage();p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(name+': '+e.message));await p.goto(base+'/spielbereich?bereich=sitzung');await p.getByRole('button',{name:'Notizzettel',exact:true}).waitFor();return p;}));
+  const pages=await Promise.all(contexts.map(async c=>{const p=await c.newPage();p.setDefaultTimeout(15000);p.on('pageerror',e=>errors.push(name+': '+e.message));await p.goto(base+'/spielbereich?bereich=sitzung');await p.getByRole('button',{name:'Würfel öffnen',exact:true}).waitFor();return p;}));
   const [sl,pa,pb]=pages;
   const region=p=>p.getByRole('region',{name:'Freigegebene Erzählung',exact:true});
   const body=p=>region(p).getByLabel(/^Erzähltext:/);
   if(!published){
    phase='publish';
-   await sl.getByRole('button',{name:'Szenen des Abends',exact:true}).click();
-   await sl.getByRole('complementary',{name:'Szenen des Abends',exact:true}).getByRole('button',{name:'Erzählung zeigen',exact:true}).first().click();
-   await sl.getByRole('button',{name:'Werkzeug schließen',exact:true}).click();published=true;
+   const popup=sl.waitForEvent('popup');
+   await sl.getByRole('button',{name:'Regie im zweiten Fenster',exact:true}).click();
+   const regie=await popup;
+   regie.on('pageerror',e=>errors.push('Regie: '+e.message));
+   await regie.getByRole('button',{name:'Erzählung',exact:true}).click();
+   const narration=regie.getByRole('region',{name:'Erzählung',exact:true});
+   await narration.getByText('Ankunft am Tor',{exact:true}).waitFor();
+   await narration.getByRole('button',{name:'Erzählung freigeben',exact:true}).click();
+   await narration.getByRole('button',{name:'Erzählung zurückziehen',exact:true}).waitFor();
+   await regie.close();
+   published=true;
   }
   for(const p of pages)await region(p).getByRole('heading',{name:'Ankunft am Tor',exact:true}).waitFor();
   for(const viewer of [a,b])assert.ok(!JSON.stringify(await get(viewer,q)).includes('SL_PRIVATE_SECRET'),'Players never receive GM secrets');
 
   phase=name+' geometry';
   for(const [role,p] of [['sl',sl],['a',pa],['b',pb]]){
-   const geometry=await p.evaluate(()=>{
+   const geometry=await p.evaluate(selector=>{
     const box=e=>e?.getBoundingClientRect().toJSON();
     const section=document.querySelector('[aria-label="Freigegebene Erzählung"]'),scroller=section.querySelector('[aria-label^="Erzähltext:"]');
     const stage=document.querySelector('main[aria-label="Dynamische Spielbühne"]'),status=[...stage.children].find(e=>e.textContent==='Gemeinsame Bühne');
-    return {page:document.documentElement.scrollWidth-innerWidth,section:box(section),stage:box(stage),status:box(status),title:box(section.querySelector('h2')),scroller:box(scroller),scroll:{h:scroller.scrollHeight,c:scroller.clientHeight,w:scroller.scrollWidth-scroller.clientWidth},docks:[...document.querySelectorAll('nav[aria-label="Spielaktionen"],button[aria-label*="Zust"],button[aria-label="Kontext öffnen"],main>button[aria-label="Regie öffnen"]')].map(box).filter(r=>r.width&&r.left>=box(stage).left)};
-   });
+    return {page:document.documentElement.scrollWidth-innerWidth,section:box(section),stage:box(stage),status:box(status),title:box(section.querySelector('h2')),scroller:box(scroller),scroll:{h:scroller.scrollHeight,c:scroller.clientHeight,w:scroller.scrollWidth-scroller.clientWidth},docks:[...document.querySelectorAll(selector)].map(box).filter(r=>r.width&&r.left>=box(stage).left)};
+   },stageControls);
    await p.screenshot({path:`${output}/${name}-${role}-kompakt.png`});
    assert.ok(geometry.page<=0,role+': no horizontal page overflow');
    assert.equal(geometry.scroll.w,0,role+': no horizontal narration overflow');
@@ -59,7 +68,9 @@ try{
    assert.ok(geometry.scroller.top>=geometry.title.bottom-0.5,role+': header and title never overlay the text');
    for(const dock of geometry.docks)assert.ok(!overlaps(geometry.section,dock),role+': stage controls and HUD docks do not cover narration '+JSON.stringify({section:geometry.section,dock}));
    assert.ok(geometry.scroll.h>geometry.scroll.c,role+': long text scrolls inside the narration');
-   assert.ok(geometry.section.height>=Math.min(geometry.stage.height*0.5,geometry.scroll.h),role+': reading area uses the available height ('+Math.round(geometry.section.height)+' of '+Math.round(geometry.stage.height)+')');
+   // Mobile keeps the round's condition cards available in compact mode; the expanded reading mode uses the full height.
+   const minimum=name==='375'?220:Math.min(geometry.stage.height*0.5,geometry.scroll.h);
+   assert.ok(geometry.section.height>=minimum,role+': reading area uses the available height ('+Math.round(geometry.section.height)+' of '+Math.round(geometry.stage.height)+')');
   }
   pass(name+': reading area large, inside the stage, nothing overlaid, no horizontal overflow');
 
@@ -84,7 +95,7 @@ try{
   assert.ok(wide.height>=compact.height-1&&wide.width>=compact.width-1&&wide.y+wide.height<=stage.y+stage.height+0.5);
   await pa.waitForFunction(()=>![...document.querySelectorAll('button[aria-label*="Zust"]')].some(e=>e.getBoundingClientRect().left>=56));
   await pa.screenshot({path:`${output}/${name}-a-lesemodus.png`});
-  const covered=await pa.evaluate(selector=>{const s=document.querySelector('[aria-label="Freigegebene Erzählung"]').getBoundingClientRect().toJSON();return [...document.querySelectorAll(selector)].map(e=>({label:e.getAttribute('aria-label'),...e.getBoundingClientRect().toJSON()})).filter(d=>d.width&&d.left>=56).map(d=>({...d,section:s}));},'nav[aria-label="Spielaktionen"],button[aria-label*="Zust"],button[aria-label="Kontext öffnen"],main>button[aria-label="Regie öffnen"]').then(list=>list.filter(d=>overlaps(d.section,d)));
+  const covered=await pa.evaluate(selector=>{const s=document.querySelector('[aria-label="Freigegebene Erzählung"]').getBoundingClientRect().toJSON();return [...document.querySelectorAll(selector)].map(e=>({label:e.getAttribute('aria-label'),...e.getBoundingClientRect().toJSON()})).filter(d=>d.width&&d.left>=56).map(d=>({...d,section:s}));},stageControls).then(list=>list.filter(d=>overlaps(d.section,d)));
   assert.deepEqual(covered,[],'Reading mode leaves stage controls and docks uncovered');
   assert.ok(await body(pa).evaluate(n=>n.scrollTop>0),'Reading position survives the size and mode change');
   assert.equal(await region(pb).getAttribute('data-expanded'),'false');
