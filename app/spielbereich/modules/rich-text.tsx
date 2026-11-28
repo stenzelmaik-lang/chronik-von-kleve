@@ -129,7 +129,16 @@ export function RichTextEditor({
   const [limitExceeded, setLimitExceeded] = useState((initialSource?.plainLength??0)>maximumPlainLength);
   const initialValueRef = useRef(value.startsWith(richHtmlPrefix)?canonicalRichText(value):value);
   const canonicalValueRef=useRef(canonicalRichText(value));
-  useLayoutEffect(()=>{initialValueRef.current=value.startsWith(richHtmlPrefix)?canonicalRichText(value):value;canonicalValueRef.current=canonicalRichText(value);},[value]);
+  useLayoutEffect(()=>{
+    initialValueRef.current=value.startsWith(richHtmlPrefix)?canonicalRichText(value):value;canonicalValueRef.current=canonicalRichText(value);
+    // A new value from outside (another entry, a reloaded draft) replaces stale content, unless the user is typing in
+    // the field right now. Otherwise the old text would stay visible and be written back on the next blur.
+    const editor=editorRef.current;
+    if(editor&&document.activeElement!==editor&&!editor.contains(document.activeElement)){
+      let shown='';try{shown=encodeRichText(documentFromEditor(editor));}catch{shown='';}
+      if(shown!==canonicalValueRef.current){replaceEditorContents(editor,initialValueRef.current,Boolean(proseClassName));lastEditorHtml.current=editor.innerHTML;setPlainLength(richTextToPlainText(value).length);}
+    }
+  },[value,proseClassName]);
   useLayoutEffect(() => {
     if (editorRef.current) {
       replaceEditorContents(editorRef.current, initialValueRef.current, Boolean(proseClassName));

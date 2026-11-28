@@ -373,3 +373,22 @@
 .milestoneLink p{margin:0;font-size:12.5px;color:var(--or-mute,#a7aeb0)}
 .milestoneRow{display:flex;flex-wrap:wrap;align-items:end;gap:8px}
 .milestoneRow label{min-width:240px;flex:1}
+
+/* Ortsbaum, aufgeräumt (28.11.): ruhige Kacheln, Aufklappen nur bei Einträgen mit Kindern, Status als kleines Etikett. */
+.cmsWorkspace .nodeTree{gap:3px}
+.treeToggle,.treeSpacer{flex:0 0 22px;width:22px;min-height:44px}
+.treeToggle{display:grid;place-items:center;padding:0;border:0;border-radius:4px;background:transparent;color:var(--or-mute,#a7aeb0);font-size:11px;cursor:pointer}
+.treeToggle:hover,.treeToggle:focus-visible{color:var(--or-ink,#e9e6df);background:var(--or-panel-2,#16242a);outline:none}
+.cmsWorkspace .nodeRow{min-height:52px;padding:8px 12px;border:1px solid transparent;border-radius:6px}
+.cmsWorkspace .nodeRow:hover{border-color:var(--or-line,#2c3b40)}
+.cmsWorkspace .nodeRow[data-selected=true]{border:1px solid var(--or-line-strong,#3e5359);box-shadow:inset 3px 0 0 var(--or-gold,#d6b36f)}
+.cmsWorkspace .nodeRow[data-level=location] .nodeCopy strong{font:400 16px/1.25 var(--cp-font-title,Georgia,serif)}
+.cmsWorkspace .nodeCopy small{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:2px}
+.treeState{padding:1px 7px;border:1px solid var(--or-line,#2c3b40);border-radius:999px;font-style:normal;font-size:11px;line-height:1.5;color:var(--or-mute,#a7aeb0)}
+.treeState[data-reach=table]{border-color:color-mix(in srgb,var(--or-gold,#d6b36f) 55%,transparent);color:var(--or-gold,#d6b36f)}
+.treeState[data-reach=sl]{border-style:dashed}
+.cmsWorkspace [data-level=area]>.treeToggle,.cmsWorkspace [data-level=area]>.treeSpacer{margin-left:12px}
+.cmsWorkspace [data-level=room]>.treeToggle,.cmsWorkspace [data-level=room]>.treeSpacer{margin-left:24px}
+.cmsWorkspace [data-level=information]>.treeToggle,.cmsWorkspace [data-level=information]>.treeSpacer{margin-left:0}
+.cmsWorkspace .nodeRow[data-level=area],.cmsWorkspace .nodeRow[data-level=room],.cmsWorkspace .nodeRow[data-level=information]{margin-left:0;width:auto}
+.treeHeading .button{display:inline-flex;align-items:center;gap:4px}
